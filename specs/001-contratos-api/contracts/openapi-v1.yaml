@@ -175,6 +175,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PedidoResponseDTO'
+              examples:
+                pedidoPendente:
+                  $ref: '#/components/examples/PedidoPendente'
         '400':
           $ref: '#/components/responses/ErroValidacao'
         '401':
@@ -223,6 +226,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PedidoResponseDTO'
+              examples:
+                pedidoCancelado:
+                  $ref: '#/components/examples/PedidoCancelado'
         '400':
           $ref: '#/components/responses/ErroValidacao'
         '401':
@@ -353,6 +359,27 @@ components:
         moeda: BRL
         criadoEm: '2026-10-21T15:30:00Z'
         atualizadoEm: '2026-10-21T15:30:00Z'
+    PedidoCancelado:
+      value:
+        id: 0f8fad5b-d9cb-469f-a165-70867728950e
+        numero: PED-20261021-000123
+        clienteId: 3f2b8c1e-6a4d-4e2f-9b1a-0c7d5e8f9a10
+        status: Cancelado
+        itens:
+          - produtoId: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+            nomeProduto: Teclado Mecânico
+            quantidade: 2
+            precoUnitario: 349.90
+            subtotal: 699.80
+          - produtoId: 9b2f1a3c-1d4e-4f5a-8b6c-7d8e9f0a1b2c
+            nomeProduto: Mouse sem fio
+            quantidade: 1
+            precoUnitario: 129.90
+            subtotal: 129.90
+        valorTotal: 829.70
+        moeda: BRL
+        criadoEm: '2026-10-21T15:30:00Z'
+        atualizadoEm: '2026-10-21T16:05:00Z'
 
   schemas:
     PerfilUsuario:
@@ -467,11 +494,11 @@ components:
           format: int32
         precoUnitario:
           type: number
-          format: double
+          format: decimal
           description: Duas casas decimais.
         subtotal:
           type: number
-          format: double
+          format: decimal
           description: Duas casas decimais.
 
     PedidoResponseDTO:
@@ -495,7 +522,7 @@ components:
             $ref: '#/components/schemas/ItemPedidoResponseDTO'
         valorTotal:
           type: number
-          format: double
+          format: decimal
           description: Duas casas decimais.
         moeda:
           type: string

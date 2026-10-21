@@ -35,15 +35,18 @@ dotnet run --project src/PedidoFulfillment.API
 ```
 
 1. Abra `https://localhost:<porta>/scalar/v1`.
-   **Esperado**: 5 operações agrupadas em *Autenticacao* e *Pedidos*.
-2. Abra `https://localhost:<porta>/openapi/v1.json`.
-   **Esperado**: documento OpenAPI 3.1 com o esquema `bearerAuth` e os schemas
-   `CriarPedidoRequestDTO`, `PedidoResponseDTO`, `ItemPedidoDTO`, `LoginResponseDTO`.
-3. Na UI, chame `POST /api/v1/pedidos` sem token.
+   **Esperado**: 5 operações agrupadas em *Autenticacao* e *Pedidos*, com exemplos, perfis
+   autorizados por operação, regras de idempotência e tabela de transições de status.
+2. Abra `https://localhost:<porta>/openapi/v1.yaml`.
+   **Esperado**: conteúdo idêntico a `contracts/openapi-v1.yaml`.
+3. Abra `https://localhost:<porta>/openapi/v1.json` (documento gerado pelo código).
+   **Esperado**: OpenAPI 3.1 com `bearerAuth` e os schemas `CriarPedidoRequestDTO`,
+   `PedidoResponseDTO`, `ItemPedidoDTO`, `LoginResponseDTO`.
+4. Na UI, chame `POST /api/v1/pedidos` sem token.
    **Esperado**: 401 `application/problem+json` com `traceId`.
-4. Chame `POST /api/v1/auth/register` com corpo `{}`.
+5. Chame `POST /api/v1/auth/register` com corpo `{}`.
    **Esperado**: 400 com `erros.nome`, `erros.email` e `erros.senha`.
-5. Chame `POST /api/v1/auth/register` com corpo válido.
+6. Chame `POST /api/v1/auth/register` com corpo válido.
    **Esperado neste REQ**: 501 `ProblemDetails` (implementação provisória, ver
    [research.md R-05](./research.md)). Passa a 201 no REQ-03.
 
@@ -54,7 +57,7 @@ $env:ASPNETCORE_ENVIRONMENT = "Production"
 dotnet run --project src/PedidoFulfillment.API
 ```
 
-**Esperado**: `/openapi/v1.json` e `/scalar/v1` devolvem 404 (R-04).
+**Esperado**: `/openapi/v1.yaml`, `/openapi/v1.json` e `/scalar/v1` devolvem 404 (R-04).
 
 ## 4. Revisão de PR (constituição)
 

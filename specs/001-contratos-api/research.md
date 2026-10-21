@@ -29,7 +29,13 @@ Cada decisão segue o formato Decisão / Justificativa / Alternativas.
 
 ## R-03. Interface de navegação do contrato
 
-- **Decisão**: `Scalar.AspNetCore`, em `/scalar/v1`, apontando para `/openapi/v1.json`.
+- **Decisão**: `Scalar.AspNetCore`, em `/scalar/v1`, apontando para **`/openapi/v1.yaml`**,
+  que é o contrato aprovado (`contracts/openapi-v1.yaml`) servido como arquivo estático.
+  O documento gerado pelo código (`/openapi/v1.json`) continua publicado, mas serve só
+  para o teste de conformidade (R-11). Assim os exemplos, os perfis por operação, a
+  descrição de idempotência e a tabela de transições (FR-004/FR-006) aparecem na UI sem
+  duplicar texto no código. A conformidade garante que o código não diverge do que a UI
+  mostra.
 - **Justificativa**: é a UI recomendada na documentação do .NET 9/10 para o documento
   nativo, tem suporte a OpenAPI 3.1 e a autenticação Bearer para testar operações.
 - **Alternativas**: `Swashbuckle.AspNetCore.SwaggerUI` apontando para o documento nativo:
@@ -38,9 +44,10 @@ Cada decisão segue o formato Decisão / Justificativa / Alternativas.
 
 ## R-04. Exposição por ambiente
 
-- **Decisão**: documento e UI são mapeados apenas nos ambientes `Development` e `Testes`.
-- **Justificativa**: atende a premissa da spec e reduz a superfície exposta em produção
-  (Princípio III). Os endpoints de documentação são públicos, como os de saúde.
+- **Decisão**: `/openapi/v1.yaml`, `/openapi/v1.json` e `/scalar/v1` são mapeados, sem
+  autenticação, apenas nos ambientes `Development` e `Testes`. Em produção não existem (404).
+- **Justificativa**: atende a premissa da spec e o Princípio III da constituição v1.1.0,
+  que permite documentação pública somente fora de produção.
 - **Alternativas**: expor em produção com autenticação: adiado até haver demanda.
 
 ## R-05. Endpoints antes das regras de negócio
@@ -91,8 +98,11 @@ Cada decisão segue o formato Decisão / Justificativa / Alternativas.
 - **Decisão**: um filtro de endpoint próprio, `FiltroValidacao<T>`, que valida o DTO com
   `System.ComponentModel.DataAnnotations` (atributos + `IValidatableObject`) e devolve 400
   com `ValidacaoProblemDetails`, cujo campo `erros` mapeia campo → mensagens (FR-010).
-  JSON mal formado, tipo errado e cabeçalho ou rota sem formato de UUID geram
-  `BadHttpRequestException`, que vira 400 `ProblemDetails`.
+  JSON mal formado, tipo errado, enum desconhecido e cabeçalho ou rota sem formato de UUID
+  geram `BadHttpRequestException`, que vira 400 `ProblemDetails`. Para isso,
+  `RouteHandlerOptions.ThrowOnBadRequest = true` é configurado **em todos os ambientes**.
+  O padrão do framework só liga essa opção em Development; nos outros ambientes a falha de
+  binding devolveria 400 sem corpo. A mensagem da exceção nunca é copiada para a resposta.
 - **Justificativa**: a validação nativa do .NET 10 (`AddValidation`) escreve
   `HttpValidationProblemDetails` com o campo `errors`, mas a spec aprovada pede `erros`.
   O filtro usa só recursos do framework, sem pacote novo.
@@ -102,7 +112,9 @@ Cada decisão segue o formato Decisão / Justificativa / Alternativas.
 
 ## R-09. Serialização
 
-- **Decisão**: `System.Text.Json` em camelCase com `JsonStringEnumConverter` global. Assim
+- **Decisão**: `System.Text.Json` em camelCase com `JsonStringEnumConverter` global. No
+  contrato, os valores monetários usam `type: number, format: decimal`. O comparador do
+  teste aceita `double` gerado pelo .NET como equivalente. Assim
   enums viajam como texto (FR-021) e o documento OpenAPI exibe enums com os nomes. Datas
   em `DateTimeOffset` UTC (ISO 8601). Valores monetários em `decimal`, arredondados a 2
   casas no serviço (FR-022). Campos desconhecidos são ignorados (padrão do STJ).
@@ -128,8 +140,10 @@ Cada decisão segue o formato Decisão / Justificativa / Alternativas.
 - **Justificativa**: atende ao FR-024 e ao SC-005. Usa o mesmo modelo de objetos
   (`Microsoft.OpenApi`) que o gerador nativo, sem parser próprio.
 - **Alternativas**: comparação textual dos arquivos: rejeitada, porque é frágil a ordem e
-  formatação. Ferramentas externas de diff (oasdiff): podem entrar depois na pipeline
-  para detectar quebra entre versões (SC-006).
+  formatação.
+- **Compatibilidade entre versões (SC-006/FR-023)**: um workflow do GitHub Actions roda o
+  `oasdiff breaking` entre o `contracts/openapi-v1.yaml` da `main` e o do PR, e falha em
+  qualquer mudança incompatível. O oasdiff é uma ferramenta de CI, não um pacote NuGet.
 
 ## R-12. Bibliotecas de teste
 

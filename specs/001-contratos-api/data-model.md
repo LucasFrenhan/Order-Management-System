@@ -26,7 +26,7 @@ Trafega como texto (FR-021).
 
 | Campo | Tipo | Obrigatório | Regras |
 |-------|------|-------------|--------|
-| nome | string | sim | 2–100 caracteres, sem espaços só nas pontas (aparado) |
+| nome | string | sim | 2–100 caracteres contados após remover espaços das pontas (`nome.Trim()`); o aparo definitivo é do serviço (REQ-03) |
 | email | string (email) | sim | formato válido, até 256 caracteres; comparado sem diferenciar maiúsculas |
 | senha | string (password) | sim | 8–128 caracteres, ≥1 maiúscula, ≥1 minúscula, ≥1 dígito |
 
@@ -80,7 +80,7 @@ status nem identificador do usuário (FR-016).
 | produtoId | uuid | sim | |
 | nomeProduto | string | sim | nome no momento da criação |
 | quantidade | int32 | sim | |
-| precoUnitario | decimal (2 casas) | sim | preço do cadastro no momento da criação |
+| precoUnitario | decimal (2 casas; `number`/`decimal` no contrato) | sim | preço do cadastro no momento da criação |
 | subtotal | decimal (2 casas) | sim | `precoUnitario × quantidade` |
 
 ### PedidoResponseDTO

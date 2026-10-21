@@ -40,7 +40,7 @@ OpenAPI é gerado uma vez e servido do cache
 **Constraints**: contrato v1 só evolui com adições opcionais; documento e UI só em
 `Development`/`Testes`; nomes em português; nenhum endpoint acessa dados nem contém regra
 
-**Scale/Scope**: 5 operações, 10 schemas de DTO/enum, 3 schemas de erro, 3 policies
+**Scale/Scope**: 5 operações, 11 schemas (9 DTOs e 2 enums), 3 schemas de erro, 3 policies
 
 ## Constitution Check
 
@@ -50,7 +50,7 @@ OpenAPI é gerado uma vez e servido do cache
 |-------------------|----------|-----------|
 | I. Specification-First | ✅ | spec aprovada e clarificada; contrato YAML aprovado antes do código; commits com `[REQ-01]` |
 | II. Contratos imutáveis e versionados | ✅ | prefixo `/api/v1`; FR-023; teste de conformidade (R-11); catálogo de `codigo` estável |
-| III. Segurança por padrão | ✅ | JWT Bearer + policies em todas as rotas exceto register/login e documentação; documentação só fora de produção; erros sem dados sensíveis |
+| III. Segurança por padrão (v1.1.0) | ✅ | JWT Bearer + policies em todas as rotas exceto register/login; documentação pública só em Development/Testes, como permite a emenda v1.1.0; erros sem dados sensíveis |
 | IV. Desacoplamento assíncrono | ➖ N/A | nenhum efeito colateral neste REQ (eventos no REQ-06) |
 | V. Qualidade verificável | ✅ | testes unitários de validação; integração 401/403 + sucesso por rota protegida; testes de serialização dos DTOs |
 | Minimal API só roteia | ✅ | handlers delegam a `IServicoAutenticacao` / `IServicoPedidos` |
@@ -126,7 +126,9 @@ src/
     │   ├── ConfiguracaoProblemDetails.cs
     │   └── FiltroValidacao.cs
     ├── OpenApi/
-    │   └── TransformadorSegurancaOpenApi.cs   # bearerAuth + 401/403 nas rotas protegidas
+    │   ├── TransformadorSegurancaOpenApi.cs   # bearerAuth + 401/403 nas rotas protegidas
+    │   └── EndpointsDocumentacao.cs   # /openapi/v1.yaml (contrato aprovado) + Scalar
+    ├── Contrato/openapi-v1.yaml       # link de build para specs/001-contratos-api/contracts
     └── Provisorio/
         └── ServicoNaoImplementado.cs  # 501 até REQ-03/REQ-05 (remover depois)
 
@@ -144,8 +146,13 @@ tests/
 **Structure Decision**: Clean Architecture simples, conforme a issue de setup (REQ-02).
 Este REQ cria só Domain, Application e API, o mínimo para publicar o contrato. O projeto
 Infrastructure, o `docker-compose.yml` e as strings de conexão ficam no REQ-02. O teste
-de conformidade lê o YAML diretamente de `specs/001-contratos-api/contracts/` (copiado
-para a saída do build), assim existe uma única fonte da verdade.
+de conformidade e a API leem o YAML diretamente de `specs/001-contratos-api/contracts/`
+(arquivo vinculado e copiado para a saída do build), assim existe uma única fonte da
+verdade. A UI mostra o YAML aprovado e o teste prova que o código é conforme a ele
+(research R-03).
+
+Além disso, `.github/workflows/contrato-compatibilidade.yml` roda o `oasdiff breaking`
+contra a `main` em todo PR que altere o contrato (SC-006).
 
 ## Complexity Tracking
 

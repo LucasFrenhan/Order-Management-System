@@ -46,7 +46,7 @@ contrato que pode ser testado sozinho.
 - [ ] T002 Criar `Directory.Build.props` na raiz com `TargetFramework net10.0`, `Nullable enable`, `ImplicitUsings enable`, `TreatWarningsAsErrors true`, `LangVersion latest`, e `.editorconfig` com as regras padrão do .NET
 - [ ] T003 Criar `Directory.Packages.props` na raiz com `ManagePackageVersionsCentrally=true` e as versões estáveis mais recentes compatíveis com .NET 10 de: `Microsoft.AspNetCore.OpenApi`, `Scalar.AspNetCore`, `Microsoft.AspNetCore.Authentication.JwtBearer`, `xunit.v3`, `xunit.runner.visualstudio`, `Microsoft.NET.Test.Sdk`, `FluentAssertions` **fixado em `[7.2.0,8.0.0)`** (licença, R-12), `Microsoft.AspNetCore.Mvc.Testing`, `Microsoft.OpenApi.YamlReader` (mesma versão maior do `Microsoft.OpenApi` usado por `Microsoft.AspNetCore.OpenApi`). Nenhum outro pacote
 - [ ] T004 Criar a solução `PedidoFulfillment.sln` e os projetos: `src/PedidoFulfillment.Domain` (classlib), `src/PedidoFulfillment.Application` (classlib, referencia Domain), `src/PedidoFulfillment.API` (web vazio, referencia Application e Domain), `tests/PedidoFulfillment.Testes.Unitarios` (xUnit v3, referencia Application) e `tests/PedidoFulfillment.Testes.Integracao` (xUnit v3, referencia API). Remover arquivos de exemplo gerados pelos templates
-- [ ] T005 Adicionar as referências de pacote (sem versão, vindas de T003) a cada `.csproj`, conforme a tabela de justificativas do plan.md; em `tests/PedidoFulfillment.Testes.Integracao/PedidoFulfillment.Testes.Integracao.csproj` incluir `<None Include="..\..\specs\001-contratos-api\contracts\openapi-v1.yaml" Link="Contrato\openapi-v1.yaml" CopyToOutputDirectory="PreserveNewest" />`
+- [ ] T005 Adicionar as referências de pacote (sem versão, vindas de T003) a cada `.csproj`, conforme a tabela de justificativas do plan.md; em `src/PedidoFulfillment.API/PedidoFulfillment.API.csproj` **e** em `tests/PedidoFulfillment.Testes.Integracao/PedidoFulfillment.Testes.Integracao.csproj` incluir `<None Include="..\..\specs\001-contratos-api\contracts\openapi-v1.yaml" Link="Contrato\openapi-v1.yaml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />` (fonte única da verdade, R-03)
 - [ ] T006 Rodar `dotnet build PedidoFulfillment.sln` e `dotnet test PedidoFulfillment.sln` e garantir que compilam sem avisos
 
 ---
@@ -71,13 +71,13 @@ contrato que pode ser testado sozinho.
 - [ ] T018 Criar `TransformadorSchemasErroOpenApi` em `src/PedidoFulfillment.API/OpenApi/TransformadorSchemasErroOpenApi.cs`, que registra os schemas `ProblemDetails`, `ValidacaoProblemDetails` e `NegocioProblemDetails` exatamente como em `contracts/openapi-v1.yaml` e adiciona 500 `ProblemDetails` a todas as operações. Configurar `info.title` = "Order Management System - API de Pedidos" e `info.version` = "v1", e as tags `Autenticacao` e `Pedidos`
 - [ ] T019 Criar as interfaces vazias `IServicoAutenticacao` em `src/PedidoFulfillment.Application/Autenticacao/IServicoAutenticacao.cs` e `IServicoPedidos` em `src/PedidoFulfillment.Application/Pedidos/IServicoPedidos.cs`
 - [ ] T020 Criar `ServicoNaoImplementado` (implementa `IServicoAutenticacao` e `IServicoPedidos`, todos os métodos devolvem `Resultado` com `TipoFalha.NaoImplementado`, título "Operação ainda não implementada.") em `src/PedidoFulfillment.API/Provisorio/ServicoNaoImplementado.cs`, com comentário `// Provisório (research R-05): remover no REQ-03/REQ-05`. As interfaces começam vazias e ganham métodos em cada história
-- [ ] T021 Montar `src/PedidoFulfillment.API/Program.cs`: `ConfigureHttpJsonOptions` (camelCase, `JsonStringEnumConverter`, ignorar campos desconhecidos), ProblemDetails (T011), autenticação/autorização (T014/T015), `AddOpenApi("v1")` com os transformers T017/T018, registro de `ServicoNaoImplementado` para as duas interfaces; pipeline `UseExceptionHandler` → `UseStatusCodePages` → `UseAuthentication` → `UseAuthorization`; `MapOpenApi()` e `MapScalarApiReference()` (com `AllowAnonymous`) **somente** quando o ambiente for `Development` ou `Testes`; deixar `public partial class Program;` para os testes
+- [ ] T021 Montar `src/PedidoFulfillment.API/Program.cs`: `ConfigureHttpJsonOptions` (camelCase, `JsonStringEnumConverter`, ignorar campos desconhecidos), `Configure<RouteHandlerOptions>(o => o.ThrowOnBadRequest = true)` **em todos os ambientes** (R-08; sem isso, fora de Development, falhas de binding viram 400 sem corpo), ProblemDetails (T011), autenticação/autorização (T014/T015), `AddOpenApi("v1")` com os transformers T017/T018, registro de `ServicoNaoImplementado` para as duas interfaces; pipeline `UseExceptionHandler` → `UseStatusCodePages` → `UseAuthentication` → `UseAuthorization`; `MapOpenApi()` e `MapearEndpointsDocumentacao()` (T029) com `AllowAnonymous` **somente** quando o ambiente for `Development` ou `Testes` (constituição v1.1.0, Princípio III); deixar `public partial class Program;` para os testes
 - [ ] T022 [P] Criar `GeradorTokenTeste` em `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/GeradorTokenTeste.cs`, que gera JWT com a chave de teste para um `usuarioId` e perfis informados, com opções para token expirado, assinatura inválida e audiência errada
 - [ ] T023 [P] Criar `FabricaApi : WebApplicationFactory<Program>` em `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/FabricaApi.cs`, com ambiente `Testes`, configuração `Jwt` de teste em memória e a possibilidade de substituir `IServicoAutenticacao`/`IServicoPedidos` por fakes; e `ClienteHttpExtensoes` (`ComToken(perfis...)`)
 - [ ] T024 [P] Criar `LeitorContrato` em `tests/PedidoFulfillment.Testes.Integracao/Contrato/LeitorContrato.cs`, que carrega `Contrato/openapi-v1.yaml` com `Microsoft.OpenApi.YamlReader` e o JSON de `/openapi/v1.json` com o leitor JSON do `Microsoft.OpenApi`, e `ComparadorContrato`, que compara para uma operação (`método + caminho`): parâmetros (nome, local, obrigatório, formato), corpo (schema referenciado), códigos de resposta, segurança e, para cada schema referenciado, propriedades, `type`/`format`, `required`, `enum`, `minLength`/`maxLength`/`minimum`/`maximum`/`minItems`/`maxItems`/`pattern`. Ignora descrições e exemplos. `number` com formato `double` ou `decimal` é equivalente (R-11)
 - [ ] T025 Criar o teste de formato de erro global em `tests/PedidoFulfillment.Testes.Integracao/Erros/FormatoErroTestes.cs`: rota inexistente → 404 `application/problem+json` com `type`, `title`, `status`, `instance`, `traceId`; exceção não tratada (endpoint de teste registrado só pela `FabricaApi`) → 500 sem `detail`, sem stack trace e sem nome de tipo .NET
 
-**Checkpoint**: `dotnet test` verde; a API sobe com `/openapi/v1.json` contendo `bearerAuth` e os schemas de erro.
+**Checkpoint**: `dotnet test` verde; a API sobe (com o 400 de binding em ProblemDetails também fora de Development) e `/openapi/v1.json` contendo `bearerAuth` e os schemas de erro.
 
 ---
 
@@ -89,15 +89,15 @@ contrato que pode ser testado sozinho.
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T026 [P] [US1] Teste em `tests/PedidoFulfillment.Testes.Integracao/Contrato/PublicacaoContratoTestes.cs`: em `Testes`, `GET /openapi/v1.json` e `GET /scalar/v1` → 200 sem token; documento declara OpenAPI 3.1, `info.version` = `v1` e `securitySchemes.bearerAuth` (http/bearer/JWT); em `Production` (fábrica com ambiente trocado) ambos → 404
-- [ ] T027 [P] [US1] Teste `ConformidadeOpenApiTestes` em `tests/PedidoFulfillment.Testes.Integracao/Contrato/ConformidadeOpenApiTestes.cs`: (a) schemas `ProblemDetails`, `ValidacaoProblemDetails`, `NegocioProblemDetails`, `StatusPedido`, `PerfilUsuario` do gerado são equivalentes aos do contrato; (b) `[Theory]` com uma linha por operação do contrato (`POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `POST /api/v1/pedidos`, `GET /api/v1/pedidos/{id}`, `PATCH /api/v1/pedidos/{id}/status`) usando `ComparadorContrato`; (c) nenhuma resposta 501 aparece no documento gerado. As linhas de (b) ficam vermelhas até cada história entregar sua operação
+- [ ] T026 [P] [US1] Teste em `tests/PedidoFulfillment.Testes.Integracao/Contrato/PublicacaoContratoTestes.cs`: em `Testes`, `GET /openapi/v1.yaml`, `GET /openapi/v1.json` e `GET /scalar/v1` → 200 sem token; o corpo de `/openapi/v1.yaml` é byte a byte igual a `Contrato/openapi-v1.yaml` e tem content-type `application/yaml`; o JSON gerado declara OpenAPI 3.1, `info.version` = `v1` e `securitySchemes.bearerAuth` (http/bearer/JWT); o HTML do Scalar referencia `/openapi/v1.yaml`; em `Production` (fábrica com ambiente trocado) os três → 404
+- [ ] T027 [P] [US1] Teste `ConformidadeOpenApiTestes` em `tests/PedidoFulfillment.Testes.Integracao/Contrato/ConformidadeOpenApiTestes.cs`: (a) schemas `ProblemDetails`, `ValidacaoProblemDetails`, `NegocioProblemDetails`, `StatusPedido`, `PerfilUsuario` do gerado são equivalentes aos do contrato; (b) `[Theory]` `OperacaoConformeAoContrato(metodo, caminho)` usando `ComparadorContrato`, **criado sem linhas**: cada história acrescenta a linha da sua operação junto com o endpoint (T039, T049, T053, T058), assim a suíte fica verde ao fim de cada fase; (c) nenhuma resposta 501 aparece no documento gerado
 
 ### Implementation for User Story 1
 
 - [ ] T028 [US1] Garantir que os schemas de enum `StatusPedido` e `PerfilUsuario` saem no documento como `type: string` com `enum` (ajustar no `TransformadorSchemasErroOpenApi` se o gerador nativo não produzir isso) em `src/PedidoFulfillment.API/OpenApi/TransformadorSchemasErroOpenApi.cs`
-- [ ] T029 [US1] Configurar `MapScalarApiReference` com título "OMS - API v1", autenticação Bearer pré-selecionada e o documento `v1` em `src/PedidoFulfillment.API/Program.cs`
+- [ ] T029 [US1] Criar `EndpointsDocumentacao.MapearEndpointsDocumentacao()` em `src/PedidoFulfillment.API/OpenApi/EndpointsDocumentacao.cs`: `GET /openapi/v1.yaml` servindo o arquivo `Contrato/openapi-v1.yaml` da pasta da aplicação com `application/yaml` (excluído do documento gerado com `ExcludeFromDescription`), e `MapScalarApiReference` com título "OMS - API v1", autenticação Bearer pré-selecionada e documento `v1` apontando para `/openapi/v1.yaml`
 
-**Checkpoint**: T026 e T027(a)/(c) verdes; quickstart §2 itens 1–2 e §3 conferem.
+**Checkpoint**: T026 e T027 verdes; quickstart §2 itens 1–3 e §3 conferem.
 
 ---
 
@@ -105,7 +105,7 @@ contrato que pode ser testado sozinho.
 
 **Goal**: `POST /api/v1/auth/register` e `POST /api/v1/auth/login` mapeados, públicos, com validação e respostas do contrato.
 
-**Independent Test**: as linhas de register e login do T027(b) ficam verdes; validação devolve 400 com `erros`; com fake, sucesso devolve 201/200 com os DTOs corretos.
+**Independent Test**: as linhas de register e login acrescentadas ao T027(b) ficam verdes; validação devolve 400 com `erros`; com fake, sucesso devolve 201/200 com os DTOs corretos.
 
 ### Tests for User Story 2 ⚠️
 
@@ -116,12 +116,12 @@ contrato que pode ser testado sozinho.
 
 ### Implementation for User Story 2
 
-- [ ] T034 [P] [US2] Criar `RegistrarUsuarioRequestDTO` (`nome` `[Required][StringLength(100, MinimumLength = 2)]`, aparado; `email` `[Required][EmailAddress][MaxLength(256)]`; `senha` `[Required][StringLength(128, MinimumLength = 8)]` + regra "≥1 maiúscula, ≥1 minúscula, ≥1 dígito" via `IValidatableObject`) em `src/PedidoFulfillment.Application/Contratos/Autenticacao/RegistrarUsuarioRequestDTO.cs`
+- [ ] T034 [P] [US2] Criar `RegistrarUsuarioRequestDTO` (`nome` `[Required]` + `IValidatableObject` validando "2–100 caracteres contados após `nome.Trim()`" (o DTO não altera o valor; o aparo definitivo é do serviço no REQ-03); `email` `[Required][EmailAddress][MaxLength(256)]`; `senha` `[Required][StringLength(128, MinimumLength = 8)]` + regra "≥1 maiúscula, ≥1 minúscula, ≥1 dígito" via `IValidatableObject`) em `src/PedidoFulfillment.Application/Contratos/Autenticacao/RegistrarUsuarioRequestDTO.cs`
 - [ ] T035 [P] [US2] Criar `UsuarioResponseDTO` (`Guid Id`, `string Nome`, `string Email`, `IReadOnlyList<PerfilUsuario> Perfis`) em `src/PedidoFulfillment.Application/Contratos/Autenticacao/UsuarioResponseDTO.cs`
 - [ ] T036 [P] [US2] Criar `LoginRequestDTO` (`email` `[Required][EmailAddress]`, `senha` `[Required]`) em `src/PedidoFulfillment.Application/Contratos/Autenticacao/LoginRequestDTO.cs`
 - [ ] T037 [P] [US2] Criar `LoginResponseDTO` (`string TokenAcesso`, `string TipoToken` = "Bearer", `DateTimeOffset ExpiraEm`, `IReadOnlyList<PerfilUsuario> Perfis`) em `src/PedidoFulfillment.Application/Contratos/Autenticacao/LoginResponseDTO.cs`
 - [ ] T038 [US2] Adicionar a `IServicoAutenticacao` os métodos `Task<Resultado<UsuarioResponseDTO>> RegistrarAsync(RegistrarUsuarioRequestDTO, CancellationToken)` e `Task<Resultado<LoginResponseDTO>> AutenticarAsync(LoginRequestDTO, CancellationToken)` em `src/PedidoFulfillment.Application/Autenticacao/IServicoAutenticacao.cs`, e as implementações 501 em `src/PedidoFulfillment.API/Provisorio/ServicoNaoImplementado.cs`
-- [ ] T039 [US2] Criar `EndpointsAutenticacao.MapearEndpointsAutenticacao()` em `src/PedidoFulfillment.API/Endpoints/EndpointsAutenticacao.cs`: grupo `/api/v1/auth` com tag `Autenticacao` e `AllowAnonymous`; `POST /register` (`operationId` `RegistrarUsuario`, `FiltroValidacao<RegistrarUsuarioRequestDTO>`, `Produces<UsuarioResponseDTO>(201)`, `ProducesValidationProblem`→`ValidacaoProblemDetails` 400, `NegocioProblemDetails` 409) e `POST /login` (`operationId` `AutenticarUsuario`, `Produces<LoginResponseDTO>(200)`, 400, 401 `ProblemDetails`). Handler só chama o serviço e `ParaResposta()`; register com sucesso devolve `TypedResults.Created` sem `Location`. Registrar em `Program.cs`
+- [ ] T039 [US2] Acrescentar as linhas `POST /api/v1/auth/register` e `POST /api/v1/auth/login` ao `[Theory]` do T027(b) e criar `EndpointsAutenticacao.MapearEndpointsAutenticacao()` em `src/PedidoFulfillment.API/Endpoints/EndpointsAutenticacao.cs`: grupo `/api/v1/auth` com tag `Autenticacao` e `AllowAnonymous`; `POST /register` (`operationId` `RegistrarUsuario`, `FiltroValidacao<RegistrarUsuarioRequestDTO>`, `Produces<UsuarioResponseDTO>(201)`, `ProducesValidationProblem`→`ValidacaoProblemDetails` 400, `NegocioProblemDetails` 409) e `POST /login` (`operationId` `AutenticarUsuario`, `Produces<LoginResponseDTO>(200)`, 400, 401 `ProblemDetails`). Handler só chama o serviço e `ParaResposta()`; register com sucesso devolve `TypedResults.Created` sem `Location`. Registrar em `Program.cs`
 
 **Checkpoint**: T030–T033 verdes; linhas register/login do T027(b) verdes.
 
@@ -147,7 +147,7 @@ contrato que pode ser testado sozinho.
 - [ ] T046 [P] [US3] Criar `PedidoResponseDTO` (`Guid Id`, `string Numero` no padrão `PED-AAAAMMDD-NNNNNN`, `Guid ClienteId`, `StatusPedido Status`, `IReadOnlyList<ItemPedidoResponseDTO> Itens`, `decimal ValorTotal`, `string Moeda` = "BRL", `DateTimeOffset CriadoEm`, `DateTimeOffset AtualizadoEm`) em `src/PedidoFulfillment.Application/Contratos/Pedidos/PedidoResponseDTO.cs`
 - [ ] T047 [US3] Adicionar a `IServicoPedidos` o método `Task<Resultado<PedidoResponseDTO>> CriarAsync(Guid clienteId, Guid chaveIdempotencia, CriarPedidoRequestDTO pedido, CancellationToken)` em `src/PedidoFulfillment.Application/Pedidos/IServicoPedidos.cs` e a implementação 501 em `src/PedidoFulfillment.API/Provisorio/ServicoNaoImplementado.cs`
 - [ ] T048 [US3] Criar `ExtensoesUsuario.ObterUsuarioId(ClaimsPrincipal)` (lê o claim `sub` como `Guid`) e `ObterPerfis(ClaimsPrincipal)` em `src/PedidoFulfillment.API/Seguranca/ExtensoesUsuario.cs`
-- [ ] T049 [US3] Criar `EndpointsPedidos.MapearEndpointsPedidos()` em `src/PedidoFulfillment.API/Endpoints/EndpointsPedidos.cs` com grupo `/api/v1/pedidos` (tag `Pedidos`) e `POST /` (`operationId` `CriarPedido`, `RequireAuthorization(PoliticaCliente)`, `[FromHeader(Name = "X-Idempotency-Key")] Guid`, `FiltroValidacao<CriarPedidoRequestDTO>`, `Produces<PedidoResponseDTO>(201)` com cabeçalho `Location`, 400, 409 e 422 `NegocioProblemDetails`); o handler chama `CriarAsync(User.ObterUsuarioId(), chave, dto)` e devolve `TypedResults.Created($"/api/v1/pedidos/{id}", dto)`. Registrar em `Program.cs`
+- [ ] T049 [US3] Acrescentar a linha `POST /api/v1/pedidos` ao `[Theory]` do T027(b) e criar `EndpointsPedidos.MapearEndpointsPedidos()` em `src/PedidoFulfillment.API/Endpoints/EndpointsPedidos.cs` com grupo `/api/v1/pedidos` (tag `Pedidos`) e `POST /` (`operationId` `CriarPedido`, `RequireAuthorization(PoliticaCliente)`, `[FromHeader(Name = "X-Idempotency-Key")] Guid`, `FiltroValidacao<CriarPedidoRequestDTO>`, `Produces<PedidoResponseDTO>(201)` com cabeçalho `Location`, 400, 409 e 422 `NegocioProblemDetails`); o handler chama `CriarAsync(User.ObterUsuarioId(), chave, dto)` e devolve `TypedResults.Created($"/api/v1/pedidos/{id}", dto)`. Registrar em `Program.cs`
 - [ ] T050 [US3] Adicionar ao documento o parâmetro `X-Idempotency-Key` como `string`/`uuid` obrigatório, a descrição de idempotência do contrato e o cabeçalho de resposta `Location` (transformer de operação em `src/PedidoFulfillment.API/OpenApi/TransformadorPedidosOpenApi.cs`), se o gerador nativo não produzir isso
 
 **Checkpoint**: T040–T042 verdes; linha `POST /api/v1/pedidos` do T027(b) verde.
@@ -167,7 +167,7 @@ contrato que pode ser testado sozinho.
 ### Implementation for User Story 4
 
 - [ ] T052 [US4] Adicionar a `IServicoPedidos` o método `Task<Resultado<PedidoResponseDTO>> ObterAsync(Guid pedidoId, Guid usuarioId, IReadOnlyCollection<PerfilUsuario> perfis, CancellationToken)` em `src/PedidoFulfillment.Application/Pedidos/IServicoPedidos.cs`, com comentário XML documentando "Cliente que não é dono recebe NaoEncontrado", e a implementação 501 em `src/PedidoFulfillment.API/Provisorio/ServicoNaoImplementado.cs`
-- [ ] T053 [US4] Adicionar `GET /{id}` (sem restrição `:guid` na rota, R-10; `operationId` `ObterPedido`; `RequireAuthorization(PoliticaConsultaPedido)`; `Produces<PedidoResponseDTO>(200)`, 400, 404) em `src/PedidoFulfillment.API/Endpoints/EndpointsPedidos.cs`
+- [ ] T053 [US4] Acrescentar a linha `GET /api/v1/pedidos/{id}` ao `[Theory]` do T027(b) e adicionar `GET /{id}` (sem restrição `:guid` na rota, R-10; `operationId` `ObterPedido`; `RequireAuthorization(PoliticaConsultaPedido)`; `Produces<PedidoResponseDTO>(200)`, 400, 404) em `src/PedidoFulfillment.API/Endpoints/EndpointsPedidos.cs`
 
 **Checkpoint**: T051 verde; linha `GET /api/v1/pedidos/{id}` do T027(b) verde.
 
@@ -186,9 +186,9 @@ contrato que pode ser testado sozinho.
 
 ### Implementation for User Story 5
 
-- [ ] T056 [P] [US5] Criar `AtualizarStatusPedidoRequestDTO` (`StatusPedido? Status` `[Required]`; `string? Motivo` `[MaxLength(500)]`; `IValidatableObject` para "não pode ser `PagamentoRejeitado`" e "obrigatório se `status = Cancelado`") em `src/PedidoFulfillment.Application/Contratos/Pedidos/AtualizarStatusPedidoRequestDTO.cs`
+- [ ] T056 [P] [US5] Criar `AtualizarStatusPedidoRequestDTO` (`StatusPedido Status` **não anulável**, para o schema gerado bater com o contrato, I3; campo ausente é detectado com `[JsonRequired]`, que gera falha de binding → 400 via T011; `string? Motivo` `[MaxLength(500)]`; `IValidatableObject` para "não pode ser `PagamentoRejeitado`" e "obrigatório se `status = Cancelado`") em `src/PedidoFulfillment.Application/Contratos/Pedidos/AtualizarStatusPedidoRequestDTO.cs`
 - [ ] T057 [US5] Adicionar a `IServicoPedidos` o método `Task<Resultado<PedidoResponseDTO>> AtualizarStatusAsync(Guid pedidoId, Guid usuarioId, IReadOnlyCollection<PerfilUsuario> perfis, AtualizarStatusPedidoRequestDTO dto, CancellationToken)` em `src/PedidoFulfillment.Application/Pedidos/IServicoPedidos.cs`, com comentário XML reproduzindo a tabela de transições do FR-020 (De/Para/Perfis) e as regras 403/404/409, e a implementação 501 em `src/PedidoFulfillment.API/Provisorio/ServicoNaoImplementado.cs`
-- [ ] T058 [US5] Adicionar `PATCH /{id}/status` (`operationId` `AtualizarStatusPedido`; `RequireAuthorization(PoliticaAtualizacaoStatusPedido)`; `FiltroValidacao<AtualizarStatusPedidoRequestDTO>`; `Produces<PedidoResponseDTO>(200)`, 400, 404, 409 `NegocioProblemDetails`) em `src/PedidoFulfillment.API/Endpoints/EndpointsPedidos.cs`
+- [ ] T058 [US5] Acrescentar a linha `PATCH /api/v1/pedidos/{id}/status` ao `[Theory]` do T027(b) e adicionar `PATCH /{id}/status` (`operationId` `AtualizarStatusPedido`; `RequireAuthorization(PoliticaAtualizacaoStatusPedido)`; `FiltroValidacao<AtualizarStatusPedidoRequestDTO>`; `Produces<PedidoResponseDTO>(200)`, 400, 404, 409 `NegocioProblemDetails`) em `src/PedidoFulfillment.API/Endpoints/EndpointsPedidos.cs`
 
 **Checkpoint**: T054–T055 verdes; todas as linhas do T027(b) verdes.
 
@@ -200,7 +200,8 @@ contrato que pode ser testado sozinho.
 - [ ] T060 [P] Teste de segurança abrangente em `tests/PedidoFulfillment.Testes.Integracao/Seguranca/AutorizacaoEndpointsTestes.cs`: percorre todos os endpoints do `EndpointDataSource` e falha se algum, exceto register, login, `/openapi/*` e `/scalar/*`, não exigir autorização (garante o Princípio III para rotas futuras)
 - [ ] T061 [P] Criar `README.md` na raiz com: objetivo do OMS, pré-requisitos (.NET 10 SDK), como compilar/testar/rodar, link para `specs/001-contratos-api/quickstart.md` e para o contrato, e o aviso de que as operações devolvem 501 até REQ-03/REQ-05
 - [ ] T062 Executar o [quickstart.md](./quickstart.md) completo (§1–§3) e registrar o resultado no PR
-- [ ] T063 Revisão final contra a constituição: endpoints sem regra nem acesso a dados, nomes em português, só pacotes justificados no `Directory.Packages.props`, todos os erros em ProblemDetails, commits com `[REQ-01]`
+- [ ] T063 [P] Criar `.github/workflows/contrato-compatibilidade.yml`: em `pull_request` que altere `specs/**/contracts/*.yaml`, baixar o arquivo da `main` (`git show origin/main:specs/001-contratos-api/contracts/openapi-v1.yaml`) e rodar `oasdiff breaking <base> <head> --fail-on ERR` (imagem `tufin/oasdiff` com versão fixa); se o arquivo ainda não existir na `main`, o job passa com aviso (SC-006, FR-023)
+- [ ] T064 Revisão final contra a constituição: endpoints sem regra nem acesso a dados, nomes em português, só pacotes justificados no `Directory.Packages.props`, todos os erros em ProblemDetails, commits com `[REQ-01]`
 
 ---
 
@@ -209,7 +210,7 @@ contrato que pode ser testado sozinho.
 ### Phase Dependencies
 
 - **Setup (Phase 1)** → **Foundational (Phase 2)** → histórias.
-- **US1 (Phase 3)**: depende só da Phase 2. As linhas de operação do T027(b) ficam vermelhas até as histórias seguintes, o que é esperado (TDD).
+- **US1 (Phase 3)**: depende só da Phase 2. O T027(b) nasce sem linhas; cada história acrescenta a sua, então a suíte fica verde ao fim de cada fase.
 - **US2, US3, US4, US5**: dependem da Phase 2 e do T027 (US1), que verifica a conformidade de cada uma. Entre si são independentes, com uma ressalva: US4 e US5 editam `EndpointsPedidos.cs`, criado em US3, e usam `PedidoResponseDTO` (T046). Faça US3 antes de US4/US5.
 - **Polish (Phase 8)**: depois de todas as histórias.
 
@@ -245,7 +246,7 @@ e a conformidade dos schemas comuns verificada. Ponto de demonstração da User 
 
 ### Entrega incremental
 
-Cada história fecha a conformidade de suas operações (linhas do T027(b)). Commit ao fim
+Cada história acrescenta e fecha a linha de conformidade de suas operações no T027(b). Commit ao fim
 de cada fase, por exemplo `feat(autenticacao): mapeia contratos de registro e login [REQ-01]`.
 
 ### Fora do escopo do REQ-01

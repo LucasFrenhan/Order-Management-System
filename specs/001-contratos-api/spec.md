@@ -243,7 +243,7 @@ os perfis autorizados, a tabela de transições e as respostas 200, 400, 401, 40
 
 - **FR-012**: O schema `RegistrarUsuarioRequestDTO` MUST conter `nome` (obrigatório, 2 a
   100 caracteres), `email` (obrigatório, formato válido, até 256 caracteres) e `senha`
-  (obrigatória, mínimo de 8 caracteres, com ao menos uma letra maiúscula, uma minúscula
+  (obrigatória, de 8 a 128 caracteres, com ao menos uma letra maiúscula, uma minúscula
   e um dígito).
 - **FR-013**: A resposta de registro (201) MUST usar `UsuarioResponseDTO` com `id`, `nome`,
   `email` e `perfis`; e-mail duplicado MUST resultar em 409.
