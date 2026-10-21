@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using PedidoFulfillment.Application.Autenticacao;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Domain.Usuarios;
@@ -50,6 +51,9 @@ public class FabricaApi : WebApplicationFactory<Program>
     /// <summary>Valores aplicados depois dos padrões, para sobrescrevê-los.</summary>
     public IReadOnlyDictionary<string, string?> Configuracoes { get; init; } = new Dictionary<string, string?>();
 
+    /// <summary>Quando informado, recebe todos os logs da API.</summary>
+    public CapturaLogs? Logs { get; init; }
+
     public IServicoAutenticacao? ServicoAutenticacao { get; init; }
 
     public IServicoPedidos? ServicoPedidos { get; init; }
@@ -74,6 +78,11 @@ public class FabricaApi : WebApplicationFactory<Program>
         foreach (var (chave, valor) in Configuracoes)
         {
             builder.UseSetting(chave, valor);
+        }
+
+        if (Logs is not null)
+        {
+            builder.ConfigureLogging(logging => logging.AddProvider(Logs).SetMinimumLevel(LogLevel.Trace));
         }
 
         builder.ConfigureTestServices(services =>

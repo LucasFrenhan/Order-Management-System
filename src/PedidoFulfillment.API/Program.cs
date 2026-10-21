@@ -36,9 +36,8 @@ builder.Services.AddOpenApi("v1", opcoes =>
     opcoes.AddSchemaTransformer<TransformadorFormatosOpenApi>();
 });
 
-builder.Services.AddSingleton<ServicoNaoImplementado>();
-builder.Services.AddSingleton<IServicoAutenticacao>(sp => sp.GetRequiredService<ServicoNaoImplementado>());
-builder.Services.AddSingleton<IServicoPedidos>(sp => sp.GetRequiredService<ServicoNaoImplementado>());
+builder.Services.AddScoped<IServicoAutenticacao, ServicoAutenticacao>();
+builder.Services.AddSingleton<IServicoPedidos, ServicoNaoImplementado>();
 
 var app = builder.Build();
 

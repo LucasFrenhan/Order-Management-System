@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using PedidoFulfillment.Application.Autenticacao;
 using PedidoFulfillment.Infrastructure.Configuracao;
 using PedidoFulfillment.Infrastructure.Identidade;
 using PedidoFulfillment.Infrastructure.Persistencia;
@@ -64,6 +65,7 @@ public static class ExtensoesInfraestrutura
             })
             .AddRoles<Perfil>()
             .AddEntityFrameworkStores<ContextoBancoDados>();
+        services.AddScoped<IGestorIdentidade, GestorIdentidade>();
 
         services.AddOptions<OpcoesBanco>().BindConfiguration(OpcoesBanco.Secao);
         services.AddHostedService<PreparacaoBancoDados>();
