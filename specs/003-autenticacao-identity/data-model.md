@@ -53,7 +53,7 @@ Devolvido por `IGestorIdentidade.VerificarCredenciaisAsync` (R-05):
 
 | Situação | Quando | Resposta da API | Evento de log |
 |----------|--------|-----------------|---------------|
-| `Valida` (com id, nome, perfis) | senha correta e conta não bloqueada | 200 | `LoginRealizado` |
+| `Valida` (com id e perfis) | senha correta e conta não bloqueada | 200 | `LoginRealizado` |
 | `Invalida` (id opcional) | e-mail sem conta ou senha errada | 401 genérico | `LoginRecusado` (`CredenciaisInvalidas`) |
 | `Bloqueada` (id) | conta em bloqueio | 401 genérico | `LoginRecusado` (`ContaBloqueada`) |
 | `BloqueadaAgora` (id) | o erro atual foi o 5º seguido | 401 genérico | `LoginRecusado` + `ContaBloqueada` |

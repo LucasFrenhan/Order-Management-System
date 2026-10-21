@@ -157,11 +157,11 @@ precisa do banco e do perfil Cliente.
 
 **Purpose**: comentários obsoletos, documentação, segredos, formatação e validação final.
 
-- [ ] T038 [P] Atualizar comentários que citam o REQ-03 como futuro: `src/PedidoFulfillment.Application/Autenticacao/IServicoAutenticacao.cs` ("implementadas no REQ-03") e `src/PedidoFulfillment.Application/Contratos/Autenticacao/RegistrarUsuarioRequestDTO.cs` (aparo "do serviço (REQ-03)" → `ServicoAutenticacao`)
-- [ ] T039 Atualizar `README.md`: linha do REQ-03 em `## Estado atual` com link para a spec e "Registro, login com JWT, perfis e usuários iniciais"; o aviso de 501 passa a valer só para pedidos (REQ-05); seção sobre o banco: criação automática em Development, `dotnet tool restore` e o comando `dotnet ef database update` para outros ambientes, `Banco:PrepararNaInicializacao`; usuários de desenvolvimento; trocar a instrução de "gerar um JWT à mão" pelo login
-- [ ] T040 Varredura de segredos: `git grep -n -i -E "password|senha|pwd|chave"` nos arquivos versionados e confirmar que só aparecem valores de desenvolvimento (inclusive `AdminDev2026` e `OperadorDev2026` em `appsettings.Development.json`), valores de teste e nomes de chave
-- [ ] T041 Rodar `dotnet format PedidoFulfillment.sln --verify-no-changes` e corrigir o que acusar
-- [ ] T042 Executar o quickstart (quickstart.md §1 a §6) com o Docker no ar e registrar o resultado; em §6, confirmar que as mensagens não mostram a string de conexão
+- [X] T038 [P] Atualizar comentários que citam o REQ-03 como futuro: `src/PedidoFulfillment.Application/Autenticacao/IServicoAutenticacao.cs` ("implementadas no REQ-03") e `src/PedidoFulfillment.Application/Contratos/Autenticacao/RegistrarUsuarioRequestDTO.cs` (aparo "do serviço (REQ-03)" → `ServicoAutenticacao`)
+- [X] T039 Atualizar `README.md`: linha do REQ-03 em `## Estado atual` com link para a spec e "Registro, login com JWT, perfis e usuários iniciais"; o aviso de 501 passa a valer só para pedidos (REQ-05); seção sobre o banco: criação automática em Development, `dotnet tool restore` e o comando `dotnet ef database update` para outros ambientes, `Banco:PrepararNaInicializacao`; usuários de desenvolvimento; trocar a instrução de "gerar um JWT à mão" pelo login
+- [X] T040 Varredura de segredos: `git grep -n -i -E "password|senha|pwd|chave"` nos arquivos versionados e confirmar que só aparecem valores de desenvolvimento (inclusive `AdminDev2026` e `OperadorDev2026` em `appsettings.Development.json`), valores de teste e nomes de chave
+- [X] T041 Rodar `dotnet format PedidoFulfillment.sln --verify-no-changes` e corrigir o que acusar
+- [X] T042 Executar o quickstart (quickstart.md §1 a §6) com o Docker no ar e registrar o resultado; em §6, confirmar que as mensagens não mostram a string de conexão
 
 ---
 
@@ -231,4 +231,20 @@ Task: "Fixture BancoDadosTeste em tests/PedidoFulfillment.Testes.Integracao/Infr
   banco), M3 (T019, banco fora do ar no registro), L1 (T025, token sem perfil) e L2 (T026,
   senha com espaços) aplicados nas tarefas; M2 e L3 registrados na R-11 e no plano; L4 spec
   `Approved`; L5 mantido (numeração estável, como no REQ-02).
+- Desvios registrados na implementação (2026-10-21):
+  - T002: o .NET 10 cria o manifesto na raiz; ele foi movido para `.config/dotnet-tools.json`, como no plano.
+  - T012: um único contêiner de SQL Server compartilhado por uma coleção do xUnit, em vez de um por classe (R-11 revisada).
+  - T013: o snapshot do modelo foi gerado fora da pasta das migrations por causa de `--namespace` e foi movido (commit próprio); o código gerado já é ignorado pelo `dotnet format`, sem mudança no `.editorconfig`.
+  - T027: o token também leva `nbf` (igual a `iat`); `contracts/token-acesso.md` atualizado.
+  - T033: o PATCH de status aceita os três perfis na autorização (o Cliente pode cancelar o próprio pedido Pendente, REQ-01); o cenário 3 da US3 na spec e a §4 do quickstart, que previam 403 para o Cliente, foram corrigidos.
+  - `ResultadoCredenciais.Valida` leva id e perfis, sem o nome (o token não usa nome); data-model atualizado.
+- T042 (quickstart, 2026-10-21, Docker no ar): §1 201 testes verdes, nenhum ignorado; §2 banco
+  criado com `InicialIdentidade`, perfis e usuários de desenvolvimento; §3 201 com nome aparado,
+  409 com outra caixa e com espaços, login 200 com `expiraEm` = agora + 60 min (UTC), 401
+  idêntico para senha errada e e-mail inexistente, 401 com a senha correta após 5 erros; §4
+  Cliente passa em `POST /pedidos` (501) e Admin recebe 403, os dois passam no PATCH (501), sem
+  token 401; §5 eventos `UsuarioRegistrado`, `LoginRealizado`, `LoginRecusado` e `ContaBloqueada`
+  com `m***@exemplo.com.br`, sem senha, e-mail completo nem token; §6 Production recusa migration
+  pendente, sobe depois do `dotnet ef database update`, não sobe com o banco parado e sobe com a
+  preparação desligada, sem mostrar a string de conexão.
 - Fazer commit ao fim de cada fase ou grupo lógico.

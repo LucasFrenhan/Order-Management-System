@@ -198,7 +198,7 @@
     bloqueio para o passado com o `UserManager`, em vez de esperar 15 minutos), perfis
     idempotentes, usuários iniciais, persistência após reinício, migration pendente fora
     de Development e a tabela de acesso 401/403 com tokens emitidos pelo login (SC-002).
-  - Um contêiner por classe de teste (fixture) e um banco novo, de nome único, por teste.
+  - Um único contêiner, compartilhado pelas classes por uma coleção do xUnit (`ColecaoBancoDados`), e um banco novo, de nome único, por teste. **Revisão (implementação)**: um contêiner por classe subiria seis SQL Servers ao mesmo tempo; os testes da coleção rodam em sequência.
   - **Limite conhecido (`/speckit-analyze` M2)**: a parte da regra de login que fica no
     `GestorIdentidade` (ordem bloqueio → senha → contagem, hash fixo para e-mail
     inexistente, violação de índice único → 409) depende do `UserManager` sobre o banco e

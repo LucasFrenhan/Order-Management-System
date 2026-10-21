@@ -10,17 +10,18 @@ constituição do projeto fica em [`.specify/memory/constitution.md`](.specify/m
 |-----------|----------|
 | REQ-01 — Contratos da API v1 ([spec](specs/001-contratos-api/spec.md)) | Contrato publicado; rotas mapeadas com validação, autorização e erros RFC 7807 |
 | REQ-02 — Estrutura da solução e ambiente local ([spec](specs/002-setup-infraestrutura/spec.md)) | Infrastructure, ambiente local (SQL Server + RabbitMQ) e saúde |
-| REQ-03 a REQ-06 | Pendentes |
+| REQ-03 — Autenticação e autorização ([spec](specs/003-autenticacao-identity/spec.md)) | Registro, login com JWT, bloqueio após 5 erros, perfis e usuários iniciais |
+| REQ-04 a REQ-06 | Pendentes |
 
-> As operações da API ainda respondem **501 (não implementada)**. As regras de negócio
-> chegam com o REQ-03 (autenticação) e o REQ-05 (pedidos).
+> As operações de pedidos ainda respondem **501 (não implementada)** depois de passar pela
+> autorização. As regras chegam com o REQ-05.
 
 ## Pré-requisitos
 
 - SDK do .NET 10 (`winget install Microsoft.DotNet.SDK.10`)
 - Docker com Compose v2, para o [ambiente local](#ambiente-local) (`winget install Docker.DockerDesktop`)
 
-Roteiro de validação do ambiente: [`quickstart.md`](specs/002-setup-infraestrutura/quickstart.md).
+Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md) e [autenticação](specs/003-autenticacao-identity/quickstart.md).
 
 ## Ambiente local
 
@@ -77,9 +78,29 @@ Em Development (e no ambiente `Testes`):
 - `/openapi/v1.yaml`: contrato aprovado ([`openapi-v1.yaml`](specs/001-contratos-api/contracts/openapi-v1.yaml))
 - `/openapi/v1.json`: documento gerado pelo código (usado no teste de conformidade)
 
-Em produção esses endereços não existem. Para obter um token de teste enquanto o login não
-está implementado, gere um JWT HS256 com a chave de `appsettings.Development.json`, emissor e
-audiência `PedidoFulfillment`, o claim `sub` (UUID do usuário) e os claims `role`.
+Em produção esses endereços não existem.
+
+### Banco de dados e usuários
+
+Ao iniciar, a API prepara o banco: em Development (e no ambiente `Testes`) cria o banco
+`PedidoFulfillment` e aplica as migrations pendentes; depois cria os perfis `Cliente`,
+`Admin` e `OperadorLogistica` e os usuários iniciais configurados. Sem o banco no ar, a API
+não inicia. Fora de Development ela não altera o esquema e se recusa a iniciar com migration
+pendente; aplique as migrations antes, com as mesmas variáveis de ambiente da API:
+
+```powershell
+dotnet tool restore
+dotnet ef database update --project src/PedidoFulfillment.Infrastructure --startup-project src/PedidoFulfillment.API
+```
+
+`Banco__PrepararNaInicializacao=false` desliga essa preparação (a API sobe sem consultar o
+banco). Detalhes em [`contracts/configuracao.md`](specs/003-autenticacao-identity/contracts/configuracao.md).
+
+Para obter um token, registre-se em `POST /api/v1/auth/register` (perfil Cliente) e faça
+login em `POST /api/v1/auth/login`. Em Development também existem, **só para
+desenvolvimento**, `admin@oms.local` / `AdminDev2026` (Admin) e `operador@oms.local` /
+`OperadorDev2026` (OperadorLogistica). Cinco senhas erradas seguidas bloqueiam a conta por
+15 minutos.
 
 Roteiro completo de validação: [`quickstart.md`](specs/001-contratos-api/quickstart.md).
 
@@ -88,16 +109,20 @@ Roteiro completo de validação: [`quickstart.md`](specs/001-contratos-api/quick
 ```text
 docker-compose.yml                   ambiente local: SQL Server + RabbitMQ
 .env.example                         variáveis OMS_* para trocar portas e credenciais locais
+.config/dotnet-tools.json            ferramenta local dotnet-ef (migrations)
 src/
   PedidoFulfillment.Domain/          enums de domínio
-  PedidoFulfillment.Application/     DTOs de contrato, interfaces de serviço, Resultado
-  PedidoFulfillment.Infrastructure/  configuração e verificações de saúde de banco e broker;
-                                     persistência (REQ-04) e mensageria (REQ-06) entram aqui
-  PedidoFulfillment.API/             Minimal APIs (só roteamento), segurança, erros, OpenAPI, saúde
+  PedidoFulfillment.Application/     DTOs de contrato, interfaces e serviço de autenticação, Resultado
+  PedidoFulfillment.Infrastructure/  banco (EF Core + Identity, migrations, preparação),
+                                     configuração e saúde de banco e broker; o domínio (REQ-04)
+                                     e a mensageria (REQ-06) entram aqui
+  PedidoFulfillment.API/             Minimal APIs (só roteamento), segurança (validação e
+                                     emissão de JWT), erros, OpenAPI, saúde
 tests/
-  PedidoFulfillment.Testes.Unitarios/   validação dos DTOs e das configurações
+  PedidoFulfillment.Testes.Unitarios/   DTOs, configurações e regras de autenticação
   PedidoFulfillment.Testes.Integracao/  contrato, segurança, erros, serialização, configuração,
-                                        saúde (Testcontainers) e arquitetura
+                                        saúde, autenticação com SQL Server real (Testcontainers)
+                                        e arquitetura
 specs/                               especificações SDD (spec, plano, tarefas, contrato)
 ```
 
