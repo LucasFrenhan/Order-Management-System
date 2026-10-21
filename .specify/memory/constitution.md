@@ -1,11 +1,13 @@
 <!--
 Sync Impact Report
-- Version change: não versionada -> 1.0.0
-- Modified principles: princípios existentes foram formalizados e reorganizados em cinco
-  princípios declarativos.
-- Added sections: Restrições Técnicas e Arquiteturais; Qualidade e Conformidade;
-  Convenções de Desenvolvimento.
-- Removed sections: nenhuma informação normativa removida.
+- Version change: 1.0.0 -> 1.1.0
+- Modified principles: III. Segurança por Padrão — passa a permitir documentação do
+  contrato (OpenAPI e UI) pública somente em ambientes não produtivos.
+- Motivação: REQ-01 (specs/001-contratos-api) exige contrato navegável por consumidores;
+  achado D1 do /speckit-analyze de 2026-10-21.
+- Added sections: nenhuma.
+- Removed sections: nenhuma.
+- Templates: nenhum template exige atualização.
 - Follow-up TODOs: definir a data original de ratificação da constituição.
 -->
 
@@ -28,6 +30,9 @@ silenciosamente, pois contratos compartilhados exigem evolução coordenada.
 ### III. Segurança por Padrão
 Toda rota da API, exceto endpoints públicos de autenticação e saúde, deve exigir
 autenticação por token e validar os escopos ou claims necessários por meio de políticas.
+A documentação do contrato (documento OpenAPI e sua interface de navegação) também pode
+ser pública, desde que exposta somente em ambientes não produtivos; em produção ela deve
+estar desabilitada ou protegida por autenticação.
 Dados de entrada devem ser validados e falhas devem ser expostas sem revelar
 informações sensíveis. A segurança é obrigatória desde o desenho, não uma etapa
 posterior de implantação.
@@ -102,4 +107,4 @@ aprovada e, quando necessário, um plano de migração. A constituição deve se
 quando a arquitetura, os contratos, os requisitos de segurança ou a plataforma mudarem
 materialmente.
 
-**Version**: 1.0.0 | **Ratified**: TODO(RATIFICATION_DATE): informar a data original de adoção | **Last Amended**: 2026-10-21
+**Version**: 1.1.0 | **Ratified**: TODO(RATIFICATION_DATE): informar a data original de adoção | **Last Amended**: 2026-10-21
