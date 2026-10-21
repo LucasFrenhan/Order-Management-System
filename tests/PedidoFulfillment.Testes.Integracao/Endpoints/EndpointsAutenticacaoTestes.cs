@@ -73,7 +73,10 @@ public sealed class EndpointsAutenticacaoTestes(FabricaApi fabrica) : IClassFixt
         {
             ResultadoRegistro = new UsuarioResponseDTO
             {
-                Id = Guid.NewGuid(), Nome = "Maria Silva", Email = "maria@exemplo.com.br", Perfis = [PerfilUsuario.Cliente]
+                Id = Guid.NewGuid(),
+                Nome = "Maria Silva",
+                Email = "maria@exemplo.com.br",
+                Perfis = [PerfilUsuario.Cliente]
             }
         };
         await using var api = new FabricaApi { ServicoAutenticacao = falso };
@@ -110,7 +113,9 @@ public sealed class EndpointsAutenticacaoTestes(FabricaApi fabrica) : IClassFixt
         {
             ResultadoLogin = new LoginResponseDTO
             {
-                TokenAcesso = "token", ExpiraEm = DateTimeOffset.UtcNow.AddMinutes(60), Perfis = [PerfilUsuario.Cliente]
+                TokenAcesso = "token",
+                ExpiraEm = DateTimeOffset.UtcNow.AddMinutes(60),
+                Perfis = [PerfilUsuario.Cliente]
             }
         };
         await using var api = new FabricaApi { ServicoAutenticacao = falso };

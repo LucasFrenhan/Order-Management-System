@@ -122,3 +122,6 @@
 - **Atualização (2026-10-21, implementação)**: o Docker Desktop 29.9.1 foi instalado, mas o
   daemon não sobe ("Docker Desktop is unable to start"). O `docker compose config` valida o
   arquivo; a subida real e o teste com Testcontainers continuam pendentes.
+- **Atualização (2026-10-21, encerramento)**: o Docker Desktop passou a subir (engine
+  29.9.1). O quickstart §2–§3 foi validado com as dependências no ar, e o teste com
+  Testcontainers roda na suíte.

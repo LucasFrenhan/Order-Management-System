@@ -79,7 +79,7 @@ de registro é fundacional, porque a US2 e a US3 dependem dela.
 - [X] T010 [P] [US1] Criar `.env.example` na raiz documentando, com comentário por linha e os mesmos padrões do compose, as variáveis `OMS_SQL_PORTA=1433`, `OMS_SQL_SENHA=OmsDev_2026!Local`, `OMS_RABBITMQ_PORTA=5672`, `OMS_RABBITMQ_PORTA_PAINEL=15672`, `OMS_RABBITMQ_USUARIO=oms`, `OMS_RABBITMQ_SENHA=oms-dev-local`; avisar que a senha do SQL Server precisa de 8+ caracteres com maiúscula, minúscula, dígito e símbolo, e que trocar porta ou credencial exige sobrescrever também `ConnectionStrings__SqlServer`/`RabbitMQ__*` ao rodar a API (FR-009)
 - [X] T011 [US1] Confirmar com `git check-ignore -v .env` que o `.env` já é ignorado pelo `.gitignore` (regra `# dotenv files`) e com `git check-ignore .env.example` que o `.env.example` **não** é; só alterar `.gitignore` se alguma das duas verificações falhar
 - [X] T012 [US1] Acrescentar a seção `## Ambiente local` ao `README.md` (depois de `## Pré-requisitos`): pré-requisito Docker com Compose v2 (`docker compose version`; `winget install Docker.DockerDesktop`), subir com `docker compose up -d --wait` (retorna só quando os dois estão saudáveis), conferir com `docker compose ps`, painel em `http://localhost:15672` com `oms`/`oms-dev-local`, parar com `docker compose down`, apagar os dados com `docker compose down -v`, trocar portas e credenciais copiando `.env.example` para `.env`, e o aviso de que as credenciais valem só para os contêineres locais (FR-014)
-- [ ] T013 [US1] Validar: `docker compose config --quiet` sem erros e o roteiro do quickstart §2 (saudável em < 2 min com imagens baixadas, painel, persistência após `down`/`up`, limpeza com `down -v`). Se o Docker não estiver instalado (R-08), registrar a validação como pendente no commit e no relatório, sem marcar esta tarefa como concluída
+- [X] T013 [US1] Validar: `docker compose config --quiet` sem erros e o roteiro do quickstart §2 (saudável em < 2 min com imagens baixadas, painel, persistência após `down`/`up`, limpeza com `down -v`). Se o Docker não estiver instalado (R-08), registrar a validação como pendente no commit e no relatório, sem marcar esta tarefa como concluída
 
 **Checkpoint**: dependências locais sobem com um comando e o README explica tudo.
 
@@ -145,8 +145,8 @@ de registro é fundacional, porque a US2 e a US3 dependem dela.
 
 - [X] T034 Atualizar `README.md`: em `## Estado atual`, linha do REQ-02 com link para `specs/002-setup-infraestrutura/spec.md` e situação "Infrastructure, ambiente local (SQL Server + RabbitMQ) e saúde", e a linha de pendentes para "REQ-03 a REQ-06"; em `## Pré-requisitos`, acrescentar o Docker com Compose v2 e apontar para o roteiro `specs/002-setup-infraestrutura/quickstart.md`
 - [X] T035 Varredura de segredos (SC-004): `git grep -n -i -E "password|senha|pwd"` nos arquivos versionados e confirmar que só aparecem os valores de desenvolvimento (`OmsDev_2026!Local`, `oms-dev-local`), os valores de teste da `FabricaApi` e nomes de chave; nenhum valor em `appsettings.json`
-- [ ] T036 Rodar `dotnet format PedidoFulfillment.sln --verify-no-changes` e corrigir o que acusar
-- [ ] T037 Executar o quickstart: §1 sempre; §2 a §4 quando o Docker estiver disponível (se não estiver, registrar como pendente, como na T013). Em §4, confirmar que a mensagem de falha nomeia `ConnectionStrings:SqlServer` e `RabbitMQ:*` sem mostrar valores
+- [X] T036 Rodar `dotnet format PedidoFulfillment.sln --verify-no-changes` e corrigir o que acusar
+- [X] T037 Executar o quickstart: §1 sempre; §2 a §4 quando o Docker estiver disponível (se não estiver, registrar como pendente, como na T013). Em §4, confirmar que a mensagem de falha nomeia `ConnectionStrings:SqlServer` e `RabbitMQ:*` sem mostrar valores
 
 ---
 
@@ -222,8 +222,8 @@ Task: "VerificacaoRabbitMQ em src/PedidoFulfillment.Infrastructure/Saude/Verific
 ## Notes
 
 - [P] = arquivos diferentes, sem dependência pendente.
-- Situação em 2026-10-21 (R-08): o Docker Desktop está instalado, mas o daemon não sobe ("Docker Desktop is unable to start"). T013 e T037 §2–§3 (com dependências no ar) ficam pendentes; T037 §1, §3 sem dependências (`/health` 200, `/health/pronto` 503 em 5 s, nada de `/health` no OpenAPI) e §4 foram validados. O teste com Testcontainers aparece como ignorado.
-- T036 pendente de decisão: `dotnet format --verify-no-changes` já falhava no `main` (55 `FINALNEWLINE` e `WHITESPACE` entre grupos de `using`), porque o `.editorconfig` (`insert_final_newline = false`, `dotnet_separate_import_directive_groups = true`) contradiz o estilo usado no código desde o REQ-01. Os arquivos novos seguem o estilo do código existente. Corrigir exige escolher entre ajustar o `.editorconfig` ou reformatar o repositório inteiro.
+- Situação em 2026-10-21 (R-08): com o Docker Desktop funcionando, T013 e T037 §2–§3 foram validados com as dependências no ar: `up -d --wait` saudável em 53 s com download das imagens e em 6 s depois, painel 15672 respondendo, dados persistindo após `down`/`up` e apagados com `down -v`, `/health/pronto` 200 com as duas dependências e 503 (`rabbitmq` `Unhealthy`) com o broker parado. O teste com Testcontainers roda (88 de integração, nenhum ignorado).
+- T036: o `.editorconfig` foi ajustado ao estilo usado desde o REQ-01 (`insert_final_newline = true`, `dotnet_separate_import_directive_groups = false`). Os dois arquivos do REQ-01 que ainda divergiam foram formatados (quebras de linha mistas em `PoliticasAutorizacao.cs` e inicializadores numa linha só em `EndpointsAutenticacaoTestes.cs`). `dotnet format --verify-no-changes` passa.
 - R-06 revisada: o teste de arquitetura também lê os `ProjectReference` dos `.csproj`, porque `GetReferencedAssemblies()` sozinho não vê referências de projeto não usadas no código.
 - No radar (T031): a validação manual remove referências da Infrastructure temporariamente; elas **precisam** ser restauradas antes de qualquer commit.
 - Fazer commit ao fim de cada fase ou grupo lógico.
