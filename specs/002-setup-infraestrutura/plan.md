@@ -58,7 +58,7 @@ endereços, 1 teste de arquitetura
 | Stack (.NET 10, SQL Server, RabbitMQ.Client nativo) | ✅ | sem MassTransit/Wolverine; sem PostgreSQL |
 | Endpoint só roteia | ✅ | lógica das verificações na Infrastructure; a API só mapeia |
 | Dependências NuGet justificadas | ✅ | tabela abaixo |
-| Nomes em português | ✅ | `AdicionarInfraestrutura`, `VerificacaoSqlServer`, `OpcoesRabbitMQ`, `/health/pronto` |
+| Nomes em português | ✅ | `ExtensoesInfraestrutura.AdicionarInfraestrutura`, `ValidadorOpcoesRabbitMQ`, `VerificacaoSqlServer`, `OpcoesRabbitMQ`, `/health/pronto` |
 | Branch dedicada | ✅ | `feature/req-02-setup-infraestrutura` (empilhada sobre a do REQ-01) |
 
 **Resultado**: aprovado, sem violações. Reavaliado após a Fase 1: sem mudanças.
@@ -96,14 +96,14 @@ specs/002-setup-infraestrutura/
 ```text
 docker-compose.yml                       # sqlserver + rabbitmq (R-02)
 .env.example                             # variáveis OMS_* documentadas (R-03)
-.gitignore                               # + .env
+.gitignore                               # .env já ignorado (só conferir)
 
 src/
 ├── PedidoFulfillment.Infrastructure/    # NOVO
-│   ├── ServiceCollectionExtensions.cs   # AdicionarInfraestrutura(services, configuration)
+│   ├── ExtensoesInfraestrutura.cs       # AdicionarInfraestrutura(services, configuration)
 │   ├── Configuracao/
-│   │   ├── OpcoesSqlServer.cs
-│   │   └── OpcoesRabbitMQ.cs
+│   │   ├── OpcoesSqlServer.cs           # + ValidadorOpcoesSqlServer (IValidateOptions)
+│   │   └── OpcoesRabbitMQ.cs            # + ValidadorOpcoesRabbitMQ (IValidateOptions)
 │   └── Saude/
 │       ├── VerificacaoSqlServer.cs
 │       └── VerificacaoRabbitMQ.cs
@@ -114,7 +114,7 @@ src/
 
 tests/
 ├── PedidoFulfillment.Testes.Unitarios/
-│   └── Configuracao/                    # validação de OpcoesRabbitMQ/OpcoesSqlServer
+│   └── Configuracao/                    # ValidadorOpcoesRabbitMQ/ValidadorOpcoesSqlServer
 └── PedidoFulfillment.Testes.Integracao/
     ├── Arquitetura/DependenciasCamadasTestes.cs
     ├── Saude/SaudeTestes.cs             # /health, 503, formato sem segredos, fora do OpenAPI

@@ -6,7 +6,7 @@
 
 **Created**: 2026-10-21
 
-**Status**: Draft
+**Status**: Approved
 
 **Input**: User description: "REQ-02 (GitHub issue #3): completar a estrutura base da solução PedidoFulfillment e o ambiente local. A solução já existe desde o REQ-01 com Domain, Application e API; falta o projeto PedidoFulfillment.Infrastructure (referenciado pela API, referenciando Application e Domain) para hospedar persistência (REQ-04) e mensageria (REQ-06). Criar docker-compose.yml subindo SQL Server (decisão já tomada: SQL Server, não PostgreSQL, conforme constituição) e RabbitMQ com plugin de Management na porta 15672. Configurar appsettings.Development.json com strings de conexão locais do SQL Server e do RabbitMQ. Sem segredos reais versionados. Desenvolvedor deve conseguir subir dependências com um comando e a API deve ler as configurações."
 

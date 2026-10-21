@@ -5,7 +5,7 @@
 ## R-01. Projeto Infrastructure e ponto de registro
 
 - **Decisão**: criar o projeto `PedidoFulfillment.Infrastructure` (classlib, referencia
-  Application e Domain). Ele expõe `ServiceCollectionExtensions.AdicionarInfraestrutura(
+  Application e Domain). Ele expõe `ExtensoesInfraestrutura.AdicionarInfraestrutura(
   IServiceCollection, IConfiguration)`, que registra opções e verificações de saúde, e é
   chamado uma vez no `Program.cs` (FR-004). O REQ-04 e o REQ-06 acrescentam DbContext,
   outbox e publicadores dentro desse método.
@@ -87,8 +87,19 @@
 ## R-06. Teste de arquitetura
 
 - **Decisão**: um teste em `PedidoFulfillment.Testes.Integracao`, que já referencia
-  indiretamente todos os projetos, lê `Assembly.GetReferencedAssemblies()` de cada camada
-  e compara com a matriz permitida do FR-002. Não precisa de pacote novo.
+  indiretamente todos os projetos, junta duas fontes de referências de cada camada e
+  compara com a matriz permitida do FR-002. Não precisa de pacote novo.
+  - `Assembly.GetReferencedAssemblies()`: o que o código compilado de fato usa.
+  - Os `ProjectReference` de cada `.csproj` em `src/`: o compilador omite dos metadados
+    referências de projeto não usadas no código, e só com a primeira fonte uma
+    referência proibida ainda sem uso passaria despercebida (SC-003).
+- **Limite conhecido**: com a ordem linear das camadas, toda referência proibida entre os
+  quatro projetos atuais forma um ciclo, que o próprio build já rejeita. O teste cobre as
+  violações sem ciclo (por exemplo, depois de alguém remover a referência inversa) e
+  projetos futuros; uma função pura de comparação, testada com um mapa sintético, prova a
+  detecção sem depender do build.
+- **Revisão (2026-10-21, `/speckit-analyze` M1)**: a segunda fonte foi acrescentada
+  depois do plano; a decisão original usava só `GetReferencedAssemblies()`.
 - **Alternativas**: NetArchTest/ArchUnitNET. Rejeitadas, porque seriam pacote novo para
   uma regra de nível de projeto.
 
