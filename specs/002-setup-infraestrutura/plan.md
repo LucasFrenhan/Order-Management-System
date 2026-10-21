@@ -71,6 +71,7 @@ endereços, 1 teste de arquitetura
 | `RabbitMQ.Client` 7.2.2 | Infrastructure | cliente nativo exigido pela constituição; prontidão agora e publicação no REQ-06 (R-05) |
 | `Testcontainers.MsSql` 4.15.0 | testes | constituição: Testcontainers quando aplicável; prontidão com SQL Server real (R-07) |
 | `Testcontainers.RabbitMq` 4.15.0 | testes | idem, para o broker (R-07) |
+| `System.Security.Cryptography.Pkcs` 10.0.13 (pino transitivo) | todos, via `CentralPackageTransitivePinningEnabled` | o `Microsoft.Data.SqlClient` 7.1.1 traz a 9.0.18, com vulnerabilidades alta e moderada (GHSA-846f-f764-76mx, GHSA-2fmv-rv2c-59x7), que o NuGet Audit transforma em erro; a 10.0.13 é a primeira corrigida e é da mesma série do ASP.NET Core já usado. Acrescentado na implementação. |
 
 Escolhi a 4.15.0 do Testcontainers em vez da 4.16.0 porque a 4.16.0 saiu há menos de duas semanas.
 

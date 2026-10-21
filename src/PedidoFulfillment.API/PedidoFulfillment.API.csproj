@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\PedidoFulfillment.Application\PedidoFulfillment.Application.csproj" />
     <ProjectReference Include="..\PedidoFulfillment.Domain\PedidoFulfillment.Domain.csproj" />
+    <ProjectReference Include="..\PedidoFulfillment.Infrastructure\PedidoFulfillment.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

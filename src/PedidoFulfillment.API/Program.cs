@@ -7,6 +7,7 @@ using PedidoFulfillment.API.Provisorio;
 using PedidoFulfillment.API.Seguranca;
 using PedidoFulfillment.Application.Autenticacao;
 using PedidoFulfillment.Application.Pedidos;
+using PedidoFulfillment.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +24,7 @@ builder.Services.Configure<RouteHandlerOptions>(opcoes => opcoes.ThrowOnBadReque
 builder.Services.AdicionarProblemDetails();
 builder.Services.AdicionarAutenticacaoJwt();
 builder.Services.AdicionarPoliticasAutorizacao();
+builder.Services.AdicionarInfraestrutura(builder.Configuration);
 builder.Services.AddOpenApi("v1", opcoes =>
 {
     opcoes.AddDocumentTransformer<TransformadorSchemasErroOpenApi>();

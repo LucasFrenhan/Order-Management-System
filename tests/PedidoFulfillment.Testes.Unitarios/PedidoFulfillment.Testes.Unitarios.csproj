@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\PedidoFulfillment.Application\PedidoFulfillment.Application.csproj" />
+    <ProjectReference Include="..\..\src\PedidoFulfillment.Infrastructure\PedidoFulfillment.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

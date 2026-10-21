@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -23,7 +24,22 @@ public class FabricaApi : WebApplicationFactory<Program>
     public const string AudienciaTeste = "PedidoFulfillment";
     public const string RotaExcecaoTeste = "/_teste/excecao";
 
+    // Portas fechadas: o caminho de falha da prontidão roda sem Docker (research R-07).
+    public const string StringConexaoTeste =
+        "Server=127.0.0.1,1;Database=PedidoFulfillment;User Id=sa;Password=senha-de-teste;Encrypt=True;TrustServerCertificate=True;Connect Timeout=2";
+    public const string ServidorRabbitMQTeste = "127.0.0.1";
+    public const int PortaRabbitMQTeste = 1;
+
     public string Ambiente { get; init; } = "Testes";
+
+    /// <summary>
+    /// Quando verdadeiro (padrão), passa valores de teste para banco e broker, que a API
+    /// valida na inicialização.
+    /// </summary>
+    public bool ComConfiguracaoInfraestrutura { get; init; } = true;
+
+    /// <summary>Valores aplicados depois dos padrões, para sobrescrevê-los.</summary>
+    public IReadOnlyDictionary<string, string?> Configuracoes { get; init; } = new Dictionary<string, string?>();
 
     public IServicoAutenticacao? ServicoAutenticacao { get; init; }
 
@@ -35,6 +51,21 @@ public class FabricaApi : WebApplicationFactory<Program>
         builder.UseSetting("Jwt:ChaveAssinatura", ChaveTeste);
         builder.UseSetting("Jwt:Emissor", EmissorTeste);
         builder.UseSetting("Jwt:Audiencia", AudienciaTeste);
+        if (ComConfiguracaoInfraestrutura)
+        {
+            builder.UseSetting("ConnectionStrings:SqlServer", StringConexaoTeste);
+            builder.UseSetting("RabbitMQ:Servidor", ServidorRabbitMQTeste);
+            builder.UseSetting("RabbitMQ:Porta", PortaRabbitMQTeste.ToString(CultureInfo.InvariantCulture));
+            builder.UseSetting("RabbitMQ:Usuario", "teste");
+            builder.UseSetting("RabbitMQ:Senha", "senha-de-teste");
+            builder.UseSetting("RabbitMQ:VirtualHost", "/");
+        }
+
+        foreach (var (chave, valor) in Configuracoes)
+        {
+            builder.UseSetting(chave, valor);
+        }
+
         builder.ConfigureTestServices(services =>
         {
             services.AddSingleton<IStartupFilter, FiltroRotaExcecao>();

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <!-- Health checks e options nativos do ASP.NET Core, sem pacotes de terceiros (research R-05). -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" />
+    <PackageReference Include="RabbitMQ.Client" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PedidoFulfillment.Application\PedidoFulfillment.Application.csproj" />
+    <ProjectReference Include="..\PedidoFulfillment.Domain\PedidoFulfillment.Domain.csproj" />
+  </ItemGroup>
+
+</Project>
