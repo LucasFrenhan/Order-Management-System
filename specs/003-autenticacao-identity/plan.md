@@ -11,7 +11,7 @@
 Este REQ faz o registro e o login do contrato v1 funcionarem de verdade:
 - **Armazenamento:** ASP.NET Core Identity sobre EF Core e SQL Server, num
   `ContextoBancoDados` que o REQ-04 vai estender. Nasce a primeira migration do banco.
-- **Regras:** um `ServicoAutenticacao` no Application cuida de aparo do nome, 409 por e-mail
+- **Regras:** um `ServicoAutenticacao` no Application cuida de aparo do nome e do e-mail, 409 por e-mail
   duplicado, 401 genérico (inclusive com a conta bloqueada após 5 erros) e eventos de
   segurança com e-mail mascarado. O Identity fica atrás de `IGestorIdentidade`.
 - **Token:** a API emite o JWT com as mesmas opções e claims que já valida desde o REQ-01.
@@ -160,3 +160,5 @@ Sem violações a justificar.
 | EF Core 10 com `Microsoft.Data.SqlClient` 7.1.1 fixado (EF referencia uma versão menor) | API pública estável entre as versões; os testes com banco real comprovam |
 | Mensagem de falha de conexão vazar o servidor | exceção interna descartada na mensagem de inicialização (R-08) |
 | Testes de bloqueio dependerem de esperar 15 min | o teste move `LockoutEnd` para o passado com o `UserManager` (R-11) |
+| Regra de login no `GestorIdentidade` só verificada com Docker (Princípio V) | testes com Testcontainers cobrem a ordem do bloqueio, o hash fixo e o 409 por índice; a suíte precisa rodar com Docker para valer como verificação (R-11) |
+| E-mail com espaços nas pontas furar a unicidade | `ServicoAutenticacao` apara o e-mail no registro e no login (R-03) |

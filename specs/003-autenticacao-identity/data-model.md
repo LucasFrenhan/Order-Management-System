@@ -16,7 +16,7 @@ Estende o usuário do Identity (`IdentityUser<Guid>`). Campos relevantes:
 |-------|------|-------|
 | Id | Guid | chave; `Guid.CreateVersion7()` |
 | Nome | nvarchar(100) | obrigatório; guardado sem espaços nas pontas (FR-004) |
-| Email | nvarchar(256) | obrigatório; como informado no registro (FR-004) |
+| Email | nvarchar(256) | obrigatório; como informado no registro, sem espaços nas pontas (FR-004) |
 | NormalizedEmail | nvarchar(256) | índice **único** `EmailIndex` (FR-003) |
 | UserName | nvarchar(256) | igual a `Email` |
 | NormalizedUserName | nvarchar(256) | índice único `UserNameIndex` (padrão do Identity) |

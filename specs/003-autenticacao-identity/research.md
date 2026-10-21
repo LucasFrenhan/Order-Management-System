@@ -6,7 +6,7 @@
 
 - **Decisão**:
   - **Application**: `ServicoAutenticacao` implementa `IServicoAutenticacao` e concentra as
-    regras do requisito: aparo do nome, tradução para 409 e para o 401 genérico, registro
+    regras do requisito: aparo do nome e do e-mail, tradução para 409 e para o 401 genérico, registro
     dos eventos de segurança com e-mail mascarado (`MascaraEmail`). Depende de duas
     abstrações novas:
     - `IGestorIdentidade`: cria a conta com o perfil Cliente e verifica credenciais,
@@ -57,7 +57,12 @@
     2627 dentro da `DbUpdateException`) e devolve conflito.
   - Criação da conta e atribuição do perfil Cliente rodam numa transação: não existe conta
     sem perfil.
-  - `Email` guarda o valor como informado (FR-004).
+  - `Email` guarda o valor como informado, só sem espaços nas pontas (FR-004).
+  - **Revisão (2026-10-21, `/speckit-analyze` H1)**: o `[EmailAddress]` do contrato aceita
+    espaços nas pontas (só exige um `@` que não esteja no começo nem no fim), e o
+    normalizador do Identity não os remove. Sem aparo, `" maria@x.com"` e `"maria@x.com"`
+    seriam contas diferentes, furando o FR-003. O `ServicoAutenticacao` apara o e-mail no
+    registro e no login antes de chamar o `IGestorIdentidade`.
 - **Alternativas**: trava de aplicação (lock) por e-mail. Rejeitada, porque não funciona
   com várias instâncias.
 
@@ -193,7 +198,14 @@
     bloqueio para o passado com o `UserManager`, em vez de esperar 15 minutos), perfis
     idempotentes, usuários iniciais, persistência após reinício, migration pendente fora
     de Development e a tabela de acesso 401/403 com tokens emitidos pelo login (SC-002).
-  - Um contêiner por classe de teste (fixture), com e-mails únicos por teste.
+  - Um contêiner por classe de teste (fixture) e um banco novo, de nome único, por teste.
+  - **Limite conhecido (`/speckit-analyze` M2)**: a parte da regra de login que fica no
+    `GestorIdentidade` (ordem bloqueio → senha → contagem, hash fixo para e-mail
+    inexistente, violação de índice único → 409) depende do `UserManager` sobre o banco e
+    só é verificada pelos testes com Testcontainers. Sem Docker eles são ignorados; para
+    valerem como verificação do Princípio V, a suíte precisa rodar com Docker (máquina do
+    desenvolvedor e, no futuro, o CI). Um banco em memória exigiria pacote novo e não
+    reproduziria o índice único nem as transações do SQL Server.
 - **`FabricaApi`**: passa `Banco:PrepararNaInicializacao=false` por padrão, para que os
   testes atuais continuem sem banco; os testes com Testcontainers ligam a preparação e
   apontam para o contêiner.

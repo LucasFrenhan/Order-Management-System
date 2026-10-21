@@ -6,7 +6,7 @@
 
 **Created**: 2026-10-21
 
-**Status**: Draft
+**Status**: Approved
 
 **Input**: User description: "REQ-03 (GitHub issue #4): implementar a infraestrutura de segurança com ASP.NET Core Identity para emissão e validação de tokens JWT e configurar as roles de acesso. Critérios de aceite: Identity integrado ao Entity Framework Core; roles Cliente, Admin e OperadorLogistica criadas na inicialização; POST /api/v1/auth/register (registra usuário com role padrão Cliente); POST /api/v1/auth/login (autentica e gera token JWT assinado); filtros de autorização ativos nos endpoints."
 
@@ -149,7 +149,9 @@ protegida responde 403 para os perfis não autorizados e deixa passar os autoriz
 
 - Duas tentativas de registro simultâneas com o mesmo e-mail → uma recebe 201 e a outra
   409; nunca existem duas contas com o mesmo e-mail.
-- E-mail com espaços nas pontas → o contrato já recusa com 400 (formato inválido).
+- E-mail com espaços nas pontas → aceito pelo contrato; os espaços são removidos antes de
+  registrar e de autenticar, então `" maria@exemplo.com.br "` é a mesma conta de
+  `maria@exemplo.com.br` (409 no registro, login normal).
 - Senha com espaços → aceita como foi digitada; o login exige a senha idêntica.
 - Banco de dados fora do ar quando a API inicia → a API não inicia (FR-018). Isso substitui,
   para a API com a preparação ligada, o comportamento do REQ-02 de iniciar sem as
@@ -176,8 +178,9 @@ protegida responde 403 para os perfis não autorizados e deixa passar os autoriz
 - **FR-003**: O e-mail MUST ser único sem diferenciar maiúsculas de minúsculas. Um e-mail
   já cadastrado MUST resultar em 409 com o código `USUARIO_EMAIL_JA_CADASTRADO`, inclusive
   quando dois registros com o mesmo e-mail chegam ao mesmo tempo.
-- **FR-004**: O nome MUST ser guardado sem os espaços das pontas. O e-mail MUST ser
-  devolvido como foi informado no registro.
+- **FR-004**: O nome e o e-mail MUST ser guardados sem os espaços das pontas, e o e-mail
+  também MUST ser aparado no login. Fora isso, o e-mail MUST ser guardado e devolvido como
+  foi informado no registro (mesmas maiúsculas e minúsculas).
 - **FR-005**: As regras de senha aplicadas no registro MUST ser exatamente as do contrato
   v1 (8 a 128 caracteres, ao menos uma letra maiúscula, uma minúscula e um dígito). Nenhuma
   regra adicional, como exigir símbolo, pode recusar uma senha que o contrato aceita.
