@@ -39,8 +39,10 @@ public static class Exemplos
     };
 
     /// <summary>
-    /// As rotas protegidas do contrato v1 com requisições válidas e os perfis que cada uma aceita
-    /// (tabela de acesso do REQ-01). Uma requisição nova a cada chamada.
+    /// As rotas protegidas do contrato v1 com requisições válidas e os perfis que a autorização de
+    /// cada uma aceita (REQ-01). Na troca de status entram os três perfis: o Cliente pode cancelar
+    /// o próprio pedido Pendente, e quem pode qual transição é regra do serviço (REQ-05). Uma
+    /// requisição nova a cada chamada.
     /// </summary>
     public static readonly (string Nome, Func<HttpRequestMessage> Requisicao, PerfilUsuario[] Autorizados)[] RotasProtegidas =
     [
@@ -51,7 +53,7 @@ public static class Exemplos
             {
                 Content = JsonContent.Create(new { status = "Processando" })
             },
-            [PerfilUsuario.Admin, PerfilUsuario.OperadorLogistica])
+            [PerfilUsuario.Cliente, PerfilUsuario.Admin, PerfilUsuario.OperadorLogistica])
     ];
 
     public static HttpRequestMessage CriarPedido()

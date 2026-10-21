@@ -68,6 +68,10 @@ public static class ExtensoesInfraestrutura
         services.AddScoped<IGestorIdentidade, GestorIdentidade>();
 
         services.AddOptions<OpcoesBanco>().BindConfiguration(OpcoesBanco.Secao);
+        services.AddSingleton<IValidateOptions<OpcoesUsuariosIniciais>, ValidadorOpcoesUsuariosIniciais>();
+        services.AddOptions<OpcoesUsuariosIniciais>()
+            .Configure<IConfiguration>((opcoes, configuracao) => configuracao.GetSection(OpcoesUsuariosIniciais.Secao).Bind(opcoes.Usuarios))
+            .ValidateOnStart();
         services.AddHostedService<PreparacaoBancoDados>();
     }
 }

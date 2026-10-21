@@ -30,6 +30,28 @@ public sealed class PreparacaoInicializacaoTestes
     }
 
     [Fact]
+    public async Task Usuario_inicial_com_senha_fora_da_regra_impede_a_api_de_iniciar_sem_mostrar_a_senha()
+    {
+        await using var fabrica = new FabricaApi
+        {
+            Configuracoes = new Dictionary<string, string?>
+            {
+                ["UsuariosIniciais:0:Nome"] = "Administrador",
+                ["UsuariosIniciais:0:Email"] = "admin@oms.teste",
+                ["UsuariosIniciais:0:Senha"] = "senhafraca",
+                ["UsuariosIniciais:0:Perfil"] = "Admin"
+            }
+        };
+
+        var excecao = Record.Exception(() => fabrica.CreateClient());
+
+        excecao.Should().NotBeNull();
+        var mensagens = Cadeia(excecao!).Select(e => e.Message).ToArray();
+        mensagens.Should().Contain(m => m.Contains("UsuariosIniciais:0:Senha"));
+        mensagens.Should().NotContain(m => m.Contains("senhafraca"));
+    }
+
+    [Fact]
     public async Task Preparacao_desligada_inicia_sem_consultar_o_banco()
     {
         await using var fabrica = new FabricaApi();

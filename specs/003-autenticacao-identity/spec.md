@@ -132,7 +132,10 @@ protegida responde 403 para os perfis não autorizados e deixa passar os autoriz
 2. **Given** os perfis já existentes, **When** a API é reiniciada, **Then** nenhum perfil é
    duplicado nem alterado.
 3. **Given** um token de Cliente emitido pelo login, **When** ele é usado na atualização de
-   status de pedido, **Then** a resposta é 403.
+   status de pedido, **Then** a autorização deixa passar, porque o contrato v1 permite ao
+   Cliente cancelar o próprio pedido Pendente; o 403 das demais transições é regra do
+   serviço de pedidos (REQ-05). *(Corrigido na implementação: a versão anterior previa 403
+   aqui, o que contradizia o REQ-01.)*
 4. **Given** um token de Admin ou de OperadorLogistica emitido pelo login, **When** ele é
    usado na criação de pedido, **Then** a resposta é 403.
 5. **Given** e-mail e senha de usuário inicial Admin (e, opcionalmente, OperadorLogistica)

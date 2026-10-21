@@ -52,7 +52,7 @@ Faça login com `admin@oms.local` / `AdminDev2026` e com a conta de Cliente da �
 |------------|-------|----------|
 | `POST /api/v1/pedidos` (com `X-Idempotency-Key`) | Cliente | passa pela autorização (hoje 501, até o REQ-05) |
 | `POST /api/v1/pedidos` | Admin | 403 |
-| `PATCH /api/v1/pedidos/{id}/status` | Cliente | 403 |
+| `PATCH /api/v1/pedidos/{id}/status` | Cliente | passa pela autorização (o Cliente pode cancelar o próprio pedido Pendente; as transições são regra do REQ-05) |
 | `PATCH /api/v1/pedidos/{id}/status` | Admin | passa pela autorização (hoje 501) |
 | qualquer rota protegida | sem token | 401 |
 
