@@ -82,12 +82,21 @@ Roteiro completo de validação: [`quickstart.md`](specs/001-contratos-api/quick
 ## Estrutura
 
 ```text
+docker-compose.yml                   ambiente local: SQL Server + RabbitMQ
+.env.example                         variáveis OMS_* para trocar portas e credenciais locais
 src/
   PedidoFulfillment.Domain/          enums de domínio
   PedidoFulfillment.Application/     DTOs de contrato, interfaces de serviço, Resultado
-  PedidoFulfillment.API/             Minimal APIs (só roteamento), segurança, erros, OpenAPI
+  PedidoFulfillment.Infrastructure/  configuração e verificações de saúde de banco e broker;
+                                     persistência (REQ-04) e mensageria (REQ-06) entram aqui
+  PedidoFulfillment.API/             Minimal APIs (só roteamento), segurança, erros, OpenAPI, saúde
 tests/
-  PedidoFulfillment.Testes.Unitarios/   validação dos DTOs
-  PedidoFulfillment.Testes.Integracao/  conformidade do contrato, segurança, erros, serialização
+  PedidoFulfillment.Testes.Unitarios/   validação dos DTOs e das configurações
+  PedidoFulfillment.Testes.Integracao/  contrato, segurança, erros, serialização, configuração,
+                                        saúde (Testcontainers) e arquitetura
 specs/                               especificações SDD (spec, plano, tarefas, contrato)
 ```
+
+Direção de dependências, garantida pelo teste de arquitetura: Domain não depende de nenhum
+projeto; Application depende de Domain; Infrastructure depende de Application e Domain; API
+depende de Application, Infrastructure e Domain.
