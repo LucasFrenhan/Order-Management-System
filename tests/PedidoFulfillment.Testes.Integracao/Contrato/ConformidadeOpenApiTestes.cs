@@ -47,6 +47,24 @@ public sealed class ConformidadeOpenApiTestes(FabricaApi fabrica) : IClassFixtur
     }
 
     [Fact]
+    public async Task Documento_gerado_tem_exatamente_as_operacoes_do_contrato()
+    {
+        var contrato = await LeitorContrato.CarregarContratoAsync();
+        var gerado = await LeitorContrato.CarregarGeradoAsync(fabrica.CreateClient());
+
+        ComparadorContrato.Operacoes(gerado).Should().BeEquivalentTo(ComparadorContrato.Operacoes(contrato));
+    }
+
+    [Fact]
+    public async Task Todas_as_operacoes_do_contrato_tem_linha_de_conformidade()
+    {
+        var cobertas = Operacoes.Select(linha => linha.Data);
+        var contrato = await LeitorContrato.CarregarContratoAsync();
+
+        cobertas.Should().BeEquivalentTo(ComparadorContrato.Operacoes(contrato).Select(o => (o.Metodo.Method, o.Caminho)));
+    }
+
+    [Fact]
     public async Task Documento_gerado_nao_documenta_respostas_501()
     {
         var gerado = await LeitorContrato.CarregarGeradoAsync(fabrica.CreateClient());

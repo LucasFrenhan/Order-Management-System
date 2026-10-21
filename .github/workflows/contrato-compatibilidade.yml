@@ -1,0 +1,40 @@
+# Bloqueia mudanças incompatíveis no contrato v1 (Princípio II; SC-006, FR-023).
+# Compara o contrato do PR com o da branch de destino usando o oasdiff.
+name: Compatibilidade do contrato
+
+on:
+  pull_request:
+    paths:
+      - "specs/**/contracts/*.yaml"
+
+permissions:
+  contents: read
+
+env:
+  CONTRATO: specs/001-contratos-api/contracts/openapi-v1.yaml
+
+jobs:
+  breaking-changes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Obter contrato da branch de destino
+        id: base
+        run: |
+          if git show "origin/${{ github.base_ref }}:${CONTRATO}" > contrato-base.yaml 2>/dev/null; then
+            echo "existe=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::${CONTRATO} ainda não existe em ${{ github.base_ref }}; nada a comparar."
+            echo "existe=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verificar mudanças incompatíveis
+        if: steps.base.outputs.existe == 'true'
+        uses: oasdiff/oasdiff-action/breaking@b9325c9e0a27ab65b0da3b766522cedec6be81dc # v0.1.18
+        with:
+          base: contrato-base.yaml
+          revision: ${{ env.CONTRATO }}
+          fail-on: ERR

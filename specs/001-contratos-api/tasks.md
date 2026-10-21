@@ -196,12 +196,12 @@ contrato que pode ser testado sozinho.
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T059 Adicionar ao `ConformidadeOpenApiTestes` em `tests/PedidoFulfillment.Testes.Integracao/Contrato/ConformidadeOpenApiTestes.cs` o teste de igualdade **exata** entre o conjunto de operações (`método + caminho`) do contrato e do documento gerado (nenhuma operação a mais nem a menos, FR-003)
-- [ ] T060 [P] Teste de segurança abrangente em `tests/PedidoFulfillment.Testes.Integracao/Seguranca/AutorizacaoEndpointsTestes.cs`: percorre todos os endpoints do `EndpointDataSource` e falha se algum, exceto register, login, `/openapi/*` e `/scalar/*`, não exigir autorização (garante o Princípio III para rotas futuras)
-- [ ] T061 [P] Criar `README.md` na raiz com: objetivo do OMS, pré-requisitos (.NET 10 SDK), como compilar/testar/rodar, link para `specs/001-contratos-api/quickstart.md` e para o contrato, e o aviso de que as operações devolvem 501 até REQ-03/REQ-05
-- [ ] T062 Executar o [quickstart.md](./quickstart.md) completo (§1–§3) e registrar o resultado no PR
-- [ ] T063 [P] Criar `.github/workflows/contrato-compatibilidade.yml`: em `pull_request` que altere `specs/**/contracts/*.yaml`, baixar o arquivo da `main` (`git show origin/main:specs/001-contratos-api/contracts/openapi-v1.yaml`) e rodar `oasdiff breaking <base> <head> --fail-on ERR` (imagem `tufin/oasdiff` com versão fixa); se o arquivo ainda não existir na `main`, o job passa com aviso (SC-006, FR-023)
-- [ ] T064 Revisão final contra a constituição: endpoints sem regra nem acesso a dados, nomes em português, só pacotes justificados no `Directory.Packages.props`, todos os erros em ProblemDetails, commits com `[REQ-01]`
+- [X] T059 Adicionar ao `ConformidadeOpenApiTestes` em `tests/PedidoFulfillment.Testes.Integracao/Contrato/ConformidadeOpenApiTestes.cs` o teste de igualdade **exata** entre o conjunto de operações (`método + caminho`) do contrato e do documento gerado (nenhuma operação a mais nem a menos, FR-003)
+- [X] T060 [P] Teste de segurança abrangente em `tests/PedidoFulfillment.Testes.Integracao/Seguranca/AutorizacaoEndpointsTestes.cs`: percorre todos os endpoints do `EndpointDataSource` e falha se algum, exceto register, login, `/openapi/*` e `/scalar/*`, não exigir autorização (garante o Princípio III para rotas futuras)
+- [X] T061 [P] Criar `README.md` na raiz com: objetivo do OMS, pré-requisitos (.NET 10 SDK), como compilar/testar/rodar, link para `specs/001-contratos-api/quickstart.md` e para o contrato, e o aviso de que as operações devolvem 501 até REQ-03/REQ-05
+- [X] T062 Executar o [quickstart.md](./quickstart.md) completo (§1–§3) e registrar o resultado no PR
+- [X] T063 [P] Criar `.github/workflows/contrato-compatibilidade.yml`: em `pull_request` que altere `specs/**/contracts/*.yaml`, baixar o arquivo da `main` (`git show origin/main:specs/001-contratos-api/contracts/openapi-v1.yaml`) e rodar `oasdiff breaking <base> <head> --fail-on ERR` (imagem `tufin/oasdiff` com versão fixa); se o arquivo ainda não existir na `main`, o job passa com aviso (SC-006, FR-023)
+- [X] T064 Revisão final contra a constituição: endpoints sem regra nem acesso a dados, nomes em português, só pacotes justificados no `Directory.Packages.props`, todos os erros em ProblemDetails, commits com `[REQ-01]`
 
 ---
 
