@@ -4,6 +4,7 @@ using PedidoFulfillment.API.Endpoints;
 using PedidoFulfillment.API.Erros;
 using PedidoFulfillment.API.OpenApi;
 using PedidoFulfillment.API.Provisorio;
+using PedidoFulfillment.API.Saude;
 using PedidoFulfillment.API.Seguranca;
 using PedidoFulfillment.Application.Autenticacao;
 using PedidoFulfillment.Application.Pedidos;
@@ -53,6 +54,8 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testes"))
 
 app.MapearEndpointsAutenticacao();
 app.MapearEndpointsPedidos();
+// Saúde existe em todos os ambientes (REQ-02); pública e fora do OpenAPI.
+app.MapearEndpointsSaude();
 
 app.Run();
 

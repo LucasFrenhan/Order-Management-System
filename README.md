@@ -54,6 +54,19 @@ $env:ASPNETCORE_ENVIRONMENT = "Development"
 dotnet run --project src/PedidoFulfillment.API
 ```
 
+A API lê `ConnectionStrings:SqlServer` e a seção `RabbitMQ` (`Servidor`, `Porta`, `Usuario`,
+`Senha`, `VirtualHost`) e as valida na inicialização: sem elas, a API não inicia e a
+mensagem nomeia a chave ausente, sem mostrar valores. Em Development os valores vêm de
+`appsettings.Development.json` e apontam para o [ambiente local](#ambiente-local). Fora
+dele, vêm de variáveis de ambiente ou de um cofre de segredos. As variáveis (por exemplo
+`ConnectionStrings__SqlServer`, `RabbitMQ__Senha`) sempre prevalecem sobre os arquivos.
+
+Endereços de saúde, públicos (sem token), em todos os ambientes e fora do contrato v1:
+
+- `/health`: vida; responde 200 enquanto o processo está de pé, sem consultar dependências
+- `/health/pronto`: prontidão; verifica banco e broker (até 5 s cada) e responde 200 ou 503,
+  com o estado de `sqlserver` e `rabbitmq`
+
 Em Development (e no ambiente `Testes`):
 
 - `/scalar/v1`: interface navegável do contrato
