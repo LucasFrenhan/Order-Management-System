@@ -45,6 +45,21 @@ public static class EndpointsPedidos
             .Produces<PedidoResponseDTO>()
             .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status404NotFound);
 
+        grupo.MapPatch("/{id}/status", async (
+                Guid id,
+                AtualizarStatusPedidoRequestDTO atualizacao,
+                ClaimsPrincipal usuario,
+                IServicoPedidos servico,
+                CancellationToken cancellationToken) =>
+                (await servico.AtualizarStatusAsync(id, usuario.ObterUsuarioId(), usuario.ObterPerfis(), atualizacao, cancellationToken))
+                    .ParaResposta(pedido => TypedResults.Ok(pedido)))
+            .WithName("AtualizarStatusPedido")
+            .WithSummary("Altera o status de um pedido conforme as transições permitidas.")
+            .RequireAuthorization(PoliticasAutorizacao.PoliticaAtualizacaoStatusPedido)
+            .AddEndpointFilter<FiltroValidacao<AtualizarStatusPedidoRequestDTO>>()
+            .Produces<PedidoResponseDTO>()
+            .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status404NotFound, StatusCodes.Status409Conflict);
+
         return app;
     }
 }

@@ -24,4 +24,8 @@ public sealed class ServicoNaoImplementado : IServicoAutenticacao, IServicoPedid
 
     public Task<Resultado<PedidoResponseDTO>> ObterAsync(Guid pedidoId, Guid usuarioId, IReadOnlyCollection<PerfilUsuario> perfis, CancellationToken cancellationToken) =>
         Task.FromResult<Resultado<PedidoResponseDTO>>(NaoImplementado);
+
+    public Task<Resultado<PedidoResponseDTO>> AtualizarStatusAsync(
+        Guid pedidoId, Guid usuarioId, IReadOnlyCollection<PerfilUsuario> perfis, AtualizarStatusPedidoRequestDTO atualizacao, CancellationToken cancellationToken) =>
+        Task.FromResult<Resultado<PedidoResponseDTO>>(NaoImplementado);
 }

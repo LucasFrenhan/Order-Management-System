@@ -25,4 +25,21 @@ public interface IServicoPedidos
     /// revelar que o pedido existe.
     /// </summary>
     Task<Resultado<PedidoResponseDTO>> ObterAsync(Guid pedidoId, Guid usuarioId, IReadOnlyCollection<PerfilUsuario> perfis, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Altera o status conforme as transições permitidas (FR-020):
+    /// <list type="table">
+    /// <listheader><term>De → Para</term><description>Perfis</description></listheader>
+    /// <item><term>Pendente → Processando</term><description>Admin, OperadorLogistica</description></item>
+    /// <item><term>Processando → ProntoParaEnvio</term><description>Admin, OperadorLogistica</description></item>
+    /// <item><term>ProntoParaEnvio → Despachado</term><description>Admin, OperadorLogistica</description></item>
+    /// <item><term>Pendente, Processando, ProntoParaEnvio → Cancelado</term><description>Admin, OperadorLogistica</description></item>
+    /// <item><term>Pendente → Cancelado</term><description>Cliente dono do pedido</description></item>
+    /// </list>
+    /// Outra transição (inclusive para o mesmo status): <see cref="TipoFalha.Conflito"/> com
+    /// <c>PEDIDO_TRANSICAO_INVALIDA</c>. Cliente em pedido de terceiro: <see cref="TipoFalha.NaoEncontrado"/>.
+    /// Cliente em transição diferente de Pendente → Cancelado: <see cref="TipoFalha.SemPermissao"/>.
+    /// </summary>
+    Task<Resultado<PedidoResponseDTO>> AtualizarStatusAsync(
+        Guid pedidoId, Guid usuarioId, IReadOnlyCollection<PerfilUsuario> perfis, AtualizarStatusPedidoRequestDTO atualizacao, CancellationToken cancellationToken);
 }

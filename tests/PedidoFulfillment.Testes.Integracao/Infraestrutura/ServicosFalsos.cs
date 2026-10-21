@@ -67,4 +67,15 @@ public sealed class ServicoPedidosFalso : IServicoPedidos
         (UltimoPedidoId, UltimoUsuarioId, UltimosPerfis) = (pedidoId, usuarioId, perfis);
         return Task.FromResult(ResultadoObter ?? throw new InvalidOperationException("Resultado de consulta não configurado."));
     }
+
+    public Resultado<PedidoResponseDTO>? ResultadoAtualizarStatus { get; set; }
+
+    public AtualizarStatusPedidoRequestDTO? UltimaAtualizacao { get; private set; }
+
+    public Task<Resultado<PedidoResponseDTO>> AtualizarStatusAsync(
+        Guid pedidoId, Guid usuarioId, IReadOnlyCollection<PerfilUsuario> perfis, AtualizarStatusPedidoRequestDTO atualizacao, CancellationToken cancellationToken)
+    {
+        (UltimoPedidoId, UltimoUsuarioId, UltimosPerfis, UltimaAtualizacao) = (pedidoId, usuarioId, perfis, atualizacao);
+        return Task.FromResult(ResultadoAtualizarStatus ?? throw new InvalidOperationException("Resultado de atualização não configurado."));
+    }
 }
