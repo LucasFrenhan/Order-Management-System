@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Json;
+using PedidoFulfillment.API.Endpoints;
 using PedidoFulfillment.API.Erros;
 using PedidoFulfillment.API.OpenApi;
 using PedidoFulfillment.API.Provisorio;
@@ -46,6 +47,8 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testes"))
 {
     app.MapearEndpointsDocumentacao();
 }
+
+app.MapearEndpointsAutenticacao();
 
 app.Run();
 
