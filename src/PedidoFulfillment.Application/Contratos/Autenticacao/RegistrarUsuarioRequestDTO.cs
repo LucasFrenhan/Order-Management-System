@@ -23,7 +23,7 @@ public sealed record RegistrarUsuarioRequestDTO : IValidatableObject
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
-        // O DTO não altera o valor; o aparo definitivo é do serviço (REQ-03).
+        // O DTO não altera o valor; o aparo definitivo é do ServicoAutenticacao.
         var nome = Nome.Trim();
         if (nome.Length is < 2 or > 100)
         {

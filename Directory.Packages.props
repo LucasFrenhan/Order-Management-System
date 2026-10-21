@@ -1,5 +1,5 @@
 <Project>
-  <!-- Pacotes justificados em specs/001-contratos-api/plan.md e specs/002-setup-infraestrutura/plan.md (constituição: dependências exigem justificativa). -->
+  <!-- Pacotes justificados em specs/001-contratos-api/plan.md, specs/002-setup-infraestrutura/plan.md e specs/003-autenticacao-identity/plan.md (constituição: dependências exigem justificativa). -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
@@ -12,10 +12,17 @@
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />
     <PackageVersion Include="Scalar.AspNetCore" Version="2.18.2" />
+    <!-- Só para a ferramenta de migrations (PrivateAssets=all). -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13" />
+  </ItemGroup>
+  <ItemGroup Label="Application">
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" />
   </ItemGroup>
   <ItemGroup Label="Infrastructure">
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.1.1" />
     <PackageVersion Include="RabbitMQ.Client" Version="7.2.2" />
+    <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.13" />
   </ItemGroup>
   <ItemGroup Label="Testes">
     <PackageVersion Include="xunit.v3" Version="3.2.2" />

@@ -4,7 +4,7 @@ using PedidoFulfillment.Application.Contratos.Autenticacao;
 namespace PedidoFulfillment.Application.Autenticacao;
 
 /// <summary>
-/// Operações de registro e autenticação de usuários (implementadas no REQ-03).
+/// Operações de registro e autenticação de usuários (implementadas por <see cref="ServicoAutenticacao"/>).
 /// </summary>
 public interface IServicoAutenticacao
 {

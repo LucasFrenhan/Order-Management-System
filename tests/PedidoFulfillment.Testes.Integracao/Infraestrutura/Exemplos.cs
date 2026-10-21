@@ -1,5 +1,7 @@
+using System.Net.Http.Json;
 using PedidoFulfillment.Application.Contratos.Pedidos;
 using PedidoFulfillment.Domain.Pedidos;
+using PedidoFulfillment.Domain.Usuarios;
 
 namespace PedidoFulfillment.Testes.Integracao.Infraestrutura;
 
@@ -35,4 +37,29 @@ public static class Exemplos
             new { produtoId = ProdutoMouse, quantidade = 1 }
         }
     };
+
+    /// <summary>
+    /// As rotas protegidas do contrato v1 com requisições válidas e os perfis que a autorização de
+    /// cada uma aceita (REQ-01). Na troca de status entram os três perfis: o Cliente pode cancelar
+    /// o próprio pedido Pendente, e quem pode qual transição é regra do serviço (REQ-05). Uma
+    /// requisição nova a cada chamada.
+    /// </summary>
+    public static readonly (string Nome, Func<HttpRequestMessage> Requisicao, PerfilUsuario[] Autorizados)[] RotasProtegidas =
+    [
+        ("POST /api/v1/pedidos", CriarPedido, [PerfilUsuario.Cliente]),
+        ("GET /api/v1/pedidos/{id}", () => new HttpRequestMessage(HttpMethod.Get, $"/api/v1/pedidos/{Pedido().Id}"),
+            [PerfilUsuario.Cliente, PerfilUsuario.Admin, PerfilUsuario.OperadorLogistica]),
+        ("PATCH /api/v1/pedidos/{id}/status", () => new HttpRequestMessage(HttpMethod.Patch, $"/api/v1/pedidos/{Pedido().Id}/status")
+            {
+                Content = JsonContent.Create(new { status = "Processando" })
+            },
+            [PerfilUsuario.Cliente, PerfilUsuario.Admin, PerfilUsuario.OperadorLogistica])
+    ];
+
+    public static HttpRequestMessage CriarPedido()
+    {
+        var requisicao = new HttpRequestMessage(HttpMethod.Post, "/api/v1/pedidos") { Content = JsonContent.Create(CorpoCriarPedido()) };
+        requisicao.Headers.Add("X-Idempotency-Key", Guid.NewGuid().ToString());
+        return requisicao;
+    }
 }

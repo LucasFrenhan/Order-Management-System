@@ -26,16 +26,43 @@ public sealed class EndpointsAutenticacaoTestes(FabricaApi fabrica) : IClassFixt
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;
 
     [Theory]
-    [InlineData(Registro)]
-    [InlineData(Login)]
-    public async Task Rotas_publicas_sem_token_chegam_ao_servico_provisorio(string rota)
+    [InlineData(Registro, HttpStatusCode.Created)]
+    [InlineData(Login, HttpStatusCode.OK)]
+    public async Task Rotas_publicas_sem_token_chegam_ao_servico(string rota, HttpStatusCode esperado)
     {
-        var corpo = rota == Registro ? RegistroValido : LoginValido;
+        var falso = new ServicoAutenticacaoFalso
+        {
+            ResultadoRegistro = new UsuarioResponseDTO
+            {
+                Id = Guid.NewGuid(),
+                Nome = "Maria Silva",
+                Email = "maria@exemplo.com.br",
+                Perfis = [PerfilUsuario.Cliente]
+            },
+            ResultadoLogin = new LoginResponseDTO
+            {
+                TokenAcesso = "token",
+                ExpiraEm = DateTimeOffset.UtcNow.AddMinutes(60),
+                Perfis = [PerfilUsuario.Cliente]
+            }
+        };
+        await using var api = new FabricaApi { ServicoAutenticacao = falso };
 
-        var resposta = await fabrica.CreateClient().PostAsJsonAsync(rota, corpo, Cancelamento);
+        var resposta = await api.CreateClient().PostAsJsonAsync(rota, rota == Registro ? RegistroValido : LoginValido, Cancelamento);
 
-        resposta.StatusCode.Should().Be(HttpStatusCode.NotImplemented);
-        await FormatoErroTestes.DeveSerProblemDetails(resposta, 501, rota);
+        resposta.StatusCode.Should().Be(esperado);
+    }
+
+    [Fact]
+    public async Task Banco_fora_do_ar_durante_o_registro_responde_500_generico()
+    {
+        // Serviço real, preparação desligada e banco em porta fechada (caso de borda do REQ-03).
+        var resposta = await fabrica.CreateClient().PostAsJsonAsync(Registro, RegistroValido, Cancelamento);
+
+        resposta.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+        await FormatoErroTestes.DeveSerProblemDetails(resposta, 500, Registro);
+        var texto = await resposta.Content.ReadAsStringAsync(Cancelamento);
+        texto.Should().NotContain("Password=").And.NotContain("127.0.0.1").And.NotContain("SqlException");
     }
 
     [Fact]

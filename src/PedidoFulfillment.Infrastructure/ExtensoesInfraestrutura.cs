@@ -1,7 +1,11 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using PedidoFulfillment.Application.Autenticacao;
 using PedidoFulfillment.Infrastructure.Configuracao;
+using PedidoFulfillment.Infrastructure.Identidade;
+using PedidoFulfillment.Infrastructure.Persistencia;
 using PedidoFulfillment.Infrastructure.Saude;
 
 namespace PedidoFulfillment.Infrastructure;
@@ -33,6 +37,41 @@ public static class ExtensoesInfraestrutura
             .AddCheck<VerificacaoSqlServer>("sqlserver", tags: [TagPronto], timeout: LimiteVerificacao)
             .AddCheck<VerificacaoRabbitMQ>("rabbitmq", tags: [TagPronto], timeout: LimiteVerificacao);
 
+        AdicionarIdentidade(services);
         return services;
+    }
+
+    private static void AdicionarIdentidade(IServiceCollection services)
+    {
+        services.AddDbContext<ContextoBancoDados>((provedor, opcoes) =>
+            opcoes.UseSqlServer(provedor.GetRequiredService<IOptions<OpcoesSqlServer>>().Value.StringConexao));
+
+        // AddIdentityCore, e não AddIdentity: sem cookies, o esquema padrão segue JWT Bearer (research R-02).
+        services.AddIdentityCore<Usuario>(opcoes =>
+            {
+                opcoes.User.RequireUniqueEmail = true;
+                // UserName recebe o e-mail; o contrato decide quais caracteres ele aceita.
+                opcoes.User.AllowedUserNameCharacters = "";
+                // A regra de senha é a do contrato v1 (R-04); o Identity só garante o mínimo.
+                opcoes.Password.RequiredLength = 8;
+                opcoes.Password.RequiredUniqueChars = 1;
+                opcoes.Password.RequireDigit = false;
+                opcoes.Password.RequireLowercase = false;
+                opcoes.Password.RequireUppercase = false;
+                opcoes.Password.RequireNonAlphanumeric = false;
+                opcoes.Lockout.MaxFailedAccessAttempts = 5;
+                opcoes.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+                opcoes.Lockout.AllowedForNewUsers = true;
+            })
+            .AddRoles<Perfil>()
+            .AddEntityFrameworkStores<ContextoBancoDados>();
+        services.AddScoped<IGestorIdentidade, GestorIdentidade>();
+
+        services.AddOptions<OpcoesBanco>().BindConfiguration(OpcoesBanco.Secao);
+        services.AddSingleton<IValidateOptions<OpcoesUsuariosIniciais>, ValidadorOpcoesUsuariosIniciais>();
+        services.AddOptions<OpcoesUsuariosIniciais>()
+            .Configure<IConfiguration>((opcoes, configuracao) => configuracao.GetSection(OpcoesUsuariosIniciais.Secao).Bind(opcoes.Usuarios))
+            .ValidateOnStart();
+        services.AddHostedService<PreparacaoBancoDados>();
     }
 }

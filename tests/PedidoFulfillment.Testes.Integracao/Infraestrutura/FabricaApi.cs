@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using PedidoFulfillment.Application.Autenticacao;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Domain.Usuarios;
@@ -38,8 +39,20 @@ public class FabricaApi : WebApplicationFactory<Program>
     /// </summary>
     public bool ComConfiguracaoInfraestrutura { get; init; } = true;
 
+    /// <summary>
+    /// Liga a preparação do banco na inicialização (REQ-03). Desligada por padrão, para que a
+    /// suíte rode sem banco (research R-11).
+    /// </summary>
+    public bool PrepararBanco { get; init; }
+
+    /// <summary>String de conexão no lugar da de porta fechada (por exemplo, um banco de teste).</summary>
+    public string? StringConexao { get; init; }
+
     /// <summary>Valores aplicados depois dos padrões, para sobrescrevê-los.</summary>
     public IReadOnlyDictionary<string, string?> Configuracoes { get; init; } = new Dictionary<string, string?>();
+
+    /// <summary>Quando informado, recebe todos os logs da API.</summary>
+    public CapturaLogs? Logs { get; init; }
 
     public IServicoAutenticacao? ServicoAutenticacao { get; init; }
 
@@ -51,9 +64,10 @@ public class FabricaApi : WebApplicationFactory<Program>
         builder.UseSetting("Jwt:ChaveAssinatura", ChaveTeste);
         builder.UseSetting("Jwt:Emissor", EmissorTeste);
         builder.UseSetting("Jwt:Audiencia", AudienciaTeste);
+        builder.UseSetting("Banco:PrepararNaInicializacao", PrepararBanco ? "true" : "false");
         if (ComConfiguracaoInfraestrutura)
         {
-            builder.UseSetting("ConnectionStrings:SqlServer", StringConexaoTeste);
+            builder.UseSetting("ConnectionStrings:SqlServer", StringConexao ?? StringConexaoTeste);
             builder.UseSetting("RabbitMQ:Servidor", ServidorRabbitMQTeste);
             builder.UseSetting("RabbitMQ:Porta", PortaRabbitMQTeste.ToString(CultureInfo.InvariantCulture));
             builder.UseSetting("RabbitMQ:Usuario", "teste");
@@ -64,6 +78,11 @@ public class FabricaApi : WebApplicationFactory<Program>
         foreach (var (chave, valor) in Configuracoes)
         {
             builder.UseSetting(chave, valor);
+        }
+
+        if (Logs is not null)
+        {
+            builder.ConfigureLogging(logging => logging.AddProvider(Logs).SetMinimumLevel(LogLevel.Trace));
         }
 
         builder.ConfigureTestServices(services =>

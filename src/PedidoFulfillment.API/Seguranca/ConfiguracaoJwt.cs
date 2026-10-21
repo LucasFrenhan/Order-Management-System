@@ -7,7 +7,7 @@ using Microsoft.IdentityModel.Tokens;
 namespace PedidoFulfillment.API.Seguranca;
 
 /// <summary>
-/// Configuração da seção <c>Jwt</c>. A emissão de tokens é do REQ-03; aqui só a validação.
+/// Configuração da seção <c>Jwt</c>, usada na validação (abaixo) e na emissão (<see cref="EmissorTokenJwt"/>).
 /// </summary>
 public sealed class OpcoesJwt
 {
