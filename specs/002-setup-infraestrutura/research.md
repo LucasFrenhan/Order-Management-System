@@ -119,3 +119,6 @@
 
 - **Constatação (2026-10-21)**: o Docker não está instalado nesta máquina. É pré-requisito
   para o quickstart §2–§4 e para os testes com Testcontainers rodarem de fato.
+- **Atualização (2026-10-21, implementação)**: o Docker Desktop 29.9.1 foi instalado, mas o
+  daemon não sobe ("Docker Desktop is unable to start"). O `docker compose config` valida o
+  arquivo; a subida real e o teste com Testcontainers continuam pendentes.

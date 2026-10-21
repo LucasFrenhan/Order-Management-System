@@ -143,8 +143,8 @@ de registro é fundacional, porque a US2 e a US3 dependem dela.
 
 **Purpose**: documentação de estado, segredos, formatação e validação final.
 
-- [ ] T034 Atualizar `README.md`: em `## Estado atual`, linha do REQ-02 com link para `specs/002-setup-infraestrutura/spec.md` e situação "Infrastructure, ambiente local (SQL Server + RabbitMQ) e saúde", e a linha de pendentes para "REQ-03 a REQ-06"; em `## Pré-requisitos`, acrescentar o Docker com Compose v2 e apontar para o roteiro `specs/002-setup-infraestrutura/quickstart.md`
-- [ ] T035 Varredura de segredos (SC-004): `git grep -n -i -E "password|senha|pwd"` nos arquivos versionados e confirmar que só aparecem os valores de desenvolvimento (`OmsDev_2026!Local`, `oms-dev-local`), os valores de teste da `FabricaApi` e nomes de chave; nenhum valor em `appsettings.json`
+- [X] T034 Atualizar `README.md`: em `## Estado atual`, linha do REQ-02 com link para `specs/002-setup-infraestrutura/spec.md` e situação "Infrastructure, ambiente local (SQL Server + RabbitMQ) e saúde", e a linha de pendentes para "REQ-03 a REQ-06"; em `## Pré-requisitos`, acrescentar o Docker com Compose v2 e apontar para o roteiro `specs/002-setup-infraestrutura/quickstart.md`
+- [X] T035 Varredura de segredos (SC-004): `git grep -n -i -E "password|senha|pwd"` nos arquivos versionados e confirmar que só aparecem os valores de desenvolvimento (`OmsDev_2026!Local`, `oms-dev-local`), os valores de teste da `FabricaApi` e nomes de chave; nenhum valor em `appsettings.json`
 - [ ] T036 Rodar `dotnet format PedidoFulfillment.sln --verify-no-changes` e corrigir o que acusar
 - [ ] T037 Executar o quickstart: §1 sempre; §2 a §4 quando o Docker estiver disponível (se não estiver, registrar como pendente, como na T013). Em §4, confirmar que a mensagem de falha nomeia `ConnectionStrings:SqlServer` e `RabbitMQ:*` sem mostrar valores
 
@@ -222,7 +222,8 @@ Task: "VerificacaoRabbitMQ em src/PedidoFulfillment.Infrastructure/Saude/Verific
 ## Notes
 
 - [P] = arquivos diferentes, sem dependência pendente.
-- O Docker não está instalado nesta máquina (R-08): T013 e T037 §2–§4 ficam pendentes até ele existir; nada na suíte automatizada depende dele.
+- Situação em 2026-10-21 (R-08): o Docker Desktop está instalado, mas o daemon não sobe ("Docker Desktop is unable to start"). T013 e T037 §2–§3 (com dependências no ar) ficam pendentes; T037 §1, §3 sem dependências (`/health` 200, `/health/pronto` 503 em 5 s, nada de `/health` no OpenAPI) e §4 foram validados. O teste com Testcontainers aparece como ignorado.
+- T036 pendente de decisão: `dotnet format --verify-no-changes` já falhava no `main` (55 `FINALNEWLINE` e `WHITESPACE` entre grupos de `using`), porque o `.editorconfig` (`insert_final_newline = false`, `dotnet_separate_import_directive_groups = true`) contradiz o estilo usado no código desde o REQ-01. Os arquivos novos seguem o estilo do código existente. Corrigir exige escolher entre ajustar o `.editorconfig` ou reformatar o repositório inteiro.
 - R-06 revisada: o teste de arquitetura também lê os `ProjectReference` dos `.csproj`, porque `GetReferencedAssemblies()` sozinho não vê referências de projeto não usadas no código.
 - No radar (T031): a validação manual remove referências da Infrastructure temporariamente; elas **precisam** ser restauradas antes de qualquer commit.
 - Fazer commit ao fim de cada fase ou grupo lógico.

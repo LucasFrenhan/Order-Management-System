@@ -9,7 +9,8 @@ constituição do projeto fica em [`.specify/memory/constitution.md`](.specify/m
 | Requisito | Situação |
 |-----------|----------|
 | REQ-01 — Contratos da API v1 ([spec](specs/001-contratos-api/spec.md)) | Contrato publicado; rotas mapeadas com validação, autorização e erros RFC 7807 |
-| REQ-02 a REQ-06 | Pendentes |
+| REQ-02 — Estrutura da solução e ambiente local ([spec](specs/002-setup-infraestrutura/spec.md)) | Infrastructure, ambiente local (SQL Server + RabbitMQ) e saúde |
+| REQ-03 a REQ-06 | Pendentes |
 
 > As operações da API ainda respondem **501 (não implementada)**. As regras de negócio
 > chegam com o REQ-03 (autenticação) e o REQ-05 (pedidos).
@@ -17,6 +18,9 @@ constituição do projeto fica em [`.specify/memory/constitution.md`](.specify/m
 ## Pré-requisitos
 
 - SDK do .NET 10 (`winget install Microsoft.DotNet.SDK.10`)
+- Docker com Compose v2, para o [ambiente local](#ambiente-local) (`winget install Docker.DockerDesktop`)
+
+Roteiro de validação do ambiente: [`quickstart.md`](specs/002-setup-infraestrutura/quickstart.md).
 
 ## Ambiente local
 
