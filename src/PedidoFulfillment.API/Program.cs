@@ -4,9 +4,11 @@ using PedidoFulfillment.API.Endpoints;
 using PedidoFulfillment.API.Erros;
 using PedidoFulfillment.API.OpenApi;
 using PedidoFulfillment.API.Provisorio;
+using PedidoFulfillment.API.Saude;
 using PedidoFulfillment.API.Seguranca;
 using PedidoFulfillment.Application.Autenticacao;
 using PedidoFulfillment.Application.Pedidos;
+using PedidoFulfillment.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +25,7 @@ builder.Services.Configure<RouteHandlerOptions>(opcoes => opcoes.ThrowOnBadReque
 builder.Services.AdicionarProblemDetails();
 builder.Services.AdicionarAutenticacaoJwt();
 builder.Services.AdicionarPoliticasAutorizacao();
+builder.Services.AdicionarInfraestrutura(builder.Configuration);
 builder.Services.AddOpenApi("v1", opcoes =>
 {
     opcoes.AddDocumentTransformer<TransformadorSchemasErroOpenApi>();
@@ -51,6 +54,8 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testes"))
 
 app.MapearEndpointsAutenticacao();
 app.MapearEndpointsPedidos();
+// Saúde existe em todos os ambientes (REQ-02); pública e fora do OpenAPI.
+app.MapearEndpointsSaude();
 
 app.Run();
 

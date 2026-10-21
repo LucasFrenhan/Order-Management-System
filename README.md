@@ -9,7 +9,8 @@ constituição do projeto fica em [`.specify/memory/constitution.md`](.specify/m
 | Requisito | Situação |
 |-----------|----------|
 | REQ-01 — Contratos da API v1 ([spec](specs/001-contratos-api/spec.md)) | Contrato publicado; rotas mapeadas com validação, autorização e erros RFC 7807 |
-| REQ-02 a REQ-06 | Pendentes |
+| REQ-02 — Estrutura da solução e ambiente local ([spec](specs/002-setup-infraestrutura/spec.md)) | Infrastructure, ambiente local (SQL Server + RabbitMQ) e saúde |
+| REQ-03 a REQ-06 | Pendentes |
 
 > As operações da API ainda respondem **501 (não implementada)**. As regras de negócio
 > chegam com o REQ-03 (autenticação) e o REQ-05 (pedidos).
@@ -17,6 +18,35 @@ constituição do projeto fica em [`.specify/memory/constitution.md`](.specify/m
 ## Pré-requisitos
 
 - SDK do .NET 10 (`winget install Microsoft.DotNet.SDK.10`)
+- Docker com Compose v2, para o [ambiente local](#ambiente-local) (`winget install Docker.DockerDesktop`)
+
+Roteiro de validação do ambiente: [`quickstart.md`](specs/002-setup-infraestrutura/quickstart.md).
+
+## Ambiente local
+
+O banco (SQL Server 2022) e o broker (RabbitMQ) rodam em contêineres; a API roda pelo SDK.
+Pré-requisito: Docker com Compose v2 (`docker compose version`; no Windows,
+`winget install Docker.DockerDesktop`).
+
+```powershell
+docker compose up -d --wait   # retorna só quando os dois serviços estão saudáveis
+docker compose ps             # sqlserver e rabbitmq aparecem como "healthy"
+docker compose down           # para; os dados continuam nos volumes
+docker compose down -v        # para e apaga os dados locais (recomeçar do zero)
+```
+
+| Dependência | Endereço local | Credenciais de desenvolvimento |
+|-------------|----------------|--------------------------------|
+| SQL Server | `localhost,1433` | usuário `sa`, senha `OmsDev_2026!Local` |
+| RabbitMQ (AMQP) | `localhost:5672` | usuário `oms`, senha `oms-dev-local` |
+| Painel do RabbitMQ | <http://localhost:15672> | usuário `oms`, senha `oms-dev-local` |
+
+Essas credenciais valem **só para os contêineres locais** e não são segredos reais.
+
+**Porta ocupada ou outra credencial**: copie `.env.example` para `.env` (ignorado pelo Git)
+e troque as variáveis `OMS_*`, sem editar arquivos versionados. Ao rodar a API, sobrescreva
+também a configuração correspondente, por exemplo
+`$env:ConnectionStrings__SqlServer = "Server=localhost,14330;..."`.
 
 ## Compilar, testar e executar
 
@@ -27,6 +57,19 @@ dotnet test PedidoFulfillment.sln
 $env:ASPNETCORE_ENVIRONMENT = "Development"
 dotnet run --project src/PedidoFulfillment.API
 ```
+
+A API lê `ConnectionStrings:SqlServer` e a seção `RabbitMQ` (`Servidor`, `Porta`, `Usuario`,
+`Senha`, `VirtualHost`) e as valida na inicialização: sem elas, a API não inicia e a
+mensagem nomeia a chave ausente, sem mostrar valores. Em Development os valores vêm de
+`appsettings.Development.json` e apontam para o [ambiente local](#ambiente-local). Fora
+dele, vêm de variáveis de ambiente ou de um cofre de segredos. As variáveis (por exemplo
+`ConnectionStrings__SqlServer`, `RabbitMQ__Senha`) sempre prevalecem sobre os arquivos.
+
+Endereços de saúde, públicos (sem token), em todos os ambientes e fora do contrato v1:
+
+- `/health`: vida; responde 200 enquanto o processo está de pé, sem consultar dependências
+- `/health/pronto`: prontidão; verifica banco e broker (até 5 s cada) e responde 200 ou 503,
+  com o estado de `sqlserver` e `rabbitmq`
 
 Em Development (e no ambiente `Testes`):
 
@@ -43,12 +86,21 @@ Roteiro completo de validação: [`quickstart.md`](specs/001-contratos-api/quick
 ## Estrutura
 
 ```text
+docker-compose.yml                   ambiente local: SQL Server + RabbitMQ
+.env.example                         variáveis OMS_* para trocar portas e credenciais locais
 src/
   PedidoFulfillment.Domain/          enums de domínio
   PedidoFulfillment.Application/     DTOs de contrato, interfaces de serviço, Resultado
-  PedidoFulfillment.API/             Minimal APIs (só roteamento), segurança, erros, OpenAPI
+  PedidoFulfillment.Infrastructure/  configuração e verificações de saúde de banco e broker;
+                                     persistência (REQ-04) e mensageria (REQ-06) entram aqui
+  PedidoFulfillment.API/             Minimal APIs (só roteamento), segurança, erros, OpenAPI, saúde
 tests/
-  PedidoFulfillment.Testes.Unitarios/   validação dos DTOs
-  PedidoFulfillment.Testes.Integracao/  conformidade do contrato, segurança, erros, serialização
+  PedidoFulfillment.Testes.Unitarios/   validação dos DTOs e das configurações
+  PedidoFulfillment.Testes.Integracao/  contrato, segurança, erros, serialização, configuração,
+                                        saúde (Testcontainers) e arquitetura
 specs/                               especificações SDD (spec, plano, tarefas, contrato)
 ```
+
+Direção de dependências, garantida pelo teste de arquitetura: Domain não depende de nenhum
+projeto; Application depende de Domain; Infrastructure depende de Application e Domain; API
+depende de Application, Infrastructure e Domain.
