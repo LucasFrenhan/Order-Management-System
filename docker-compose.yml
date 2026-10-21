@@ -1,0 +1,47 @@
+# Ambiente local do OMS (REQ-02): dependências da API em contêineres; a API roda pelo SDK.
+# Credenciais SOMENTE DE DESENVOLVIMENTO, válidas só para estes contêineres locais.
+# Portas e credenciais podem ser trocadas por variáveis OMS_* (veja .env.example).
+# Versões das imagens fixas, sem "latest"; atualizar de forma manual e deliberada.
+#
+#   docker compose up -d --wait   sobe e espera os dois serviços ficarem saudáveis
+#   docker compose down           para (os dados continuam nos volumes)
+#   docker compose down -v        para e apaga os dados locais
+
+name: oms
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${OMS_SQL_SENHA:-OmsDev_2026!Local}
+    ports:
+      - "${OMS_SQL_PORTA:-1433}:1433"
+    volumes:
+      - oms-sqlserver:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" -b"]
+      interval: 10s
+      retries: 12
+      start_period: 30s
+
+  rabbitmq:
+    image: rabbitmq:4.3.6-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${OMS_RABBITMQ_USUARIO:-oms}
+      RABBITMQ_DEFAULT_PASS: ${OMS_RABBITMQ_SENHA:-oms-dev-local}
+    ports:
+      - "${OMS_RABBITMQ_PORTA:-5672}:5672"
+      - "${OMS_RABBITMQ_PORTA_PAINEL:-15672}:15672"
+    volumes:
+      - oms-rabbitmq:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 10s
+      retries: 12
+      start_period: 20s
+
+volumes:
+  oms-sqlserver:
+  oms-rabbitmq:

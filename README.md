@@ -18,6 +18,32 @@ constituição do projeto fica em [`.specify/memory/constitution.md`](.specify/m
 
 - SDK do .NET 10 (`winget install Microsoft.DotNet.SDK.10`)
 
+## Ambiente local
+
+O banco (SQL Server 2022) e o broker (RabbitMQ) rodam em contêineres; a API roda pelo SDK.
+Pré-requisito: Docker com Compose v2 (`docker compose version`; no Windows,
+`winget install Docker.DockerDesktop`).
+
+```powershell
+docker compose up -d --wait   # retorna só quando os dois serviços estão saudáveis
+docker compose ps             # sqlserver e rabbitmq aparecem como "healthy"
+docker compose down           # para; os dados continuam nos volumes
+docker compose down -v        # para e apaga os dados locais (recomeçar do zero)
+```
+
+| Dependência | Endereço local | Credenciais de desenvolvimento |
+|-------------|----------------|--------------------------------|
+| SQL Server | `localhost,1433` | usuário `sa`, senha `OmsDev_2026!Local` |
+| RabbitMQ (AMQP) | `localhost:5672` | usuário `oms`, senha `oms-dev-local` |
+| Painel do RabbitMQ | <http://localhost:15672> | usuário `oms`, senha `oms-dev-local` |
+
+Essas credenciais valem **só para os contêineres locais** e não são segredos reais.
+
+**Porta ocupada ou outra credencial**: copie `.env.example` para `.env` (ignorado pelo Git)
+e troque as variáveis `OMS_*`, sem editar arquivos versionados. Ao rodar a API, sobrescreva
+também a configuração correspondente, por exemplo
+`$env:ConnectionStrings__SqlServer = "Server=localhost,14330;..."`.
+
 ## Compilar, testar e executar
 
 ```powershell
