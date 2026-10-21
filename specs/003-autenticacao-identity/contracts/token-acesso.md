@@ -20,6 +20,7 @@ documento fixa o conteúdo do token emitido, que as rotas protegidas validam des
 | `iss` | `Jwt:Emissor` (`PedidoFulfillment`) | validação |
 | `aud` | `Jwt:Audiencia` (`PedidoFulfillment`) | validação |
 | `iat` | instante da emissão (Unix) | — |
+| `nbf` | igual a `iat` | validação |
 | `exp` | `iat` + `Jwt:DuracaoTokenMinutos` (60) | validação (tolerância de 30 s) |
 | `jti` | Guid novo por token | — |
 
