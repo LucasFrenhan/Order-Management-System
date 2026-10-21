@@ -450,6 +450,7 @@ components:
         expiraEm:
           type: string
           format: date-time
+          description: Instante de expiração (UTC), 60 minutos após a emissão.
         perfis:
           type: array
           items:

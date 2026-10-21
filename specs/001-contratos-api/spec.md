@@ -27,6 +27,15 @@ aprovação (Princípio II).
   transições logísticas e o cancelamento (a partir de Pendente, Processando ou
   ProntoParaEnvio); o Cliente pode cancelar o próprio pedido apenas enquanto Pendente;
   PagamentoRejeitado só é definido pelo fluxo de pagamento.
+- Q: Toda resposta 400 deve trazer o campo `erros`, inclusive para JSON mal formado, `id`
+  que não é UUID ou status desconhecido? → A: Sim, todo 400 traz `erros`. A chave é o
+  campo ou parâmetro com problema (`id`, `status`, `X-Idempotency-Key`), ou `""` quando o
+  corpo inteiro é ilegível.
+- Q: O que a API deve responder a uma requisição sem token para um endereço que não
+  existe (rota inexistente ou documentação em produção)? → A: 401 sem token; 404 com
+  token válido. A exigência de autenticação vale por padrão para qualquer endereço.
+- Q: Por quanto tempo o token de acesso emitido no login deve continuar válido? → A: 60
+  minutos a partir da emissão.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -188,12 +197,15 @@ os perfis autorizados, a tabela de transições e as respostas 200, 400, 401, 40
 - Pedido com o mesmo produto repetido em dois itens → 400 (cada produto aparece uma vez).
 - Quantidade acima do limite por item → 400.
 - Corpo da requisição ausente, JSON mal formado ou com tipo errado em campo → 400 no
-  formato padrão de erro, nunca uma resposta de erro genérica ou com detalhes internos.
+  formato padrão de erro, com `erros` (FR-010), nunca uma resposta de erro genérica ou
+  com detalhes internos.
 - Campos desconhecidos no corpo da requisição → ignorados, sem erro (permite evolução
   compatível dos consumidores).
 - Erro inesperado no servidor → 500 no formato padrão de erro, sem rastreamento de pilha,
   nomes internos ou dados sensíveis, e com um identificador de rastreamento para suporte.
 - Token com assinatura inválida, expirado ou emitido para outra audiência → 401.
+- Endereço inexistente (incluindo a documentação em produção) → 401 sem token; 404 com
+  token válido (FR-007a).
 - Atualização de status para o mesmo status atual → 409 (transição inexistente).
 
 ## Requirements *(mandatory)*
@@ -225,6 +237,9 @@ os perfis autorizados, a tabela de transições e as respostas 200, 400, 401, 40
   de acesso do tipo Bearer e os perfis autorizados.
 - **FR-007**: Toda operação protegida MUST documentar as respostas 401 (sem token, token
   inválido ou expirado) e 403 (autenticado sem permissão).
+- **FR-007a**: A exigência de autenticação MUST valer por padrão para qualquer endereço,
+  inclusive inexistente. Só register, login e a documentação fora de produção são
+  públicos. Um endereço inexistente responde 401 sem token e 404 com token válido.
 - **FR-008**: Nenhum schema de resposta MUST expor senha, hash de senha ou dados internos
   de segurança.
 
@@ -233,8 +248,12 @@ os perfis autorizados, a tabela de transições e as respostas 200, 400, 401, 40
 - **FR-009**: Todas as respostas de erro (4xx e 5xx) MUST usar o formato padrão de
   detalhes de problema da RFC 7807, com os campos `type`, `title`, `status`, `detail`,
   `instance` e um identificador de rastreamento (`traceId`).
-- **FR-010**: Erros de validação (400) MUST incluir o campo `erros`, que mapeia cada
-  campo inválido para a lista de mensagens de validação em português.
+- **FR-010**: **Toda** resposta 400 MUST incluir o campo `erros`, que mapeia cada campo
+  ou parâmetro inválido para a lista de mensagens em português. Isso vale para regras de
+  validação e também para falhas de formato: JSON mal formado, tipo errado, enum
+  desconhecido, campo obrigatório ausente, `id` de rota ou cabeçalho que não é UUID. A
+  chave é o caminho do campo (`itens[0].quantidade`, `status`), o nome do parâmetro (`id`,
+  `X-Idempotency-Key`) ou `""` quando o corpo inteiro é ausente ou ilegível.
 - **FR-011**: Erros de regra de negócio (409 e 422) MUST incluir um código de erro
   estável (`codigo`, por exemplo `PEDIDO_TRANSICAO_INVALIDA`) que consumidores possam
   tratar sem depender do texto da mensagem.
@@ -250,7 +269,9 @@ os perfis autorizados, a tabela de transições e as respostas 200, 400, 401, 40
 - **FR-014**: O schema `LoginRequestDTO` MUST conter `email` e `senha`, ambos
   obrigatórios.
 - **FR-015**: `LoginResponseDTO` MUST conter `tokenAcesso`, `tipoToken` (valor `Bearer`),
-  `expiraEm` (data/hora UTC em ISO 8601) e `perfis`.
+  `expiraEm` (data/hora UTC em ISO 8601) e `perfis`. O token MUST valer por 60 minutos a
+  partir da emissão (`expiraEm` = emissão + 60 min); depois disso, toda operação protegida
+  responde 401.
 
 **Pedidos**
 

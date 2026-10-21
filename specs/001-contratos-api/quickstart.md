@@ -57,7 +57,7 @@ $env:ASPNETCORE_ENVIRONMENT = "Production"
 dotnet run --project src/PedidoFulfillment.API
 ```
 
-**Esperado**: `/openapi/v1.yaml`, `/openapi/v1.json` e `/scalar/v1` devolvem 404 (R-04).
+**Esperado**: sem token, `/openapi/v1.yaml`, `/openapi/v1.json` e `/scalar/v1` devolvem 401; com token válido, devolvem 404 (R-04, FR-007a).
 
 ## 4. Revisão de PR (constituição)
 

@@ -45,7 +45,7 @@ Cada decisão segue o formato Decisão / Justificativa / Alternativas.
 ## R-04. Exposição por ambiente
 
 - **Decisão**: `/openapi/v1.yaml`, `/openapi/v1.json` e `/scalar/v1` são mapeados, sem
-  autenticação, apenas nos ambientes `Development` e `Testes`. Em produção não existem (404).
+  autenticação, apenas nos ambientes `Development` e `Testes`. Em produção não existem: sem token respondem 401 e com token válido respondem 404, porque a `FallbackPolicy` exige autenticação em qualquer endereço (FR-007a).
 - **Justificativa**: atende a premissa da spec e o Princípio III da constituição v1.1.0,
   que permite documentação pública somente fora de produção.
 - **Alternativas**: expor em produção com autenticação: adiado até haver demanda.
@@ -99,7 +99,7 @@ Cada decisão segue o formato Decisão / Justificativa / Alternativas.
   `System.ComponentModel.DataAnnotations` (atributos + `IValidatableObject`) e devolve 400
   com `ValidacaoProblemDetails`, cujo campo `erros` mapeia campo → mensagens (FR-010).
   JSON mal formado, tipo errado, enum desconhecido e cabeçalho ou rota sem formato de UUID
-  geram `BadHttpRequestException`, que vira 400 `ProblemDetails`. Para isso,
+  geram `BadHttpRequestException`, que vira 400 `ValidacaoProblemDetails` **com `erros`** (FR-010). A chave é o parâmetro (`id`, `X-Idempotency-Key`), o campo do JSON (`status`, extraído do `JsonException.Path`) ou `""` para corpo ausente ou ilegível. Para isso,
   `RouteHandlerOptions.ThrowOnBadRequest = true` é configurado **em todos os ambientes**.
   O padrão do framework só liga essa opção em Development; nos outros ambientes a falha de
   binding devolveria 400 sem corpo. A mensagem da exceção nunca é copiada para a resposta.
