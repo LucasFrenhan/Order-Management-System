@@ -1,6 +1,7 @@
 using PedidoFulfillment.Application.Autenticacao;
 using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Contratos.Autenticacao;
+using PedidoFulfillment.Application.Contratos.Pedidos;
 using PedidoFulfillment.Application.Pedidos;
 
 namespace PedidoFulfillment.API.Provisorio;
@@ -16,4 +17,7 @@ public sealed class ServicoNaoImplementado : IServicoAutenticacao, IServicoPedid
 
     public Task<Resultado<LoginResponseDTO>> AutenticarAsync(LoginRequestDTO credenciais, CancellationToken cancellationToken) =>
         Task.FromResult<Resultado<LoginResponseDTO>>(NaoImplementado);
+
+    public Task<Resultado<PedidoResponseDTO>> CriarAsync(Guid clienteId, Guid chaveIdempotencia, CriarPedidoRequestDTO pedido, CancellationToken cancellationToken) =>
+        Task.FromResult<Resultado<PedidoResponseDTO>>(NaoImplementado);
 }

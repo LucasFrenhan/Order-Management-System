@@ -15,13 +15,15 @@ public sealed class ConformidadeOpenApiTestes(FabricaApi fabrica) : IClassFixtur
         "ProblemDetails",
         "ValidacaoProblemDetails",
         "NegocioProblemDetails",
-        "PerfilUsuario"
+        "PerfilUsuario",
+        "StatusPedido"
     ];
 
     public static TheoryData<string, string> Operacoes => new()
     {
         { "POST", "/api/v1/auth/register" },
-        { "POST", "/api/v1/auth/login" }
+        { "POST", "/api/v1/auth/login" },
+        { "POST", "/api/v1/pedidos" }
     };
 
     [Theory]

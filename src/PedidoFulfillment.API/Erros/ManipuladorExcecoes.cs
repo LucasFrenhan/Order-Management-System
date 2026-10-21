@@ -72,7 +72,9 @@ public sealed partial class ManipuladorExcecoes(IProblemDetailsService problemDe
             return null;
         }
 
-        var metodo = httpContext.GetEndpoint()?.Metadata.GetMetadata<MethodInfo>();
+        // O middleware de exceções limpa o endpoint do contexto; o original fica na feature.
+        var endpoint = httpContext.Features.Get<IExceptionHandlerFeature>()?.Endpoint ?? httpContext.GetEndpoint();
+        var metodo = endpoint?.Metadata.GetMetadata<MethodInfo>();
         return metodo?.GetParameters().FirstOrDefault(p => p.Name == correspondencia.Groups["nome"].Value);
     }
 

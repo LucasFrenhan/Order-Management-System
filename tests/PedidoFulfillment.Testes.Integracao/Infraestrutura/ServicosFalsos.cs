@@ -1,6 +1,8 @@
 using PedidoFulfillment.Application.Autenticacao;
 using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Contratos.Autenticacao;
+using PedidoFulfillment.Application.Contratos.Pedidos;
+using PedidoFulfillment.Application.Pedidos;
 
 namespace PedidoFulfillment.Testes.Integracao.Infraestrutura;
 
@@ -28,5 +30,26 @@ public sealed class ServicoAutenticacaoFalso : IServicoAutenticacao
     {
         UltimoLogin = credenciais;
         return Task.FromResult(ResultadoLogin ?? throw new InvalidOperationException("Resultado de login não configurado."));
+    }
+}
+
+/// <summary>
+/// Fake de <see cref="IServicoPedidos"/> que devolve o resultado configurado e guarda a última
+/// chamada, para verificar o que a rota repassa ao serviço.
+/// </summary>
+public sealed class ServicoPedidosFalso : IServicoPedidos
+{
+    public Resultado<PedidoResponseDTO>? ResultadoCriar { get; set; }
+
+    public Guid? UltimoClienteId { get; private set; }
+
+    public Guid? UltimaChaveIdempotencia { get; private set; }
+
+    public CriarPedidoRequestDTO? UltimoPedidoCriado { get; private set; }
+
+    public Task<Resultado<PedidoResponseDTO>> CriarAsync(Guid clienteId, Guid chaveIdempotencia, CriarPedidoRequestDTO pedido, CancellationToken cancellationToken)
+    {
+        (UltimoClienteId, UltimaChaveIdempotencia, UltimoPedidoCriado) = (clienteId, chaveIdempotencia, pedido);
+        return Task.FromResult(ResultadoCriar ?? throw new InvalidOperationException("Resultado de criação não configurado."));
     }
 }

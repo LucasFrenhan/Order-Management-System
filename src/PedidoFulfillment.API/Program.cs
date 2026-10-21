@@ -29,6 +29,7 @@ builder.Services.AddOpenApi("v1", opcoes =>
     opcoes.AddDocumentTransformer<TransformadorSegurancaOpenApi>();
     opcoes.AddOperationTransformer<TransformadorSchemasErroOpenApi>();
     opcoes.AddOperationTransformer<TransformadorSegurancaOpenApi>();
+    opcoes.AddOperationTransformer<TransformadorCabecalhosOpenApi>();
     opcoes.AddSchemaTransformer<TransformadorFormatosOpenApi>();
 });
 
@@ -49,6 +50,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testes"))
 }
 
 app.MapearEndpointsAutenticacao();
+app.MapearEndpointsPedidos();
 
 app.Run();
 
