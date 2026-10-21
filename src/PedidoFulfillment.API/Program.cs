@@ -44,7 +44,7 @@ app.UseAuthorization();
 // Constituição v1.1.0, Princípio III: documentação pública somente fora de produção.
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testes"))
 {
-    app.MapOpenApi().AllowAnonymous();
+    app.MapearEndpointsDocumentacao();
 }
 
 app.Run();
