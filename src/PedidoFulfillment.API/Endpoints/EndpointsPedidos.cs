@@ -35,6 +35,16 @@ public static class EndpointsPedidos
             .ComCabecalhoLocation()
             .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status409Conflict, StatusCodes.Status422UnprocessableEntity);
 
+        // Sem a restrição {id:guid}: um identificador inválido deve dar 400, e não 404 (R-10).
+        grupo.MapGet("/{id}", async (Guid id, ClaimsPrincipal usuario, IServicoPedidos servico, CancellationToken cancellationToken) =>
+                (await servico.ObterAsync(id, usuario.ObterUsuarioId(), usuario.ObterPerfis(), cancellationToken))
+                    .ParaResposta(pedido => TypedResults.Ok(pedido)))
+            .WithName("ObterPedido")
+            .WithSummary("Consulta um pedido pelo identificador.")
+            .RequireAuthorization(PoliticasAutorizacao.PoliticaConsultaPedido)
+            .Produces<PedidoResponseDTO>()
+            .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status404NotFound);
+
         return app;
     }
 }

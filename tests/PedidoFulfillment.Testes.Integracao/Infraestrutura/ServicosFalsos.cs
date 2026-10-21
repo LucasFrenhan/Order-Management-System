@@ -3,6 +3,7 @@ using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Contratos.Autenticacao;
 using PedidoFulfillment.Application.Contratos.Pedidos;
 using PedidoFulfillment.Application.Pedidos;
+using PedidoFulfillment.Domain.Usuarios;
 
 namespace PedidoFulfillment.Testes.Integracao.Infraestrutura;
 
@@ -51,5 +52,19 @@ public sealed class ServicoPedidosFalso : IServicoPedidos
     {
         (UltimoClienteId, UltimaChaveIdempotencia, UltimoPedidoCriado) = (clienteId, chaveIdempotencia, pedido);
         return Task.FromResult(ResultadoCriar ?? throw new InvalidOperationException("Resultado de criação não configurado."));
+    }
+
+    public Resultado<PedidoResponseDTO>? ResultadoObter { get; set; }
+
+    public Guid? UltimoPedidoId { get; private set; }
+
+    public Guid? UltimoUsuarioId { get; private set; }
+
+    public IReadOnlyCollection<PerfilUsuario>? UltimosPerfis { get; private set; }
+
+    public Task<Resultado<PedidoResponseDTO>> ObterAsync(Guid pedidoId, Guid usuarioId, IReadOnlyCollection<PerfilUsuario> perfis, CancellationToken cancellationToken)
+    {
+        (UltimoPedidoId, UltimoUsuarioId, UltimosPerfis) = (pedidoId, usuarioId, perfis);
+        return Task.FromResult(ResultadoObter ?? throw new InvalidOperationException("Resultado de consulta não configurado."));
     }
 }

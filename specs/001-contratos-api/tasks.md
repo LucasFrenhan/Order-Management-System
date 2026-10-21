@@ -162,12 +162,12 @@ contrato que pode ser testado sozinho.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T051 [P] [US4] Testes de integração em `tests/PedidoFulfillment.Testes.Integracao/Endpoints/ObterPedidoTestes.cs`: sem token/token inválido → 401; token sem nenhum dos perfis → 403; `id` = `abc` → 400 (não 404) com `erros.id`; com fake: Cliente dono → 200 `PedidoResponseDTO`; fake devolvendo `NaoEncontrado` (Cliente não dono ou id inexistente) → 404 ProblemDetails; Admin e OperadorLogistica → 200; o fake recebe `usuarioId` e perfis do token
+- [X] T051 [P] [US4] Testes de integração em `tests/PedidoFulfillment.Testes.Integracao/Endpoints/ObterPedidoTestes.cs`: sem token/token inválido → 401; token sem nenhum dos perfis → 403; `id` = `abc` → 400 (não 404) com `erros.id`; com fake: Cliente dono → 200 `PedidoResponseDTO`; fake devolvendo `NaoEncontrado` (Cliente não dono ou id inexistente) → 404 ProblemDetails; Admin e OperadorLogistica → 200; o fake recebe `usuarioId` e perfis do token
 
 ### Implementation for User Story 4
 
-- [ ] T052 [US4] Adicionar a `IServicoPedidos` o método `Task<Resultado<PedidoResponseDTO>> ObterAsync(Guid pedidoId, Guid usuarioId, IReadOnlyCollection<PerfilUsuario> perfis, CancellationToken)` em `src/PedidoFulfillment.Application/Pedidos/IServicoPedidos.cs`, com comentário XML documentando "Cliente que não é dono recebe NaoEncontrado", e a implementação 501 em `src/PedidoFulfillment.API/Provisorio/ServicoNaoImplementado.cs`
-- [ ] T053 [US4] Acrescentar a linha `GET /api/v1/pedidos/{id}` ao `[Theory]` do T027(b) e adicionar `GET /{id}` (sem restrição `:guid` na rota, R-10; `operationId` `ObterPedido`; `RequireAuthorization(PoliticaConsultaPedido)`; `Produces<PedidoResponseDTO>(200)`, 400, 404) em `src/PedidoFulfillment.API/Endpoints/EndpointsPedidos.cs`
+- [X] T052 [US4] Adicionar a `IServicoPedidos` o método `Task<Resultado<PedidoResponseDTO>> ObterAsync(Guid pedidoId, Guid usuarioId, IReadOnlyCollection<PerfilUsuario> perfis, CancellationToken)` em `src/PedidoFulfillment.Application/Pedidos/IServicoPedidos.cs`, com comentário XML documentando "Cliente que não é dono recebe NaoEncontrado", e a implementação 501 em `src/PedidoFulfillment.API/Provisorio/ServicoNaoImplementado.cs`
+- [X] T053 [US4] Acrescentar a linha `GET /api/v1/pedidos/{id}` ao `[Theory]` do T027(b) e adicionar `GET /{id}` (sem restrição `:guid` na rota, R-10; `operationId` `ObterPedido`; `RequireAuthorization(PoliticaConsultaPedido)`; `Produces<PedidoResponseDTO>(200)`, 400, 404) em `src/PedidoFulfillment.API/Endpoints/EndpointsPedidos.cs`
 
 **Checkpoint**: T051 verde; linha `GET /api/v1/pedidos/{id}` do T027(b) verde.
 

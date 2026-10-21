@@ -1,5 +1,6 @@
 using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Contratos.Pedidos;
+using PedidoFulfillment.Domain.Usuarios;
 
 namespace PedidoFulfillment.Application.Pedidos;
 
@@ -17,4 +18,11 @@ public interface IServicoPedidos
     /// inexistente ou indisponível devolve <see cref="TipoFalha.RegraNegocio"/>.
     /// </summary>
     Task<Resultado<PedidoResponseDTO>> CriarAsync(Guid clienteId, Guid chaveIdempotencia, CriarPedidoRequestDTO pedido, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Consulta um pedido. Admin e OperadorLogistica veem qualquer pedido; um Cliente só vê os
+    /// próprios. Cliente que não é dono recebe <see cref="TipoFalha.NaoEncontrado"/>, para não
+    /// revelar que o pedido existe.
+    /// </summary>
+    Task<Resultado<PedidoResponseDTO>> ObterAsync(Guid pedidoId, Guid usuarioId, IReadOnlyCollection<PerfilUsuario> perfis, CancellationToken cancellationToken);
 }

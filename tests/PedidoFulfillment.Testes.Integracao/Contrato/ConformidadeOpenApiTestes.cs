@@ -23,7 +23,8 @@ public sealed class ConformidadeOpenApiTestes(FabricaApi fabrica) : IClassFixtur
     {
         { "POST", "/api/v1/auth/register" },
         { "POST", "/api/v1/auth/login" },
-        { "POST", "/api/v1/pedidos" }
+        { "POST", "/api/v1/pedidos" },
+        { "GET", "/api/v1/pedidos/{id}" }
     };
 
     [Theory]
