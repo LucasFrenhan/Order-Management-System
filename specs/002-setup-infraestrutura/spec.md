@@ -20,6 +20,16 @@ relacional (persistência, REQ-04) e o broker de mensagens (eventos, REQ-06).
 A escolha do banco já está feita pela constituição: SQL Server. A issue cita "PostgreSQL ou
 SQL Server", e esta spec fixa SQL Server.
 
+## Clarifications
+
+### Session 2026-10-21
+
+- Q: A API já deve ter um endpoint de saúde que verifique banco e broker neste REQ? → A:
+  Sim. `/health` (vida) e `/health/pronto` (testa banco e broker), públicos e fora do
+  contrato v1.
+- Q: A API também roda em contêiner no ambiente local? → A: Não. Só as dependências ficam em
+  contêineres, e a API roda pelo SDK.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Subir as dependências locais com um comando (Priority: P1)
