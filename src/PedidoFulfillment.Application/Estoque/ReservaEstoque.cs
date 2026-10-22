@@ -14,6 +14,9 @@ namespace PedidoFulfillment.Application.Estoque;
 public sealed class ReservaEstoque(IArmazenamentoPedidos armazenamento, TimeProvider relogio, ILogger<ReservaEstoque> logger)
     : IManipuladorEvento<PedidoCriado>
 {
+    /// <summary>Motivo do histórico no cancelamento por falta de estoque (FR-006).</summary>
+    public const string MotivoSemEstoque = "Estoque insuficiente.";
+
     public string Consumidor => "estoque";
 
     public IReadOnlyCollection<string> Tipos { get; } = [TiposEvento.PedidoCriado];
@@ -31,12 +34,40 @@ public sealed class ReservaEstoque(IArmazenamentoPedidos armazenamento, TimeProv
         var faltas = pedido.ReservarEstoque(produtos, agora);
         if (faltas.Count > 0)
         {
-            throw new NotImplementedException("Cancelamento por falta de estoque: US2.");
+            await CancelarSemEstoqueAsync(evento.IdEvento, pedido, faltas, agora, cancellationToken);
+            return;
         }
 
         armazenamento.Adicionar(EventoSaida.De(EventoEstoqueReservado(pedido, agora), agora));
         await armazenamento.SalvarAsync(cancellationToken);
         EventosEstoque.EstoqueReservado(logger, evento.IdEvento, pedido.Id, pedido.Itens.Count);
+    }
+
+    /// <summary>
+    /// Nenhum estoque mudou (tudo ou nada); o pedido vai para Cancelado, sem autor, e as faltas
+    /// saem em <c>estoque.insuficiente</c> (FR-006).
+    /// </summary>
+    private async Task CancelarSemEstoqueAsync(Guid idEvento, Pedido pedido, IReadOnlyList<FaltaEstoque> faltas, DateTimeOffset agora, CancellationToken cancellationToken)
+    {
+        if (!TransicoesStatusPedido.PermitidaParaOperacao(pedido.Status, StatusPedido.Cancelado))
+        {
+            throw new InvalidOperationException($"O pedido {pedido.Id} está em {pedido.Status} e não pode ser cancelado.");
+        }
+
+        pedido.MudarStatus(StatusPedido.Cancelado, null, MotivoSemEstoque, agora);
+        armazenamento.Adicionar(EventoSaida.De(EnvelopeEvento.Criar(pedido.Id, new EstoqueInsuficiente
+        {
+            PedidoId = pedido.Id,
+            Itens = [.. faltas.OrderBy(f => f.ProdutoId).Select(f => new ItemEstoqueInsuficiente
+            {
+                ProdutoId = f.ProdutoId,
+                QuantidadeSolicitada = f.QuantidadeSolicitada,
+                QuantidadeDisponivel = f.QuantidadeDisponivel,
+                Inativo = f.Inativo
+            })]
+        }, agora), agora));
+        await armazenamento.SalvarAsync(cancellationToken);
+        EventosEstoque.PedidoCanceladoSemEstoque(logger, idEvento, pedido.Id, faltas.Count);
     }
 
     private static EnvelopeEvento<EstoqueReservado> EventoEstoqueReservado(Pedido pedido, DateTimeOffset agora) =>

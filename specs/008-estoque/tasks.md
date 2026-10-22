@@ -135,18 +135,18 @@ sequência. A US5 mexe no `ServicoPedidos` e pode correr em paralelo com as US2 
 
 ### Testes da US2
 
-- [ ] T014 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Estoque/ReservaEstoqueTestes.cs`:
+- [X] T014 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Estoque/ReservaEstoqueTestes.cs`:
   - item com estoque menor: nenhum estoque muda; status `Cancelado`, com entrada no histórico (`AutorId` nulo, motivo `Estoque insuficiente.`); um `EventoSaida` `estoque.insuficiente` só com os itens que faltaram;
   - produto inativo: `inativo: true` e `quantidadeDisponivel` com o estoque lido;
   - pedido `Processando` sem reserva e sem estoque: cancela também (clarify 2).
-- [ ] T015 [P] [US2] Em `tests/PedidoFulfillment.Testes.Integracao/Estoque/ReservaEstoqueTestes.cs`, com o Worker parado na criação e iniciado depois:
+- [X] T015 [P] [US2] Em `tests/PedidoFulfillment.Testes.Integracao/Estoque/ReservaEstoqueTestes.cs`, com o Worker parado na criação e iniciado depois:
   - cenário 1 da US2: zerar o estoque de um dos produtos pelo `ContextoBancoDados` antes de subir o Worker; o pedido fica `Cancelado`, nenhum estoque do pedido muda, e chega `estoque.insuficiente` válido;
   - cenário 2: desativar o produto (`Produto.Desativar`) antes de subir o Worker; mesmo resultado, com `inativo: true`;
   - cenário 4: republicar o mesmo `pedido.criado` não muda nada.
 
 ### Implementação da US2
 
-- [ ] T016 [US2] Em `ReservaEstoque`, com faltas: conferir `TransicoesStatusPedido.PermitidaParaOperacao(status, Cancelado)`, `pedido.MudarStatus(Cancelado, null, "Estoque insuficiente.", agora)`, gravar `estoque.insuficiente` a partir das `FaltaEstoque` (ordenadas por `produtoId`), `SalvarAsync` e log 6002. T014 e T015 devem passar.
+- [X] T016 [US2] Em `ReservaEstoque`, com faltas: conferir `TransicoesStatusPedido.PermitidaParaOperacao(status, Cancelado)`, `pedido.MudarStatus(Cancelado, null, "Estoque insuficiente.", agora)`, gravar `estoque.insuficiente` a partir das `FaltaEstoque` (ordenadas por `produtoId`), `SalvarAsync` e log 6002. T014 e T015 devem passar.
 
 ---
 
@@ -285,6 +285,12 @@ broker.
     `defaultValue: false` para a coluna nova de qualquer jeito, e sem a configuração o EF
     não trata o campo como gerado pelo banco. `ModeloSincronizadoTestes` também fixava a
     lista de migrations e foi atualizado.
+  - **T015**: num broker novo, o despachante pode publicar `pedido.criado` antes de o
+    consumidor declarar `oms.estoque`, e a mensagem sem rota é descartada (comportamento do
+    REQ-06, `mandatory: false`). Os testes que sobem o Worker depois da criação declaram a
+    fila antes (`CenarioEstoque.DeclararFilaEstoqueAsync`). Em produção, a fila durável já
+    existe depois da primeira partida; o risco fica só na primeira subida de um broker vazio
+    com eventos pendentes. Registrado para o PR (Pontos de atenção).
   - **T009**: o esqueleto referencia as dependências do construtor só para compilar, porque
     `TreatWarningsAsErrors` recusa parâmetro não lido (CS9113); a T012 remove isso.
 - **SC-001** (95% em 5 s) é verificado por amostra: um pedido no cenário 1 da T011, como

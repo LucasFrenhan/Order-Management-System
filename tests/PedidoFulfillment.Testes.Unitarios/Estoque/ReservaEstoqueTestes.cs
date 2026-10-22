@@ -114,6 +114,72 @@ public sealed class ReservaEstoqueTestes
     }
 
     [Fact]
+    public async Task Item_sem_estoque_suficiente_cancela_o_pedido_sem_mexer_no_estoque()
+    {
+        armazenamento.AlterarProduto(b.Id, p => p.AjustarEstoque(-4, Criacao));
+        PedidoEm();
+
+        await Manipular();
+
+        Estoque(a).Should().Be(10);
+        Estoque(b).Should().Be(1);
+        var pedido = Gravado();
+        pedido.Status.Should().Be(StatusPedido.Cancelado);
+        pedido.EstoqueReservado.Should().BeFalse();
+        var entrada = pedido.Historico.Last();
+        (entrada.StatusAnterior, entrada.StatusNovo, entrada.AutorId, entrada.Motivo, entrada.OcorridoEm)
+            .Should().Be((StatusPedido.Pendente, StatusPedido.Cancelado, (Guid?)null, "Estoque insuficiente.", Agora));
+
+        var envelope = EventoGravado<EstoqueInsuficiente>(TiposEvento.EstoqueInsuficiente);
+        envelope.IdCorrelacao.Should().Be(PedidoId);
+        envelope.Dados.PedidoId.Should().Be(PedidoId);
+        var item = envelope.Dados.Itens.Should().ContainSingle("só os itens que faltaram").Subject;
+        (item.ProdutoId, item.QuantidadeSolicitada, item.QuantidadeDisponivel, item.Inativo).Should().Be((b.Id, 2, 1, false));
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 6002);
+    }
+
+    [Fact]
+    public async Task Produto_desativado_depois_da_criacao_conta_como_falta()
+    {
+        armazenamento.AlterarProduto(a.Id, p => p.Desativar(Criacao));
+        PedidoEm();
+
+        await Manipular();
+
+        Gravado().Status.Should().Be(StatusPedido.Cancelado);
+        Estoque(a).Should().Be(10);
+        Estoque(b).Should().Be(5);
+        var item = EventoGravado<EstoqueInsuficiente>(TiposEvento.EstoqueInsuficiente).Dados.Itens.Should().ContainSingle().Subject;
+        (item.ProdutoId, item.QuantidadeSolicitada, item.QuantidadeDisponivel, item.Inativo).Should().Be((a.Id, 3, 10, true));
+    }
+
+    [Fact]
+    public async Task Faltas_saem_ordenadas_por_produto()
+    {
+        armazenamento.AlterarProduto(a.Id, p => p.Desativar(Criacao));
+        armazenamento.AlterarProduto(b.Id, p => p.AjustarEstoque(-5, Criacao));
+        PedidoEm();
+
+        await Manipular();
+
+        EventoGravado<EstoqueInsuficiente>(TiposEvento.EstoqueInsuficiente).Dados.Itens.Select(i => i.ProdutoId).Should().Equal(b.Id, a.Id);
+    }
+
+    [Fact]
+    public async Task Pedido_movido_para_processando_sem_estoque_tambem_e_cancelado()
+    {
+        armazenamento.AlterarProduto(b.Id, p => p.AjustarEstoque(-5, Criacao));
+        PedidoEm(StatusPedido.Processando);
+
+        await Manipular();
+
+        var pedido = Gravado();
+        pedido.Status.Should().Be(StatusPedido.Cancelado);
+        pedido.Historico.Last().StatusAnterior.Should().Be(StatusPedido.Processando);
+        EventoGravado<EstoqueInsuficiente>(TiposEvento.EstoqueInsuficiente);
+    }
+
+    [Fact]
     public async Task Pedido_inexistente_e_falha_sem_gravar_nada()
     {
         var manipular = () => Manipular(Guid.CreateVersion7());

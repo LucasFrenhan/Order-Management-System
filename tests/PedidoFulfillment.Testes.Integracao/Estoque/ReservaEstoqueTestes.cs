@@ -40,6 +40,44 @@ public sealed class ReservaEstoqueTestes(MensageriaTeste mensageria)
         (await StatusAsync(stringConexao, pedidoId)).Should().Be("Pendente");
     }
 
+    [Theory]
+    [InlineData("UPDATE Produtos SET QuantidadeEstoque = 1 WHERE Sku = 'CAT-002'", 1, false)]
+    [InlineData("UPDATE Produtos SET Ativo = 0 WHERE Sku = 'CAT-002'", 100, true)]
+    public async Task Item_que_ficou_indisponivel_antes_do_consumo_cancela_o_pedido(string alteracao, int disponivel, bool inativo)
+    {
+        Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
+        var stringConexao = mensageria.NovoBanco();
+        await using var api = Api(stringConexao);
+        var (cliente, _, _) = await ClienteAsync(api);
+        await using var fila = await mensageria.FilaTesteAsync("estoque.*");
+        using var logs = new CapturaLogs();
+        await DeclararFilaEstoqueAsync(mensageria);
+
+        // O Worker sobe depois: a falta acontece entre a criação e o consumo.
+        var pedidoId = (await CriadoAsync(cliente, (Cat001, 2), (Cat002, 3))).GetProperty("id").GetGuid();
+        await BancoDadosTeste.ExecutarAsync(stringConexao, alteracao);
+        await using var worker = await WorkerProntoAsync(mensageria, stringConexao, logs);
+
+        (await MensageriaTeste.EsperarAteAsync(() => Task.FromResult(DoPedido(fila, pedidoId).Count > 0), Prazo)).Should().BeTrue();
+        var mensagem = DoPedido(fila, pedidoId).Should().ContainSingle().Subject;
+        mensagem.Propriedades.Type.Should().Be(TiposEvento.EstoqueInsuficiente);
+        var item = SerializacaoEventos.Desserializar<EstoqueInsuficiente>(mensagem.Texto).Dados.Itens.Should().ContainSingle().Subject;
+        (item.ProdutoId, item.QuantidadeSolicitada, item.QuantidadeDisponivel, item.Inativo).Should().Be((Cat002, 3, disponivel, inativo));
+        (await StatusAsync(stringConexao, pedidoId)).Should().Be("Cancelado");
+        (await ReservadoAsync(stringConexao, pedidoId)).Should().BeFalse();
+        (await EstoqueAsync(stringConexao, Cat001)).Should().Be(50);
+        (await EstoqueAsync(stringConexao, Cat002)).Should().Be(disponivel);
+        (await BancoDadosTeste.ConsultarAsync<string>(stringConexao,
+            $"SELECT TOP 1 Motivo FROM HistoricosStatusPedido WHERE PedidoId = '{pedidoId}' ORDER BY OcorridoEm DESC, Id DESC")).Should().Be("Estoque insuficiente.");
+
+        // Reentrega do mesmo evento depois do cancelamento: nada muda (cenário 4).
+        var original = await PedidoCriadoGravadoAsync(stringConexao, pedidoId);
+        await PublicarAsync(mensageria, original, SerializacaoEventos.Desserializar<PedidoCriado>(original).IdEvento.ToString());
+        (await EsperarLogAsync(logs, 5005, Prazo)).Should().BeTrue();
+        DoPedido(fila, pedidoId).Should().ContainSingle();
+        (await StatusAsync(stringConexao, pedidoId)).Should().Be("Cancelado");
+    }
+
     [Fact]
     public async Task Reentrega_do_mesmo_pedido_criado_nao_reserva_de_novo()
     {

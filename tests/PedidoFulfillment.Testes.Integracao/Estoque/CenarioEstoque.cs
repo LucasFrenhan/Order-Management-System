@@ -48,6 +48,18 @@ internal static class CenarioEstoque
         return worker;
     }
 
+    /// <summary>
+    /// Declara <c>oms.estoque</c> antes de o Worker subir, com os intervalos do <see cref="FabricaWorker"/>.
+    /// Sem isso, num broker novo o despachante pode publicar <c>pedido.criado</c> antes de o
+    /// consumidor ligar a fila, e a mensagem sem rota é descartada.
+    /// </summary>
+    public static async Task DeclararFilaEstoqueAsync(MensageriaTeste mensageria)
+    {
+        await using var conexao = await mensageria.ConectarAsync();
+        await using var canal = await conexao.CreateChannelAsync(cancellationToken: Cancelamento);
+        await TopologiaMensageria.DeclararConsumidorAsync(canal, FilaEstoque, [TiposEvento.PedidoCriado], [100, 200, 400], Cancelamento);
+    }
+
     public static Task<int> EstoqueAsync(string stringConexao, Guid produtoId) =>
         BancoDadosTeste.ConsultarAsync<int>(stringConexao, $"SELECT QuantidadeEstoque FROM Produtos WHERE Id = '{produtoId}'");
 
