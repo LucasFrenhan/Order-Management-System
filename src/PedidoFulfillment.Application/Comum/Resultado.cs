@@ -11,8 +11,7 @@ public enum TipoFalha
     SemPermissao,
     NaoEncontrado,
     Conflito,
-    RegraNegocio,
-    NaoImplementado
+    RegraNegocio
 }
 
 /// <summary>

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using PedidoFulfillment.Application.Comum;
+using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Domain.Entregas;
 using PedidoFulfillment.Domain.Pagamentos;
 using PedidoFulfillment.Domain.Pedidos;
@@ -23,6 +24,12 @@ public sealed class ContextoBancoDados(DbContextOptions<ContextoBancoDados> opti
     /// <summary>Tamanho das colunas de enum gravadas como texto (R-06).</summary>
     internal const int TamanhoEnum = 30;
 
+    /// <summary>Chave primária de <c>ChavesIdempotencia</c> (research R-04 do REQ-05).</summary>
+    public const string NomeChavePrimariaIdempotencia = "PK_ChavesIdempotencia";
+
+    /// <summary>Sequência que gera o sufixo do número do pedido (research R-05 do REQ-05).</summary>
+    internal const string SequenciaNumeroPedido = nameof(SequenciaNumeroPedido);
+
     public DbSet<Produto> Produtos => Set<Produto>();
 
     public DbSet<Pedido> Pedidos => Set<Pedido>();
@@ -34,6 +41,8 @@ public sealed class ContextoBancoDados(DbContextOptions<ContextoBancoDados> opti
     public DbSet<Pagamento> Pagamentos => Set<Pagamento>();
 
     public DbSet<OrdemEntrega> OrdensEntrega => Set<OrdemEntrega>();
+
+    public DbSet<RegistroIdempotencia> ChavesIdempotencia => Set<RegistroIdempotencia>();
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
@@ -78,6 +87,7 @@ public sealed class ContextoBancoDados(DbContextOptions<ContextoBancoDados> opti
         builder.Entity<IdentityUserToken<Guid>>().ToTable("UsuariosTokens");
 
         builder.ApplyConfigurationsFromAssembly(typeof(ContextoBancoDados).Assembly);
+        builder.HasSequence<long>(SequenciaNumeroPedido).StartsAt(1);
     }
 
     /// <summary>

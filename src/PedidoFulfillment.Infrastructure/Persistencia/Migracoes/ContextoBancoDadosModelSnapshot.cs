@@ -22,6 +22,8 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.HasSequence("SequenciaNumeroPedido");
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.Property<int>("Id")
@@ -123,6 +125,40 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("UsuariosTokens", (string)null);
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Application.Pedidos.RegistroIdempotencia", b =>
+                {
+                    b.Property<Guid>("ClienteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Chave")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CriadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Impressao")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nchar(64)")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("PedidoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Resposta")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("ClienteId", "Chave")
+                        .HasName("PK_ChavesIdempotencia");
+
+                    b.HasIndex("CriadoEm");
+
+                    b.HasIndex("PedidoId");
+
+                    b.ToTable("ChavesIdempotencia", (string)null);
                 });
 
             modelBuilder.Entity("PedidoFulfillment.Domain.Entregas.OrdemEntrega", b =>
@@ -542,6 +578,15 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                     b.HasOne("PedidoFulfillment.Infrastructure.Identidade.Usuario", null)
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Application.Pedidos.RegistroIdempotencia", b =>
+                {
+                    b.HasOne("PedidoFulfillment.Domain.Pedidos.Pedido", null)
+                        .WithMany()
+                        .HasForeignKey("PedidoId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

@@ -21,7 +21,6 @@ public static class ExtensoesResultado
             TipoFalha.NaoEncontrado => StatusCodes.Status404NotFound,
             TipoFalha.Conflito => StatusCodes.Status409Conflict,
             TipoFalha.RegraNegocio => StatusCodes.Status422UnprocessableEntity,
-            TipoFalha.NaoImplementado => StatusCodes.Status501NotImplemented,
             _ => StatusCodes.Status500InternalServerError
         };
 

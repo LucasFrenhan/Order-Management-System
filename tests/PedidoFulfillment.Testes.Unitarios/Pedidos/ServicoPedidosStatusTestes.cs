@@ -1,0 +1,177 @@
+using FluentAssertions;
+using PedidoFulfillment.Application.Comum;
+using PedidoFulfillment.Application.Contratos.Erros;
+using PedidoFulfillment.Application.Contratos.Pedidos;
+using PedidoFulfillment.Application.Pedidos;
+using PedidoFulfillment.Domain.Pedidos;
+using PedidoFulfillment.Domain.Produtos;
+using PedidoFulfillment.Domain.Usuarios;
+using PedidoFulfillment.Testes.Unitarios.Autenticacao;
+using static PedidoFulfillment.Testes.Unitarios.Pedidos.ServicoPedidosCriacaoTestes;
+
+namespace PedidoFulfillment.Testes.Unitarios.Pedidos;
+
+/// <summary>User Story 4: transições, papéis, histórico e reavaliação em conflito (FR-016 a FR-019).</summary>
+public sealed class ServicoPedidosStatusTestes
+{
+    private static readonly Guid Dono = Guid.CreateVersion7();
+    private static readonly Guid Operador = Guid.CreateVersion7();
+    private static readonly Guid PedidoId = Guid.CreateVersion7();
+
+    private readonly ArmazenamentoPedidosFalso armazenamento = new();
+    private readonly LoggerFalso<ServicoPedidos> logger = new();
+    private readonly Produto produto = new("SKU-A", "Produto A", null, 10m, 10, true, Agora);
+
+    private ServicoPedidos Servico() => new(armazenamento, new GeradorNumeroPedidoFalso(), new RelogioFixo(Agora.AddHours(1)), logger);
+
+    /// <summary>Guarda um pedido no status pedido; cada leitura monta uma instância nova.</summary>
+    private void PedidoEm(StatusPedido status) => armazenamento.GuardarPedido(PedidoId, () => Montar(status));
+
+    private Pedido Montar(StatusPedido status)
+    {
+        var pedido = new Pedido(Dono, "PED-20261022-000001", [(produto, 1)], Agora);
+        typeof(Pedido).GetProperty(nameof(Pedido.Id))!.SetValue(pedido, PedidoId);
+        foreach (var passo in Caminho(status))
+        {
+            pedido.MudarStatus(passo, null, passo == StatusPedido.Cancelado ? "motivo" : null, Agora);
+        }
+
+        return pedido;
+    }
+
+    private static StatusPedido[] Caminho(StatusPedido status) => status switch
+    {
+        StatusPedido.Pendente => [],
+        StatusPedido.Processando => [StatusPedido.Processando],
+        StatusPedido.ProntoParaEnvio => [StatusPedido.Processando, StatusPedido.ProntoParaEnvio],
+        StatusPedido.Despachado => [StatusPedido.Processando, StatusPedido.ProntoParaEnvio, StatusPedido.Despachado],
+        _ => [status]
+    };
+
+    private Task<Resultado<PedidoResponseDTO>> Mudar(Guid usuarioId, StatusPedido novo, string? motivo, params PerfilUsuario[] perfis) =>
+        Servico().AtualizarStatusAsync(PedidoId, usuarioId, perfis, new AtualizarStatusPedidoRequestDTO { Status = novo, Motivo = motivo }, CancellationToken.None);
+
+    public static TheoryData<StatusPedido, StatusPedido> TransicoesDaOperacao => new()
+    {
+        { StatusPedido.Pendente, StatusPedido.Processando },
+        { StatusPedido.Processando, StatusPedido.ProntoParaEnvio },
+        { StatusPedido.ProntoParaEnvio, StatusPedido.Despachado },
+        { StatusPedido.Pendente, StatusPedido.Cancelado },
+        { StatusPedido.Processando, StatusPedido.Cancelado },
+        { StatusPedido.ProntoParaEnvio, StatusPedido.Cancelado }
+    };
+
+    [Theory]
+    [MemberData(nameof(TransicoesDaOperacao))]
+    public async Task Operacao_aplica_as_transicoes_da_tabela(StatusPedido de, StatusPedido para)
+    {
+        PedidoEm(de);
+
+        var resultado = await Mudar(Operador, para, "  Motivo  ", PerfilUsuario.OperadorLogistica);
+
+        resultado.Valor!.Status.Should().Be(para);
+        resultado.Valor.AtualizadoEm.Should().Be(Agora.AddHours(1));
+        var gravado = (await armazenamento.ObterPedidoAsync(PedidoId, false, CancellationToken.None))!;
+        var entrada = gravado.Historico.Last();
+        (entrada.StatusAnterior, entrada.StatusNovo, entrada.AutorId, entrada.Motivo).Should().Be((de, para, Operador, "Motivo"));
+        var evento = logger.Eventos.Should().ContainSingle(e => e.Id.Id == 4003).Subject;
+        evento.Propriedades["PapelAutor"].Should().Be("Operacao");
+    }
+
+    [Theory]
+    [InlineData(StatusPedido.Despachado, StatusPedido.Pendente)]
+    [InlineData(StatusPedido.Pendente, StatusPedido.Pendente)]
+    [InlineData(StatusPedido.Cancelado, StatusPedido.Processando)]
+    [InlineData(StatusPedido.Pendente, StatusPedido.Despachado)]
+    public async Task Transicao_fora_da_tabela_responde_409_sem_gravar(StatusPedido de, StatusPedido para)
+    {
+        PedidoEm(de);
+
+        var resultado = await Mudar(Operador, para, null, PerfilUsuario.Admin);
+
+        resultado.Falha!.Tipo.Should().Be(TipoFalha.Conflito);
+        resultado.Falha.Codigo.Should().Be(CodigosErro.PedidoTransicaoInvalida);
+        resultado.Falha.Detalhe.Should().Be($"O pedido está em {de} e não pode passar para {para}.");
+        armazenamento.Gravacoes.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Cliente_dono_cancela_pedido_pendente()
+    {
+        PedidoEm(StatusPedido.Pendente);
+
+        var resultado = await Mudar(Dono, StatusPedido.Cancelado, "Desisti", PerfilUsuario.Cliente);
+
+        resultado.Valor!.Status.Should().Be(StatusPedido.Cancelado);
+        logger.Eventos.Single(e => e.Id.Id == 4003).Propriedades["PapelAutor"].Should().Be("Cliente");
+    }
+
+    [Theory]
+    [InlineData(StatusPedido.Processando, StatusPedido.Cancelado)]
+    [InlineData(StatusPedido.Pendente, StatusPedido.Processando)]
+    [InlineData(StatusPedido.Despachado, StatusPedido.Pendente)]
+    public async Task Cliente_dono_em_outra_transicao_recebe_403(StatusPedido de, StatusPedido para)
+    {
+        PedidoEm(de);
+
+        var resultado = await Mudar(Dono, para, "motivo", PerfilUsuario.Cliente);
+
+        resultado.Falha!.Tipo.Should().Be(TipoFalha.SemPermissao);
+        armazenamento.Gravacoes.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Outro_cliente_e_pedido_inexistente_recebem_404()
+    {
+        PedidoEm(StatusPedido.Pendente);
+
+        var deOutro = await Mudar(Guid.CreateVersion7(), StatusPedido.Cancelado, "x", PerfilUsuario.Cliente);
+        var inexistente = await Servico().AtualizarStatusAsync(
+            Guid.CreateVersion7(), Operador, [PerfilUsuario.Admin], new AtualizarStatusPedidoRequestDTO { Status = StatusPedido.Processando }, CancellationToken.None);
+
+        deOutro.Falha!.Tipo.Should().Be(TipoFalha.NaoEncontrado);
+        inexistente.Falha!.Tipo.Should().Be(TipoFalha.NaoEncontrado);
+    }
+
+    [Fact]
+    public async Task Conflito_reavalia_sobre_o_estado_novo_e_cliente_recebe_403()
+    {
+        PedidoEm(StatusPedido.Pendente);
+        armazenamento.ConflitosRestantes = 1;
+        armazenamento.AoConflitar = () => PedidoEm(StatusPedido.Processando);
+
+        var resultado = await Mudar(Dono, StatusPedido.Cancelado, "Desisti", PerfilUsuario.Cliente);
+
+        resultado.Falha!.Tipo.Should().Be(TipoFalha.SemPermissao);
+        armazenamento.Descartes.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Conflito_reavalia_e_operacao_cancela_o_pedido_que_avancou()
+    {
+        PedidoEm(StatusPedido.Pendente);
+        armazenamento.ConflitosRestantes = 1;
+        armazenamento.AoConflitar = () => PedidoEm(StatusPedido.Processando);
+
+        var resultado = await Mudar(Operador, StatusPedido.Cancelado, "Sem estoque", PerfilUsuario.OperadorLogistica);
+
+        resultado.Valor!.Status.Should().Be(StatusPedido.Cancelado);
+        var gravado = (await armazenamento.ObterPedidoAsync(PedidoId, false, CancellationToken.None))!;
+        gravado.Historico.Last().StatusAnterior.Should().Be(StatusPedido.Processando);
+        armazenamento.Descartes.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Tres_conflitos_seguidos_respondem_409()
+    {
+        PedidoEm(StatusPedido.Pendente);
+        armazenamento.ConflitosRestantes = 3;
+
+        var resultado = await Mudar(Operador, StatusPedido.Processando, null, PerfilUsuario.Admin);
+
+        resultado.Falha!.Codigo.Should().Be(CodigosErro.PedidoTransicaoInvalida);
+        resultado.Falha.Detalhe.Should().Be("O pedido foi alterado por outra operação; tente novamente.");
+        armazenamento.Descartes.Should().Be(3);
+        armazenamento.Gravacoes.Should().Be(0);
+    }
+}

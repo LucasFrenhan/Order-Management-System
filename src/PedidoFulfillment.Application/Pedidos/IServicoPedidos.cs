@@ -5,7 +5,7 @@ using PedidoFulfillment.Domain.Usuarios;
 namespace PedidoFulfillment.Application.Pedidos;
 
 /// <summary>
-/// Operações de pedidos (criação implementada no REQ-05).
+/// Operações de pedidos, implementadas no REQ-05 (<c>ServicoPedidos</c>).
 /// </summary>
 public interface IServicoPedidos
 {

@@ -39,7 +39,6 @@ public static class ConfiguracaoProblemDetails
         409 => "Conflito com o estado atual do recurso.",
         415 => "Tipo de conteúdo não suportado.",
         422 => "Requisição rejeitada por regra de negócio.",
-        501 => "Operação ainda não implementada.",
         _ => "Erro interno."
     };
 }
