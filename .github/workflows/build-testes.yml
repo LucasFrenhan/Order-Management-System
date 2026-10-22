@@ -65,3 +65,33 @@ jobs:
           path: resultados
           retention-days: 14
           if-no-files-found: warn
+
+  demo:
+    name: Demonstração
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Subir a demonstração
+        run: |
+          inicio=$(date +%s)
+          docker compose --profile demo up -d --wait --wait-timeout 300 --build
+          echo "Demonstração pronta em $(( $(date +%s) - inicio )) s (com build da imagem)." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Prontidão
+        run: curl -fsS http://localhost:5230/health/pronto
+
+      - name: Login do administrador
+        run: |
+          curl -fsS -H "Content-Type: application/json" \
+            -d '{"email":"admin@oms.local","senha":"AdminDev2026"}' \
+            http://localhost:5230/api/v1/auth/login | grep -q tokenAcesso
+
+      - name: Registros da API
+        if: failure()
+        run: docker compose --profile demo logs api sqlserver
+
+      - name: Encerrar
+        if: always()
+        run: docker compose --profile demo down -v

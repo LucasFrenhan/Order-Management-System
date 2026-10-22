@@ -203,7 +203,7 @@ saudáveis; o login do Admin funciona; o comando sem perfil não muda.
 **Goal**: o job "Demonstração" roda em paralelo, sobe o perfil `demo` e confere a
 prontidão e o login.
 
-- [ ] T018 [US5] Acrescentar o job `demo` em `build-testes.yml` (R-10), com `name: Demonstração`, `runs-on: ubuntu-latest` e `timeout-minutes: 20`, sem `needs`. Passos:
+- [X] T018 [US5] Acrescentar o job `demo` em `build-testes.yml` (R-10), com `name: Demonstração`, `runs-on: ubuntu-latest` e `timeout-minutes: 20`, sem `needs`. Passos:
   1. checkout;
   2. "Subir a demonstração": registrar o instante, rodar
      `docker compose --profile demo up -d --wait --wait-timeout 300 --build` e escrever no
