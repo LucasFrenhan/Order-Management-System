@@ -143,7 +143,9 @@ número do pedido e utilitários de teste.
   - **`SalvarAsync`**: chama `SaveChangesAsync` e traduz `DbUpdateException` com
     `EhViolacaoUnicidade(e, NomeChavePrimariaIdempotencia)` para
     `ChaveIdempotenciaRegistradaException`. O `ConflitoConcorrenciaException` já vem
-    traduzido pelo contexto.
+    traduzido pelo contexto. Uma exceção com `SqlException` 1205 (vítima de deadlock)
+    também vira `ChaveIdempotenciaRegistradaException` (R-04, achado M1). Para isso,
+    acrescentar `EhDeadlock(Exception)` em `ErrosBancoDados.cs`.
   - **`DescartarAlteracoes`**: `ChangeTracker.Clear()`.
 - [ ] T011 Criar `src/PedidoFulfillment.Infrastructure/Persistencia/GeradorNumeroPedido.cs` (`internal sealed`):
   - `SELECT NEXT VALUE FOR SequenciaNumeroPedido` via
