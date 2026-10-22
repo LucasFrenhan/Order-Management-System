@@ -246,12 +246,12 @@ broker, criar 20 pedidos, retomar e receber os 20.
 
 ## Phase 4: User Story 2 — Contratos versionados e verificados (Priority: P1)
 
-- [ ] T023 [P] [US2] Conformidade em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/SchemaEventosTestes.cs`. Copiar os schemas de `specs/006-mensageria/contracts/eventos/` para a saída com `<None Include ... CopyToOutputDirectory>` no csproj de testes. Para cada evento:
+- [X] T023 [P] [US2] Conformidade em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/SchemaEventosTestes.cs`. Copiar os schemas de `specs/006-mensageria/contracts/eventos/` para a saída com `<None Include ... CopyToOutputDirectory>` no csproj de testes. Para cada evento:
   - o JSON de `SerializacaoEventos.Serializar` é válido no schema (`JsonSchema.Evaluate`),
     inclusive um pedido com `valorTotal` 829,70;
   - são inválidos: sem `idEvento`, `versao = 2`, `tipo` trocado, campo extra e `quantidade`
     texto.
-- [ ] T024 [P] [US2] Leitura em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/LeitorMensagemTestes.cs`:
+- [X] T024 [P] [US2] Leitura em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/LeitorMensagemTestes.cs`:
   - corpo vazio;
   - JSON inválido;
   - `tipo` desconhecido;
@@ -261,7 +261,7 @@ broker, criar 20 pedidos, retomar e receber os 20.
 
   Cada caso resulta em `ResultadoLeitura.Irrecuperavel(motivo)`. Uma mensagem válida
   resulta em `Valida(envelope)`.
-- [ ] T025 [US2] Criar `src/PedidoFulfillment.Infrastructure/Mensageria/LeitorMensagem.cs` (R-03), com `Ler<TDados>(ReadOnlyMemory<byte> corpo, IReadOnlyCollection<string> tiposAceitos)` → `ResultadoLeitura<TDados>`. As T023 e T024 devem passar.
+- [X] T025 [US2] Criar `src/PedidoFulfillment.Infrastructure/Mensageria/LeitorMensagem.cs` (R-03), com `Ler<TDados>(ReadOnlyMemory<byte> corpo, IReadOnlyCollection<string> tiposAceitos)` → `ResultadoLeitura<TDados>`. As T023 e T024 devem passar.
 
 ---
 
