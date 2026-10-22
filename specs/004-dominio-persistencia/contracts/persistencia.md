@@ -20,7 +20,13 @@ workers podem esperar do armazenamento.
 |----------|-----------------|
 | `Produto` ou `Pedido` gravado a partir de uma leitura desatualizada | `PedidoFulfillment.Application.Comum.ConflitoConcorrenciaException` |
 
-- **Propriedades**: `Entidade` (`"Produto"` ou `"Pedido"`) e `Identificador` (`Guid`).
+- **Propriedades**: `Entidade` (o nome do tipo, por exemplo `"Produto"` ou `"Pedido"`) e
+  `Identificador` (`string`, a chave primária; numa chave composta, as partes vêm
+  separadas por `/`). Alterar ou apagar uma linha que outra operação já apagou também gera
+  esse conflito, em qualquer entidade de negócio.
+- **Identity**: as entidades do Identity (`Usuario`, `Perfil` e as tabelas de ligação)
+  continuam com o comportamento do REQ-03. O `UserManager` devolve
+  `IdentityResult.Failed` com o código `ConcurrencyFailure`, sem lançar exceção.
 - **Estado do contexto**: depois do conflito, nada da chamada foi gravado, e o contexto
   continua com as entidades rastreadas. Quem trata o conflito descarta o contexto (ou chama
   `ChangeTracker.Clear()`), relê e decide se tenta de novo.

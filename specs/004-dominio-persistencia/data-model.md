@@ -35,7 +35,7 @@ Pedidos           1 ──o OrdensEntrega            (0..1; Cascade)
 | Campo | Tipo C# | Coluna | Regras |
 |-------|---------|--------|--------|
 | Id | Guid | `uniqueidentifier` PK | `Guid.CreateVersion7()` |
-| Sku | string | `nvarchar(50)` | obrigatório; único sem diferenciar maiúsculas (`IX_Produtos_Sku`) |
+| Sku | string | `nvarchar(50)`, collation `SQL_Latin1_General_CP1_CI_AS` | obrigatório; único sem diferenciar maiúsculas (`IX_Produtos_Sku`) |
 | Nome | string | `nvarchar(200)` | obrigatório, aparado |
 | Descricao | string? | `nvarchar(1000)` | opcional |
 | Preco | decimal | `decimal(18,2)` | ≥ 0 (`CK_Produtos_PrecoNaoNegativo`) |
@@ -151,6 +151,14 @@ ambas com `Restrict`. A migration `EntidadesNegocio` não altera nenhuma tabela 
 
 Lançada pelo `ContextoBancoDados` no lugar de `DbUpdateConcurrencyException` (R-04). Traz:
 - `Entidade`: o nome do tipo, por exemplo `Produto`;
-- `Identificador`: o `Id`.
+- `Identificador` (`string`): a chave primária em texto. Numa chave composta, as partes vêm
+  separadas por `/`, como em `ItensPedido` (`<PedidoId>/<ProdutoId>`).
+
+O EF também lança conflito ao alterar ou apagar uma linha que outra operação já apagou, em
+qualquer entidade. Por isso o identificador não pode supor `Guid`.
+
+A tradução vale só para as entidades do Domain. As do Identity mantêm a
+`DbUpdateConcurrencyException` original, que o `UserStore` converte em `IdentityResult`
+(research R-04).
 
 Ver [contracts/persistencia.md](./contracts/persistencia.md).

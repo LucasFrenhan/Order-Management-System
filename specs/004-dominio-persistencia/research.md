@@ -89,7 +89,14 @@
   - **Tradução do erro**: o `ContextoBancoDados` sobrescreve `SaveChangesAsync` e
     `SaveChanges`. Ele traduz `DbUpdateConcurrencyException` para
     `ConflitoConcorrenciaException`, definida em `Application/Comum`, com o nome da entidade
-    e o identificador. O Application e os workers tratam o conflito sem referenciar o EF
+    e a chave primária em texto.
+  - **Só entidades de negócio**: a tradução vale só quando a entidade em conflito pertence
+    ao assembly do Domain. Para as entidades do Identity (`Usuario`, `Perfil` e as tabelas
+    de ligação), a exceção original é relançada. O `UserStore` do Identity captura
+    `DbUpdateConcurrencyException` e devolve `IdentityResult.Failed(ConcurrencyFailure)`;
+    traduzir também essa exceção transformaria em 500 o caso de dois logins errados ao
+    mesmo tempo na mesma conta, que hoje responde 401 (FR-019; achado U1 do
+    `/speckit-analyze`). O Application e os workers tratam o conflito sem referenciar o EF
     Core (FR-003, FR-021).
   - **Escopo**: os itens, o histórico, o pagamento e a ordem de entrega não têm versão
     (Clarifications).
@@ -178,14 +185,18 @@
 - **Justificativa**:
   - Os tamanhos seguem o contrato v1, quando ele define. Nos demais casos, seguem limites
     usuais.
-  - SKU sem diferenciar maiúsculas de minúsculas (FR-001): a collation padrão do contêiner
-    (`SQL_Latin1_General_CP1_CI_AS`) já faz o índice único ignorar a diferença. Um teste
-    comprova isso.
+  - SKU sem diferenciar maiúsculas de minúsculas (FR-001): a coluna `Sku` recebe a
+    collation `SQL_Latin1_General_CP1_CI_AS` de forma explícita (`UseCollation`). Assim, o
+    índice único ignora a diferença de caixa mesmo num servidor cuja collation padrão a
+    diferencie, e a garantia vai na própria migration. Um teste comprova isso (achado C1
+    do `/speckit-analyze`).
 - **Alternativas**:
   - `DateTime` com conversor para UTC. Rejeitada: `datetimeoffset` é explícito e não
     depende de `Kind`.
   - Normalizar o SKU em maiúsculas numa coluna extra. Rejeitada: duplicaria o dado, e a
     collation já resolve.
+  - Depender da collation padrão do servidor. Rejeitada: a garantia sumiria sem aviso num
+    servidor que diferencia maiúsculas.
 
 ## R-07. Índices de consulta
 

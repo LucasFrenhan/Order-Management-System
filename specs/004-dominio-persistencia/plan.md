@@ -172,4 +172,5 @@ Sem violações a justificar.
 | Teste de desempenho instável | Mediana de 20 execuções após aquecimento e carga por SQL em lote (R-10) |
 | Unicidade do SKU depender da collation | Teste explícito com SKU de outra caixa no contêiner do projeto (R-06) |
 | `Guid` v7 fragmentar o índice clusterizado | Aceito no volume esperado, como no `Usuarios` do REQ-03. O histórico usa identity porque depende da ordem (R-06) |
+| A tradução do conflito quebrar o tratamento de concorrência do Identity (REQ-03) | Só as entidades do Domain são traduzidas, e um teste comprova o `ConcurrencyFailure` do `UserManager` (R-04, T021) |
 | Catálogo criado em produção por engano | O passo só roda em `Development` e `Testes`, e um teste comprova que outro ambiente não cria produtos (R-08) |

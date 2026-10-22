@@ -6,7 +6,7 @@
 
 **Created**: 2026-10-22
 
-**Status**: Draft
+**Status**: Approved
 
 **Input**: User description: "REQ-04 (GitHub issue #5 — \"[Database] Mapeamento do Domínio e Migrations do Banco SQL\"): mapear as entidades do domínio utilizando EF Core Fluent API, aplicando índices e controles de concorrência necessários para o negócio. Critérios de aceite: entidades mapeadas no DbContext: Usuario, Produto, Pedido, ItemPedido, Pagamento, OrdemEntrega; enum de status do pedido: Pendente, Processando, ProntoParaEnvio, Despachado, Cancelado, PagamentoRejeitado; controle de concorrência otimista na entidade Produto (RowVersion / ConcurrencyCheck); migration criada e executada via EF Core Migrations. Contexto: o REQ-03 já criou o ContextoBancoDados (IdentityDbContext<Usuario, Perfil, Guid>) e a primeira migration InicialIdentidade com Usuario; o REQ-04 acrescenta os DbSet de negócio e as migrations seguintes. StatusPedido e PerfilUsuario já existem no Domain (REQ-01). Branch dedicada no padrão feature/req-04-dominio-persistencia."
 
@@ -207,15 +207,16 @@ usuário continua fazendo login. Repetir a partir de um banco vazio.
 - Uma alteração de produto que não mexe no estoque (por exemplo, o nome), feita ao mesmo
   tempo que uma reserva de estoque: também gera conflito de concorrência. A versão
   protege o produto inteiro, não só o estoque.
-- Gravar um pedido sem nenhum item: aceito pelo armazenamento. A regra "ao menos 1 item" é
-  do contrato v1 e do serviço de pedidos (REQ-05), como as demais regras de negócio.
-- Valores monetários com mais de 2 casas decimais: o serviço que calcula o valor
-  arredonda antes de gravar. O armazenamento guarda exatamente 2 casas e não pode perder
+- Criar um pedido sem nenhum item: o domínio recusa. O banco não tem restrição para isso,
+  porque contar linhas de outra tabela não cabe numa restrição simples. O limite de 50
+  itens e as demais regras do contrato v1 ficam no serviço de pedidos (REQ-05).
+- Valores monetários com mais de 2 casas decimais: o domínio arredonda antes de gravar. O armazenamento guarda exatamente 2 casas e não pode perder
   precisão em valores de até 999.999.999,99.
 - Status desconhecido (fora dos 6 do contrato) ou ausente: a gravação é recusada.
 - Apagar um usuário que tem pedidos: recusado. Pedidos são histórico e não podem ficar sem
   dono.
-- Apagar um pedido: os itens, o pagamento e a ordem de entrega dele também são apagados.
+- Apagar um pedido: os itens, o histórico de status, o pagamento e a ordem de entrega dele
+  também são apagados.
   Nenhuma operação do contrato v1 apaga pedidos; isso só acontece em manutenção.
 - Banco fora do ar durante uma gravação: a gravação falha por inteiro, e nenhum pedido
   fica gravado pela metade (sem itens, ou com parte dos itens).
