@@ -274,12 +274,12 @@ duplicados.
 
 ### Testes da US3
 
-- [ ] T026 [P] [US3] Unitários em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/PoliticaNovaTentativaTestes.cs`. Com intervalos `[1000, 2000, 4000]`:
+- [X] T026 [P] [US3] Unitários em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/PoliticaNovaTentativaTestes.cs`. Com intervalos `[1000, 2000, 4000]`:
   - tentativas 0, 1 e 2 → espera de 1000, 2000 e 4000 ms;
   - tentativa 3 → DLQ;
   - cabeçalho ausente conta como 0;
   - cabeçalho inválido conta como 0.
-- [ ] T027 [P] [US3] Integração em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/ConsumoComNovaTentativaTestes.cs` (coleção `ColecaoMensageria`, `FabricaWorker` com um `ManipuladorVerificacao` registrado: consumidor `verificacao`, tipo `pedido.criado`, comportamento configurável e contador de execuções por `idEvento`; as mensagens são publicadas direto na troca pelo teste):
+- [X] T027 [P] [US3] Integração em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/ConsumoComNovaTentativaTestes.cs` (coleção `ColecaoMensageria`, `FabricaWorker` com um `ManipuladorVerificacao` registrado: consumidor `verificacao`, tipo `pedido.criado`, comportamento configurável e contador de execuções por `idEvento`; as mensagens são publicadas direto na troca pelo teste):
   - **Cenário 1**: falha 2 vezes e depois processa. São 3 execuções, nada fica na DLQ, e o
     tempo entre as execuções cresce (≥ 100 ms e ≥ 200 ms).
   - **Cenário 2**: falha sempre. São exatamente 4 execuções, e `oms.verificacao.dlq` tem 1
@@ -300,8 +300,8 @@ duplicados.
 
 ### Implementação da US3
 
-- [ ] T028 [US3] Criar `src/PedidoFulfillment.Infrastructure/Mensageria/PoliticaNovaTentativa.cs` (decide espera ou DLQ a partir de `x-tentativas`). A T026 deve passar.
-- [ ] T029 [US3] Criar `src/PedidoFulfillment.Infrastructure/Mensageria/ConsumidorEventos.cs` (`BackgroundService<TManipulador, TDados>`, R-07):
+- [X] T028 [US3] Criar `src/PedidoFulfillment.Infrastructure/Mensageria/PoliticaNovaTentativa.cs` (decide espera ou DLQ a partir de `x-tentativas`). A T026 deve passar.
+- [X] T029 [US3] Criar `src/PedidoFulfillment.Infrastructure/Mensageria/ConsumidorEventos.cs` (`BackgroundService<TManipulador, TDados>`, R-07):
   1. Na partida, obter a conexão, abrir um canal com confirmação, declarar a topologia do
      consumidor, aplicar `BasicQosAsync(0, Prefetch, false)` e iniciar o
      `AsyncEventingBasicConsumer` com `autoAck: false`.
@@ -318,7 +318,7 @@ duplicados.
      `EventoProcessado` (5006).
 
   Acrescentar `AdicionarConsumidor<TManipulador, TDados>()` em `ExtensoesMensageria`.
-- [ ] T030 [US3] Rodar T026–T027 e a suíte e corrigir até ficarem verdes.
+- [X] T030 [US3] Rodar T026–T027 e a suíte e corrigir até ficarem verdes.
 
 ---
 
