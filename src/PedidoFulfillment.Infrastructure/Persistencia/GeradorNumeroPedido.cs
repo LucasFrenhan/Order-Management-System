@@ -15,9 +15,12 @@ internal sealed class GeradorNumeroPedido(ContextoBancoDados contexto) : IGerado
 
     public async Task<string> ProximoAsync(DateTimeOffset instante, CancellationToken cancellationToken)
     {
-        var valor = await contexto.Database
+        // ToListAsync, e não SingleAsync: compor a consulta a poria numa subconsulta, onde o
+        // SQL Server não aceita NEXT VALUE FOR.
+        var valores = await contexto.Database
             .SqlQueryRaw<long>($"SELECT NEXT VALUE FOR {ContextoBancoDados.SequenciaNumeroPedido} AS Value")
-            .SingleAsync(cancellationToken);
+            .ToListAsync(cancellationToken);
+        var valor = valores.Single();
         return string.Create(CultureInfo.InvariantCulture, $"PED-{instante.UtcDateTime:yyyyMMdd}-{valor % LimiteSufixo:D6}");
     }
 }

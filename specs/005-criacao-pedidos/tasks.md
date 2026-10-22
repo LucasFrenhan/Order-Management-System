@@ -199,7 +199,7 @@ que a quantidade, e conferir os 422.
 
 ### Testes da US1
 
-- [ ] T017 [P] [US1] Unitários de criação em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosCriacaoTestes.cs`, com os falsos da T014:
+- [X] T017 [P] [US1] Unitários de criação em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosCriacaoTestes.cs`, com os falsos da T014:
   - **Sucesso**: um pedido com dois produtos ativos e com estoque gera:
     - `Pendente`, `ClienteId` do parâmetro e moeda `BRL`;
     - itens com nome e preço do produto, subtotal e total corretos;
@@ -217,7 +217,7 @@ que a quantidade, e conferir os 422.
       `Detalhe`;
     - em todos os casos de erro, nenhuma gravação.
   - **Log**: o evento 4001 `PedidoCriado` é emitido, sem o corpo da requisição.
-- [ ] T018 [P] [US1] Integração em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/CriacaoPedidoComBancoTestes.cs` (cenários 1 a 7 da US1):
+- [X] T018 [P] [US1] Integração em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/CriacaoPedidoComBancoTestes.cs` (cenários 1 a 7 da US1):
   - **Criação** com `CAT-001` × 2 e `CAT-002` × 1:
     - 201 e `Location` = `/api/v1/pedidos/{id}`;
     - corpo com `status` `Pendente`, `valorTotal` 829.70, `moeda` `BRL`, `clienteId` igual
@@ -240,7 +240,7 @@ que a quantidade, e conferir os 422.
 
 ### Implementação da US1
 
-- [ ] T019 [US1] Criar `src/PedidoFulfillment.Application/Pedidos/ServicoPedidos.cs`:
+- [X] T019 [US1] Criar `src/PedidoFulfillment.Application/Pedidos/ServicoPedidos.cs`:
   - classe `sealed`, com construtor primário recebendo `IArmazenamentoPedidos`,
     `IGeradorNumeroPedido`, `TimeProvider` e `ILogger<ServicoPedidos>`.
   - **`CriarAsync`**, nesta história sem consultar a chave antes e sem tratar a corrida
@@ -260,14 +260,14 @@ que a quantidade, e conferir os 422.
   - **`ObterAsync` e `AtualizarStatusAsync`**: continuam devolvendo
     `Falha(TipoFalha.NaoImplementado, ...)` até a US3 e a US4, com um comentário que diz
     isso.
-- [ ] T020 [US1] Trocar o serviço:
+- [X] T020 [US1] Trocar o serviço:
   - em `src/PedidoFulfillment.API/Program.cs`, registrar
     `builder.Services.AddScoped<IServicoPedidos, ServicoPedidos>()` no lugar do
     `ServicoNaoImplementado`;
   - remover `src/PedidoFulfillment.API/Provisorio/ServicoNaoImplementado.cs` e a pasta;
   - atualizar o comentário de `src/PedidoFulfillment.Application/Pedidos/IServicoPedidos.cs`
     para "Operações de pedidos (REQ-05)".
-- [ ] T021 [US1] Ajustar os testes do REQ-03 que usavam o 501 (R-10):
+- [X] T021 [US1] Ajustar os testes do REQ-03 que usavam o 501 (R-10):
   - **`tests/PedidoFulfillment.Testes.Integracao/Autenticacao/AutorizacaoComTokensReaisTestes.cs`**:
     um perfil autorizado recebe status diferente de 401 e de 403 (comentário: "passou pela
     autorização e chegou ao serviço de pedidos"); um perfil não autorizado recebe 403.
@@ -276,7 +276,7 @@ que a quantidade, e conferir os 422.
     O Cliente recebe 201, e o Admin, 403.
   - **`tests/PedidoFulfillment.Testes.Integracao/Autenticacao/LoginComBancoTestes.cs`**:
     o token do login passa pela autorização, com status diferente de 401 e de 403.
-- [ ] T022 [US1] Rodar T017–T018 e a suíte inteira com o Docker no ar e corrigir até ficarem verdes.
+- [X] T022 [US1] Rodar T017–T018 e a suíte inteira com o Docker no ar e corrigir até ficarem verdes.
 
 **Checkpoint**: criação real de ponta a ponta.
 

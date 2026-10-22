@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using PedidoFulfillment.API.Endpoints;
 using PedidoFulfillment.API.Erros;
 using PedidoFulfillment.API.OpenApi;
-using PedidoFulfillment.API.Provisorio;
 using PedidoFulfillment.API.Saude;
 using PedidoFulfillment.API.Seguranca;
 using PedidoFulfillment.Application.Autenticacao;
@@ -40,7 +39,7 @@ builder.Services.AddOpenApi("v1", opcoes =>
 builder.Services.TryAddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IEmissorToken, EmissorTokenJwt>();
 builder.Services.AddScoped<IServicoAutenticacao, ServicoAutenticacao>();
-builder.Services.AddSingleton<IServicoPedidos, ServicoNaoImplementado>();
+builder.Services.AddScoped<IServicoPedidos, ServicoPedidos>();
 
 var app = builder.Build();
 

@@ -41,15 +41,16 @@ public sealed class EmissorTokenTestes(FabricaApi fabrica) : IClassFixture<Fabri
     }
 
     [Theory]
-    [InlineData(PerfilUsuario.Cliente, HttpStatusCode.NotImplemented)]
+    [InlineData(PerfilUsuario.Cliente, HttpStatusCode.Created)]
     [InlineData(PerfilUsuario.Admin, HttpStatusCode.Forbidden)]
     public async Task Token_emitido_e_aceito_pelas_rotas_protegidas_conforme_o_perfil(PerfilUsuario perfil, HttpStatusCode esperado)
     {
-        var token = fabrica.Services.GetRequiredService<IEmissorToken>().Emitir(Guid.NewGuid(), [perfil]).TokenAcesso;
+        // Serviço falso: sem banco, o 201 mostra que a requisição passou pela autorização.
+        await using var api = new FabricaApi { ServicoPedidos = new ServicoPedidosFalso { ResultadoCriar = Exemplos.Pedido() } };
+        var token = api.Services.GetRequiredService<IEmissorToken>().Emitir(Guid.NewGuid(), [perfil]).TokenAcesso;
 
-        var resposta = await fabrica.CreateClient().ComToken(token).SendAsync(Exemplos.CriarPedido(), Cancelamento);
+        var resposta = await api.CreateClient().ComToken(token).SendAsync(Exemplos.CriarPedido(), Cancelamento);
 
-        // 501: passou pela autorização e chegou ao serviço provisório de pedidos (REQ-05).
         resposta.StatusCode.Should().Be(esperado);
     }
 

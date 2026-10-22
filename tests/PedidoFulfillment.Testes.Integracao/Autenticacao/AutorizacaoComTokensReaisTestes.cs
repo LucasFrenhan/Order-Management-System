@@ -36,9 +36,17 @@ public sealed class AutorizacaoComTokensReaisTestes(BancoDadosTeste banco)
             {
                 var resposta = await api.CreateClient().ComToken(token).SendAsync(rota.Requisicao(), TestContext.Current.CancellationToken);
 
-                // Autorizado chega ao serviço provisório de pedidos (501 até o REQ-05).
-                var esperado = rota.Autorizados.Contains(perfil) ? HttpStatusCode.NotImplemented : HttpStatusCode.Forbidden;
-                resposta.StatusCode.Should().Be(esperado, $"{rota.Nome} com token de {perfil}");
+                // Autorizado passa pela autorização e chega ao serviço de pedidos (REQ-05), que
+                // responde conforme a regra (por exemplo, 404 ou 422 com os dados de exemplo).
+                if (rota.Autorizados.Contains(perfil))
+                {
+                    resposta.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized, $"{rota.Nome} com token de {perfil}")
+                        .And.NotBe(HttpStatusCode.Forbidden, $"{rota.Nome} com token de {perfil}");
+                }
+                else
+                {
+                    resposta.StatusCode.Should().Be(HttpStatusCode.Forbidden, $"{rota.Nome} com token de {perfil}");
+                }
             }
         }
     }

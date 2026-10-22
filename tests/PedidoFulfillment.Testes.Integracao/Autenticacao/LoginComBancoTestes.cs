@@ -122,8 +122,9 @@ public sealed class LoginComBancoTestes(BancoDadosTeste banco)
 
         var resposta = await api.CreateClient().ComToken(token).SendAsync(Exemplos.CriarPedido(), Cancelamento);
 
-        // 501: passou pela autorização e chegou ao serviço provisório de pedidos (REQ-05).
-        resposta.StatusCode.Should().Be(HttpStatusCode.NotImplemented);
+        // Passou pela autorização e chegou ao serviço de pedidos (REQ-05); o produto de exemplo
+        // não existe no banco, então a regra responde 422.
+        resposta.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized).And.NotBe(HttpStatusCode.Forbidden);
         RegistroComBancoTestes.DeveSerSemDadosSensiveis(logs, token);
     }
 
