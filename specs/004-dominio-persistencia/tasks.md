@@ -326,7 +326,7 @@ todos os campos. Alterar o preço do produto e verificar que o item não muda.
 
 ### Testes da US1
 
-- [ ] T019 [P] [US1] Ida e volta em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/PersistenciaPedidoTestes.cs` (coleção `ColecaoBancoDados`, banco de `NovoBancoMigradoAsync`).
+- [X] T019 [P] [US1] Ida e volta em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/PersistenciaPedidoTestes.cs` (coleção `ColecaoBancoDados`, banco de `NovoBancoMigradoAsync`).
   - **Cenário 1**: gravar um pedido com dois produtos e reler num contexto novo, com
     `Include` de itens e histórico. Conferir:
     - `Id`, `Numero`, `ClienteId` e `Status` `Pendente`;
@@ -344,7 +344,7 @@ todos os campos. Alterar o preço do produto e verificar que o item não muda.
     devolve `"Cancelado"`. Isso mostra que o status é gravado como texto (FR-006).
   - **Valores grandes**: um item com preço `999999999.99m` e quantidade 1 é relido sem
     perda de precisão.
-- [ ] T020 [P] [US1] Restrições do pedido em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/RestricoesPedidoTestes.cs`. Cada caso afirma `DbUpdateException` e, quando indicado, `ErrosBancoDados.EhViolacaoUnicidade` ou `EhViolacaoRestricao`. Esses métodos são `internal`; o acesso vem da T012.
+- [X] T020 [P] [US1] Restrições do pedido em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/RestricoesPedidoTestes.cs`. Cada caso afirma `DbUpdateException` e, quando indicado, `ErrosBancoDados.EhViolacaoUnicidade` ou `EhViolacaoRestricao`. Esses métodos são `internal`; o acesso vem da T012.
   - **Cenário 4**:
     - pedido com `ClienteId` inexistente → violação de restrição;
     - item com `ProdutoId` inexistente, inserido por SQL direto → violação de restrição.
@@ -365,7 +365,7 @@ todos os campos. Alterar o preço do produto e verificar que o item não muda.
   - **Atomicidade**: um pedido com um item inválido, cujo produto foi removido do banco
     entre a leitura e a gravação, não grava nada. A tabela `Pedidos` continua vazia
     (FR-009).
-- [ ] T021 [P] [US1] Concorrência do pedido em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/ConcorrenciaPedidoTestes.cs` (cenário 9, FR-021):
+- [X] T021 [P] [US1] Concorrência do pedido em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/ConcorrenciaPedidoTestes.cs` (cenário 9, FR-021):
   - Dois contextos leem o mesmo pedido.
   - O primeiro faz `MudarStatus(Processando)` e grava.
   - O segundo faz `MudarStatus(Cancelado)` e recebe `ConflitoConcorrenciaException` com
@@ -384,7 +384,7 @@ todos os campos. Alterar o preço do produto e verificar que o item não muda.
 
 ### Implementação da US1
 
-- [ ] T022 [US1] Rodar T019–T021 com o Docker no ar e corrigir o mapeamento (T013) ou o domínio (T009–T011) até ficarem verdes. Se a correção mudar o modelo, recriar a `EntidadesNegocio`, que ainda não foi publicada (`dotnet ef migrations remove` e T015 de novo), em vez de acrescentar outra migration. Registrar cada desvio em Notes.
+- [X] T022 [US1] Rodar T019–T021 com o Docker no ar e corrigir o mapeamento (T013) ou o domínio (T009–T011) até ficarem verdes. Se a correção mudar o modelo, recriar a `EntidadesNegocio`, que ainda não foi publicada (`dotnet ef migrations remove` e T015 de novo), em vez de acrescentar outra migration. Registrar cada desvio em Notes.
 
 **Checkpoint**: pedido completo gravado e lido, com restrições e concorrência comprovadas.
 
