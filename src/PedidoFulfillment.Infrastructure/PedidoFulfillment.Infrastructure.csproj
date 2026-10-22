@@ -13,6 +13,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Os testes classificam violações do banco com ErrosBancoDados (specs/004-dominio-persistencia, T012). -->
+    <InternalsVisibleTo Include="PedidoFulfillment.Testes.Integracao" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\PedidoFulfillment.Application\PedidoFulfillment.Application.csproj" />
     <ProjectReference Include="..\PedidoFulfillment.Domain\PedidoFulfillment.Domain.csproj" />
   </ItemGroup>

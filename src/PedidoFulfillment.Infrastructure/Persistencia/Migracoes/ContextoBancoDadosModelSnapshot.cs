@@ -125,6 +125,275 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                     b.ToTable("UsuariosTokens", (string)null);
                 });
 
+            modelBuilder.Entity("PedidoFulfillment.Domain.Entregas.OrdemEntrega", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("AtualizadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CodigoRastreio")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CriadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("DespachadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("PedidoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Transportadora")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PedidoId")
+                        .IsUnique();
+
+                    b.HasIndex("Transportadora", "CodigoRastreio")
+                        .IsUnique()
+                        .HasFilter("[CodigoRastreio] IS NOT NULL");
+
+                    b.ToTable("OrdensEntrega", (string)null);
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Domain.Pagamentos.Pagamento", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("AtualizadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CriadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("IdentificadorTransacao")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("PedidoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("ProcessadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Situacao")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<decimal>("Valor")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PedidoId")
+                        .IsUnique();
+
+                    b.ToTable("Pagamentos", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Pagamentos_SituacaoValida", "[Situacao] IN (N'Pendente', N'Aprovado', N'Recusado')");
+
+                            t.HasCheckConstraint("CK_Pagamentos_ValorNaoNegativo", "[Valor] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Domain.Pedidos.HistoricoStatusPedido", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<Guid?>("AutorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Motivo")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset>("OcorridoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("PedidoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("StatusAnterior")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("StatusNovo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AutorId");
+
+                    b.HasIndex("PedidoId", "Id");
+
+                    b.ToTable("HistoricosStatusPedido", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_HistoricosStatusPedido_StatusValido", "([StatusAnterior] IS NULL OR [StatusAnterior] IN (N'Pendente', N'Processando', N'ProntoParaEnvio', N'Despachado', N'Cancelado', N'PagamentoRejeitado')) AND [StatusNovo] IN (N'Pendente', N'Processando', N'ProntoParaEnvio', N'Despachado', N'Cancelado', N'PagamentoRejeitado')");
+                        });
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Domain.Pedidos.ItemPedido", b =>
+                {
+                    b.Property<Guid>("PedidoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ProdutoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("NomeProduto")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal>("PrecoUnitario")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Quantidade")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Subtotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("PedidoId", "ProdutoId");
+
+                    b.HasIndex("ProdutoId");
+
+                    b.ToTable("ItensPedido", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ItensPedido_PrecoNaoNegativo", "[PrecoUnitario] >= 0");
+
+                            t.HasCheckConstraint("CK_ItensPedido_QuantidadePositiva", "[Quantidade] > 0");
+
+                            t.HasCheckConstraint("CK_ItensPedido_SubtotalNaoNegativo", "[Subtotal] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Domain.Pedidos.Pedido", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("AtualizadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("ClienteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CriadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Moeda")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<string>("Numero")
+                        .IsRequired()
+                        .HasMaxLength(19)
+                        .HasColumnType("nvarchar(19)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<decimal>("ValorTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<byte[]>("Versao")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Numero")
+                        .IsUnique();
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("ClienteId", "CriadoEm");
+
+                    b.ToTable("Pedidos", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Pedidos_StatusValido", "[Status] IN (N'Pendente', N'Processando', N'ProntoParaEnvio', N'Despachado', N'Cancelado', N'PagamentoRejeitado')");
+
+                            t.HasCheckConstraint("CK_Pedidos_ValorTotalNaoNegativo", "[ValorTotal] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Domain.Produtos.Produto", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Ativo")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset>("AtualizadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CriadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Descricao")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal>("Preco")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("QuantidadeEstoque")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Sku")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .UseCollation("SQL_Latin1_General_CP1_CI_AS");
+
+                    b.Property<byte[]>("Versao")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Sku")
+                        .IsUnique();
+
+                    b.ToTable("Produtos", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Produtos_EstoqueNaoNegativo", "[QuantidadeEstoque] >= 0");
+
+                            t.HasCheckConstraint("CK_Produtos_PrecoNaoNegativo", "[Preco] >= 0");
+                        });
+                });
+
             modelBuilder.Entity("PedidoFulfillment.Infrastructure.Identidade.Perfil", b =>
                 {
                     b.Property<Guid>("Id")
@@ -275,6 +544,73 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Domain.Entregas.OrdemEntrega", b =>
+                {
+                    b.HasOne("PedidoFulfillment.Domain.Pedidos.Pedido", null)
+                        .WithOne("OrdemEntrega")
+                        .HasForeignKey("PedidoFulfillment.Domain.Entregas.OrdemEntrega", "PedidoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Domain.Pagamentos.Pagamento", b =>
+                {
+                    b.HasOne("PedidoFulfillment.Domain.Pedidos.Pedido", null)
+                        .WithOne("Pagamento")
+                        .HasForeignKey("PedidoFulfillment.Domain.Pagamentos.Pagamento", "PedidoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Domain.Pedidos.HistoricoStatusPedido", b =>
+                {
+                    b.HasOne("PedidoFulfillment.Infrastructure.Identidade.Usuario", null)
+                        .WithMany()
+                        .HasForeignKey("AutorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("PedidoFulfillment.Domain.Pedidos.Pedido", null)
+                        .WithMany("Historico")
+                        .HasForeignKey("PedidoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Domain.Pedidos.ItemPedido", b =>
+                {
+                    b.HasOne("PedidoFulfillment.Domain.Pedidos.Pedido", null)
+                        .WithMany("Itens")
+                        .HasForeignKey("PedidoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PedidoFulfillment.Domain.Produtos.Produto", null)
+                        .WithMany()
+                        .HasForeignKey("ProdutoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Domain.Pedidos.Pedido", b =>
+                {
+                    b.HasOne("PedidoFulfillment.Infrastructure.Identidade.Usuario", null)
+                        .WithMany()
+                        .HasForeignKey("ClienteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Domain.Pedidos.Pedido", b =>
+                {
+                    b.Navigation("Historico");
+
+                    b.Navigation("Itens");
+
+                    b.Navigation("OrdemEntrega");
+
+                    b.Navigation("Pagamento");
                 });
 #pragma warning restore 612, 618
         }

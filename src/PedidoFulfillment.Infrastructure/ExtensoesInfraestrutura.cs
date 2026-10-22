@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using PedidoFulfillment.Application.Autenticacao;
 using PedidoFulfillment.Infrastructure.Configuracao;
@@ -11,8 +12,9 @@ using PedidoFulfillment.Infrastructure.Saude;
 namespace PedidoFulfillment.Infrastructure;
 
 /// <summary>
-/// Ponto único de registro da Infrastructure, chamado uma vez pela API (FR-004). O REQ-04
-/// (persistência) e o REQ-06 (mensageria) acrescentam seus registros aqui.
+/// Ponto único de registro da Infrastructure, chamado uma vez pela API (FR-004). A persistência
+/// de negócio (REQ-04) já vem com o <c>ContextoBancoDados</c>; o REQ-06 acrescenta aqui a
+/// mensageria.
 /// </summary>
 public static class ExtensoesInfraestrutura
 {
@@ -68,6 +70,8 @@ public static class ExtensoesInfraestrutura
         services.AddScoped<IGestorIdentidade, GestorIdentidade>();
 
         services.AddOptions<OpcoesBanco>().BindConfiguration(OpcoesBanco.Secao);
+        // Data de criação do catálogo inicial (REQ-04); a API também registra, sem duplicar.
+        services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<IValidateOptions<OpcoesUsuariosIniciais>, ValidadorOpcoesUsuariosIniciais>();
         services.AddOptions<OpcoesUsuariosIniciais>()
             .Configure<IConfiguration>((opcoes, configuracao) => configuracao.GetSection(OpcoesUsuariosIniciais.Secao).Bind(opcoes.Usuarios))

@@ -10,9 +10,14 @@ internal static class ErrosBancoDados
 {
     private const int ViolacaoIndiceUnico = 2601;
     private const int ViolacaoChaveUnica = 2627;
+    private const int ViolacaoRestricao = 547;
 
     public static bool EhViolacaoUnicidade(Exception excecao) =>
         Cadeia(excecao).OfType<SqlException>().Any(e => e.Number is ViolacaoIndiceUnico or ViolacaoChaveUnica);
+
+    /// <summary>Violação de check constraint ou de chave estrangeira.</summary>
+    public static bool EhViolacaoRestricao(Exception excecao) =>
+        Cadeia(excecao).OfType<SqlException>().Any(e => e.Number == ViolacaoRestricao);
 
     /// <summary>Servidor inacessível, recusado ou lento demais para responder.</summary>
     public static bool EhFalhaConexao(Exception excecao) =>
