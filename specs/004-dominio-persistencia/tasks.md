@@ -55,8 +55,8 @@ validam esse esquema contra o SQL Server e acrescentam o que é só delas: o cat
 
 **Purpose**: confirmar a linha de base. Não há pacote nem projeto novo.
 
-- [ ] T001 Rodar `dotnet tool restore`, `dotnet build PedidoFulfillment.sln` e `dotnet test PedidoFulfillment.sln` na branch `feature/req-04-dominio-persistencia` e registrar a contagem de testes atual. Esperado: zero avisos e tudo verde, que é a linha de base do FR-019.
-- [ ] T002 [P] Criar as pastas novas com um arquivo cada, conforme a estrutura do plan.md:
+- [X] T001 Rodar `dotnet tool restore`, `dotnet build PedidoFulfillment.sln` e `dotnet test PedidoFulfillment.sln` na branch `feature/req-04-dominio-persistencia` e registrar a contagem de testes atual. Esperado: zero avisos e tudo verde, que é a linha de base do FR-019.
+- [X] T002 [P] Criar as pastas novas com um arquivo cada, conforme a estrutura do plan.md:
   - `src/PedidoFulfillment.Domain/Produtos/`, `src/PedidoFulfillment.Domain/Pagamentos/` e `src/PedidoFulfillment.Domain/Entregas/`;
   - `src/PedidoFulfillment.Infrastructure/Persistencia/Configuracoes/`;
   - `tests/PedidoFulfillment.Testes.Unitarios/Dominio/` e `tests/PedidoFulfillment.Testes.Integracao/Persistencia/`.
@@ -75,7 +75,7 @@ validam esse esquema contra o SQL Server e acrescentam o que é só delas: o cat
 
 ### Testes da fundação
 
-- [ ] T003 [P] Testes de `Produto` em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/ProdutoTestes.cs`:
+- [X] T003 [P] Testes de `Produto` em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/ProdutoTestes.cs`:
   - **Construção**: a partir de sku, nome, descrição, preço, estoque, ativo e instante, o
     produto gera um `Id` v7, apara `Sku` e `Nome` e preenche `CriadoEm` = `AtualizadoEm` =
     instante.
@@ -91,7 +91,7 @@ validam esse esquema contra o SQL Server e acrescentam o que é só delas: o cat
   - **`AjustarEstoque` que deixaria o estoque negativo**: lança `InvalidOperationException`
     e não altera nada.
   - **`AlterarDados`, `Ativar` e `Desativar`**: alteram os campos e o `AtualizadoEm`.
-- [ ] T004 [P] Testes de `Pedido`, `ItemPedido` e `HistoricoStatusPedido` em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PedidoTestes.cs`:
+- [X] T004 [P] Testes de `Pedido`, `ItemPedido` e `HistoricoStatusPedido` em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PedidoTestes.cs`:
   - **Snapshot do item**: o item copia `Nome` → `NomeProduto` e `Preco` → `PrecoUnitario`
     do produto. `Subtotal` = `PrecoUnitario × Quantidade`. Alterar o produto depois não
     muda o item.
@@ -117,7 +117,7 @@ validam esse esquema contra o SQL Server e acrescentam o que é só delas: o cat
   - **Motivo**: > 500 caracteres é recusado.
   - **`MudarStatus` sem validar transição**: aceita `Despachado → Pendente`. A regra de
     transição é do REQ-05 (R-02); o teste documenta isso.
-- [ ] T005 [P] Testes de `Pagamento` e `OrdemEntrega` em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PagamentoEntregaTestes.cs`:
+- [X] T005 [P] Testes de `Pagamento` e `OrdemEntrega` em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PagamentoEntregaTestes.cs`:
   - **Pagamento criado**: situação `Pendente`, valor arredondado; valor negativo é
     recusado.
   - **`RegistrarResultado(Aprovado, "TX-1", t)`**: preenche a situação, o
@@ -128,7 +128,7 @@ validam esse esquema contra o SQL Server e acrescentam o que é só delas: o cat
     `AtualizadoEm`.
   - **Despacho recusado**: transportadora ou código vazio, transportadora > 100 ou
     código > 50.
-- [ ] T006 [P] Teste sem Docker em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/ModeloSincronizadoTestes.cs` (FR-016):
+- [X] T006 [P] Teste sem Docker em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/ModeloSincronizadoTestes.cs` (FR-016):
   - Montar um `ContextoBancoDados` com `UseSqlServer(FabricaApi.StringConexaoTeste)`, sem
     abrir conexão.
   - Afirmar `contexto.Database.HasPendingModelChanges()` == `false`.
@@ -137,14 +137,14 @@ validam esse esquema contra o SQL Server e acrescentam o que é só delas: o cat
 
 ### Implementação da fundação
 
-- [ ] T007 [P] Criar `src/PedidoFulfillment.Domain/Pagamentos/SituacaoPagamento.cs`: enum `Pendente = 1`, `Aprovado` e `Recusado`, com o mesmo comentário do `StatusPedido` sobre começar em 1.
-- [ ] T008 [P] Criar `src/PedidoFulfillment.Application/Comum/ConflitoConcorrenciaException.cs`:
+- [X] T007 [P] Criar `src/PedidoFulfillment.Domain/Pagamentos/SituacaoPagamento.cs`: enum `Pendente = 1`, `Aprovado` e `Recusado`, com o mesmo comentário do `StatusPedido` sobre começar em 1.
+- [X] T008 [P] Criar `src/PedidoFulfillment.Application/Comum/ConflitoConcorrenciaException.cs`:
   - classe `sealed`, derivada de `Exception`;
   - propriedades `string Entidade` e `string Identificador`;
   - mensagem "O registro {Entidade} {Identificador} foi alterado por outra operação desde que foi lido.";
   - construtor que recebe também a exceção interna;
   - comentário citando FR-003, FR-021 e `contracts/persistencia.md`.
-- [ ] T009 [P] Criar `src/PedidoFulfillment.Domain/Produtos/Produto.cs` conforme o data-model:
+- [X] T009 [P] Criar `src/PedidoFulfillment.Domain/Produtos/Produto.cs` conforme o data-model:
   - **Propriedades**, todas com setter privado:
     - `Id` (`Guid.CreateVersion7()`);
     - `Sku` ("obrigatório", 50);
@@ -163,7 +163,7 @@ validam esse esquema contra o SQL Server e acrescentam o que é só delas: o cat
   - **Helpers internos**: a guarda de instante UTC e o arredondamento ficam num helper
     `internal static` do Domain, em `src/PedidoFulfillment.Domain/Comum/Guardas.cs`, usado
     por todas as entidades.
-- [ ] T010 [P] Criar as entidades de `src/PedidoFulfillment.Domain/Pedidos/`, conforme o data-model:
+- [X] T010 [P] Criar as entidades de `src/PedidoFulfillment.Domain/Pedidos/`, conforme o data-model:
   - **`ItemPedido.cs`**:
     - propriedades `PedidoId`, `ProdutoId`, `NomeProduto` (200), `Quantidade` ("> 0"),
       `PrecoUnitario` e `Subtotal`;
@@ -186,7 +186,7 @@ validam esse esquema contra o SQL Server e acrescentam o que é só delas: o cat
     - construtor privado sem parâmetros.
 
   Os testes da T004 devem passar.
-- [ ] T011 [P] Criar as entidades de pagamento e entrega, conforme o data-model:
+- [X] T011 [P] Criar as entidades de pagamento e entrega, conforme o data-model:
   - **`src/PedidoFulfillment.Domain/Pagamentos/Pagamento.cs`**:
     - propriedades `Id`, `PedidoId`, `Valor`, `Situacao`, `IdentificadorTransacao` (100),
       `ProcessadoEm?`, `CriadoEm` e `AtualizadoEm`;
@@ -199,8 +199,8 @@ validam esse esquema contra o SQL Server e acrescentam o que é só delas: o cat
     - `RegistrarDespacho(...)`.
 
   Os testes da T005 devem passar.
-- [ ] T012 [P] Em `src/PedidoFulfillment.Infrastructure/Persistencia/ErrosBancoDados.cs`, acrescentar `EhViolacaoRestricao(Exception)`: `SqlException.Number == 547`, que cobre check e chave estrangeira, procurando em toda a cadeia de exceções, como os métodos existentes. Acrescentar `<InternalsVisibleTo Include="PedidoFulfillment.Testes.Integracao" />` em `src/PedidoFulfillment.Infrastructure/PedidoFulfillment.Infrastructure.csproj`, para que os testes classifiquem as violações sem duplicar os códigos do SQL Server. Hoje nenhum projeto usa `InternalsVisibleTo`.
-- [ ] T013 Criar as configurações em `src/PedidoFulfillment.Infrastructure/Persistencia/Configuracoes/`, uma `internal sealed class` `IEntityTypeConfiguration<T>` por entidade. Os nomes seguem exatamente o data-model e a R-05.
+- [X] T012 [P] Em `src/PedidoFulfillment.Infrastructure/Persistencia/ErrosBancoDados.cs`, acrescentar `EhViolacaoRestricao(Exception)`: `SqlException.Number == 547`, que cobre check e chave estrangeira, procurando em toda a cadeia de exceções, como os métodos existentes. Acrescentar `<InternalsVisibleTo Include="PedidoFulfillment.Testes.Integracao" />` em `src/PedidoFulfillment.Infrastructure/PedidoFulfillment.Infrastructure.csproj`, para que os testes classifiquem as violações sem duplicar os códigos do SQL Server. Hoje nenhum projeto usa `InternalsVisibleTo`.
+- [X] T013 Criar as configurações em `src/PedidoFulfillment.Infrastructure/Persistencia/Configuracoes/`, uma `internal sealed class` `IEntityTypeConfiguration<T>` por entidade. Os nomes seguem exatamente o data-model e a R-05.
   - **`ConfiguracaoProduto.cs`**:
     - tabela `Produtos`;
     - `Sku` `HasMaxLength(50)`, obrigatório, `UseCollation("SQL_Latin1_General_CP1_CI_AS")`
@@ -264,7 +264,7 @@ validam esse esquema contra o SQL Server e acrescentam o que é só delas: o cat
   Um helper `internal static` em
   `src/PedidoFulfillment.Infrastructure/Persistencia/Configuracoes/RestricoesEnum.cs` monta o
   SQL `IN (N'...', ...)` a partir de um enum.
-- [ ] T014 Atualizar `src/PedidoFulfillment.Infrastructure/Persistencia/ContextoBancoDados.cs`:
+- [X] T014 Atualizar `src/PedidoFulfillment.Infrastructure/Persistencia/ContextoBancoDados.cs`:
   - acrescentar os `DbSet` `Produtos`, `Pedidos`, `ItensPedido`, `HistoricosStatusPedido`,
     `Pagamentos` e `OrdensEntrega`;
   - em `OnModelCreating`, depois do mapeamento do Identity, chamar
@@ -281,7 +281,7 @@ validam esse esquema contra o SQL Server e acrescentam o que é só delas: o cat
       `catch (...) when (...)` deixa isso explícito;
   - atualizar o comentário da classe: "o REQ-03 criou o Identity; o REQ-04 acrescentou as
     entidades de negócio (`Persistencia/Configuracoes`)".
-- [ ] T015 Gerar a migration com `dotnet ef migrations add EntidadesNegocio --project src/PedidoFulfillment.Infrastructure --startup-project src/PedidoFulfillment.API --output-dir Persistencia/Migracoes`. Se o snapshot sair fora da pasta, movê-lo como no REQ-03. Revisar o arquivo gerado (R-09):
+- [X] T015 Gerar a migration com `dotnet ef migrations add EntidadesNegocio --project src/PedidoFulfillment.Infrastructure --startup-project src/PedidoFulfillment.API --output-dir Persistencia/Migracoes`. Se o snapshot sair fora da pasta, movê-lo como no REQ-03. Revisar o arquivo gerado (R-09):
   - só `CreateTable`, `CreateIndex` e `AddCheckConstraint` das 6 tabelas novas;
   - nenhum `AlterColumn`, `DropTable`, `DropIndex` nem `RenameTable` nas tabelas do
     Identity;
@@ -292,21 +292,21 @@ validam esse esquema contra o SQL Server e acrescentam o que é só delas: o cat
   Rodar
   `dotnet ef migrations has-pending-model-changes --project src/PedidoFulfillment.Infrastructure --startup-project src/PedidoFulfillment.API`;
   ele precisa responder que não há mudanças. A T006 deve passar.
-- [ ] T016 [P] Acrescentar em `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/BancoDadosTeste.cs`:
+- [X] T016 [P] Acrescentar em `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/BancoDadosTeste.cs`:
   - `public static ContextoBancoDados NovoContexto(string stringConexao)`;
   - `public async Task<string> NovoBancoMigradoAsync()`: cria o banco e aplica todas as
     migrations;
   - `public static async Task MigrarAteAsync(string stringConexao, string migration)`:
     usa `IMigrator` (`contexto.GetService<IMigrator>().MigrateAsync(migration)`);
   - `public static async Task<int> ExecutarAsync(string stringConexao, string sql)`.
-- [ ] T017 [P] Criar `tests/PedidoFulfillment.Testes.Integracao/Persistencia/DadosPersistencia.cs`, com dados válidos para os testes:
+- [X] T017 [P] Criar `tests/PedidoFulfillment.Testes.Integracao/Persistencia/DadosPersistencia.cs`, com dados válidos para os testes:
   - `Instante`: um `DateTimeOffset` UTC fixo;
   - `NovoUsuarioAsync(ContextoBancoDados)`: grava um `Usuario` com e-mail único e devolve o
     `Id`;
   - `NovoProduto(string? sku = null, decimal preco = 10m, int estoque = 10)`;
   - `NovoPedido(Guid clienteId, params Produto[] produtos)`: quantidade 1 por item e número
     único no padrão `PED-AAAAMMDD-NNNNNN`.
-- [ ] T018 Rodar `dotnet build` e `dotnet test`:
+- [X] T018 Rodar `dotnet build` e `dotnet test`:
   - T003–T006 verdes;
   - `DependenciasCamadasTestes` verde;
   - toda a suíte do REQ-03 verde, sem alteração (FR-019);
