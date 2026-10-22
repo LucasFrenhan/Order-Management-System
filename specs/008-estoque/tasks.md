@@ -202,13 +202,13 @@ sequência. A US5 mexe no `ServicoPedidos` e pode correr em paralelo com as US2 
 
 ### Testes da US5
 
-- [ ] T023 [P] [US5] Em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosStatusTestes.cs`:
+- [X] T023 [P] [US5] Em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosStatusTestes.cs`:
   - Cliente cancela pedido `Pendente` reservado: estoque devolvido, `EstoqueReservado` falso, resposta igual à de hoje, log 6005;
   - operação cancela pedido `Processando` reservado: idem;
   - cancelamento sem reserva: nenhum produto lido para alteração, estoque intacto;
   - outra transição (por exemplo `Processando`) com reserva: estoque intacto;
   - conflito na primeira gravação: relê pedido e produtos e devolve uma vez só.
-- [ ] T024 [P] [US5] Teste de integração `tests/PedidoFulfillment.Testes.Integracao/Estoque/DevolucaoEstoqueTestes.cs`, com API e Worker:
+- [X] T024 [P] [US5] Teste de integração `tests/PedidoFulfillment.Testes.Integracao/Estoque/DevolucaoEstoqueTestes.cs`, com API e Worker:
   - cenário 1: reservar, cancelar como Cliente (`CenarioPedidos.MudarStatusAsync`), 200, e estoque igual ao de antes da reserva;
   - cenário 2: reservar, mover para `Processando` e cancelar como operação; estoque devolvido;
   - cenário 3: cancelar com o Worker parado e subir depois; estoque intacto e nenhum evento de estoque;
@@ -217,8 +217,8 @@ sequência. A US5 mexe no `ServicoPedidos` e pode correr em paralelo com as US2 
 
 ### Implementação da US5
 
-- [ ] T025 [US5] Em `src/PedidoFulfillment.Application/Pedidos/ServicoPedidos.cs`, dentro do laço de `AtualizarStatusAsync`: se o novo status é `Cancelado` e `pedido.EstoqueReservado`, ler os produtos dos itens com `paraAlterar: true` e chamar `pedido.DevolverEstoque` antes do `SalvarAsync`; depois do sucesso, log 6005 (`EventosEstoque`). Atualizar o XML doc do método (R-05). T023 deve passar.
-- [ ] T026 [US5] Em `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoPedidos.cs`, `SalvarAsync` (R-07): deadlock com `RegistroIdempotencia` em estado `Added` → `ChaveIdempotenciaRegistradaException` (como hoje); deadlock sem transação aberta → `ConflitoConcorrenciaException`; com transação aberta → relança sem conversão. Comentário citando R-07. T024 deve passar.
+- [X] T025 [US5] Em `src/PedidoFulfillment.Application/Pedidos/ServicoPedidos.cs`, dentro do laço de `AtualizarStatusAsync`: se o novo status é `Cancelado` e `pedido.EstoqueReservado`, ler os produtos dos itens com `paraAlterar: true` e chamar `pedido.DevolverEstoque` antes do `SalvarAsync`; depois do sucesso, log 6005 (`EventosEstoque`). Atualizar o XML doc do método (R-05). T023 deve passar.
+- [X] T026 [US5] Em `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoPedidos.cs`, `SalvarAsync` (R-07): deadlock com `RegistroIdempotencia` em estado `Added` → `ChaveIdempotenciaRegistradaException` (como hoje); deadlock sem transação aberta → `ConflitoConcorrenciaException`; com transação aberta → relança sem conversão. Comentário citando R-07. T024 deve passar.
 
 ---
 
