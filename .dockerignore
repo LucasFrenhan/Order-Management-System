@@ -1,0 +1,16 @@
+# Contexto da imagem da API (REQ-07, research R-07): só o necessário para compilar src/.
+**/bin/
+**/obj/
+.git/
+.github/
+.vs/
+.vscode/
+.idea/
+tests/
+# De specs/, só o contrato v1, que a API publica em /openapi/v1.yaml.
+specs/**
+!specs/001-contratos-api/contracts/openapi-v1.yaml
+resultados/
+TestResults/
+**/*.user
+.env

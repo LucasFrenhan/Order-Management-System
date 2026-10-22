@@ -155,8 +155,8 @@ saudáveis; o login do Admin funciona; o comando sem perfil não muda.
 
 **Independent Test**: quickstart §4 e §5.
 
-- [ ] T013 [P] [US4] Criar `.dockerignore` na raiz, com as entradas da R-07.
-- [ ] T014 [P] [US4] Criar `src/PedidoFulfillment.API/Dockerfile` (R-07):
+- [X] T013 [P] [US4] Criar `.dockerignore` na raiz, com as entradas da R-07.
+- [X] T014 [P] [US4] Criar `src/PedidoFulfillment.API/Dockerfile` (R-07):
   - **`FROM mcr.microsoft.com/dotnet/sdk:10.0.402-noble AS compilacao`**, com
     `WORKDIR /fonte`:
     1. `COPY` de `global.json`, `Directory.Build.props` e `Directory.Packages.props`, e
@@ -169,7 +169,7 @@ saudáveis; o login do Admin funciona; o comando sem perfil não muda.
     `EXPOSE 8080`, `USER $APP_UID` e
     `ENTRYPOINT ["dotnet", "PedidoFulfillment.API.dll"]`.
   - **Comentários**: as versões fixas acompanham `global.json` e os pacotes 10.0.13.
-- [ ] T015 [US4] Acrescentar o serviço `api` em `docker-compose.yml`, conforme a R-09, com o healthcheck da R-08:
+- [X] T015 [US4] Acrescentar o serviço `api` em `docker-compose.yml`, conforme a R-09, com o healthcheck da R-08:
   - `profiles: [demo]`;
   - `build` com `context: .` e `dockerfile: src/PedidoFulfillment.API/Dockerfile`;
   - `depends_on` com `condition: service_healthy` para `sqlserver` e `rabbitmq`;
@@ -180,8 +180,8 @@ saudáveis; o login do Admin funciona; o comando sem perfil não muda.
     `start_period: 30s`.
 
   Atualizar o comentário do topo para citar o perfil `demo`.
-- [ ] T016 [P] [US4] Em `.env.example`, acrescentar `# Porta local da API no perfil demo` e `OMS_API_PORTA=5230`, além de uma nota: senhas com `$` precisam ser escritas como `$$` (R-09).
-- [ ] T017 [US4] Validar localmente o quickstart §4 e §5:
+- [X] T016 [P] [US4] Em `.env.example`, acrescentar `# Porta local da API no perfil demo` e `OMS_API_PORTA=5230`, além de uma nota: senhas com `$` precisam ser escritas como `$$` (R-09).
+- [X] T017 [US4] Validar localmente o quickstart §4 e §5:
   - medir o tempo do `up --wait` (com as imagens já construídas e baixadas: menos de 3
     min, SC-005);
   - prontidão 200;

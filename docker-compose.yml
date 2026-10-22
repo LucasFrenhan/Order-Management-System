@@ -1,11 +1,13 @@
 # Ambiente local do OMS (REQ-02): dependências da API em contêineres; a API roda pelo SDK.
+# O perfil "demo" (REQ-07) sobe também a API em contêiner, para demonstração sem o SDK.
 # Credenciais SOMENTE DE DESENVOLVIMENTO, válidas só para estes contêineres locais.
 # Portas e credenciais podem ser trocadas por variáveis OMS_* (veja .env.example).
 # Versões das imagens fixas, sem "latest"; atualizar de forma manual e deliberada.
 #
-#   docker compose up -d --wait   sobe e espera os dois serviços ficarem saudáveis
-#   docker compose down           para (os dados continuam nos volumes)
-#   docker compose down -v        para e apaga os dados locais
+#   docker compose up -d --wait                       sobe e espera banco e broker
+#   docker compose --profile demo up -d --wait --build  sobe banco, broker e a API
+#   docker compose down                               para (os dados continuam nos volumes)
+#   docker compose --profile demo down -v             para tudo e apaga os dados locais
 
 name: oms
 
@@ -41,6 +43,35 @@ services:
       interval: 10s
       retries: 12
       start_period: 20s
+
+  # Só no perfil demo (REQ-07, research R-09): a API em Development aplica as migrations e
+  # cria perfis, usuários iniciais e catálogo; dentro da rede usa as portas internas.
+  api:
+    profiles: [demo]
+    build:
+      context: .
+      dockerfile: src/PedidoFulfillment.API/Dockerfile
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__SqlServer: Server=sqlserver,1433;Database=PedidoFulfillment;User Id=sa;Password=${OMS_SQL_SENHA:-OmsDev_2026!Local};Encrypt=True;TrustServerCertificate=True
+      RabbitMQ__Servidor: rabbitmq
+      RabbitMQ__Porta: "5672"
+      RabbitMQ__Usuario: ${OMS_RABBITMQ_USUARIO:-oms}
+      RabbitMQ__Senha: ${OMS_RABBITMQ_SENHA:-oms-dev-local}
+    ports:
+      - "${OMS_API_PORTA:-5230}:8080"
+    healthcheck:
+      # A imagem aspnet não tem curl; bash com /dev/tcp faz o GET da prontidão (R-08).
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health/pronto HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q ' 200 '"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
 volumes:
   oms-sqlserver:
