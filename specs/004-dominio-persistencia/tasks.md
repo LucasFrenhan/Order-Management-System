@@ -454,7 +454,7 @@ conflito. Estoque negativo é recusado.
 
 ### Testes da US4
 
-- [ ] T026 [P] [US4] Migrations em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/MigracaoBancoTestes.cs`:
+- [X] T026 [P] [US4] Migrations em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/MigracaoBancoTestes.cs`:
   - **Cenário 1 (SC-003)**:
     - `MigrarAteAsync(banco, "InicialIdentidade")`;
     - registrar 3 usuários pela API (`FabricaApi` com `StringConexao`, preparação
@@ -474,7 +474,7 @@ conflito. Estoque negativo é recusado.
     - a tabela `Produtos` continua inexistente;
     - depois de `MigrateAsync`, a mesma API inicia.
   - **Cenário 4**: já coberto pela T006. Citar no comentário da classe.
-- [ ] T027 [P] [US4] Catálogo em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/CatalogoInicialTestes.cs` (contracts/catalogo-inicial.md):
+- [X] T027 [P] [US4] Catálogo em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/CatalogoInicialTestes.cs` (contracts/catalogo-inicial.md):
   - **Cenário 5**:
     - banco vazio e `FabricaApi` com `PrepararBanco = true`, ambiente `Testes`;
     - a tabela `Produtos` tem exatamente os 10 SKUs `CAT-001`…`CAT-010`, com os `Id`,
@@ -493,14 +493,14 @@ conflito. Estoque negativo é recusado.
 
 ### Implementação da US4
 
-- [ ] T028 [US4] Criar `src/PedidoFulfillment.Infrastructure/Persistencia/CatalogoInicial.cs`:
+- [X] T028 [US4] Criar `src/PedidoFulfillment.Infrastructure/Persistencia/CatalogoInicial.cs`:
   - classe `internal static`;
   - um método `Produtos(DateTimeOffset instante)` que devolve os 10 `Produto` com os `Id`
     fixos da tabela de `contracts/catalogo-inicial.md`;
   - o `Produto` precisa aceitar um `Id` informado: acrescentar um construtor ou parâmetro
     opcional `Guid? id` no `Produto` (T009), coberto por um caso a mais na T003;
   - comentário "SOMENTE Development e Testes (FR-020)".
-- [ ] T029 [US4] Em `src/PedidoFulfillment.Infrastructure/Persistencia/PreparacaoBancoDados.cs`, acrescentar `CriarCatalogoInicialAsync(ContextoBancoDados, CancellationToken)`:
+- [X] T029 [US4] Em `src/PedidoFulfillment.Infrastructure/Persistencia/PreparacaoBancoDados.cs`, acrescentar `CriarCatalogoInicialAsync(ContextoBancoDados, CancellationToken)`:
   - **Quando roda**: no `StartAsync`, depois de `CriarUsuariosIniciaisAsync`, só quando
     `ambiente.IsDevelopment() || ambiente.IsEnvironment("Testes")`. Extrair essa condição
     para um método privado `PodeAlterarDados()`, reutilizado em `AtualizarEsquemaAsync`.
@@ -513,7 +513,7 @@ conflito. Estoque negativo é recusado.
     com a quantidade inserida.
   - **Falhas**: a falha de conexão já é tratada pelo `catch` existente.
   - **Comentário**: atualizar o comentário do topo da classe para incluir o catálogo.
-- [ ] T030 [US4] Rodar T026–T027 com o Docker no ar e corrigir até ficarem verdes. Os testes de preparação do REQ-03 também precisam continuar verdes, porque agora toda preparação no ambiente `Testes` também cria o catálogo:
+- [X] T030 [US4] Rodar T026–T027 com o Docker no ar e corrigir até ficarem verdes. Os testes de preparação do REQ-03 também precisam continuar verdes, porque agora toda preparação no ambiente `Testes` também cria o catálogo:
   - `PreparacaoInicializacaoTestes`;
   - `PreparacaoComBancoTestes`, em especial o caso das duas `FabricaApi` iniciando ao
     mesmo tempo, que agora também disputa os produtos;

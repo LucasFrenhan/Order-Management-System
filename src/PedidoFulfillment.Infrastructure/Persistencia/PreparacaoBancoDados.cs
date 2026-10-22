@@ -12,14 +12,16 @@ using PedidoFulfillment.Infrastructure.Identidade;
 namespace PedidoFulfillment.Infrastructure.Persistencia;
 
 /// <summary>
-/// Prepara o banco antes de a API aceitar requisições (research R-08): migrations, perfis e
-/// usuários iniciais. Roda depois da validação de opções; uma exceção aqui impede a API de subir.
+/// Prepara o banco antes de a API aceitar requisições (research R-08): migrations, perfis,
+/// usuários iniciais e, só em Development e Testes, o catálogo inicial (REQ-04, FR-020). Roda
+/// depois da validação de opções; uma exceção aqui impede a API de subir.
 /// </summary>
 internal sealed partial class PreparacaoBancoDados(
     IServiceScopeFactory escopos,
     IOptions<OpcoesBanco> opcoes,
     IOptions<OpcoesUsuariosIniciais> usuariosIniciais,
     IHostEnvironment ambiente,
+    TimeProvider relogio,
     ILogger<PreparacaoBancoDados> logger) : IHostedService
 {
     public const string MensagemBancoInacessivel =
@@ -42,6 +44,10 @@ internal sealed partial class PreparacaoBancoDados(
             await AtualizarEsquemaAsync(contexto, cancellationToken);
             await CriarPerfisAsync(escopo.ServiceProvider.GetRequiredService<RoleManager<Perfil>>(), contexto);
             await CriarUsuariosIniciaisAsync(escopo.ServiceProvider.GetRequiredService<UserManager<Usuario>>(), contexto, cancellationToken);
+            if (PodeAlterarDados())
+            {
+                await CriarCatalogoInicialAsync(contexto, cancellationToken);
+            }
         }
         catch (Exception excecao) when (ErrosBancoDados.EhFalhaConexao(excecao))
         {
@@ -55,13 +61,46 @@ internal sealed partial class PreparacaoBancoDados(
     private async Task AtualizarEsquemaAsync(ContextoBancoDados contexto, CancellationToken cancellationToken)
     {
         // FR-017: só Development e Testes alteram o esquema; nos demais a migration é deliberada.
-        if (ambiente.IsDevelopment() || ambiente.IsEnvironment("Testes"))
+        if (PodeAlterarDados())
         {
             await contexto.Database.MigrateAsync(cancellationToken);
         }
         else if ((await contexto.Database.GetPendingMigrationsAsync(cancellationToken)).Any())
         {
             throw new InvalidOperationException(MensagemMigrationsPendentes);
+        }
+    }
+
+    private bool PodeAlterarDados() => ambiente.IsDevelopment() || ambiente.IsEnvironment("Testes");
+
+    /// <summary>
+    /// FR-020: insere só os SKUs ausentes; um produto existente nunca é alterado.
+    /// </summary>
+    private async Task CriarCatalogoInicialAsync(ContextoBancoDados contexto, CancellationToken cancellationToken)
+    {
+        for (var tentativa = 1; ; tentativa++)
+        {
+            var existentes = await contexto.Produtos.Select(p => p.Sku).ToListAsync(cancellationToken);
+            var faltantes = CatalogoInicial.Produtos(relogio.GetUtcNow())
+                .Where(p => !existentes.Contains(p.Sku, StringComparer.OrdinalIgnoreCase))
+                .ToList();
+            if (faltantes.Count == 0)
+            {
+                return;
+            }
+
+            contexto.Produtos.AddRange(faltantes);
+            try
+            {
+                await contexto.SaveChangesAsync(cancellationToken);
+                CatalogoInicialCriado(logger, faltantes.Count);
+                return;
+            }
+            catch (DbUpdateException excecao) when (tentativa == 1 && ErrosBancoDados.EhViolacaoUnicidade(excecao))
+            {
+                // Outra instância inseriu ao mesmo tempo: relê e tenta uma vez só com o que falta.
+                contexto.ChangeTracker.Clear();
+            }
         }
     }
 
@@ -135,4 +174,8 @@ internal sealed partial class PreparacaoBancoDados(
     [LoggerMessage(EventId = 3005, EventName = "UsuarioInicialExistente", Level = LogLevel.Warning,
         Message = "Usuário inicial {EmailMascarado} já existe e não foi alterado.")]
     private static partial void UsuarioInicialExistente(ILogger logger, string emailMascarado);
+
+    [LoggerMessage(EventId = 3006, EventName = "CatalogoInicialCriado", Level = LogLevel.Information,
+        Message = "Catálogo inicial: {Quantidade} produto(s) criado(s).")]
+    private static partial void CatalogoInicialCriado(ILogger logger, int quantidade);
 }
