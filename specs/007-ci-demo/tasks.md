@@ -81,12 +81,12 @@ suíte continua igual.
 **Independent Test**: com a branch enviada ao GitHub, o job "Build e testes" roda e fica
 verde.
 
-- [ ] T007 [P] [US1] Criar `coverage.runsettings` na raiz (R-04), com `<DataCollector friendlyName="Code Coverage">`, `<Format>cobertura</Format>` e:
+- [X] T007 [P] [US1] Criar `coverage.runsettings` na raiz (R-04), com `<DataCollector friendlyName="Code Coverage">`, `<Format>cobertura</Format>` e:
   - em `<ModulePaths>`, `<Include>`: `.*PedidoFulfillment\.(Domain|Application|Infrastructure|API)\.dll$`;
   - exclusão de fontes na estrutura exata do `Microsoft.CodeCoverage` (achado M3):
     `<CodeCoverage><Sources><Exclude><Source>.*[\\/]Persistencia[\\/]Migracoes[\\/].*</Source></Exclude></Sources></CodeCoverage>`,
     dentro de `<Configuration>`. A T012 confere que funcionou.
-- [ ] T008 [US1] Criar `.github/workflows/build-testes.yml` (R-01 a R-03), com:
+- [X] T008 [US1] Criar `.github/workflows/build-testes.yml` (R-01 a R-03), com:
   - `name: build-testes`;
   - gatilhos `pull_request` (branches `[main]`) e `push` (branches `[main]`);
   - `permissions: contents: read`;
@@ -103,7 +103,7 @@ verde.
   6. `dotnet test PedidoFulfillment.sln -c Release --no-build --logger "trx;LogFilePrefix=resultado" --results-directory resultados --collect "Code Coverage;Format=cobertura" --settings coverage.runsettings`.
 
   Os passos de resumo e de artefato entram na US3.
-- [ ] T009 [US1] Validar a sintaxe localmente: o arquivo precisa ser YAML válido (`python -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" .github/workflows/build-testes.yml`, se houver Python; senão, revisar com cuidado) e os SHAs precisam ser os da R-02.
+- [X] T009 [US1] Validar a sintaxe localmente: o arquivo precisa ser YAML válido (`python -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" .github/workflows/build-testes.yml`, se houver Python; senão, revisar com cuidado) e os SHAs precisam ser os da R-02.
 
 **Checkpoint**: o workflow existe. A primeira execução real acontece na T023.
 
@@ -116,7 +116,7 @@ fica disponível; teste ignorado reprova.
 
 **Independent Test**: rodar o script localmente sobre os resultados reais (quickstart §3).
 
-- [ ] T010 [US3] Criar `.github/scripts/resumo-testes.sh` (bash, `set -euo pipefail`, R-05):
+- [X] T010 [US3] Criar `.github/scripts/resumo-testes.sh` (bash, `set -euo pipefail`, R-05):
   - **Entrada**: o diretório de resultados (padrão `resultados`). O script escreve em
     `$GITHUB_STEP_SUMMARY`, ou na saída padrão se a variável não existir.
   - **TRX**: para cada `.trx`, encontrado com `find`:
@@ -134,11 +134,11 @@ fica disponível; teste ignorado reprova.
   - **Saída**: código 1 com a mensagem "Há testes ignorados no CI (OMS_EXIGIR_DOCKER)." se
     a soma de `notExecuted` passar de 0; código 1 se nenhum `.trx` for encontrado; senão,
     código 0.
-- [ ] T011 [US3] Acrescentar ao job `testes` em `build-testes.yml`:
+- [X] T011 [US3] Acrescentar ao job `testes` em `build-testes.yml`:
   - o passo "Resumo dos testes" (`if: always()`, `run: bash .github/scripts/resumo-testes.sh resultados`);
   - o passo de `actions/upload-artifact` (`if: always()`, `name: resultados-testes`,
     `path: resultados`, `retention-days: 14`, `if-no-files-found: warn`).
-- [ ] T012 [US3] Rodar o quickstart §3 localmente (Git Bash), com o Docker no ar:
+- [X] T012 [US3] Rodar o quickstart §3 localmente (Git Bash), com o Docker no ar:
   - o script imprime a tabela com a contagem da T001 e 0 ignorados, e a cobertura sem `Migracoes`
     (conferir que nenhum `.cobertura.xml` cita `Migracoes`), e sai com 0;
   - renomear um `.trx` para simular "nenhum arquivo" e conferir a saída 1;

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cobertura do CI (specs/007-ci-demo, research R-04): só o código de produção, sem as
+     migrations do EF Core nem o código gerado em obj/ (LoggerMessage, OpenAPI). O coletor
+     vem com o Microsoft.NET.Test.Sdk. -->
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="Code Coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <CodeCoverage>
+            <ModulePaths>
+              <Include>
+                <ModulePath>.*PedidoFulfillment\.(Domain|Application|Infrastructure|API)\.dll$</ModulePath>
+              </Include>
+            </ModulePaths>
+            <Sources>
+              <Exclude>
+                <Source>.*[\\/]Persistencia[\\/]Migracoes[\\/].*</Source>
+                <Source>.*[\\/]obj[\\/].*</Source>
+              </Exclude>
+            </Sources>
+          </CodeCoverage>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>
