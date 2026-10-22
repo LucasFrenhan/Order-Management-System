@@ -6,8 +6,8 @@ using PedidoFulfillment.Infrastructure.Configuracao;
 namespace PedidoFulfillment.Infrastructure.Saude;
 
 /// <summary>
-/// Prontidão do banco: conecta no catálogo <c>master</c> (o banco da aplicação nasce no
-/// REQ-04) e executa <c>SELECT 1</c>, em no máximo 5 segundos (FR-018).
+/// Prontidão do banco: conecta no catálogo <c>master</c> (o banco da aplicação pode ainda não
+/// existir, antes das migrations) e executa <c>SELECT 1</c>, em no máximo 5 segundos (FR-018).
 /// </summary>
 internal sealed class VerificacaoSqlServer(IOptions<OpcoesSqlServer> opcoes) : IHealthCheck
 {

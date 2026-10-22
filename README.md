@@ -11,7 +11,8 @@ constituição do projeto fica em [`.specify/memory/constitution.md`](.specify/m
 | REQ-01 — Contratos da API v1 ([spec](specs/001-contratos-api/spec.md)) | Contrato publicado; rotas mapeadas com validação, autorização e erros RFC 7807 |
 | REQ-02 — Estrutura da solução e ambiente local ([spec](specs/002-setup-infraestrutura/spec.md)) | Infrastructure, ambiente local (SQL Server + RabbitMQ) e saúde |
 | REQ-03 — Autenticação e autorização ([spec](specs/003-autenticacao-identity/spec.md)) | Registro, login com JWT, bloqueio após 5 erros, perfis e usuários iniciais |
-| REQ-04 a REQ-06 | Pendentes |
+| REQ-04 — Domínio de pedidos e persistência ([spec](specs/004-dominio-persistencia/spec.md)) | Produtos, pedidos, itens, histórico de status, pagamentos e ordens de entrega; concorrência otimista em produto e pedido; catálogo inicial em Development |
+| REQ-05 a REQ-06 | Pendentes |
 
 > As operações de pedidos ainda respondem **501 (não implementada)** depois de passar pela
 > autorização. As regras chegam com o REQ-05.
@@ -21,7 +22,7 @@ constituição do projeto fica em [`.specify/memory/constitution.md`](.specify/m
 - SDK do .NET 10 (`winget install Microsoft.DotNet.SDK.10`)
 - Docker com Compose v2, para o [ambiente local](#ambiente-local) (`winget install Docker.DockerDesktop`)
 
-Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md) e [autenticação](specs/003-autenticacao-identity/quickstart.md).
+Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md) e [domínio e persistência](specs/004-dominio-persistencia/quickstart.md).
 
 ## Ambiente local
 
@@ -96,6 +97,18 @@ dotnet ef database update --project src/PedidoFulfillment.Infrastructure --start
 `Banco__PrepararNaInicializacao=false` desliga essa preparação (a API sobe sem consultar o
 banco). Detalhes em [`contracts/configuracao.md`](specs/003-autenticacao-identity/contracts/configuracao.md).
 
+O banco tem duas migrations: `InicialIdentidade` (usuários e perfis) e `EntidadesNegocio`
+(produtos, pedidos, itens, histórico de status, pagamentos e ordens de entrega). Em
+Development e `Testes` a preparação também cria um
+[catálogo inicial](specs/004-dominio-persistencia/contracts/catalogo-inicial.md) de 10
+produtos (`CAT-001` a `CAT-010`), sem alterar produtos que já existem; nos demais ambientes
+nenhum produto é criado. Depois de mudar o modelo, gere uma migration e confira que nada
+ficou pendente:
+
+```powershell
+dotnet ef migrations has-pending-model-changes --project src/PedidoFulfillment.Infrastructure --startup-project src/PedidoFulfillment.API
+```
+
 Para obter um token, registre-se em `POST /api/v1/auth/register` (perfil Cliente) e faça
 login em `POST /api/v1/auth/login`. Em Development também existem, **só para
 desenvolvimento**, `admin@oms.local` / `AdminDev2026` (Admin) e `operador@oms.local` /
@@ -111,18 +124,22 @@ docker-compose.yml                   ambiente local: SQL Server + RabbitMQ
 .env.example                         variáveis OMS_* para trocar portas e credenciais locais
 .config/dotnet-tools.json            ferramenta local dotnet-ef (migrations)
 src/
-  PedidoFulfillment.Domain/          enums de domínio
-  PedidoFulfillment.Application/     DTOs de contrato, interfaces e serviço de autenticação, Resultado
-  PedidoFulfillment.Infrastructure/  banco (EF Core + Identity, migrations, preparação),
-                                     configuração e saúde de banco e broker; o domínio (REQ-04)
-                                     e a mensageria (REQ-06) entram aqui
+  PedidoFulfillment.Domain/          entidades e enums: Produtos/, Pedidos/ (pedido, itens,
+                                     histórico de status), Pagamentos/, Entregas/
+  PedidoFulfillment.Application/     DTOs de contrato, interfaces e serviço de autenticação,
+                                     Resultado, ConflitoConcorrenciaException
+  PedidoFulfillment.Infrastructure/  banco (EF Core + Identity, Persistencia/Configuracoes com o
+                                     mapeamento do domínio, migrations, preparação e catálogo
+                                     inicial), configuração e saúde de banco e broker; a
+                                     mensageria (REQ-06) entra aqui
   PedidoFulfillment.API/             Minimal APIs (só roteamento), segurança (validação e
                                      emissão de JWT), erros, OpenAPI, saúde
 tests/
-  PedidoFulfillment.Testes.Unitarios/   DTOs, configurações e regras de autenticação
+  PedidoFulfillment.Testes.Unitarios/   DTOs, configurações, regras de autenticação e entidades
+                                        do domínio
   PedidoFulfillment.Testes.Integracao/  contrato, segurança, erros, serialização, configuração,
-                                        saúde, autenticação com SQL Server real (Testcontainers)
-                                        e arquitetura
+                                        saúde, autenticação e persistência com SQL Server real
+                                        (Testcontainers) e arquitetura
 specs/                               especificações SDD (spec, plano, tarefas, contrato)
 ```
 

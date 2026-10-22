@@ -567,7 +567,7 @@ partir dele. A segunda gravação de cada um é recusada.
 
 **Purpose**: desempenho, documentação, comentários, segurança e validação final.
 
-- [ ] T033 [P] Desempenho em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/DesempenhoConsultaTestes.cs` (SC-005, R-10):
+- [X] T033 [P] Desempenho em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/DesempenhoConsultaTestes.cs` (SC-005, R-10):
   - **Carga**:
     - um banco migrado com 100 usuários e 1 produto;
     - 10.000 pedidos inseridos por um único comando SQL em lote (`INSERT ... SELECT` sobre
@@ -581,10 +581,10 @@ partir dele. A segunda gravação de cada um é recusada.
   - **Resultado**: cada mediana < 100 ms.
   - **Índices**: consultar `sys.indexes` e conferir que os 4 índices de consulta da R-07
     existem com esses nomes (achado C2 do `/speckit-analyze`).
-- [ ] T034 [P] Atualizar os comentários que citam o REQ-04 como futuro:
+- [X] T034 [P] Atualizar os comentários que citam o REQ-04 como futuro:
   - `src/PedidoFulfillment.Infrastructure/ExtensoesInfraestrutura.cs`: "O REQ-04 (persistência) e o REQ-06 ... acrescentam" passa a dizer que a persistência de negócio já está no `ContextoBancoDados` e que o REQ-06 acrescenta a mensageria;
   - `src/PedidoFulfillment.Infrastructure/Saude/VerificacaoSqlServer.cs`: ajustar a menção ao REQ-04.
-- [ ] T035 Atualizar `README.md`:
+- [X] T035 Atualizar `README.md`:
   - **`## Estado atual`**: linha do REQ-04 com link para `specs/004-dominio-persistencia/spec.md` e o texto "Produtos, pedidos, itens, histórico de status, pagamentos e ordens de entrega; concorrência otimista em produto e pedido; catálogo inicial em Development". A linha de pendentes passa a ser "REQ-05 a REQ-06".
   - **Seção do banco**: a migration `EntidadesNegocio`, o catálogo inicial (com link para
     `contracts/catalogo-inicial.md`) e o comando
@@ -593,9 +593,9 @@ partir dele. A segunda gravação de cada um é recusada.
     validação".
   - **Árvore de pastas**: acrescentar `Produtos/`, `Pagamentos/` e `Entregas/` no Domain e
     `Persistencia/Configuracoes/` na Infrastructure.
-- [ ] T036 Varredura de segredos com `git grep -n -i -E "password|senha|pwd|chave"` nos arquivos versionados. Confirmar que o REQ-04 não acrescentou nenhum valor novo além dos de desenvolvimento e de teste já conhecidos.
-- [ ] T037 Rodar `dotnet format PedidoFulfillment.sln --verify-no-changes` e corrigir o que acusar. As migrations geradas já são ignoradas (REQ-03).
-- [ ] T038 Executar o quickstart (quickstart.md §1 a §6) com o Docker no ar e registrar o resultado em Notes:
+- [X] T036 Varredura de segredos com `git grep -n -i -E "password|senha|pwd|chave"` nos arquivos versionados. Confirmar que o REQ-04 não acrescentou nenhum valor novo além dos de desenvolvimento e de teste já conhecidos.
+- [X] T037 Rodar `dotnet format PedidoFulfillment.sln --verify-no-changes` e corrigir o que acusar. As migrations geradas já são ignoradas (REQ-03).
+- [X] T038 Executar o quickstart (quickstart.md §1 a §6) com o Docker no ar e registrar o resultado em Notes:
   - a contagem de testes, comparada com a T001;
   - nenhum teste ignorado;
   - o resultado de cada seção.
@@ -706,4 +706,41 @@ Task: "Concorrência do pedido em tests/PedidoFulfillment.Testes.Integracao/Pers
   - **F1**: spec `Approved`.
   - **F2**: numeração FR-020 a FR-023 mantida fora de ordem, para não quebrar referências
     (como o L5 do REQ-03).
+- Desvios registrados na implementação (2026-10-22):
+  - **T009/T028**: o parâmetro opcional `Guid? id` do `Produto` entrou já na T009, com o caso
+    correspondente na T003. Na T028 restou só o `CatalogoInicial`.
+  - **T009**: as guardas ficaram em `Domain/Comum/Guardas.cs` (texto obrigatório e
+    opcional, dinheiro, UTC e identificador). Os tamanhos máximos são constantes públicas
+    das entidades, e as configurações do EF usam essas mesmas constantes.
+  - **T013**: a relação do pedido com o pagamento e com a ordem de entrega (um-para-um, em
+    cascata) ficou só na `ConfiguracaoPedido`. Os índices únicos `IX_Pagamentos_PedidoId` e
+    `IX_OrdensEntrega_PedidoId` vêm dessa relação.
+  - **T015**: a migration também criou `IX_HistoricosStatusPedido_AutorId`, o índice
+    padrão da FK do autor, que não está na R-07. Ele foi mantido, porque deixa barata a
+    recusa de apagar um usuário citado no histórico.
+  - **T026**: com a preparação desligada, nada cria os perfis num banco migrado só até
+    `InicialIdentidade`. Por isso o teste cria os 3 perfis pelo `RoleManager` antes de
+    registrar os usuários; sem isso, o registro respondia 500.
+  - **T029**: o `PreparacaoBancoDados` passou a receber `TimeProvider`, para a data de
+    criação do catálogo. A Infrastructure registra `TimeProvider.System` com `TryAdd`, sem
+    duplicar o registro da API.
+  - **T034**: o comentário da `VerificacaoSqlServer` dizia que o banco nascia no REQ-04,
+    mas ele nasceu no REQ-03. Agora diz que o banco pode ainda não existir antes das
+    migrations.
+- T038 (quickstart, 2026-10-22, Docker no ar):
+  - **§1**: 287 testes verdes (119 unitários e 168 de integração), contra 201 na T001;
+    nenhum ignorado, zero avisos.
+  - **§2**: "No changes have been made to the model since the last migration."
+  - **§3**: o banco local real do REQ-03 (só `InicialIdentidade`, 4 usuários) recebeu a
+    `EntidadesNegocio` ao iniciar em Development. Os 4 usuários foram mantidos, e o login de
+    `admin@oms.local` responde 200.
+  - **§4**: os 10 produtos foram criados com os valores do contrato, com o log
+    `Catálogo inicial: 10 produto(s) criado(s).` Com o estoque de `CAT-001` alterado para
+    7, o reinício manteve 7 e 10 linhas. Depois, o estoque voltou a 50.
+  - **§5**: coberto pelos testes com banco real (`MigracaoBancoTestes`: Production recusa
+    a migration pendente e sobe depois de aplicá-la; `CatalogoInicialTestes`: Production
+    não cria produtos). Não foi repetido no banco local, para não desfazer as migrations
+    dele.
+  - **§6**: `GET /api/v1/pedidos/{id}` com token de Admin responde 501. O
+    `ConformidadeOpenApiTestes` passa sem alteração no contrato.
 - Fazer commit ao fim de cada fase ou grupo lógico.
