@@ -233,14 +233,14 @@ prontidão e o login.
 - [X] T020 [P] Varredura de segredos nos arquivos novos (`git grep -n -i -E "password|senha|pwd|chave"`). Só podem aparecer os valores de desenvolvimento que já existiam (`OmsDev_2026!Local`, `oms-dev-local`, `AdminDev2026`) e nomes de variáveis. Conferir também que `grep -n "secrets." .github/workflows/build-testes.yml` não encontra nada (FR-012, achado L1).
 - [X] T021 Rodar `dotnet format PedidoFulfillment.sln --verify-no-changes` e a suíte local inteira, com e sem Docker se possível.
 - [X] T022 Commitar as fases e fazer push da branch para disparar a primeira execução (aceitar o push como parte da validação, porque o workflow só roda no GitHub).
-- [ ] T023 Abrir o PR (com `Closes #15`) e acompanhar a execução com `gh pr checks --watch` e `gh run view`:
+- [X] T023 Abrir o PR (com `Closes #15`) e acompanhar a execução com `gh pr checks --watch` e `gh run view`:
   - os dois jobs ficam verdes;
   - o resumo mostra 0 ignorados e a cobertura;
   - o artefato `resultados-testes` existe;
   - o tempo total fica em até 15 minutos.
 
   Em caso de falha, corrigir na branch e repetir.
-- [ ] T024 Validar a reprovação (quickstart §6):
+- [X] T024 Validar a reprovação (quickstart §6):
   - num commit temporário na branch, quebrar um teste unitário (por exemplo, inverter uma
     afirmação em `AmbienteDockerTestes`) e conferir que "Build e testes" fica vermelho,
     com o nome do teste no resumo;
@@ -298,6 +298,41 @@ prontidão e o login.
   merge, e o README fica com as duas linhas ("Estado atual" com REQ-05 e REQ-07).
 - **Tempos** (achado L3): os tempos de SC-005 e SC-006 são observados e registrados aqui;
   a proteção dura é o `timeout-minutes: 20`.
+- Desvios registrados na implementação (2026-10-22):
+  - **T005**: as fixtures usam um único `catch`, com um `if` que lança quando
+    `AmbienteDocker.Obrigatorio()`. O efeito é o mesmo dos dois `catch` previstos.
+  - **T006**: não deu para simular a falta de Docker localmente, porque o Testcontainers
+    no Windows ignora `DOCKER_HOST`. A regra tem teste unitário, e o script do CI reprova
+    qualquer teste ignorado.
+  - **T007**: o `coverage.runsettings` também exclui `obj/`, para tirar da cobertura o
+    código gerado (LoggerMessage, OpenAPI).
+  - **T010**: três correções no script.
+    - A cobertura é a união de (arquivo, linha) entre os relatórios. Somar
+      `lines-valid` contava as linhas em dobro, porque cada projeto mede os mesmos fontes
+      e o coletor deixa cópias.
+    - `tee /dev/fd/3` truncava o arquivo do resumo; agora são duas escritas.
+    - `grep | head -1` dava "Broken pipe" no CI; agora é `awk`. Os nomes dos testes com
+      falha são decodificados das entidades XML.
+  - **T014**: o projeto da API inclui `specs/001-contratos-api/contracts/openapi-v1.yaml`.
+    O `.dockerignore` mantém só esse arquivo de `specs/`, e o `Dockerfile` o copia.
+  - **T017**: a validação local usou um projeto Compose isolado (`-p oms-validacao`, em
+    outras portas), para não apagar os volumes do ambiente local de desenvolvimento.
+  - **Histórico**: um `git revert -q` falhou (a opção não existe), e o `--amend` seguinte
+    pôs a mensagem "Revert …" no commit que decodificava as entidades XML no script. Os
+    três últimos commits foram reconstruídos com as mensagens certas (`4c03c8a` e
+    `98fe7dc`) e enviados com `--force-with-lease`, sem mudar o conteúdo da branch.
+- Validação no GitHub (PR #19, 2026-10-22):
+  - **T023**: a execução `39818422022` deixou os dois jobs verdes. "Build e testes" levou
+    3m06s e "Demonstração" 1m29s (total de 3m10s, meta de 15 min). Foram 429 testes, 0
+    ignorados, com os de integração rodando no Docker do runner. A cobertura ficou em
+    96,9%, e o artefato `resultados-testes` foi publicado por 14 dias.
+  - **T024**: com um teste quebrado de propósito (`a6b1746`), a execução `39819041861`
+    reprovou "Build e testes", listando os dois casos que falharam, e manteve
+    "Demonstração" verde. Depois da reversão (`98fe7dc`), a execução `39829301884` voltou
+    ao verde.
+  - **Demonstração local** (T017): os três serviços ficaram saudáveis em 13 s a partir de
+    volumes novos, com a imagem já construída. Prontidão 200, login com token, Scalar 200
+    e UID 1654.
 - `/speckit-analyze` (2026-10-22), achados aplicados:
   - **M1**: nome do projeto tirado do `storage` do TRX (T010, R-05).
   - **M2**: nota de rebase e README.
