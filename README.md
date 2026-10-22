@@ -12,10 +12,8 @@ constituição do projeto fica em [`.specify/memory/constitution.md`](.specify/m
 | REQ-02 — Estrutura da solução e ambiente local ([spec](specs/002-setup-infraestrutura/spec.md)) | Infrastructure, ambiente local (SQL Server + RabbitMQ) e saúde |
 | REQ-03 — Autenticação e autorização ([spec](specs/003-autenticacao-identity/spec.md)) | Registro, login com JWT, bloqueio após 5 erros, perfis e usuários iniciais |
 | REQ-04 — Domínio de pedidos e persistência ([spec](specs/004-dominio-persistencia/spec.md)) | Produtos, pedidos, itens, histórico de status, pagamentos e ordens de entrega; concorrência otimista em produto e pedido; catálogo inicial em Development |
-| REQ-05 em diante | Pendentes; ver [Próximos passos](#próximos-passos) |
-
-> As operações de pedidos ainda respondem **501 (não implementada)** depois de passar pela
-> autorização. As regras chegam com o REQ-05.
+| REQ-05 — Criação, consulta e status de pedidos ([spec](specs/005-criacao-pedidos/spec.md)) | Criação com idempotência por `X-Idempotency-Key`, consulta e mudança de status de pedidos, conforme o contrato v1 |
+| REQ-06 em diante | Pendentes; ver [Próximos passos](#próximos-passos) |
 
 ## Próximos passos
 
@@ -27,15 +25,14 @@ especificação começa.
 
 | Ordem | Requisito | Issue | Escopo | Depende de |
 |-------|-----------|-------|--------|------------|
-| 1 | REQ-05 | [#6](https://github.com/LucasFrenhan/Order-Management-System/issues/6) — API de criação de pedidos e idempotência | `POST /api/v1/pedidos` restrito ao Cliente, com `X-Idempotency-Key`; valida produto e preço, grava o pedido `Pendente` com o `UserId` do token; tira o 501 das rotas de pedido | REQ-04 |
-| 2 | REQ-06 | [#7](https://github.com/LucasFrenhan/Order-Management-System/issues/7) — Mensageria, publicação de eventos e DLQ | Eventos `PedidoCriado`, `EstoqueReservado`, `PagamentoAprovado` e `PagamentoRecusado`; publicação após gravar o pedido (outbox, Princípio IV); retry com intervalo exponencial e DLQ | REQ-05 |
-| 3 | a numerar | [#8](https://github.com/LucasFrenhan/Order-Management-System/issues/8) — Worker de estoque e concorrência otimista | Consome `PedidoCriado`, reserva estoque tratando `ConflitoConcorrenciaException`; sem estoque, cancela o pedido e publica `EstoqueInsuficiente` | REQ-06 |
-| 4 | a numerar | [#9](https://github.com/LucasFrenhan/Order-Management-System/issues/9) — Worker de pagamento assíncrono | Consome `EstoqueReservado`, simula o gateway (90% aprova); aprovado → `Processando`; recusado → `PagamentoRejeitado` e compensação do estoque | estoque |
-| 5 | a numerar | [#10](https://github.com/LucasFrenhan/Order-Management-System/issues/10) — Worker de fulfillment e logística | Consome `PagamentoAprovado`, cria a `OrdemEntrega`, muda o pedido para `ProntoParaEnvio` e publica o evento de despacho | pagamento |
-| 6 | a numerar | [#11](https://github.com/LucasFrenhan/Order-Management-System/issues/11) — Consulta, rastreio e logística | `GET /api/v1/pedidos/{id}` com dono validado pelo token e histórico de status; `PATCH /api/v1/pedidos/{id}/rastreio` (Admin e OperadorLogistica) para registrar o rastreio e despachar | fulfillment |
+| 1 | REQ-06 | [#7](https://github.com/LucasFrenhan/Order-Management-System/issues/7) — Mensageria, publicação de eventos e DLQ | Eventos `PedidoCriado`, `EstoqueReservado`, `PagamentoAprovado` e `PagamentoRecusado`; publicação após gravar o pedido (outbox, Princípio IV); retry com intervalo exponencial e DLQ | REQ-05 |
+| 2 | a numerar | [#8](https://github.com/LucasFrenhan/Order-Management-System/issues/8) — Worker de estoque e concorrência otimista | Consome `PedidoCriado`, reserva estoque tratando `ConflitoConcorrenciaException`; sem estoque, cancela o pedido e publica `EstoqueInsuficiente` | REQ-06 |
+| 3 | a numerar | [#9](https://github.com/LucasFrenhan/Order-Management-System/issues/9) — Worker de pagamento assíncrono | Consome `EstoqueReservado`, simula o gateway (90% aprova); aprovado → `Processando`; recusado → `PagamentoRejeitado` e compensação do estoque | estoque |
+| 4 | a numerar | [#10](https://github.com/LucasFrenhan/Order-Management-System/issues/10) — Worker de fulfillment e logística | Consome `PagamentoAprovado`, cria a `OrdemEntrega`, muda o pedido para `ProntoParaEnvio` e publica o evento de despacho | pagamento |
+| 5 | a numerar | [#11](https://github.com/LucasFrenhan/Order-Management-System/issues/11) — Rastreio e histórico na consulta | A consulta com dono validado pelo token já existe (REQ-05). Faltam o histórico de status na resposta do `GET /api/v1/pedidos/{id}` e o `PATCH /api/v1/pedidos/{id}/rastreio` (Admin e OperadorLogistica) para registrar o rastreio e despachar | fulfillment |
 | — | a numerar | [#15](https://github.com/LucasFrenhan/Order-Management-System/issues/15) — CI de build e testes e ambiente de demonstração | Workflow `build-testes` em todo PR (com Testcontainers e sem skip silencioso), cobertura, `Dockerfile` da API e profile `demo` no Docker Compose | independente; pode entrar a qualquer momento |
 
-O que o REQ-04 já deixou pronto para esses requisitos:
+O que os REQ-04 e REQ-05 já deixaram pronto para esses requisitos:
 
 - **Armazenamento**: produtos, pedidos com itens e histórico de status, pagamentos e ordens
   de entrega, com as restrições no banco.
@@ -44,6 +41,9 @@ O que o REQ-04 já deixou pronto para esses requisitos:
   ([contrato de persistência](specs/004-dominio-persistencia/contracts/persistencia.md)).
 - **Catálogo inicial** com casos reservados para testes: `CAT-008` (estoque 1, disputa do
   último item), `CAT-009` (sem estoque) e `CAT-010` (inativo).
+- **Serviço de pedidos** (REQ-05): criação idempotente, consulta e a tabela de transições
+  de status no domínio (`TransicoesStatusPedido`), que os workers podem reaproveitar. A
+  criação ainda não publica o evento `PedidoCriado`; isso entra no REQ-06.
 
 Decisões e pontos já conhecidos:
 
@@ -61,7 +61,7 @@ Decisões e pontos já conhecidos:
 - SDK do .NET 10 (`winget install Microsoft.DotNet.SDK.10`)
 - Docker com Compose v2, para o [ambiente local](#ambiente-local) (`winget install Docker.DockerDesktop`)
 
-Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md) e [domínio e persistência](specs/004-dominio-persistencia/quickstart.md).
+Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md), [domínio e persistência](specs/004-dominio-persistencia/quickstart.md) e [pedidos](specs/005-criacao-pedidos/quickstart.md).
 
 ## Ambiente local
 
@@ -136,8 +136,11 @@ dotnet ef database update --project src/PedidoFulfillment.Infrastructure --start
 `Banco__PrepararNaInicializacao=false` desliga essa preparação (a API sobe sem consultar o
 banco). Detalhes em [`contracts/configuracao.md`](specs/003-autenticacao-identity/contracts/configuracao.md).
 
-O banco tem duas migrations: `InicialIdentidade` (usuários e perfis) e `EntidadesNegocio`
-(produtos, pedidos, itens, histórico de status, pagamentos e ordens de entrega). Em
+O banco tem três migrations: `InicialIdentidade` (usuários e perfis), `EntidadesNegocio`
+(produtos, pedidos, itens, histórico de status, pagamentos e ordens de entrega) e
+`ChavesIdempotencia` (as chaves de idempotência da criação de pedido, guardadas por no
+mínimo 24 horas, e a sequência que gera o número `PED-AAAAMMDD-NNNNNN`; ver
+[idempotência](specs/005-criacao-pedidos/contracts/idempotencia.md)). Em
 Development e `Testes` a preparação também cria um
 [catálogo inicial](specs/004-dominio-persistencia/contracts/catalogo-inicial.md) de 10
 produtos (`CAT-001` a `CAT-010`), sem alterar produtos que já existem; nos demais ambientes
@@ -164,21 +167,24 @@ docker-compose.yml                   ambiente local: SQL Server + RabbitMQ
 .config/dotnet-tools.json            ferramenta local dotnet-ef (migrations)
 src/
   PedidoFulfillment.Domain/          entidades e enums: Produtos/, Pedidos/ (pedido, itens,
-                                     histórico de status), Pagamentos/, Entregas/
-  PedidoFulfillment.Application/     DTOs de contrato, interfaces e serviço de autenticação,
+                                     histórico de status, tabela de transições), Pagamentos/,
+                                     Entregas/
+  PedidoFulfillment.Application/     DTOs de contrato, serviços de autenticação e de pedidos
+                                     (com as portas de persistência e a idempotência),
                                      Resultado, ConflitoConcorrenciaException
   PedidoFulfillment.Infrastructure/  banco (EF Core + Identity, Persistencia/Configuracoes com o
-                                     mapeamento do domínio, migrations, preparação e catálogo
-                                     inicial), configuração e saúde de banco e broker; a
+                                     mapeamento do domínio, armazenamento de pedidos, número do
+                                     pedido, migrations, preparação e catálogo inicial),
+                                     configuração e saúde de banco e broker; a
                                      mensageria (REQ-06) entra aqui
   PedidoFulfillment.API/             Minimal APIs (só roteamento), segurança (validação e
                                      emissão de JWT), erros, OpenAPI, saúde
 tests/
-  PedidoFulfillment.Testes.Unitarios/   DTOs, configurações, regras de autenticação e entidades
-                                        do domínio
+  PedidoFulfillment.Testes.Unitarios/   DTOs, configurações, regras de autenticação e de pedidos
+                                        e entidades do domínio
   PedidoFulfillment.Testes.Integracao/  contrato, segurança, erros, serialização, configuração,
-                                        saúde, autenticação e persistência com SQL Server real
-                                        (Testcontainers) e arquitetura
+                                        saúde, autenticação, persistência e pedidos com SQL
+                                        Server real (Testcontainers) e arquitetura
 specs/                               especificações SDD (spec, plano, tarefas, contrato)
 ```
 

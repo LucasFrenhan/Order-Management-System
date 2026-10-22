@@ -117,6 +117,22 @@ public sealed partial class CriacaoPedidoComBancoTestes(BancoDadosTeste banco)
         await NadaGravadoAsync(stringConexao);
     }
 
+    [Fact]
+    public async Task Logs_registram_criacao_e_status_sem_dados_sensiveis()
+    {
+        Assert.SkipUnless(banco.DockerDisponivel, "Docker indisponível");
+        var logs = new CapturaLogs();
+        await using var api = Api(banco.NovoBanco(), logs);
+        var (cliente, email, token) = await ClienteAsync(api);
+        var id = (await CriadoAsync(cliente, (Cat001, 1))).GetProperty("id").GetGuid();
+        (await MudarStatusAsync(cliente, id, "Cancelado", "Desisti")).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        logs.Registros.Select(r => r.Evento.Name).Should().Contain(["PedidoCriado", "StatusPedidoAlterado"]);
+        logs.Textos.Should().NotContain(t => t.Contains(email, StringComparison.OrdinalIgnoreCase)
+            || t.Contains(token, StringComparison.Ordinal)
+            || t.Contains("\"itens\"", StringComparison.Ordinal));
+    }
+
     private static async Task NadaGravadoAsync(string stringConexao)
     {
         (await BancoDadosTeste.ConsultarAsync<int>(stringConexao, "SELECT COUNT(*) FROM Pedidos")).Should().Be(0);

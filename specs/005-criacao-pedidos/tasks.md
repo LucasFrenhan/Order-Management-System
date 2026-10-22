@@ -433,25 +433,25 @@ e cancelar com o Cliente um pedido `Pendente` (200) e um `Processando` (403).
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T037 [P] Números simultâneos em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/NumeroPedidoTestes.cs` (SC-003):
+- [X] T037 [P] Números simultâneos em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/NumeroPedidoTestes.cs` (SC-003):
   - 50 `POST` simultâneos com chaves diferentes, por 5 Clientes;
   - 50 respostas 201, com 50 números distintos e no padrão do contrato.
-- [ ] T038 [P] Desempenho em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/DesempenhoCriacaoTestes.cs` (SC-005):
+- [X] T038 [P] Desempenho em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/DesempenhoCriacaoTestes.cs` (SC-005):
   - 5 criações de aquecimento;
   - 40 criações sequenciais com 10 itens (`CAT-001` a `CAT-007` em quantidade 1, mais
     produtos de teste inseridos por SQL até completar 10), cada uma medida com
     `Stopwatch` pelo cliente HTTP;
   - o percentil 95 fica abaixo de 500 ms.
-- [ ] T039 [P] Logs: em `CriacaoPedidoComBancoTestes`, com `CapturaLogs`, afirmar que os eventos `PedidoCriado` e `StatusPedidoAlterado` aparecem e que nenhum texto de log contém o e-mail do Cliente, o token ou `"itens"` (FR-020).
-- [ ] T040 Atualizar `README.md`:
+- [X] T039 [P] Logs: em `CriacaoPedidoComBancoTestes`, com `CapturaLogs`, afirmar que os eventos `PedidoCriado` e `StatusPedidoAlterado` aparecem e que nenhum texto de log contém o e-mail do Cliente, o token ou `"itens"` (FR-020).
+- [X] T040 Atualizar `README.md`:
   - **`## Estado atual`**: linha do REQ-05 com link para a spec e "Criação com idempotência, consulta e mudança de status de pedidos"; a linha de pendentes passa a "REQ-06 em diante".
   - Remover o aviso de 501.
   - **Roteiros de validação**: acrescentar o quickstart do REQ-05.
   - **`## Próximos passos`**: tirar a linha do REQ-05; atualizar a #11, que fica só com o
     rastreio e o histórico na consulta.
   - **Banco**: citar a terceira migration e a tabela `ChavesIdempotencia`.
-- [ ] T041 Varredura de segredos (`git grep -n -i -E "password|senha|pwd|chave"` nos arquivos alterados) e `dotnet format PedidoFulfillment.sln --verify-no-changes`.
-- [ ] T042 Executar o quickstart (§1 a §7) com o Docker no ar e registrar o resultado em Notes.
+- [X] T041 Varredura de segredos (`git grep -n -i -E "password|senha|pwd|chave"` nos arquivos alterados) e `dotnet format PedidoFulfillment.sln --verify-no-changes`.
+- [X] T042 Executar o quickstart (§1 a §7) com o Docker no ar e registrar o resultado em Notes.
 
 ---
 
@@ -525,6 +525,39 @@ Task: "EventosPedidos em src/PedidoFulfillment.Application/Pedidos/EventosPedido
 - Publicação de eventos e outbox: REQ-06.
 - Retenção das chaves (FR-009, US2 cenário 7): garantida por nenhuma chave ser apagada
   neste REQ; não há teste de tempo (achado L3).
+- Desvios registrados na implementação (2026-10-22):
+  - **T011/T022**: o `GeradorNumeroPedido` usa `ToListAsync().Single()`, e não
+    `SingleAsync`. Compor a consulta põe a SQL bruta numa subconsulta, onde o SQL Server
+    não aceita `NEXT VALUE FOR`; a criação respondia 500. O teste de integração da T018
+    pegou o problema.
+  - **T016**: o `MigracaoBancoTestes` do REQ-04 compara a lista exata de migrations e
+    passou a incluir `ChavesIdempotencia`.
+  - **T032**: o teste unitário de status monta pedidos em qualquer status com
+    `MudarStatus` e fixa o `Id` por reflexão, para que cada leitura do falso devolva uma
+    instância nova do mesmo pedido.
+  - **T024**: o caso "depois de cancelar" usou SQL até a T036 e depois passou ao PATCH,
+    como previsto.
+- T042 (quickstart, 2026-10-22, Docker no ar, banco local de desenvolvimento):
+  - **§1**: 422 testes verdes (232 unitários e 190 de integração), contra 287 na T001;
+    nenhum ignorado, zero avisos; `dotnet format` passa.
+  - **§2–§3**: a migration `ChavesIdempotencia` foi aplicada ao iniciar. A criação de
+    `CAT-001` × 2 e `CAT-002` × 1 respondeu 201, com `Location`,
+    `PED-20261022-000001`, `Pendente` e 829.70. `CAT-009`, `CAT-010` e `CAT-008` × 2
+    responderam 422 `PRODUTO_INDISPONIVEL`; um produto inexistente com `CAT-009`,
+    `PRODUTO_INEXISTENTE`. O Admin recebeu 403.
+  - **§4**: a repetição com os itens em outra ordem respondeu 201 com o corpo idêntico.
+    Outro conteúdo recebeu 409 `IDEMPOTENCIA_CONTEUDO_DIVERGENTE`. A mesma chave com outro
+    Cliente respondeu 201, com outro pedido.
+  - **§5**: o dono, o Admin e o Operador receberam 200; outro Cliente e um ID
+    inexistente, 404.
+  - **§6**: o Operador percorreu Processando → ProntoParaEnvio → Despachado, sempre com
+    200. Despachado → Pendente recebeu 409 com "O pedido está em Despachado e não pode
+    passar para Pendente.". O Cliente cancelou um pedido Pendente (200) e recebeu 403 num
+    Processando; outro Cliente, 404. A repetição depois do despacho continuou com
+    `Pendente`.
+  - **§7**: 4 chaves para as 4 criações bem-sucedidas, nenhuma para os 422. O histórico
+    tem autor e motivo, e o estoque de `CAT-001` continua 50. O console mostrou os eventos
+    4001, 4002 e 4003.
 - `/speckit-analyze` (2026-10-22), achados aplicados:
   - **M1**: deadlock tratado como corrida de chave (T010, R-04).
   - **M2**: caso do usuário apagado (T018).
