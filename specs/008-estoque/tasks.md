@@ -109,19 +109,19 @@ sequência. A US5 mexe no `ServicoPedidos` e pode correr em paralelo com as US2 
 
 ### Testes da US1
 
-- [ ] T010 [P] [US1] Testes unitários em `tests/PedidoFulfillment.Testes.Unitarios/Estoque/ReservaEstoqueTestes.cs`, com o falso:
+- [X] T010 [P] [US1] Testes unitários em `tests/PedidoFulfillment.Testes.Unitarios/Estoque/ReservaEstoqueTestes.cs`, com o falso:
   - `Consumidor` é `estoque` e `Tipos` é `[pedido.criado]`;
   - pedido `Pendente` com estoque: estoque abatido, `EstoqueReservado`, status `Pendente`, uma chamada a `SalvarAsync` e um `EventoSaida` do tipo `estoque.reservado`, com `idCorrelacao` igual ao pedido e itens ordenados por `produtoId`;
   - os itens vêm do pedido gravado, mesmo que o evento recebido traga outros (FR-003);
   - pedido inexistente: lança `InvalidOperationException` e não grava nada.
-- [ ] T011 [P] [US1] Teste de integração em `tests/PedidoFulfillment.Testes.Integracao/Estoque/ReservaEstoqueTestes.cs` (`ColecaoMensageria`), com banco novo migrado, API (`CenarioPedidos.Api`) e Worker (`FabricaWorker`) no mesmo banco, e `FilaTesteAsync("estoque.*")`:
+- [X] T011 [P] [US1] Teste de integração em `tests/PedidoFulfillment.Testes.Integracao/Estoque/ReservaEstoqueTestes.cs` (`ColecaoMensageria`), com banco novo migrado, API (`CenarioPedidos.Api`) e Worker (`FabricaWorker`) no mesmo banco, e `FilaTesteAsync("estoque.*")`:
   - cenário 1 da US1: o pedido criado pela API gera `estoque.reservado` em até 5 s, o estoque cai a quantidade pedida, e a consulta mostra `Pendente`;
   - cenário 3: republicar o mesmo `pedido.criado` (mesmo `idEvento`) direto na troca não abate de novo nem gera evento novo.
 
 ### Implementação da US1
 
-- [ ] T012 [US1] Em `ReservaEstoque.ManipularAsync`: ler o pedido com `paraAlterar: true` (inexistente → `InvalidOperationException` com o id), ler os produtos dos itens com `paraAlterar: true`, chamar `pedido.ReservarEstoque` e, sem faltas, `armazenamento.Adicionar(EventoSaida.De(EnvelopeEvento.Criar(pedido.Id, new EstoqueReservado { ... }, agora), agora))`, `SalvarAsync` e log 6001. Registrar o consumidor em `src/PedidoFulfillment.Worker/ProgramaWorker.cs` com `builder.Services.AdicionarConsumidor<ReservaEstoque, PedidoCriado>();` (achado M1). T010 e T011 devem passar.
-- [ ] T013 [US1] Regressão do REQ-06 (achado M3): com o consumidor ativo, os testes que sobem o Worker passam a reservar estoque e a gravar `estoque.reservado` em `EventosSaida`. Revisar as asserções sobre `EventosSaida` em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/OutboxComBrokerTestes.cs` e `WorkerTestes.cs` (contagem de pendentes, "zerou", total de linhas) e restringir ao tipo `pedido.criado` onde o teste trata só desse evento. Rodar a suíte inteira no checkpoint.
+- [X] T012 [US1] Em `ReservaEstoque.ManipularAsync`: ler o pedido com `paraAlterar: true` (inexistente → `InvalidOperationException` com o id), ler os produtos dos itens com `paraAlterar: true`, chamar `pedido.ReservarEstoque` e, sem faltas, `armazenamento.Adicionar(EventoSaida.De(EnvelopeEvento.Criar(pedido.Id, new EstoqueReservado { ... }, agora), agora))`, `SalvarAsync` e log 6001. Registrar o consumidor em `src/PedidoFulfillment.Worker/ProgramaWorker.cs` com `builder.Services.AdicionarConsumidor<ReservaEstoque, PedidoCriado>();` (achado M1). T010 e T011 devem passar.
+- [X] T013 [US1] Regressão do REQ-06 (achado M3): com o consumidor ativo, os testes que sobem o Worker passam a reservar estoque e a gravar `estoque.reservado` em `EventosSaida`. Revisar as asserções sobre `EventosSaida` em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/OutboxComBrokerTestes.cs` e `WorkerTestes.cs` (contagem de pendentes, "zerou", total de linhas) e restringir ao tipo `pedido.criado` onde o teste trata só desse evento. Rodar a suíte inteira no checkpoint.
 
 **Checkpoint**: MVP — um pedido com estoque é reservado e anunciado.
 
