@@ -26,6 +26,9 @@ public sealed class ServicoPedidos(
         Converters = { new JsonStringEnumConverter() }
     };
 
+    private static readonly Falha PedidoNaoEncontrado = new(
+        TipoFalha.NaoEncontrado, "Pedido não encontrado.", "Não existe pedido com este identificador.");
+
     private static readonly Falha NaoImplementado = new(TipoFalha.NaoImplementado, "Operação ainda não implementada.");
 
     private static readonly Falha ConteudoDivergente = new(
@@ -75,13 +78,26 @@ public sealed class ServicoPedidos(
         return resposta;
     }
 
-    // Consulta e mudança de status chegam na US3 e na US4 do REQ-05.
-    public Task<Resultado<PedidoResponseDTO>> ObterAsync(Guid pedidoId, Guid usuarioId, IReadOnlyCollection<PerfilUsuario> perfis, CancellationToken cancellationToken) =>
-        Task.FromResult<Resultado<PedidoResponseDTO>>(NaoImplementado);
+    /// <summary>
+    /// Estado atual do pedido (FR-014). Pedido de outro Cliente recebe a mesma falha de um
+    /// inexistente, para não revelar que ele existe (FR-015).
+    /// </summary>
+    public async Task<Resultado<PedidoResponseDTO>> ObterAsync(Guid pedidoId, Guid usuarioId, IReadOnlyCollection<PerfilUsuario> perfis, CancellationToken cancellationToken)
+    {
+        var pedido = await armazenamento.ObterPedidoAsync(pedidoId, paraAlterar: false, cancellationToken);
+        return pedido is null || (!EhOperacao(perfis) && pedido.ClienteId != usuarioId)
+            ? PedidoNaoEncontrado
+            : pedido.ParaResposta();
+    }
 
+    // Mudança de status chega na US4 do REQ-05.
     public Task<Resultado<PedidoResponseDTO>> AtualizarStatusAsync(
         Guid pedidoId, Guid usuarioId, IReadOnlyCollection<PerfilUsuario> perfis, AtualizarStatusPedidoRequestDTO atualizacao, CancellationToken cancellationToken) =>
         Task.FromResult<Resultado<PedidoResponseDTO>>(NaoImplementado);
+
+    /// <summary>Admin e OperadorLogistica operam qualquer pedido; os demais, só como Cliente dono.</summary>
+    private static bool EhOperacao(IReadOnlyCollection<PerfilUsuario> perfis) =>
+        perfis.Contains(PerfilUsuario.Admin) || perfis.Contains(PerfilUsuario.OperadorLogistica);
 
     /// <summary>Mesma impressão devolve a resposta original (FR-010); outra impressão, 409 (FR-011).</summary>
     private Resultado<PedidoResponseDTO> ResponderRegistro(RegistroIdempotencia registro, string impressao)

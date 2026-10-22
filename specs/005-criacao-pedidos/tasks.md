@@ -349,13 +349,13 @@ ID inexistente.
 
 ### Testes da US3
 
-- [ ] T028 [P] [US3] Unitários em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosConsultaTestes.cs`:
+- [X] T028 [P] [US3] Unitários em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosConsultaTestes.cs`:
   - o dono recebe o estado atual, inclusive status e `AtualizadoEm` alterados;
   - Admin e OperadorLogistica recebem o pedido de qualquer pessoa;
   - outro Cliente e um pedido inexistente recebem uma `Falha` igual (mesmo tipo, título e
     detalhe; FR-015);
   - um usuário com Cliente **e** Admin vê qualquer pedido.
-- [ ] T029 [P] [US3] Integração em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/ConsultaPedidoComBancoTestes.cs` (cenários 1 a 4):
+- [X] T029 [P] [US3] Integração em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/ConsultaPedidoComBancoTestes.cs` (cenários 1 a 4):
   - **200** com o dono, o Admin e o Operador; o corpo é igual ao da criação;
   - **404** com o Cliente B e com um ID inexistente, e os dois corpos têm o mesmo `title`
     e o mesmo `detail`;
@@ -363,12 +363,12 @@ ID inexistente.
 
 ### Implementação da US3
 
-- [ ] T030 [US3] Implementar `ObterAsync` em `ServicoPedidos.cs` (R-08):
+- [X] T030 [US3] Implementar `ObterAsync` em `ServicoPedidos.cs` (R-08):
   - leitura sem rastreamento;
   - uma `Falha` estática `PedidoNaoEncontrado` (`NaoEncontrado`, "Pedido não
     encontrado.");
   - um método privado `EhOperacao(perfis)`, verdadeiro com Admin ou OperadorLogistica.
-- [ ] T031 [US3] Rodar T028–T029 e corrigir até ficarem verdes.
+- [X] T031 [US3] Rodar T028–T029 e corrigir até ficarem verdes.
 
 ---
 
