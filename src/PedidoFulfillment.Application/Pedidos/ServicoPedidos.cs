@@ -29,7 +29,13 @@ public sealed class ServicoPedidos(
     private static readonly Falha PedidoNaoEncontrado = new(
         TipoFalha.NaoEncontrado, "Pedido não encontrado.", "Não existe pedido com este identificador.");
 
-    private static readonly Falha NaoImplementado = new(TipoFalha.NaoImplementado, "Operação ainda não implementada.");
+    private static readonly Falha ClienteSemPermissao = new(
+        TipoFalha.SemPermissao, "Operação não permitida.", "O cliente só pode cancelar o próprio pedido enquanto ele está Pendente.");
+
+    private static readonly Falha AlteradoPorOutraOperacao = new(
+        TipoFalha.Conflito, "Transição de status inválida.", "O pedido foi alterado por outra operação; tente novamente.", CodigosErro.PedidoTransicaoInvalida);
+
+    private const int TentativasStatus = 3;
 
     private static readonly Falha ConteudoDivergente = new(
         TipoFalha.Conflito, "Chave de idempotência já usada.", "A chave já foi usada com outro conteúdo.", CodigosErro.IdempotenciaConteudoDivergente);
@@ -90,10 +96,62 @@ public sealed class ServicoPedidos(
             : pedido.ParaResposta();
     }
 
-    // Mudança de status chega na US4 do REQ-05.
-    public Task<Resultado<PedidoResponseDTO>> AtualizarStatusAsync(
-        Guid pedidoId, Guid usuarioId, IReadOnlyCollection<PerfilUsuario> perfis, AtualizarStatusPedidoRequestDTO atualizacao, CancellationToken cancellationToken) =>
-        Task.FromResult<Resultado<PedidoResponseDTO>>(NaoImplementado);
+    /// <summary>
+    /// Aplica a tabela de transições (FR-016, FR-017). Se o pedido mudou desde a leitura, a
+    /// mudança é reavaliada sobre o estado atual, até <see cref="TentativasStatus"/> vezes (FR-019).
+    /// </summary>
+    public async Task<Resultado<PedidoResponseDTO>> AtualizarStatusAsync(
+        Guid pedidoId, Guid usuarioId, IReadOnlyCollection<PerfilUsuario> perfis, AtualizarStatusPedidoRequestDTO atualizacao, CancellationToken cancellationToken)
+    {
+        var operacao = EhOperacao(perfis);
+        for (var tentativa = 1; tentativa <= TentativasStatus; tentativa++)
+        {
+            var pedido = await armazenamento.ObterPedidoAsync(pedidoId, paraAlterar: true, cancellationToken);
+            if (pedido is null || (!operacao && pedido.ClienteId != usuarioId))
+            {
+                return PedidoNaoEncontrado;
+            }
+
+            var anterior = pedido.Status;
+            if (AvaliarTransicao(operacao, anterior, atualizacao.Status) is { } recusa)
+            {
+                return recusa;
+            }
+
+            pedido.MudarStatus(atualizacao.Status, usuarioId, atualizacao.Motivo?.Trim(), relogio.GetUtcNow());
+            try
+            {
+                await armazenamento.SalvarAsync(cancellationToken);
+            }
+            catch (ConflitoConcorrenciaException)
+            {
+                armazenamento.DescartarAlteracoes();
+                continue;
+            }
+
+            EventosPedidos.StatusPedidoAlterado(logger, pedido.Id, anterior, pedido.Status, operacao ? "Operacao" : "Cliente");
+            return pedido.ParaResposta();
+        }
+
+        return AlteradoPorOutraOperacao;
+    }
+
+    /// <summary>
+    /// O Cliente só pode Pendente → Cancelado no próprio pedido; qualquer outra transição é 403,
+    /// mesmo que também fosse inválida para a operação (contrato v1, research R-06).
+    /// </summary>
+    private static Falha? AvaliarTransicao(bool operacao, StatusPedido atual, StatusPedido solicitado)
+    {
+        if (!operacao)
+        {
+            return TransicoesStatusPedido.PermitidaParaCliente(atual, solicitado) ? null : ClienteSemPermissao;
+        }
+
+        return TransicoesStatusPedido.PermitidaParaOperacao(atual, solicitado)
+            ? null
+            : new Falha(TipoFalha.Conflito, "Transição de status inválida.",
+                $"O pedido está em {atual} e não pode passar para {solicitado}.", CodigosErro.PedidoTransicaoInvalida);
+    }
 
     /// <summary>Admin e OperadorLogistica operam qualquer pedido; os demais, só como Cliente dono.</summary>
     private static bool EhOperacao(IReadOnlyCollection<PerfilUsuario> perfis) =>

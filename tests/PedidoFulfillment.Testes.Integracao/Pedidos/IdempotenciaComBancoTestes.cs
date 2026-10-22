@@ -97,8 +97,7 @@ public sealed class IdempotenciaComBancoTestes(BancoDadosTeste banco)
         var chave = Guid.NewGuid();
         var original = await CorpoAsync(await CriarAsync(cliente, chave, (Cat001, 1)));
         var id = original.GetProperty("id").GetGuid();
-        // Até a US4 (T036), o status muda direto no banco.
-        await BancoDadosTeste.ExecutarAsync(stringConexao, $"UPDATE Pedidos SET Status = N'Cancelado' WHERE Id = '{id}'");
+        (await MudarStatusAsync(cliente, id, "Cancelado", "Desisti")).StatusCode.Should().Be(HttpStatusCode.OK);
 
         var repetida = await CriarAsync(cliente, chave, (Cat001, 1));
 

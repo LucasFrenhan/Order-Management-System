@@ -382,7 +382,7 @@ e cancelar com o Cliente um pedido `Pendente` (200) e um `Processando` (403).
 
 ### Testes da US4
 
-- [ ] T032 [P] [US4] Unitários em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosStatusTestes.cs`:
+- [X] T032 [P] [US4] Unitários em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosStatusTestes.cs`:
   - **Operação**: cada transição permitida responde sucesso, grava o histórico com autor e
     motivo aparado e loga 4003 com `PapelAutor` `Operacao`.
   - **Transição inválida**: 409 `PEDIDO_TRANSICAO_INVALIDA`, com
@@ -399,7 +399,7 @@ e cancelar com o Cliente um pedido `Pendente` (200) e um `Processando` (403).
     - 3 conflitos seguidos: 409 `PEDIDO_TRANSICAO_INVALIDA`, com "O pedido foi alterado
       por outra operação; tente novamente.";
     - `DescartarAlteracoes` é chamado a cada conflito.
-- [ ] T033 [P] [US4] Integração em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/StatusPedidoComBancoTestes.cs` (cenários 1 a 8):
+- [X] T033 [P] [US4] Integração em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/StatusPedidoComBancoTestes.cs` (cenários 1 a 8):
   - **Ciclo do Operador**: Pendente→Processando→ProntoParaEnvio→Despachado, sempre 200.
     Depois, o `GET` mostra `Despachado`, e o histórico no banco tem 4 entradas com o
     `AutorId` do operador.
@@ -419,13 +419,13 @@ e cancelar com o Cliente um pedido `Pendente` (200) e um `Processando` (403).
 
 ### Implementação da US4
 
-- [ ] T034 [US4] Implementar `AtualizarStatusAsync` em `ServicoPedidos.cs`, conforme as R-06 e R-09:
+- [X] T034 [US4] Implementar `AtualizarStatusAsync` em `ServicoPedidos.cs`, conforme as R-06 e R-09:
   - laço de até 3 tentativas: ler com `paraAlterar`, aplicar as regras, chamar
     `MudarStatus` e gravar;
   - em `ConflitoConcorrenciaException`, `DescartarAlteracoes()` e tentar de novo;
   - logar 4003.
-- [ ] T035 [US4] Remover `TipoFalha.NaoImplementado` de `src/PedidoFulfillment.Application/Comum/Resultado.cs`, o caso 501 de `src/PedidoFulfillment.API/Erros/ExtensoesResultado.cs` e o título 501 de `src/PedidoFulfillment.API/Erros/ConfiguracaoProblemDetails.cs` (R-10, FR-022).
-- [ ] T036 [US4] Rodar T032–T033 e a suíte inteira e corrigir até ficarem verdes. Atualizar a T024: o caso "depois de cancelar" passa a usar o PATCH.
+- [X] T035 [US4] Remover `TipoFalha.NaoImplementado` de `src/PedidoFulfillment.Application/Comum/Resultado.cs`, o caso 501 de `src/PedidoFulfillment.API/Erros/ExtensoesResultado.cs` e o título 501 de `src/PedidoFulfillment.API/Erros/ConfiguracaoProblemDetails.cs` (R-10, FR-022).
+- [X] T036 [US4] Rodar T032–T033 e a suíte inteira e corrigir até ficarem verdes. Atualizar a T024: o caso "depois de cancelar" passa a usar o PATCH.
 
 **Checkpoint**: as três operações em funcionamento; nenhum 501 no código.
 
