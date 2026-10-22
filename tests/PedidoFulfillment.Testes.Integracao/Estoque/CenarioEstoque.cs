@@ -84,6 +84,30 @@ internal static class CenarioEstoque
         await canal.BasicPublishAsync(TopologiaMensageria.TrocaEventos, TiposEvento.PedidoCriado, false, propriedades, Encoding.UTF8.GetBytes(corpo), Cancelamento);
     }
 
+    /// <summary>
+    /// Espera chegar a <c>oms.estoque.dlq</c> uma mensagem que cite o texto (por exemplo o id do
+    /// pedido) e devolve os cabeçalhos dela. Lê com <c>BasicGet</c> e confirma o que lê.
+    /// </summary>
+    public static async Task<IDictionary<string, object?>?> EsperarNaDlqAsync(MensageriaTeste mensageria, string texto, TimeSpan prazo)
+    {
+        await using var conexao = await mensageria.ConectarAsync();
+        await using var canal = await conexao.CreateChannelAsync(cancellationToken: Cancelamento);
+        IDictionary<string, object?>? encontrada = null;
+        await MensageriaTeste.EsperarAteAsync(async () =>
+        {
+            while (await canal.BasicGetAsync(TopologiaMensageria.FilaMortas(FilaEstoque), autoAck: true, Cancelamento) is { } mensagem)
+            {
+                if (Encoding.UTF8.GetString(mensagem.Body.Span).Contains(texto, StringComparison.Ordinal))
+                {
+                    encontrada = mensagem.BasicProperties.Headers ?? new Dictionary<string, object?>();
+                }
+            }
+
+            return encontrada is not null;
+        }, prazo);
+        return encontrada;
+    }
+
     /// <summary>Espera um registro de log com o EventId, por exemplo 5005 (duplicado descartado).</summary>
     public static Task<bool> EsperarLogAsync(CapturaLogs logs, int eventId, TimeSpan prazo) =>
         MensageriaTeste.EsperarAteAsync(() => Task.FromResult(logs.Registros.Any(r => r.Evento.Id == eventId)), prazo);

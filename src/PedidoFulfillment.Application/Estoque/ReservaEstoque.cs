@@ -57,6 +57,13 @@ public sealed class ReservaEstoque(IArmazenamentoPedidos armazenamento, TimeProv
         var pedidoId = evento.Dados.PedidoId;
         var pedido = await armazenamento.ObterPedidoAsync(pedidoId, paraAlterar: true, cancellationToken)
             ?? throw new InvalidOperationException($"O pedido {pedidoId} não existe.");
+        if (EhFinal(pedido.Status) || pedido.EstoqueReservado)
+        {
+            // Cancelado antes da reserva, já despachado ou reservado por outro evento: nada a fazer (FR-002).
+            EventosEstoque.PedidoIgnoradoNaReserva(logger, evento.IdEvento, pedido.Id, pedido.Status, pedido.EstoqueReservado);
+            return;
+        }
+
         var ids = pedido.Itens.Select(i => i.ProdutoId).ToList();
         var produtos = (await armazenamento.ObterProdutosAsync(ids, paraAlterar: true, cancellationToken)).ToDictionary(p => p.Id);
         var agora = relogio.GetUtcNow();
@@ -99,6 +106,10 @@ public sealed class ReservaEstoque(IArmazenamentoPedidos armazenamento, TimeProv
         await armazenamento.SalvarAsync(cancellationToken);
         EventosEstoque.PedidoCanceladoSemEstoque(logger, idEvento, pedido.Id, faltas.Count);
     }
+
+    /// <summary>Status finais do contrato v1; Pendente, Processando e ProntoParaEnvio são reservados (clarify).</summary>
+    private static bool EhFinal(StatusPedido status) =>
+        status is StatusPedido.Cancelado or StatusPedido.Despachado or StatusPedido.PagamentoRejeitado;
 
     private static EnvelopeEvento<EstoqueReservado> EventoEstoqueReservado(Pedido pedido, DateTimeOffset agora) =>
         EnvelopeEvento.Criar(pedido.Id, new EstoqueReservado

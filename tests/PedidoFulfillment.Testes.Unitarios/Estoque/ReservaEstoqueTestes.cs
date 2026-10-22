@@ -232,6 +232,55 @@ public sealed class ReservaEstoqueTestes
         logger.Eventos.Where(e => e.Id.Id == 6004).Select(e => e.Propriedades["Reavaliacao"]).Should().Equal(1, 2, 3);
     }
 
+    [Theory]
+    [InlineData(StatusPedido.Cancelado)]
+    [InlineData(StatusPedido.Despachado)]
+    [InlineData(StatusPedido.PagamentoRejeitado)]
+    public async Task Pedido_em_status_final_e_ignorado(StatusPedido status)
+    {
+        PedidoEm(status);
+
+        await Manipular();
+
+        armazenamento.Gravacoes.Should().Be(0);
+        armazenamento.LeiturasProdutosParaAlterar.Should().Be(0);
+        armazenamento.EventosGravados.Should().BeEmpty();
+        Estoque(a).Should().Be(10);
+        Gravado().Status.Should().Be(status);
+        var ignorado = logger.Eventos.Should().ContainSingle(e => e.Id.Id == 6003).Subject;
+        ignorado.Propriedades["Status"].Should().Be(status);
+        ignorado.Propriedades["JaReservado"].Should().Be(false);
+    }
+
+    [Fact]
+    public async Task Pedido_ja_reservado_e_ignorado()
+    {
+        PedidoEm(reservado: true);
+
+        await Manipular();
+
+        armazenamento.Gravacoes.Should().Be(0);
+        armazenamento.EventosGravados.Should().BeEmpty();
+        Estoque(a).Should().Be(10);
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 6003).Subject.Propriedades["JaReservado"].Should().Be(true);
+    }
+
+    [Theory]
+    [InlineData(StatusPedido.Processando)]
+    [InlineData(StatusPedido.ProntoParaEnvio)]
+    public async Task Pedido_movido_pela_operacao_antes_da_reserva_e_reservado(StatusPedido status)
+    {
+        PedidoEm(status);
+
+        await Manipular();
+
+        var pedido = Gravado();
+        pedido.Status.Should().Be(status);
+        pedido.EstoqueReservado.Should().BeTrue();
+        Estoque(a).Should().Be(7);
+        EventoGravado<EstoqueReservado>(TiposEvento.EstoqueReservado);
+    }
+
     [Fact]
     public async Task Pedido_inexistente_e_falha_sem_gravar_nada()
     {

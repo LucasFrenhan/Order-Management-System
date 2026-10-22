@@ -79,6 +79,65 @@ public sealed class ReservaEstoqueTestes(MensageriaTeste mensageria)
     }
 
     [Fact]
+    public async Task Pedido_cancelado_antes_da_reserva_e_ignorado_e_o_movido_pela_operacao_e_reservado()
+    {
+        Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
+        var stringConexao = mensageria.NovoBanco();
+        await using var api = Api(stringConexao);
+        var (cliente, _, _) = await ClienteAsync(api);
+        var admin = await AdminAsync(api);
+        await using var fila = await mensageria.FilaTesteAsync("estoque.*");
+        using var logs = new CapturaLogs();
+        await DeclararFilaEstoqueAsync(mensageria);
+
+        // Com o Worker parado: um pedido é cancelado e o outro vai para Processando.
+        var cancelado = (await CriadoAsync(cliente, (Cat001, 2))).GetProperty("id").GetGuid();
+        var movido = (await CriadoAsync(cliente, (Cat002, 1))).GetProperty("id").GetGuid();
+        (await MudarStatusAsync(cliente, cancelado, "Cancelado", "Desisti")).EnsureSuccessStatusCode();
+        (await MudarStatusAsync(admin, movido, "Processando")).EnsureSuccessStatusCode();
+        await using var worker = await WorkerProntoAsync(mensageria, stringConexao, logs);
+
+        (await MensageriaTeste.EsperarAteAsync(() => Task.FromResult(DoPedido(fila, movido).Count > 0), Prazo)).Should().BeTrue();
+        DoPedido(fila, movido).Single().Propriedades.Type.Should().Be(TiposEvento.EstoqueReservado);
+        (await StatusAsync(stringConexao, movido)).Should().Be("Processando");
+        (await EstoqueAsync(stringConexao, Cat002)).Should().Be(99);
+
+        (await EsperarLogAsync(logs, 6003, Prazo)).Should().BeTrue("o cancelado é ignorado e confirmado");
+        DoPedido(fila, cancelado).Should().BeEmpty();
+        (await EstoqueAsync(stringConexao, Cat001)).Should().Be(50);
+        (await ReservadoAsync(stringConexao, cancelado)).Should().BeFalse();
+        (await EsperarNaDlqAsync(mensageria, cancelado.ToString(), TimeSpan.FromMilliseconds(500))).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Pedido_criado_de_pedido_inexistente_vai_para_a_dlq_depois_das_tentativas()
+    {
+        Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
+        var stringConexao = mensageria.NovoBanco();
+        await using var api = Api(stringConexao);
+        await ClienteAsync(api);
+        await using var worker = await WorkerProntoAsync(mensageria, stringConexao);
+        var pedidoId = Guid.CreateVersion7();
+        var evento = EnvelopeEvento.Criar(pedidoId, new PedidoCriado
+        {
+            PedidoId = pedidoId,
+            Numero = "PED-20261022-999999",
+            ClienteId = Guid.CreateVersion7(),
+            Itens = [new ItemPedidoCriado { ProdutoId = Cat001, Quantidade = 1, PrecoUnitario = 349.90m }],
+            ValorTotal = 349.90m,
+            Moeda = "BRL"
+        }, DateTimeOffset.UtcNow);
+
+        await PublicarAsync(mensageria, SerializacaoEventos.Serializar(evento), evento.IdEvento.ToString());
+
+        // 4 execuções com esperas de 100, 200 e 400 ms (FabricaWorker).
+        var cabecalhos = await EsperarNaDlqAsync(mensageria, pedidoId.ToString(), TimeSpan.FromSeconds(10));
+        cabecalhos.Should().NotBeNull();
+        System.Text.Encoding.UTF8.GetString((byte[])cabecalhos!["x-motivo"]!).Should().Contain(pedidoId.ToString());
+        Convert.ToInt32(cabecalhos["x-tentativas"], System.Globalization.CultureInfo.InvariantCulture).Should().Be(3);
+    }
+
+    [Fact]
     public async Task Reentrega_do_mesmo_pedido_criado_nao_reserva_de_novo()
     {
         Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");

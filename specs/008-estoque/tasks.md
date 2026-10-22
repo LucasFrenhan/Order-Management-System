@@ -182,15 +182,15 @@ sequência. A US5 mexe no `ServicoPedidos` e pode correr em paralelo com as US2 
 
 ### Testes da US4
 
-- [ ] T020 [P] [US4] Em `tests/PedidoFulfillment.Testes.Unitarios/Estoque/ReservaEstoqueTestes.cs`:
+- [X] T020 [P] [US4] Em `tests/PedidoFulfillment.Testes.Unitarios/Estoque/ReservaEstoqueTestes.cs`:
   - `Cancelado`, `Despachado` e `PagamentoRejeitado` (theory): nenhum estoque muda, nenhum evento, nenhum `SalvarAsync`, log 6003 com o status;
   - `EstoqueReservado` já marcado: mesmo resultado, log 6003 com "já reservado";
   - `Processando` e `ProntoParaEnvio` sem reserva (theory): reserva, status não muda.
-- [ ] T021 [P] [US4] Em `tests/PedidoFulfillment.Testes.Integracao/Estoque/ReservaEstoqueTestes.cs`, com o Worker parado: criar dois pedidos, cancelar o primeiro como Cliente e mover o segundo para `Processando` como Admin; subir o Worker e conferir que só o segundo gera `estoque.reservado`, que o estoque do primeiro não muda, e que nenhuma mensagem dele vai para `oms.estoque.dlq`. Cenário 4 da US4 (achado M2): publicar direto na troca um `pedido.criado` válido com um `pedidoId` inexistente e conferir que, depois das 4 execuções (intervalos de 100, 200 e 400 ms do `FabricaWorker`), ele chega a `oms.estoque.dlq` com o motivo.
+- [X] T021 [P] [US4] Em `tests/PedidoFulfillment.Testes.Integracao/Estoque/ReservaEstoqueTestes.cs`, com o Worker parado: criar dois pedidos, cancelar o primeiro como Cliente e mover o segundo para `Processando` como Admin; subir o Worker e conferir que só o segundo gera `estoque.reservado`, que o estoque do primeiro não muda, e que nenhuma mensagem dele vai para `oms.estoque.dlq`. Cenário 4 da US4 (achado M2): publicar direto na troca um `pedido.criado` válido com um `pedidoId` inexistente e conferir que, depois das 4 execuções (intervalos de 100, 200 e 400 ms do `FabricaWorker`), ele chega a `oms.estoque.dlq` com o motivo.
 
 ### Implementação da US4
 
-- [ ] T022 [US4] Em `ReservaEstoque`, antes da leitura dos produtos: status final ou `EstoqueReservado` → log 6003 e retorno sem gravar. T020 e T021 devem passar.
+- [X] T022 [US4] Em `ReservaEstoque`, antes da leitura dos produtos: status final ou `EstoqueReservado` → log 6003 e retorno sem gravar. T020 e T021 devem passar.
 
 ---
 
