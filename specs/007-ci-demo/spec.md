@@ -6,7 +6,7 @@
 
 **Created**: 2026-10-22
 
-**Status**: Draft
+**Status**: Approved
 
 **Input**: User description: "REQ-07 (GitHub issue #15): (A) pipeline de CI que, em todo pull_request e push na main, restaura, compila (warnings como erro) e roda os testes unitários e de integração, inclusive os que usam SQL Server e RabbitMQ reais via Testcontainers, falhando se os testes de integração forem ignorados por falta de Docker (variável OMS_EXIGIR_DOCKER=true no CI); publica resultados TRX e cobertura como artefato e resumo; actions fixadas por SHA, permissions mínimas; badge e instrução de branch protection no README. (B) ambiente de demonstração: Dockerfile multi-stage da API (sdk/aspnet 10.0 com versão fixa, usuário não root, .dockerignore), serviço api no docker-compose sob profile demo (depends_on healthy, Development, conexões apontando para os serviços do compose via variáveis OMS_*, porta OMS_API_PORTA padrão 5230, healthcheck em /health/pronto), sem segredos novos; job de CI que sobe o profile demo e verifica /health/pronto; seção \"Demonstração rápida\" no README. Fora do escopo: deploy/registry, SAST/Dependabot, roteiro .http."
 

@@ -78,6 +78,10 @@
     `outcome="Failed"`.
   - **Cobertura**: lê os `resultados/**/*.cobertura.xml`. Soma `lines-covered` e
     `lines-valid` da raiz de cada arquivo e calcula o percentual.
+  - **Projeto**: o nome vem do atributo `storage` da tag `<UnitTest>` (o caminho da
+    `.dll` de teste). O nome do arquivo TRX, com `LogFilePrefix`, é
+    `resultado_net10.0_<data>.trx` e não identifica o projeto (achado M1 do
+    `/speckit-analyze`).
   - **Resumo**: escreve em `$GITHUB_STEP_SUMMARY` uma tabela por projeto, os testes que
     falharam e a cobertura (FR-008).
   - **Saída**: código 1 se algum `notExecuted > 0` (FR-007), com a mensagem
