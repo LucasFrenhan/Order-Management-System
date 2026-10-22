@@ -4,11 +4,11 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using PedidoFulfillment.API.Endpoints;
 using PedidoFulfillment.API.Erros;
 using PedidoFulfillment.API.OpenApi;
-using PedidoFulfillment.Infrastructure.Saude;
 using PedidoFulfillment.API.Seguranca;
 using PedidoFulfillment.Application.Autenticacao;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Infrastructure;
+using PedidoFulfillment.Infrastructure.Saude;
 
 var builder = WebApplication.CreateBuilder(args);
 

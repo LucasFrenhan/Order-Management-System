@@ -359,7 +359,7 @@ duplicados.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T036 [P] Atualizar `README.md`:
+- [X] T036 [P] Atualizar `README.md`:
   - **Estado atual**: linha do REQ-06.
   - **Próximos passos**: tirar o REQ-06; nas #8 a #10, citar `IManipuladorEvento` e o
     guia de `contracts/topologia-e-consumo.md`.
@@ -370,9 +370,9 @@ duplicados.
   - **Demonstração rápida**: o Worker e o endereço 5231.
   - **Estrutura**: o `PedidoFulfillment.Worker/`.
   - **Roteiros de validação**: o quickstart do REQ-06.
-- [ ] T037 [P] Atualizar os comentários que citam o REQ-06 como futuro: `ExtensoesInfraestrutura.cs` ("o REQ-06 acrescenta aqui a mensageria") e `CLAUDE.md`, se citar.
-- [ ] T038 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados).
-- [ ] T039 Executar o quickstart (§1 a §6) e registrar em Notes.
+- [X] T037 [P] Atualizar os comentários que citam o REQ-06 como futuro: `ExtensoesInfraestrutura.cs` ("o REQ-06 acrescenta aqui a mensageria") e `CLAUDE.md`, se citar.
+- [X] T038 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados).
+- [X] T039 Executar o quickstart (§1 a §6) e registrar em Notes.
 - [ ] T040 Fazer push e abrir o PR com `Closes #7`. Acompanhar o CI (`build-testes`, com os dois jobs) até ficar verde e registrar os tempos em Notes.
 
 ---
@@ -418,6 +418,38 @@ Setup, Foundational e US1: o evento `pedido.criado` chega ao broker com outbox.
 - Limpeza e reprocessamento da DLQ ficam em "Pendências futuras" da spec.
 - **SC-002** (95% em 5 s) é verificado por amostra: um evento no cenário 1 da T019, mais o
   prazo dos 20 eventos do cenário 2 (achado L2).
+- Desvios registrados na implementação (2026-10-22):
+  - **T011**: `IntervalosNovaTentativaMs` não tem padrão no próprio array, porque o binder
+    de configuração acrescentaria os valores configurados aos padrões. O padrão (1, 2 e
+    4 s) vem da propriedade `Intervalos`.
+  - **T015/T019**: no RabbitMQ.Client 7, o `Body` da entrega só vale durante o callback. A
+    `FilaTeste` copia o corpo (`MensagemRecebida`), e a base de consumo também copia antes
+    de qualquer espera.
+  - **T021**: duas correções de desenho.
+    - **Ordem**: o lote percorre os pendentes por `Id`, e um pendente ainda em espera
+      interrompe o lote. Filtrar por `ProximaTentativaEm` deixaria um evento posterior
+      passar na frente de um que falhou (FR-006).
+    - **Broker pausado**: a confirmação nunca chega, então a publicação tem prazo de 5 s,
+      e a conexão tem prazos de 5 s e heartbeat de 10 s.
+  - **T031/T032**: o despachante declara a troca `oms.eventos` já na partida (FR-018). Antes,
+    ela só existia quando havia pendente.
+  - **T038**: `dotnet format` reordenou `using` em 3 arquivos editados com `sed`.
+- T039 (quickstart, 2026-10-22, ambiente local de desenvolvimento):
+  - **§1**: 485 testes verdes (262 unitários e 223 de integração), contra 429 na T001;
+    nenhum ignorado, zero avisos, `dotnet format` passa.
+  - **§2**: API e Worker pelo SDK; a migration `MensageriaOutbox` foi aplicada pela API. O
+    `/health/pronto` do Worker respondeu 200, e `oms.eventos` (`topic`) existe.
+  - **§3**: o pedido criado chegou à fila de teste ligada a `pedido.criado`, sem pendentes.
+  - **§4**: com o RabbitMQ parado, 2 pedidos foram criados (201) e ficaram 2 pendentes; o
+    log mostra `BrokerUnreachableException` com espera crescente. Com o broker de volta, os
+    pendentes zeraram em 9 s (SC-003 pede 30 s), e a fila tinha 3 mensagens (§3 + §4).
+  - **§5**: com o Worker parado, o pedido foi criado e ficou 1 pendente. Com o Worker de
+    volta, o pendente zerou em 2 s, o que só acontece depois da confirmação do broker. A
+    contagem da fila no painel (estatística de ~5 s) não chegou a refletir a 4ª mensagem
+    antes de a fila de teste ser apagada.
+  - **§6**: coberto pela T035. Num projeto Compose isolado, os 4 serviços ficaram
+    saudáveis em 33 s, com build; o pedido criado na API da demonstração saiu como
+    `enviado`, e `oms.eventos` registrou 1 publicação.
 - `/speckit-analyze` (2026-10-22), achados aplicados:
   - **H1**: Worker com `Main` explícito em `ProgramaWorker`, sem top-level statements (T002,
     T016, T032, R-10).

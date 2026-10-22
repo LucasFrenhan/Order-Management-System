@@ -15,15 +15,16 @@ constituição do projeto fica em [`.specify/memory/constitution.md`](.specify/m
 | REQ-03 — Autenticação e autorização ([spec](specs/003-autenticacao-identity/spec.md)) | Registro, login com JWT, bloqueio após 5 erros, perfis e usuários iniciais |
 | REQ-04 — Domínio de pedidos e persistência ([spec](specs/004-dominio-persistencia/spec.md)) | Produtos, pedidos, itens, histórico de status, pagamentos e ordens de entrega; concorrência otimista em produto e pedido; catálogo inicial em Development |
 | REQ-05 — Criação, consulta e status de pedidos ([spec](specs/005-criacao-pedidos/spec.md)) | Criação com idempotência por `X-Idempotency-Key`, consulta e mudança de status de pedidos, conforme o contrato v1 |
+| REQ-06 — Mensageria, publicação de eventos e DLQ ([spec](specs/006-mensageria/spec.md)) | Contratos de eventos v1 com schema, `pedido.criado` publicado por outbox, processo `PedidoFulfillment.Worker` e base de consumo com novas tentativas, DLQ e descarte de duplicados |
 | REQ-07 — CI e ambiente de demonstração ([spec](specs/007-ci-demo/spec.md)) | Verificação `build-testes` em todo PR (build, testes com Docker obrigatório, cobertura, demonstração) e perfil `demo` que sobe a API com um comando |
-| REQ-06 e demais | Pendentes; ver [Próximos passos](#próximos-passos) |
+| Issues #8 a #11 | Pendentes; ver [Próximos passos](#próximos-passos) |
 
 ## Demonstração rápida
 
-Só com Docker (sem o SDK do .NET), um comando sobe banco, broker e API:
+Só com Docker (sem o SDK do .NET), um comando sobe banco, broker, API e Worker:
 
 ```powershell
-docker compose --profile demo up -d --wait --build   # primeira vez constrói a imagem da API
+docker compose --profile demo up -d --wait --build   # primeira vez constrói as imagens
 docker compose --profile demo down                   # para; os dados continuam nos volumes
 ```
 
@@ -32,6 +33,7 @@ docker compose --profile demo down                   # para; os dados continuam 
 | API | <http://localhost:5230> |
 | Prontidão | <http://localhost:5230/health/pronto> |
 | Contrato navegável | <http://localhost:5230/scalar/v1> |
+| Prontidão do Worker | <http://localhost:5231/health/pronto> |
 | Painel do RabbitMQ | <http://localhost:15672> (`oms` / `oms-dev-local`) |
 
 Usuários **somente de desenvolvimento**: `admin@oms.local` / `AdminDev2026` (Admin) e
@@ -39,11 +41,12 @@ Usuários **somente de desenvolvimento**: `admin@oms.local` / `AdminDev2026` (Ad
 `POST /api/v1/auth/register`. A API roda em Development: aplica as migrations e cria o
 catálogo inicial (`CAT-001` a `CAT-010`).
 
-- **Porta 5230**: é a mesma da API rodando pelo SDK; não rode as duas juntas, ou troque a
-  da demonstração com `OMS_API_PORTA` no `.env` (veja `.env.example`).
+- **Portas 5230 e 5231**: são as mesmas da API e do Worker rodando pelo SDK; não rode os
+  dois modos juntos, ou troque as da demonstração com `OMS_API_PORTA` e `OMS_WORKER_PORTA`
+  no `.env` (veja `.env.example`).
 - **Dados**: a demonstração usa os mesmos volumes do [ambiente local](#ambiente-local).
-  `docker compose --profile demo down -v` remove os três serviços **e apaga o banco local
-  de desenvolvimento**.
+  `docker compose --profile demo down -v` remove os serviços **e apaga o banco local de
+  desenvolvimento**.
 
 ## Próximos passos
 
@@ -55,13 +58,12 @@ especificação começa.
 
 | Ordem | Requisito | Issue | Escopo | Depende de |
 |-------|-----------|-------|--------|------------|
-| 1 | REQ-06 | [#7](https://github.com/LucasFrenhan/Order-Management-System/issues/7) — Mensageria, publicação de eventos e DLQ | Eventos `PedidoCriado`, `EstoqueReservado`, `PagamentoAprovado` e `PagamentoRecusado`; publicação após gravar o pedido (outbox, Princípio IV); retry com intervalo exponencial e DLQ | REQ-05 |
-| 2 | a numerar | [#8](https://github.com/LucasFrenhan/Order-Management-System/issues/8) — Worker de estoque e concorrência otimista | Consome `PedidoCriado`, reserva estoque tratando `ConflitoConcorrenciaException`; sem estoque, cancela o pedido e publica `EstoqueInsuficiente` | REQ-06 |
-| 3 | a numerar | [#9](https://github.com/LucasFrenhan/Order-Management-System/issues/9) — Worker de pagamento assíncrono | Consome `EstoqueReservado`, simula o gateway (90% aprova); aprovado → `Processando`; recusado → `PagamentoRejeitado` e compensação do estoque | estoque |
-| 4 | a numerar | [#10](https://github.com/LucasFrenhan/Order-Management-System/issues/10) — Worker de fulfillment e logística | Consome `PagamentoAprovado`, cria a `OrdemEntrega`, muda o pedido para `ProntoParaEnvio` e publica o evento de despacho | pagamento |
-| 5 | a numerar | [#11](https://github.com/LucasFrenhan/Order-Management-System/issues/11) — Rastreio e histórico na consulta | A consulta com dono validado pelo token já existe (REQ-05). Faltam o histórico de status na resposta do `GET /api/v1/pedidos/{id}` e o `PATCH /api/v1/pedidos/{id}/rastreio` (Admin e OperadorLogistica) para registrar o rastreio e despachar | fulfillment |
+| 1 | a numerar | [#8](https://github.com/LucasFrenhan/Order-Management-System/issues/8) — Worker de estoque e concorrência otimista | Consome `pedido.criado`, reserva estoque tratando `ConflitoConcorrenciaException`; sem estoque, cancela o pedido e publica o evento de falta de estoque | REQ-06 |
+| 2 | a numerar | [#9](https://github.com/LucasFrenhan/Order-Management-System/issues/9) — Worker de pagamento assíncrono | Consome `EstoqueReservado`, simula o gateway (90% aprova); aprovado → `Processando`; recusado → `PagamentoRejeitado` e compensação do estoque | estoque |
+| 3 | a numerar | [#10](https://github.com/LucasFrenhan/Order-Management-System/issues/10) — Worker de fulfillment e logística | Consome `PagamentoAprovado`, cria a `OrdemEntrega`, muda o pedido para `ProntoParaEnvio` e publica o evento de despacho | pagamento |
+| 4 | a numerar | [#11](https://github.com/LucasFrenhan/Order-Management-System/issues/11) — Rastreio e histórico na consulta | A consulta com dono validado pelo token já existe (REQ-05). Faltam o histórico de status na resposta do `GET /api/v1/pedidos/{id}` e o `PATCH /api/v1/pedidos/{id}/rastreio` (Admin e OperadorLogistica) para registrar o rastreio e despachar | fulfillment |
 
-O que os REQ-04 e REQ-05 já deixaram pronto para esses requisitos:
+O que os REQ-04 a REQ-06 já deixaram pronto para esses requisitos:
 
 - **Armazenamento**: produtos, pedidos com itens e histórico de status, pagamentos e ordens
   de entrega, com as restrições no banco.
@@ -71,14 +73,21 @@ O que os REQ-04 e REQ-05 já deixaram pronto para esses requisitos:
 - **Catálogo inicial** com casos reservados para testes: `CAT-008` (estoque 1, disputa do
   último item), `CAT-009` (sem estoque) e `CAT-010` (inativo).
 - **Serviço de pedidos** (REQ-05): criação idempotente, consulta e a tabela de transições
-  de status no domínio (`TransicoesStatusPedido`), que os workers podem reaproveitar. A
-  criação ainda não publica o evento `PedidoCriado`; isso entra no REQ-06.
+  de status no domínio (`TransicoesStatusPedido`), que os workers podem reaproveitar.
+- **Mensageria** (REQ-06): cada worker implementa `IManipuladorEvento<T>` no Application e
+  se registra no Worker com `AdicionarConsumidor`; fila, novas tentativas, DLQ e
+  duplicados ficam com a base. Para publicar, grava um `EventoSaida` (outbox). Guia em
+  [topologia e consumo](specs/006-mensageria/contracts/topologia-e-consumo.md).
 
 Decisões e pontos já conhecidos:
 
 - **Mensageria com RabbitMQ.Client nativo.** As issues #7 a #10 citam MassTransit, mas a
   constituição proíbe frameworks de abstração de mensageria. Retry, DLQ e consumidores são
   implementados sobre o cliente nativo.
+- **Pendências futuras de mensageria**: limpeza do outbox, dos eventos processados e das
+  chaves de idempotência, e reprocessamento da DLQ (hoje manual, pelo painel). Estão
+  anotadas em [pendências futuras](specs/006-mensageria/spec.md#pendências-futuras), para
+  virar requisito próprio.
 - **Mudanças de contrato (Princípio II).** A rota `PATCH /api/v1/pedidos/{id}/rastreio` e o
   histórico de status na consulta (#11) não existem no contrato v1. Eles exigem evolução
   compatível do contrato ou uma versão nova, decidida na especificação.
@@ -90,7 +99,7 @@ Decisões e pontos já conhecidos:
 - SDK do .NET 10 (`winget install Microsoft.DotNet.SDK.10`)
 - Docker com Compose v2, para o [ambiente local](#ambiente-local) (`winget install Docker.DockerDesktop`)
 
-Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md), [domínio e persistência](specs/004-dominio-persistencia/quickstart.md), [pedidos](specs/005-criacao-pedidos/quickstart.md) e [CI e demonstração](specs/007-ci-demo/quickstart.md).
+Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md), [domínio e persistência](specs/004-dominio-persistencia/quickstart.md), [pedidos](specs/005-criacao-pedidos/quickstart.md), [mensageria](specs/006-mensageria/quickstart.md) e [CI e demonstração](specs/007-ci-demo/quickstart.md).
 
 ## Ambiente local
 
@@ -188,6 +197,35 @@ desenvolvimento**, `admin@oms.local` / `AdminDev2026` (Admin) e `operador@oms.lo
 
 Roteiro completo de validação: [`quickstart.md`](specs/001-contratos-api/quickstart.md).
 
+## Mensageria
+
+Os eventos de domínio trafegam pelo RabbitMQ ([spec](specs/006-mensageria/spec.md),
+[topologia e consumo](specs/006-mensageria/contracts/topologia-e-consumo.md),
+[schemas](specs/006-mensageria/contracts/eventos/)):
+
+- **Publicação por outbox**: a API grava o evento em `EventosSaida` na mesma operação do
+  pedido e não fala com o broker. O processo `PedidoFulfillment.Worker` publica os pendentes
+  em ordem, com confirmação do broker, na troca `oms.eventos` (`topic`), com o tipo como
+  chave (`pedido.criado`). Com o broker fora, os pedidos continuam sendo criados, e os
+  eventos saem quando ele volta. A entrega é **pelo menos uma vez**.
+- **Consumo**: por consumidor `C`, a fila `oms.C`, as filas de espera
+  `oms.C.espera.{1000,2000,4000}` e a DLQ `oms.C.dlq`. Uma falha é tentada de novo até 3
+  vezes, com espera crescente e sem bloquear a fila, e depois vai para a DLQ com o motivo
+  nos cabeçalhos. Mensagem fora do contrato vai direto para a DLQ. Duplicados são
+  descartados por consumidor.
+
+Para rodar localmente, com o [ambiente local](#ambiente-local) no ar e a API já iniciada
+(é ela que aplica as migrations):
+
+```powershell
+dotnet run --project src/PedidoFulfillment.Worker --launch-profile http   # http://localhost:5231/health/pronto
+```
+
+No [painel do RabbitMQ](http://localhost:15672), a troca `oms.eventos` e as filas aparecem
+assim que o Worker sobe. A DLQ é inspecionada e reenviada à mão pelo painel; a limpeza e o
+reprocessamento automáticos estão em
+[pendências futuras](specs/006-mensageria/spec.md#pendências-futuras).
+
 ## Integração contínua
 
 O workflow [`build-testes`](.github/workflows/build-testes.yml) roda em todo PR para a
@@ -238,26 +276,29 @@ src/
   PedidoFulfillment.Domain/          entidades e enums: Produtos/, Pedidos/ (pedido, itens,
                                      histórico de status, tabela de transições), Pagamentos/,
                                      Entregas/
-  PedidoFulfillment.Application/     DTOs de contrato, serviços de autenticação e de pedidos
-                                     (com as portas de persistência e a idempotência),
-                                     Resultado, ConflitoConcorrenciaException
+  PedidoFulfillment.Application/     DTOs de contrato, contratos de eventos, serviços de
+                                     autenticação e de pedidos (portas de persistência,
+                                     idempotência, outbox), IManipuladorEvento, Resultado,
+                                     ConflitoConcorrenciaException
   PedidoFulfillment.Infrastructure/  banco (EF Core + Identity, Persistencia/Configuracoes com o
                                      mapeamento do domínio, armazenamento de pedidos, número do
                                      pedido, migrations, preparação e catálogo inicial),
-                                     configuração e saúde de banco e broker; a
-                                     mensageria (REQ-06) entra aqui
+                                     mensageria (Mensageria/: conexão, topologia, despachante
+                                     do outbox, base de consumo), configuração e saúde
   PedidoFulfillment.API/             Minimal APIs (só roteamento), segurança (validação e
-                                     emissão de JWT), erros, OpenAPI, saúde; Dockerfile da
-                                     demonstração
+                                     emissão de JWT), erros, OpenAPI; Dockerfile da demonstração
+  PedidoFulfillment.Worker/          processo dos consumidores e do despachante do outbox
+                                     (só /health e /health/pronto); Dockerfile
 tests/
-  PedidoFulfillment.Testes.Unitarios/   DTOs, configurações, regras de autenticação e de pedidos
-                                        e entidades do domínio
+  PedidoFulfillment.Testes.Unitarios/   DTOs, configurações, regras de autenticação, de pedidos
+                                        e de mensageria, e entidades do domínio
   PedidoFulfillment.Testes.Integracao/  contrato, segurança, erros, serialização, configuração,
-                                        saúde, autenticação, persistência e pedidos com SQL
-                                        Server real (Testcontainers) e arquitetura
+                                        saúde, autenticação, persistência, pedidos e mensageria
+                                        com SQL Server e RabbitMQ reais (Testcontainers),
+                                        schemas de eventos e arquitetura
 specs/                               especificações SDD (spec, plano, tarefas, contrato)
 ```
 
 Direção de dependências, garantida pelo teste de arquitetura: Domain não depende de nenhum
 projeto; Application depende de Domain; Infrastructure depende de Application e Domain; API
-depende de Application, Infrastructure e Domain.
+e Worker dependem de Application, Infrastructure e Domain, e não se referenciam.
