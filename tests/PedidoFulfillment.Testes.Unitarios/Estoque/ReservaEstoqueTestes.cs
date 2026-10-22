@@ -1,4 +1,5 @@
 using FluentAssertions;
+using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Contratos.Eventos;
 using PedidoFulfillment.Application.Estoque;
 using PedidoFulfillment.Domain.Pedidos;
@@ -177,6 +178,58 @@ public sealed class ReservaEstoqueTestes
         pedido.Status.Should().Be(StatusPedido.Cancelado);
         pedido.Historico.Last().StatusAnterior.Should().Be(StatusPedido.Processando);
         EventoGravado<EstoqueInsuficiente>(TiposEvento.EstoqueInsuficiente);
+    }
+
+    [Fact]
+    public async Task Conflito_seguido_de_sucesso_rele_e_reserva_uma_vez()
+    {
+        PedidoEm();
+        armazenamento.ConflitosRestantes = 1;
+
+        await Manipular();
+
+        armazenamento.LeiturasProdutosParaAlterar.Should().Be(2);
+        armazenamento.Descartes.Should().Be(1);
+        armazenamento.Gravacoes.Should().Be(1);
+        Estoque(a).Should().Be(7);
+        Estoque(b).Should().Be(3);
+        EventoGravado<EstoqueReservado>(TiposEvento.EstoqueReservado);
+        var conflito = logger.Eventos.Should().ContainSingle(e => e.Id.Id == 6004).Subject;
+        conflito.Nivel.Should().Be(Microsoft.Extensions.Logging.LogLevel.Warning);
+        conflito.Propriedades["Reavaliacao"].Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Conflito_reavaliado_com_o_estoque_atual_pode_virar_cancelamento()
+    {
+        PedidoEm();
+        armazenamento.ConflitosRestantes = 1;
+        // A outra operação levou o estoque de B enquanto esta reserva gravava.
+        armazenamento.AoConflitar = () => armazenamento.AlterarProduto(b.Id, p => p.AjustarEstoque(-5, Criacao));
+
+        await Manipular();
+
+        Gravado().Status.Should().Be(StatusPedido.Cancelado);
+        Estoque(a).Should().Be(10);
+        Estoque(b).Should().Be(0);
+        var item = EventoGravado<EstoqueInsuficiente>(TiposEvento.EstoqueInsuficiente).Dados.Itens.Should().ContainSingle().Subject;
+        (item.ProdutoId, item.QuantidadeDisponivel).Should().Be((b.Id, 0));
+    }
+
+    [Fact]
+    public async Task Conflito_nas_tres_reavaliacoes_relanca_sem_deixar_nada_pendente()
+    {
+        PedidoEm();
+        armazenamento.ConflitosRestantes = 3;
+
+        var manipular = () => Manipular();
+
+        await manipular.Should().ThrowAsync<ConflitoConcorrenciaException>();
+        armazenamento.Gravacoes.Should().Be(0);
+        armazenamento.EventosGravados.Should().BeEmpty();
+        armazenamento.EventosAdicionados.Should().BeEmpty();
+        Estoque(a).Should().Be(10);
+        logger.Eventos.Where(e => e.Id.Id == 6004).Select(e => e.Propriedades["Reavaliacao"]).Should().Equal(1, 2, 3);
     }
 
     [Fact]

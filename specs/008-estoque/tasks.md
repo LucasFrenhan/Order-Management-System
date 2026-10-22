@@ -158,11 +158,11 @@ sequência. A US5 mexe no `ServicoPedidos` e pode correr em paralelo com as US2 
 
 ### Testes da US3
 
-- [ ] T017 [P] [US3] Em `tests/PedidoFulfillment.Testes.Unitarios/Estoque/ReservaEstoqueTestes.cs`, com o falso programado:
+- [X] T017 [P] [US3] Em `tests/PedidoFulfillment.Testes.Unitarios/Estoque/ReservaEstoqueTestes.cs`, com o falso programado:
   - um conflito e depois sucesso: duas leituras, `DescartarAlteracoes` uma vez, um único evento;
   - conflito, e na releitura o estoque já não basta: termina em cancelamento;
   - conflito nas 3 vezes: relança `ConflitoConcorrenciaException`, sem evento pendente no falso, e loga 6004 três vezes.
-- [ ] T018 [P] [US3] Teste de integração `tests/PedidoFulfillment.Testes.Integracao/Estoque/DisputaEstoqueTestes.cs` (R-10), com banco novo migrado e os pedidos criados pela API:
+- [X] T018 [P] [US3] Teste de integração `tests/PedidoFulfillment.Testes.Integracao/Estoque/DisputaEstoqueTestes.cs` (R-10), com banco novo migrado e os pedidos criados pela API:
   - helper que executa `ReservaEstoque` como a base: escopo novo do `FabricaWorker.Services`, `BeginTransactionAsync`, `ManipularAsync`, `SaveChangesAsync` e commit; em exceção, rollback e nova execução até 4 vezes no total;
   - `CAT-008` (estoque 1) com 2 pedidos de 1 unidade em paralelo (`Task.WhenAll`): exatamente 1 com `EstoqueReservado`, 1 `Cancelado`, estoque 0;
   - produto criado no teste com estoque 5 e 8 pedidos de 1 unidade em paralelo: 5 reservados, 3 cancelados, estoque 0; repetir o cenário 5 vezes na mesma execução (SC-002);
@@ -170,7 +170,7 @@ sequência. A US5 mexe no `ServicoPedidos` e pode correr em paralelo com as US2 
 
 ### Implementação da US3
 
-- [ ] T019 [US3] Em `ReservaEstoque`, envolver ler-decidir-gravar num laço de até 3 reavaliações (constante `Reavaliacoes = 3`, como `TentativasStatus` do `ServicoPedidos`): em `ConflitoConcorrenciaException`, `DescartarAlteracoes()`, log 6004 com o número da reavaliação e nova volta; na última, relançar. T017 e T018 devem passar.
+- [X] T019 [US3] Em `ReservaEstoque`, envolver ler-decidir-gravar num laço de até 3 reavaliações (constante `Reavaliacoes = 3`, como `TentativasStatus` do `ServicoPedidos`): em `ConflitoConcorrenciaException`, `DescartarAlteracoes()`, log 6004 com o número da reavaliação e nova volta; na última, relançar. T017 e T018 devem passar.
 
 ---
 

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Contratos.Eventos;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Pedidos;
@@ -17,12 +18,41 @@ public sealed class ReservaEstoque(IArmazenamentoPedidos armazenamento, TimeProv
     /// <summary>Motivo do histórico no cancelamento por falta de estoque (FR-006).</summary>
     public const string MotivoSemEstoque = "Estoque insuficiente.";
 
+    /// <summary>Como <c>TentativasStatus</c> do <see cref="ServicoPedidos"/> (research R-03).</summary>
+    private const int Reavaliacoes = 3;
+
     public string Consumidor => "estoque";
 
     public IReadOnlyCollection<string> Tipos { get; } = [TiposEvento.PedidoCriado];
 
-    /// <summary>Os itens vêm do pedido gravado; o evento só identifica o pedido (FR-003).</summary>
+    /// <summary>
+    /// Ler, decidir e gravar, até <see cref="Reavaliacoes"/> vezes em conflito de concorrência
+    /// (FR-008). Dentro da transação da base, o savepoint do EF Core desfaz só a tentativa que
+    /// perdeu; esgotadas as reavaliações, o conflito vai para as novas tentativas da base (FR-009).
+    /// </summary>
     public async Task ManipularAsync(EnvelopeEvento<PedidoCriado> evento, CancellationToken cancellationToken)
+    {
+        for (var reavaliacao = 1; ; reavaliacao++)
+        {
+            try
+            {
+                await ReservarAsync(evento, cancellationToken);
+                return;
+            }
+            catch (ConflitoConcorrenciaException)
+            {
+                armazenamento.DescartarAlteracoes();
+                EventosEstoque.ConflitoNaReserva(logger, evento.IdEvento, evento.Dados.PedidoId, reavaliacao);
+                if (reavaliacao == Reavaliacoes)
+                {
+                    throw;
+                }
+            }
+        }
+    }
+
+    /// <summary>Os itens vêm do pedido gravado; o evento só identifica o pedido (FR-003).</summary>
+    private async Task ReservarAsync(EnvelopeEvento<PedidoCriado> evento, CancellationToken cancellationToken)
     {
         var pedidoId = evento.Dados.PedidoId;
         var pedido = await armazenamento.ObterPedidoAsync(pedidoId, paraAlterar: true, cancellationToken)
