@@ -293,7 +293,7 @@ paralelo e conferir que existe 1 pedido.
 
 ### Testes da US2
 
-- [ ] T023 [P] [US2] Unitários de idempotência em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosIdempotenciaTestes.cs`:
+- [X] T023 [P] [US2] Unitários de idempotência em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosIdempotenciaTestes.cs`:
   - **Registro existente**:
     - com a mesma impressão, devolve o DTO desserializado da `Resposta`, igual ao
       original, mesmo que o pedido guardado tenha mudado de status; não grava nada e
@@ -306,7 +306,7 @@ paralelo e conferir que existe 1 pedido.
     - sem vencedor visível, devolve 409 `IDEMPOTENCIA_EM_PROCESSAMENTO`;
     - nos três casos, `DescartarAlteracoes` foi chamado.
   - **Depois de um 422**: a mesma chave cria o pedido (FR-013).
-- [ ] T024 [P] [US2] Integração em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/IdempotenciaComBancoTestes.cs` (cenários 1 a 6 da US2):
+- [X] T024 [P] [US2] Integração em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/IdempotenciaComBancoTestes.cs` (cenários 1 a 6 da US2):
   - **Repetição**: mesmo status, mesmo `Location` e corpo igual por valor (mesmos campos e
     valores, com decimais comparados numericamente; achado M3); 1 pedido.
   - **Itens em outra ordem**: igual.
@@ -315,7 +315,7 @@ paralelo e conferir que existe 1 pedido.
   - **Depois de um 422**: a mesma chave cria o pedido quando o conteúdo é corrigido.
   - **Depois de cancelar o pedido** pelo PATCH (quando a US4 estiver pronta; até lá,
     mudar o status por SQL): a repetição continua com `status` `Pendente`.
-- [ ] T025 [P] [US2] Concorrência em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/ConcorrenciaIdempotenciaTestes.cs` (SC-002):
+- [X] T025 [P] [US2] Concorrência em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/ConcorrenciaIdempotenciaTestes.cs` (SC-002):
   - 10 repetições, cada uma com uma chave nova e 20 `POST` iguais e simultâneos
     (`Task.WhenAll` com clientes HTTP da mesma `FabricaApi`).
   - Em cada repetição:
@@ -326,14 +326,14 @@ paralelo e conferir que existe 1 pedido.
 
 ### Implementação da US2
 
-- [ ] T026 [US2] Completar `CriarAsync` em `ServicoPedidos.cs` (R-04):
+- [X] T026 [US2] Completar `CriarAsync` em `ServicoPedidos.cs` (R-04):
   - ler o registro antes de validar os produtos;
   - envolver a gravação em `try/catch (ChaveIdempotenciaRegistradaException)`: chamar
     `DescartarAlteracoes()`, reler o registro e decidir entre repetição, divergente ou em
     processamento;
   - extrair um método privado `ResponderRegistro(registro, impressao)`, usado nos dois
     caminhos, que loga 4002 na repetição.
-- [ ] T027 [US2] Rodar T023–T025 com o Docker no ar e corrigir até ficarem verdes.
+- [X] T027 [US2] Rodar T023–T025 com o Docker no ar e corrigir até ficarem verdes.
 
 **Checkpoint**: idempotência comprovada, inclusive sob concorrência.
 

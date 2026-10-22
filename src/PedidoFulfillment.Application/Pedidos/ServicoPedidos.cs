@@ -28,9 +28,24 @@ public sealed class ServicoPedidos(
 
     private static readonly Falha NaoImplementado = new(TipoFalha.NaoImplementado, "Operação ainda não implementada.");
 
+    private static readonly Falha ConteudoDivergente = new(
+        TipoFalha.Conflito, "Chave de idempotência já usada.", "A chave já foi usada com outro conteúdo.", CodigosErro.IdempotenciaConteudoDivergente);
+
+    private static readonly Falha EmProcessamento = new(
+        TipoFalha.Conflito, "Requisição em processamento.", "Outra requisição com a mesma chave ainda está em processamento.", CodigosErro.IdempotenciaEmProcessamento);
+
+    /// <summary>
+    /// Idempotente por (cliente, chave): a chave registrada responde pela resposta guardada; a
+    /// corrida entre requisições simultâneas é decidida pela gravação (research R-04).
+    /// </summary>
     public async Task<Resultado<PedidoResponseDTO>> CriarAsync(Guid clienteId, Guid chaveIdempotencia, CriarPedidoRequestDTO pedido, CancellationToken cancellationToken)
     {
         var impressao = ImpressaoConteudo.Calcular(pedido);
+        if (await armazenamento.ObterRegistroIdempotenciaAsync(clienteId, chaveIdempotencia, cancellationToken) is { } existente)
+        {
+            return ResponderRegistro(existente, impressao);
+        }
+
         var ids = pedido.Itens.Select(i => i.ProdutoId).ToList();
         var produtos = (await armazenamento.ObterProdutosAsync(ids, cancellationToken)).ToDictionary(p => p.Id);
         if (ValidarProdutos(pedido, produtos) is { } falha)
@@ -44,7 +59,18 @@ public sealed class ServicoPedidos(
         var resposta = novo.ParaResposta();
         armazenamento.Adicionar(novo, new RegistroIdempotencia(
             clienteId, chaveIdempotencia, impressao, novo.Id, JsonSerializer.Serialize(resposta, OpcoesJsonRegistro), agora));
-        await armazenamento.SalvarAsync(cancellationToken);
+        try
+        {
+            await armazenamento.SalvarAsync(cancellationToken);
+        }
+        catch (ChaveIdempotenciaRegistradaException)
+        {
+            // Outra requisição com a mesma chave gravou antes; nada desta foi salvo.
+            armazenamento.DescartarAlteracoes();
+            var vencedor = await armazenamento.ObterRegistroIdempotenciaAsync(clienteId, chaveIdempotencia, cancellationToken);
+            return vencedor is null ? EmProcessamento : ResponderRegistro(vencedor, impressao);
+        }
+
         EventosPedidos.PedidoCriado(logger, novo.Id, novo.Numero, novo.Itens.Count, novo.ValorTotal);
         return resposta;
     }
@@ -56,6 +82,18 @@ public sealed class ServicoPedidos(
     public Task<Resultado<PedidoResponseDTO>> AtualizarStatusAsync(
         Guid pedidoId, Guid usuarioId, IReadOnlyCollection<PerfilUsuario> perfis, AtualizarStatusPedidoRequestDTO atualizacao, CancellationToken cancellationToken) =>
         Task.FromResult<Resultado<PedidoResponseDTO>>(NaoImplementado);
+
+    /// <summary>Mesma impressão devolve a resposta original (FR-010); outra impressão, 409 (FR-011).</summary>
+    private Resultado<PedidoResponseDTO> ResponderRegistro(RegistroIdempotencia registro, string impressao)
+    {
+        if (registro.Impressao != impressao)
+        {
+            return ConteudoDivergente;
+        }
+
+        EventosPedidos.PedidoRepetido(logger, registro.PedidoId);
+        return JsonSerializer.Deserialize<PedidoResponseDTO>(registro.Resposta, OpcoesJsonRegistro)!;
+    }
 
     /// <summary>
     /// FR-003: um único 422 para todos os itens com problema; inexistente prevalece sobre
