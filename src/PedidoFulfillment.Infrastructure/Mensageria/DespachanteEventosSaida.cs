@@ -34,6 +34,8 @@ internal sealed partial class DespachanteEventosSaida(
         using var temporizador = new PeriodicTimer(TimeSpan.FromMilliseconds(opcoes.Value.IntervaloDespachoMs));
         try
         {
+            // FR-018: a troca de eventos existe desde a partida, mesmo sem pendentes nem consumidores.
+            await DeclararTopologiaAsync(stoppingToken);
             do
             {
                 try
@@ -123,6 +125,22 @@ internal sealed partial class DespachanteEventosSaida(
             FalhaPublicacao(logger, evento.IdEvento, evento.Tipo, evento.Tentativas, excecao.GetType().Name);
             await DescartarCanalAsync();
             return false;
+        }
+    }
+
+    private async Task DeclararTopologiaAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var prazo = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            prazo.CancelAfter(PrazoPublicacao);
+            await ObterCanalAsync(prazo.Token);
+        }
+        catch (Exception excecao) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Broker ainda fora: a troca é declarada no primeiro canal que der certo.
+            FalhaDespacho(logger, excecao.GetType().Name, excecao.Message);
+            await DescartarCanalAsync();
         }
     }
 

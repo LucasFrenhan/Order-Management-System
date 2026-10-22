@@ -324,14 +324,14 @@ duplicados.
 
 ## Phase 6: User Story 4 — Processo de workers separado (Priority: P2)
 
-- [ ] T031 [P] [US4] Integração em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/WorkerTestes.cs`:
+- [X] T031 [P] [US4] Integração em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/WorkerTestes.cs`:
   - **Prontidão**: com banco e broker, `/health/pronto` responde 200, e `oms.eventos`
     existe (declaração passiva no teste).
   - **Configuração**: sem `RabbitMQ:Senha`, ou com `Mensageria:TamanhoLote = 0`, o Worker
     não sobe, e a mensagem nomeia a chave sem valor.
   - **API sem o Worker**: com o Worker parado, a API cria pedidos normalmente (já coberto
     pela T019; citar no comentário).
-- [ ] T032 [US4] Completar o Worker:
+- [X] T032 [US4] Completar o Worker:
   - `ProgramaWorker.cs`: `AdicionarInfraestrutura`, `AdicionarMensageria` e
     `MapearEndpointsSaude` (da Infrastructure, T017), para `/health` e `/health/pronto`
     no mesmo formato da API.
@@ -339,8 +339,8 @@ duplicados.
     os padrões.
   - `appsettings.Development.json`: as mesmas conexões de desenvolvimento da API.
   - `Properties/launchSettings.json`: perfil `http`, porta 5231.
-- [ ] T033 [P] [US4] Criar `src/PedidoFulfillment.Worker/Dockerfile` (como o da API, sem o contrato OpenAPI, e com `ENTRYPOINT` para `PedidoFulfillment.Worker.dll`).
-- [ ] T034 [US4] Acrescentar o serviço `worker` ao `docker-compose.yml`, no perfil `demo`:
+- [X] T033 [P] [US4] Criar `src/PedidoFulfillment.Worker/Dockerfile` (como o da API, sem o contrato OpenAPI, e com `ENTRYPOINT` para `PedidoFulfillment.Worker.dll`).
+- [X] T034 [US4] Acrescentar o serviço `worker` ao `docker-compose.yml`, no perfil `demo`:
   - `build` com o Dockerfile do Worker;
   - `depends_on: api: service_healthy`;
   - as mesmas variáveis de conexão da `api`;
@@ -350,7 +350,7 @@ duplicados.
   Acrescentar `OMS_WORKER_PORTA=5231` ao `.env.example` e um passo
   `curl -fsS http://localhost:5231/health/pronto` no job `demo` de
   `.github/workflows/build-testes.yml`.
-- [ ] T035 [US4] Validar localmente num projeto Compose isolado (`-p oms-validacao`, em outras portas):
+- [X] T035 [US4] Validar localmente num projeto Compose isolado (`-p oms-validacao`, em outras portas):
   - os 4 serviços ficam saudáveis;
   - um pedido criado pela API da demonstração é publicado (a fila de teste recebe);
   - `down -v`.
