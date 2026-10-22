@@ -12,8 +12,11 @@ namespace PedidoFulfillment.Infrastructure.Persistencia;
 /// </summary>
 internal sealed class ArmazenamentoPedidos(ContextoBancoDados contexto) : IArmazenamentoPedidos
 {
-    public async Task<IReadOnlyList<Produto>> ObterProdutosAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken) =>
-        await contexto.Produtos.AsNoTracking().Where(p => ids.Contains(p.Id)).ToListAsync(cancellationToken);
+    public async Task<IReadOnlyList<Produto>> ObterProdutosAsync(IReadOnlyCollection<Guid> ids, bool paraAlterar, CancellationToken cancellationToken)
+    {
+        var produtos = paraAlterar ? contexto.Produtos : contexto.Produtos.AsNoTracking();
+        return await produtos.Where(p => ids.Contains(p.Id)).ToListAsync(cancellationToken);
+    }
 
     public Task<Pedido?> ObterPedidoAsync(Guid id, bool paraAlterar, CancellationToken cancellationToken)
     {
@@ -30,6 +33,8 @@ internal sealed class ArmazenamentoPedidos(ContextoBancoDados contexto) : IArmaz
         contexto.ChavesIdempotencia.Add(registro);
         contexto.EventosSaida.Add(evento);
     }
+
+    public void Adicionar(EventoSaida evento) => contexto.EventosSaida.Add(evento);
 
     public async Task SalvarAsync(CancellationToken cancellationToken)
     {

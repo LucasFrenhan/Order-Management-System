@@ -4,7 +4,7 @@ using PedidoFulfillment.Application.Contratos.Eventos;
 
 namespace PedidoFulfillment.Testes.Unitarios.Mensageria;
 
-/// <summary>Serialização dos quatro contratos de evento v1 (REQ-06, FR-001 a FR-004).</summary>
+/// <summary>Serialização dos contratos de evento v1 (REQ-06, FR-001 a FR-004; REQ-08, FR-012 e FR-013).</summary>
 public sealed class SerializacaoEventosTestes
 {
     internal static readonly DateTimeOffset Instante = new(2026, 10, 22, 15, 30, 0, TimeSpan.Zero);
@@ -25,6 +25,12 @@ public sealed class SerializacaoEventosTestes
     {
         PedidoId = PedidoId,
         Itens = [new ItemEstoqueReservado { ProdutoId = ProdutoId, Quantidade = 2 }]
+    }, Instante);
+
+    internal static EnvelopeEvento<EstoqueInsuficiente> EstoqueInsuficiente() => EnvelopeEvento.Criar(PedidoId, new EstoqueInsuficiente
+    {
+        PedidoId = PedidoId,
+        Itens = [new ItemEstoqueInsuficiente { ProdutoId = ProdutoId, QuantidadeSolicitada = 2, QuantidadeDisponivel = 1, Inativo = false }]
     }, Instante);
 
     internal static EnvelopeEvento<PagamentoAprovado> PagamentoAprovado() => EnvelopeEvento.Criar(PedidoId, new PagamentoAprovado
@@ -64,16 +70,34 @@ public sealed class SerializacaoEventosTestes
         EstoqueReservado().Tipo.Should().Be(TiposEvento.EstoqueReservado);
         PagamentoAprovado().Tipo.Should().Be(TiposEvento.PagamentoAprovado);
         PagamentoRecusado().Tipo.Should().Be(TiposEvento.PagamentoRecusado);
-        TiposEvento.TipoDados.Should().HaveCount(4);
+        EstoqueInsuficiente().Tipo.Should().Be(TiposEvento.EstoqueInsuficiente);
+        TiposEvento.EstoqueInsuficiente.Should().Be("estoque.insuficiente");
+        TiposEvento.TipoDados.Should().HaveCount(5);
     }
 
     [Fact]
-    public void Ida_e_volta_preserva_os_valores_dos_quatro_eventos()
+    public void Ida_e_volta_preserva_os_valores_dos_cinco_eventos()
     {
         DeveVoltarIgual(PedidoCriado());
         DeveVoltarIgual(EstoqueReservado());
         DeveVoltarIgual(PagamentoAprovado());
         DeveVoltarIgual(PagamentoRecusado());
+        DeveVoltarIgual(EstoqueInsuficiente());
+    }
+
+    [Fact]
+    public void Estoque_insuficiente_traz_os_itens_em_falta_em_camelCase()
+    {
+        using var json = JsonDocument.Parse(SerializacaoEventos.Serializar(EstoqueInsuficiente()));
+        var raiz = json.RootElement;
+
+        raiz.GetProperty("tipo").GetString().Should().Be("estoque.insuficiente");
+        raiz.GetProperty("versao").GetInt32().Should().Be(1);
+        var item = raiz.GetProperty("dados").GetProperty("itens")[0];
+        item.EnumerateObject().Select(p => p.Name).Should().Equal("produtoId", "quantidadeSolicitada", "quantidadeDisponivel", "inativo");
+        item.GetProperty("quantidadeSolicitada").GetInt32().Should().Be(2);
+        item.GetProperty("quantidadeDisponivel").GetInt32().Should().Be(1);
+        item.GetProperty("inativo").GetBoolean().Should().BeFalse();
     }
 
     private static void DeveVoltarIgual<T>(EnvelopeEvento<T> envelope)

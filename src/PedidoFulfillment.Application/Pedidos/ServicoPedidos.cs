@@ -58,7 +58,7 @@ public sealed class ServicoPedidos(
         }
 
         var ids = pedido.Itens.Select(i => i.ProdutoId).ToList();
-        var produtos = (await armazenamento.ObterProdutosAsync(ids, cancellationToken)).ToDictionary(p => p.Id);
+        var produtos = (await armazenamento.ObterProdutosAsync(ids, paraAlterar: false, cancellationToken)).ToDictionary(p => p.Id);
         if (ValidarProdutos(pedido, produtos) is { } falha)
         {
             return falha;

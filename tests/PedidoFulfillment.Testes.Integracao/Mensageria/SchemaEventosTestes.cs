@@ -57,8 +57,20 @@ public sealed class SchemaEventosTestes
             PedidoId = PedidoId,
             Valor = 829.70m,
             Motivo = "Cartão recusado"
-        }, Instante)) }
+        }, Instante)) },
+        { TiposEvento.EstoqueInsuficiente, JsonEstoqueInsuficiente() }
     };
+
+    // REQ-08: itens em falta, um com estoque menor e outro inativo.
+    private static string JsonEstoqueInsuficiente() => SerializacaoEventos.Serializar(EnvelopeEvento.Criar(PedidoId, new EstoqueInsuficiente
+    {
+        PedidoId = PedidoId,
+        Itens =
+        [
+            new ItemEstoqueInsuficiente { ProdutoId = ProdutoId, QuantidadeSolicitada = 2, QuantidadeDisponivel = 0, Inativo = false },
+            new ItemEstoqueInsuficiente { ProdutoId = Guid.CreateVersion7(), QuantidadeSolicitada = 1, QuantidadeDisponivel = 5, Inativo = true }
+        ]
+    }, Instante));
 
     [Theory]
     [MemberData(nameof(EventosValidos))]
@@ -103,6 +115,37 @@ public sealed class SchemaEventosTestes
         }
 
         DeveSerValido(TiposEvento.PedidoCriado, raiz.ToJsonString()).Should().BeFalse(caso);
+    }
+
+    public static TheoryData<string, string> AlteracoesEstoqueInsuficiente() => new()
+    {
+        { "sem inativo", "remover:inativo" },
+        { "quantidade disponível negativa", "quantidadeDisponivel:-1" },
+        { "quantidade solicitada zero", "quantidadeSolicitada:0" },
+        { "itens vazio", "itens:vazio" }
+    };
+
+    [Theory]
+    [MemberData(nameof(AlteracoesEstoqueInsuficiente))]
+    public void Estoque_insuficiente_fora_do_contrato_e_recusado(string caso, string alteracao)
+    {
+        var raiz = JsonNode.Parse(JsonEstoqueInsuficiente())!.AsObject();
+        var item = raiz["dados"]!["itens"]![0]!.AsObject();
+        var (campo, valor) = (alteracao.Split(':')[0], alteracao.Split(':')[1]);
+        switch (campo)
+        {
+            case "remover":
+                item.Remove(valor);
+                break;
+            case "itens":
+                raiz["dados"]!["itens"] = new JsonArray();
+                break;
+            default:
+                item[campo] = int.Parse(valor, System.Globalization.CultureInfo.InvariantCulture);
+                break;
+        }
+
+        DeveSerValido(TiposEvento.EstoqueInsuficiente, raiz.ToJsonString()).Should().BeFalse(caso);
     }
 
     private static bool DeveSerValido(string tipo, string json)

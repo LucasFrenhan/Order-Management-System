@@ -78,6 +78,9 @@ public sealed class Pedido
     /// <summary>Mudanças de status, na ordem em que aconteceram.</summary>
     public IReadOnlyCollection<HistoricoStatusPedido> Historico => historico;
 
+    /// <summary>O estoque dos itens está abatido para este pedido (REQ-08, R-02).</summary>
+    public bool EstoqueReservado { get; private set; }
+
     public Pagamento? Pagamento { get; private set; }
 
     public OrdemEntrega? OrdemEntrega { get; private set; }
@@ -97,5 +100,63 @@ public sealed class Pedido
         historico.Add(entrada);
         Status = novo;
         AtualizadoEm = instante;
+    }
+
+    /// <summary>
+    /// Tudo ou nada (REQ-08, FR-004 e FR-005): com algum item inativo ou sem estoque suficiente,
+    /// devolve as faltas e não altera nada; senão, abate cada quantidade e marca a reserva.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Já reservado, ou falta um produto dos itens em <paramref name="produtos"/>.</exception>
+    public IReadOnlyList<FaltaEstoque> ReservarEstoque(IReadOnlyDictionary<Guid, Produto> produtos, DateTimeOffset instante)
+    {
+        if (EstoqueReservado)
+        {
+            throw new InvalidOperationException($"O estoque do pedido {Numero} já está reservado.");
+        }
+
+        var linhas = ProdutosDosItens(produtos);
+        var faltas = linhas
+            .Where(l => !l.Produto.Ativo || l.Produto.QuantidadeEstoque < l.Item.Quantidade)
+            .Select(l => new FaltaEstoque(l.Produto.Id, l.Item.Quantidade, l.Produto.QuantidadeEstoque, !l.Produto.Ativo))
+            .ToList();
+        if (faltas.Count > 0)
+        {
+            return faltas;
+        }
+
+        foreach (var (item, produto) in linhas)
+        {
+            produto.AjustarEstoque(-item.Quantidade, instante);
+        }
+
+        EstoqueReservado = true;
+        AtualizadoEm = instante;
+        return [];
+    }
+
+    /// <summary>Desfaz a reserva, mesmo com produto inativo (REQ-08, FR-010).</summary>
+    /// <exception cref="InvalidOperationException">Sem reserva, ou falta um produto dos itens em <paramref name="produtos"/>.</exception>
+    public void DevolverEstoque(IReadOnlyDictionary<Guid, Produto> produtos, DateTimeOffset instante)
+    {
+        if (!EstoqueReservado)
+        {
+            throw new InvalidOperationException($"O pedido {Numero} não tem estoque reservado.");
+        }
+
+        foreach (var (item, produto) in ProdutosDosItens(produtos))
+        {
+            produto.AjustarEstoque(item.Quantidade, instante);
+        }
+
+        EstoqueReservado = false;
+        AtualizadoEm = instante;
+    }
+
+    private List<(ItemPedido Item, Produto Produto)> ProdutosDosItens(IReadOnlyDictionary<Guid, Produto> produtos)
+    {
+        ArgumentNullException.ThrowIfNull(produtos);
+        return [.. itens.Select(i => (i, produtos.TryGetValue(i.ProdutoId, out var produto)
+            ? produto
+            : throw new InvalidOperationException($"O produto {i.ProdutoId} do pedido {Numero} não foi informado.")))];
     }
 }

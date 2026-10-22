@@ -383,6 +383,9 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                     b.Property<DateTimeOffset>("CriadoEm")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<bool>("EstoqueReservado")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Moeda")
                         .IsRequired()
                         .HasMaxLength(3)

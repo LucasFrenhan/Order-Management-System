@@ -28,8 +28,9 @@
 
   <ItemGroup>
     <None Include="..\..\specs\001-contratos-api\contracts\openapi-v1.yaml" Link="Contrato\openapi-v1.yaml" CopyToOutputDirectory="PreserveNewest" />
-    <!-- Schemas dos eventos (REQ-06), para os testes de conformidade. -->
+    <!-- Schemas dos eventos (REQ-06 e REQ-08), para os testes de conformidade. -->
     <None Include="..\..\specs\006-mensageria\contracts\eventos\*.schema.json" LinkBase="Eventos" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\specs\008-estoque\contracts\eventos\*.schema.json" LinkBase="Eventos" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

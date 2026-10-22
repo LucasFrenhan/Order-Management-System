@@ -50,7 +50,7 @@ sequência. A US5 mexe no `ServicoPedidos` e pode correr em paralelo com as US2 
 
 ## Phase 1: Setup
 
-- [ ] T001 Rodar `dotnet build` e `dotnet test` na branch `feature/req-08-estoque` e registrar em Notes a contagem de testes como linha de base (485 no fim do REQ-06; zero ignorados com o Docker no ar).
+- [X] T001 Rodar `dotnet build` e `dotnet test` na branch `feature/req-08-estoque` e registrar em Notes a contagem de testes como linha de base (485 no fim do REQ-06; zero ignorados com o Docker no ar).
 
 ---
 
@@ -60,21 +60,21 @@ sequência. A US5 mexe no `ServicoPedidos` e pode correr em paralelo com as US2 
 
 ### Testes da fundação
 
-- [ ] T002 [P] Testes de domínio em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PedidoEstoqueTestes.cs` (data-model, R-02):
+- [X] T002 [P] Testes de domínio em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PedidoEstoqueTestes.cs` (data-model, R-02):
   - `ReservarEstoque` com todos os itens disponíveis: abate cada quantidade, marca `EstoqueReservado`, atualiza `AtualizadoEm` e devolve lista vazia;
   - quantidade igual ao estoque: reserva, e o estoque fica em 0;
   - um item com estoque menor e outro com produto inativo: devolve as duas `FaltaEstoque` (`ProdutoId`, `QuantidadeSolicitada`, `QuantidadeDisponivel`, `Inativo`) e não altera estoque, `EstoqueReservado` nem `AtualizadoEm` (tudo ou nada);
   - `ReservarEstoque` com `EstoqueReservado` já marcado, ou sem um dos produtos no dicionário: `InvalidOperationException`;
   - `DevolverEstoque` depois da reserva: soma cada quantidade, inclusive em produto desativado depois da reserva, e desmarca `EstoqueReservado`;
   - `DevolverEstoque` sem reserva: `InvalidOperationException`.
-- [ ] T003 [P] Em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/SerializacaoEventosTestes.cs`, cobrir `EstoqueInsuficiente` como os outros eventos: camelCase (`quantidadeSolicitada`, `quantidadeDisponivel`, `inativo`), `tipo` `estoque.insuficiente`, `versao` 1 e ida e volta igual por valor.
-- [ ] T004 [P] Em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/SchemaEventosTestes.cs`, acrescentar o exemplo válido de `estoque.insuficiente` em `EventosValidos` e exemplos inválidos (sem `inativo`; `quantidadeDisponivel` negativa; `itens` vazio). O dicionário `Schemas` já percorre `TiposEvento`, então o tipo novo exige o schema copiado (T008).
+- [X] T003 [P] Em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/SerializacaoEventosTestes.cs`, cobrir `EstoqueInsuficiente` como os outros eventos: camelCase (`quantidadeSolicitada`, `quantidadeDisponivel`, `inativo`), `tipo` `estoque.insuficiente`, `versao` 1 e ida e volta igual por valor.
+- [X] T004 [P] Em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/SchemaEventosTestes.cs`, acrescentar o exemplo válido de `estoque.insuficiente` em `EventosValidos` e exemplos inválidos (sem `inativo`; `quantidadeDisponivel` negativa; `itens` vazio). O dicionário `Schemas` já percorre `TiposEvento`, então o tipo novo exige o schema copiado (T008).
 
 ### Implementação da fundação
 
-- [ ] T005 Criar `src/PedidoFulfillment.Domain/Pedidos/FaltaEstoque.cs` (`public sealed record FaltaEstoque(Guid ProdutoId, int QuantidadeSolicitada, int QuantidadeDisponivel, bool Inativo)`) e, em `src/PedidoFulfillment.Domain/Pedidos/Pedido.cs`, a propriedade `EstoqueReservado` (`private set`) e os métodos `ReservarEstoque(IReadOnlyDictionary<Guid, Produto> produtos, DateTimeOffset instante)` e `DevolverEstoque(IReadOnlyDictionary<Guid, Produto> produtos, DateTimeOffset instante)`, conforme o data-model. Disponível = produto ativo e `QuantidadeEstoque >= Quantidade`; a conferência de todos os itens vem antes de qualquer `AjustarEstoque`. T002 deve passar.
-- [ ] T006 Em `src/PedidoFulfillment.Infrastructure/Persistencia/Configuracoes/ConfiguracaoPedido.cs`, mapear `EstoqueReservado` (`bit NOT NULL`, padrão `false`) e gerar a migration `ReservaEstoque` com `dotnet tool run dotnet-ef migrations add ReservaEstoque` (projeto Infrastructure, inicialização na API, pasta `Persistencia/Migracoes`). Conferir que a migration só acrescenta a coluna com `defaultValue: false`. Atualizar a contagem e o nome da última migration em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/MigracaoBancoTestes.cs` e `ModeloSincronizadoTestes.cs`, se fixarem a lista.
-- [ ] T007 Mudanças na porta (R-07):
+- [X] T005 Criar `src/PedidoFulfillment.Domain/Pedidos/FaltaEstoque.cs` (`public sealed record FaltaEstoque(Guid ProdutoId, int QuantidadeSolicitada, int QuantidadeDisponivel, bool Inativo)`) e, em `src/PedidoFulfillment.Domain/Pedidos/Pedido.cs`, a propriedade `EstoqueReservado` (`private set`) e os métodos `ReservarEstoque(IReadOnlyDictionary<Guid, Produto> produtos, DateTimeOffset instante)` e `DevolverEstoque(IReadOnlyDictionary<Guid, Produto> produtos, DateTimeOffset instante)`, conforme o data-model. Disponível = produto ativo e `QuantidadeEstoque >= Quantidade`; a conferência de todos os itens vem antes de qualquer `AjustarEstoque`. T002 deve passar.
+- [X] T006 Em `src/PedidoFulfillment.Infrastructure/Persistencia/Configuracoes/ConfiguracaoPedido.cs`, mapear `EstoqueReservado` (`bit NOT NULL`, padrão `false`) e gerar a migration `ReservaEstoque` com `dotnet tool run dotnet-ef migrations add ReservaEstoque` (projeto Infrastructure, inicialização na API, pasta `Persistencia/Migracoes`). Conferir que a migration só acrescenta a coluna com `defaultValue: false`. Atualizar a contagem e o nome da última migration em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/MigracaoBancoTestes.cs` e `ModeloSincronizadoTestes.cs`, se fixarem a lista.
+- [X] T007 Mudanças na porta (R-07):
   - `src/PedidoFulfillment.Application/Pedidos/IArmazenamentoPedidos.cs`: `ObterProdutosAsync(IReadOnlyCollection<Guid> ids, bool paraAlterar, CancellationToken)` e `void Adicionar(EventoSaida evento)`, com XML doc;
   - `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoPedidos.cs`: leitura rastreada com `paraAlterar`, e `Adicionar` em `EventosSaida`;
   - `ServicoPedidos.CriarAsync` passa `paraAlterar: false`;
@@ -85,13 +85,13 @@ sequência. A US5 mexe no `ServicoPedidos` e pode correr em paralelo com as US2 
     `DescartarAlteracoes` também descarta as alterações de pedidos e produtos feitas desde a última gravação: o falso devolve cópias na leitura com `paraAlterar: true` e só as aplica no `SalvarAsync` bem-sucedido.
 
   O tratamento de deadlock do `SalvarAsync` muda na US5 (T026). Rodar a suíte: tudo verde.
-- [ ] T008 Contrato `estoque.insuficiente` (R-06):
+- [X] T008 Contrato `estoque.insuficiente` (R-06):
   - `src/PedidoFulfillment.Application/Contratos/Eventos/Eventos.cs`: `EstoqueInsuficiente` (`PedidoId`, `Itens`) e `ItemEstoqueInsuficiente` (`ProdutoId`, `QuantidadeSolicitada`, `QuantidadeDisponivel`, `Inativo`), `sealed record` com membros `required`;
   - `src/PedidoFulfillment.Application/Contratos/Eventos/TiposEvento.cs`: `EstoqueInsuficiente = "estoque.insuficiente"` no mapa;
   - `tests/PedidoFulfillment.Testes.Integracao/PedidoFulfillment.Testes.Integracao.csproj`: segundo `None Include="..\..\specs\008-estoque\contracts\eventos\*.schema.json" LinkBase="Eventos"`.
 
   T003 e T004 devem passar.
-- [ ] T009 Esqueleto do consumidor (R-01, R-09):
+- [X] T009 Esqueleto do consumidor (R-01, R-09):
   - `src/PedidoFulfillment.Application/Estoque/EventosEstoque.cs`: `LoggerMessage` 6001 `EstoqueReservado`, 6002 `PedidoCanceladoSemEstoque`, 6003 `PedidoIgnoradoNaReserva`, 6004 `ConflitoNaReserva` (Warning) e 6005 `EstoqueDevolvido`, só com identificadores e quantidades;
   - `src/PedidoFulfillment.Application/Estoque/ReservaEstoque.cs`: `public sealed class ReservaEstoque(IArmazenamentoPedidos armazenamento, TimeProvider relogio, ILogger<ReservaEstoque> logger) : IManipuladorEvento<PedidoCriado>`, com `Consumidor = "estoque"`, `Tipos = [TiposEvento.PedidoCriado]` e `ManipularAsync` lançando `NotImplementedException`; XML doc citando `contracts/consumidor-estoque.md`.
 
@@ -278,6 +278,15 @@ broker.
 - [P] = arquivos diferentes, sem dependência pendente.
 - Pela regra do `CLAUDE.md`, nenhum REQ novo começa antes de o PR deste ser mergeado.
 - A devolução na recusa do pagamento é da issue #9, que reaproveita `DevolverEstoque`.
+- **T001** (2026-10-22): linha de base com 485 testes verdes (262 unitários e 223 de
+  integração), nenhum ignorado.
+- Desvios registrados na implementação:
+  - **T006**: a configuração não usa `HasDefaultValue(false)`. A migration gera
+    `defaultValue: false` para a coluna nova de qualquer jeito, e sem a configuração o EF
+    não trata o campo como gerado pelo banco. `ModeloSincronizadoTestes` também fixava a
+    lista de migrations e foi atualizado.
+  - **T009**: o esqueleto referencia as dependências do construtor só para compilar, porque
+    `TreatWarningsAsErrors` recusa parâmetro não lido (CS9113); a T012 remove isso.
 - **SC-001** (95% em 5 s) é verificado por amostra: um pedido no cenário 1 da T011, como
   no REQ-06 (achado L2).
 - **US1, cenário 4** (falha no meio da reserva): sem teste com o banco caindo. É coberto

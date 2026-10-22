@@ -8,15 +8,24 @@ namespace PedidoFulfillment.Testes.Unitarios.Pedidos;
 
 /// <summary>
 /// Armazenamento em memória. Cada leitura de pedido devolve uma instância nova, montada pela
-/// fábrica guardada; assim um conflito descartado não deixa alteração para trás.
+/// fábrica guardada, e a leitura de produtos para alterar devolve cópias; assim um conflito
+/// descartado não deixa alteração para trás (achado M4 do REQ-08).
 /// </summary>
 public sealed class ArmazenamentoPedidosFalso : IArmazenamentoPedidos
 {
     private readonly Dictionary<Guid, Func<Pedido>> pedidos = [];
     private readonly List<(Pedido Pedido, RegistroIdempotencia Registro, EventoSaida Evento)> adicionados = [];
+    private readonly List<Produto> produtosEmAlteracao = [];
     private Pedido? emAlteracao;
 
+    /// <summary>Produtos "gravados"; uma gravação bem-sucedida troca os alterados pelas cópias.</summary>
     public List<Produto> Produtos { get; } = [];
+
+    /// <summary>Eventos avulsos do outbox pendentes desde a última gravação (REQ-08).</summary>
+    public List<EventoSaida> EventosAdicionados { get; } = [];
+
+    /// <summary>Quantas vezes produtos foram lidos para alteração.</summary>
+    public int LeiturasProdutosParaAlterar { get; private set; }
 
     public List<RegistroIdempotencia> Registros { get; } = [];
 
@@ -45,8 +54,30 @@ public sealed class ArmazenamentoPedidosFalso : IArmazenamentoPedidos
     /// <summary>Guarda um pedido; a fábrica é chamada a cada leitura.</summary>
     public void GuardarPedido(Guid id, Func<Pedido> fabrica) => pedidos[id] = fabrica;
 
-    public Task<IReadOnlyList<Produto>> ObterProdutosAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<Produto>>([.. Produtos.Where(p => ids.Contains(p.Id))]);
+    public Task<IReadOnlyList<Produto>> ObterProdutosAsync(IReadOnlyCollection<Guid> ids, bool paraAlterar, CancellationToken cancellationToken)
+    {
+        var encontrados = Produtos.Where(p => ids.Contains(p.Id)).ToList();
+        if (!paraAlterar)
+        {
+            return Task.FromResult<IReadOnlyList<Produto>>(encontrados);
+        }
+
+        LeiturasProdutosParaAlterar++;
+        var copias = encontrados.Select(Copiar).ToList();
+        produtosEmAlteracao.AddRange(copias);
+        return Task.FromResult<IReadOnlyList<Produto>>(copias);
+    }
+
+    /// <summary>Uma "outra operação" altera o produto gravado, por exemplo dentro de <see cref="AoConflitar"/>.</summary>
+    public void AlterarProduto(Guid id, Action<Produto> alteracao)
+    {
+        var copia = Copiar(Produtos.Single(p => p.Id == id));
+        alteracao(copia);
+        Produtos[Produtos.FindIndex(p => p.Id == id)] = copia;
+    }
+
+    private static Produto Copiar(Produto p) =>
+        new(p.Sku, p.Nome, p.Descricao, p.Preco, p.QuantidadeEstoque, p.Ativo, p.CriadoEm, p.Id);
 
     public Task<Pedido?> ObterPedidoAsync(Guid id, bool paraAlterar, CancellationToken cancellationToken)
     {
@@ -63,6 +94,8 @@ public sealed class ArmazenamentoPedidosFalso : IArmazenamentoPedidos
         Task.FromResult(Registros.SingleOrDefault(r => r.ClienteId == clienteId && r.Chave == chave));
 
     public void Adicionar(Pedido pedido, RegistroIdempotencia registro, EventoSaida evento) => adicionados.Add((pedido, registro, evento));
+
+    public void Adicionar(EventoSaida evento) => EventosAdicionados.Add(evento);
 
     public Task SalvarAsync(CancellationToken cancellationToken)
     {
@@ -98,15 +131,27 @@ public sealed class ArmazenamentoPedidosFalso : IArmazenamentoPedidos
             pedidos[alterado.Id] = () => alterado;
         }
 
-        adicionados.Clear();
-        emAlteracao = null;
+        foreach (var produto in produtosEmAlteracao)
+        {
+            Produtos[Produtos.FindIndex(p => p.Id == produto.Id)] = produto;
+        }
+
+        EventosGravados.AddRange(EventosAdicionados);
+        Limpar();
         return Task.CompletedTask;
     }
 
     public void DescartarAlteracoes()
     {
         Descartes++;
+        Limpar();
+    }
+
+    private void Limpar()
+    {
         adicionados.Clear();
+        EventosAdicionados.Clear();
+        produtosEmAlteracao.Clear();
         emAlteracao = null;
     }
 }
