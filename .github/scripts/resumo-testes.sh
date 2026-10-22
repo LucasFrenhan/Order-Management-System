@@ -13,8 +13,11 @@ else
 fi
 
 # Valor de um atributo na primeira ocorrência de uma tag: atributo <arquivo> <tag> <nome>.
+# O awk lê até o fim, em vez de "| head -1": cortar o pipe dava "grep: write error".
 atributo() {
-  grep -o "<$2 [^>]*" "$1" | head -1 | grep -o " $3=\"[^\"]*\"" | head -1 | cut -d'"' -f2
+  grep -o "<$2 [^>]*" "$1" | awk -v nome="$3" '
+    NR == 1 && match($0, " " nome "=\"[^\"]*\"") { valor = substr($0, RSTART + length(nome) + 3, RLENGTH - length(nome) - 4) }
+    END { print valor }'
 }
 
 mapfile -t trxs < <(find "$diretorio" -name '*.trx' | sort)
