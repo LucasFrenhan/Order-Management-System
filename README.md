@@ -1,5 +1,7 @@
 # Order Management System (OMS)
 
+[![build-testes](https://github.com/LucasFrenhan/Order-Management-System/actions/workflows/build-testes.yml/badge.svg?branch=main)](https://github.com/LucasFrenhan/Order-Management-System/actions/workflows/build-testes.yml)
+
 API de gestão de pedidos em .NET 10, desenvolvida com **Specification-Driven Development**
 (Spec Kit). Toda funcionalidade nasce de uma especificação aprovada em `specs/`, e a
 constituição do projeto fica em [`.specify/memory/constitution.md`](.specify/memory/constitution.md).
@@ -13,14 +15,42 @@ constituição do projeto fica em [`.specify/memory/constitution.md`](.specify/m
 | REQ-03 — Autenticação e autorização ([spec](specs/003-autenticacao-identity/spec.md)) | Registro, login com JWT, bloqueio após 5 erros, perfis e usuários iniciais |
 | REQ-04 — Domínio de pedidos e persistência ([spec](specs/004-dominio-persistencia/spec.md)) | Produtos, pedidos, itens, histórico de status, pagamentos e ordens de entrega; concorrência otimista em produto e pedido; catálogo inicial em Development |
 | REQ-05 — Criação, consulta e status de pedidos ([spec](specs/005-criacao-pedidos/spec.md)) | Criação com idempotência por `X-Idempotency-Key`, consulta e mudança de status de pedidos, conforme o contrato v1 |
-| REQ-06 em diante | Pendentes; ver [Próximos passos](#próximos-passos) |
+| REQ-07 — CI e ambiente de demonstração ([spec](specs/007-ci-demo/spec.md)) | Verificação `build-testes` em todo PR (build, testes com Docker obrigatório, cobertura, demonstração) e perfil `demo` que sobe a API com um comando |
+| REQ-06 e demais | Pendentes; ver [Próximos passos](#próximos-passos) |
+
+## Demonstração rápida
+
+Só com Docker (sem o SDK do .NET), um comando sobe banco, broker e API:
+
+```powershell
+docker compose --profile demo up -d --wait --build   # primeira vez constrói a imagem da API
+docker compose --profile demo down                   # para; os dados continuam nos volumes
+```
+
+| O quê | Endereço |
+|-------|----------|
+| API | <http://localhost:5230> |
+| Prontidão | <http://localhost:5230/health/pronto> |
+| Contrato navegável | <http://localhost:5230/scalar/v1> |
+| Painel do RabbitMQ | <http://localhost:15672> (`oms` / `oms-dev-local`) |
+
+Usuários **somente de desenvolvimento**: `admin@oms.local` / `AdminDev2026` (Admin) e
+`operador@oms.local` / `OperadorDev2026` (OperadorLogistica). Clientes se registram em
+`POST /api/v1/auth/register`. A API roda em Development: aplica as migrations e cria o
+catálogo inicial (`CAT-001` a `CAT-010`).
+
+- **Porta 5230**: é a mesma da API rodando pelo SDK; não rode as duas juntas, ou troque a
+  da demonstração com `OMS_API_PORTA` no `.env` (veja `.env.example`).
+- **Dados**: a demonstração usa os mesmos volumes do [ambiente local](#ambiente-local).
+  `docker compose --profile demo down -v` remove os três serviços **e apaga o banco local
+  de desenvolvimento**.
 
 ## Próximos passos
 
 Issues abertas que formam o escopo restante, na ordem sugerida de implementação. Cada uma
 segue o fluxo SDD (`/speckit-specify` → `/speckit-clarify` → `/speckit-plan` →
 `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`), em uma branch
-`feature/req-XX-...`. A numeração de requisito a partir do REQ-07 é definida quando cada
+`feature/req-XX-...`. A numeração de requisito a partir do REQ-08 é definida quando cada
 especificação começa.
 
 | Ordem | Requisito | Issue | Escopo | Depende de |
@@ -30,7 +60,6 @@ especificação começa.
 | 3 | a numerar | [#9](https://github.com/LucasFrenhan/Order-Management-System/issues/9) — Worker de pagamento assíncrono | Consome `EstoqueReservado`, simula o gateway (90% aprova); aprovado → `Processando`; recusado → `PagamentoRejeitado` e compensação do estoque | estoque |
 | 4 | a numerar | [#10](https://github.com/LucasFrenhan/Order-Management-System/issues/10) — Worker de fulfillment e logística | Consome `PagamentoAprovado`, cria a `OrdemEntrega`, muda o pedido para `ProntoParaEnvio` e publica o evento de despacho | pagamento |
 | 5 | a numerar | [#11](https://github.com/LucasFrenhan/Order-Management-System/issues/11) — Rastreio e histórico na consulta | A consulta com dono validado pelo token já existe (REQ-05). Faltam o histórico de status na resposta do `GET /api/v1/pedidos/{id}` e o `PATCH /api/v1/pedidos/{id}/rastreio` (Admin e OperadorLogistica) para registrar o rastreio e despachar | fulfillment |
-| — | a numerar | [#15](https://github.com/LucasFrenhan/Order-Management-System/issues/15) — CI de build e testes e ambiente de demonstração | Workflow `build-testes` em todo PR (com Testcontainers e sem skip silencioso), cobertura, `Dockerfile` da API e profile `demo` no Docker Compose | independente; pode entrar a qualquer momento |
 
 O que os REQ-04 e REQ-05 já deixaram pronto para esses requisitos:
 
@@ -61,7 +90,7 @@ Decisões e pontos já conhecidos:
 - SDK do .NET 10 (`winget install Microsoft.DotNet.SDK.10`)
 - Docker com Compose v2, para o [ambiente local](#ambiente-local) (`winget install Docker.DockerDesktop`)
 
-Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md), [domínio e persistência](specs/004-dominio-persistencia/quickstart.md) e [pedidos](specs/005-criacao-pedidos/quickstart.md).
+Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md), [domínio e persistência](specs/004-dominio-persistencia/quickstart.md), [pedidos](specs/005-criacao-pedidos/quickstart.md) e [CI e demonstração](specs/007-ci-demo/quickstart.md).
 
 ## Ambiente local
 
@@ -159,12 +188,52 @@ desenvolvimento**, `admin@oms.local` / `AdminDev2026` (Admin) e `operador@oms.lo
 
 Roteiro completo de validação: [`quickstart.md`](specs/001-contratos-api/quickstart.md).
 
+## Integração contínua
+
+O workflow [`build-testes`](.github/workflows/build-testes.yml) roda em todo PR para a
+`main` e em todo push nela, com dois jobs em paralelo:
+
+- **Build e testes**: compila em Release, com avisos como erros, e roda os testes unitários
+  e de integração com SQL Server e RabbitMQ reais (Testcontainers). O resumo da execução
+  mostra as contagens por projeto, os testes que falharam e a cobertura de linhas, que é
+  só informativa e não conta as migrations nem o código gerado. Os resultados (TRX e
+  Cobertura) ficam 14 dias no artefato `resultados-testes`.
+- **Demonstração**: sobe o perfil `demo` e confere a prontidão e o login do administrador
+  de desenvolvimento.
+
+O check fica vermelho com:
+- erro ou aviso de compilação;
+- teste falhando ou **ignorado**;
+- falta de Docker;
+- demonstração que não fica pronta.
+
+No CI, `OMS_EXIGIR_DOCKER=true` faz os testes com banco e broker reais falharem sem Docker,
+em vez de serem ignorados. Para reproduzir localmente:
+
+```powershell
+$env:OMS_EXIGIR_DOCKER = "true"
+dotnet test PedidoFulfillment.sln -c Release --logger "trx;LogFilePrefix=resultado" --results-directory resultados --collect "Code Coverage;Format=cobertura" --settings coverage.runsettings
+bash .github/scripts/resumo-testes.sh resultados
+```
+
+**Proteção da `main`** (configuração manual, feita por quem administra o repositório):
+
+1. Abra Settings → Branches → Add branch ruleset (ou "Add rule") para `main`.
+2. Marque "Require status checks to pass".
+3. Adicione os checks **Build e testes** e **Demonstração**. Eles só aparecem na busca
+   depois que o workflow roda pela primeira vez.
+4. Se quiser, marque também "Require branches to be up to date before merging" e salve.
+
 ## Estrutura
 
 ```text
-docker-compose.yml                   ambiente local: SQL Server + RabbitMQ
+docker-compose.yml                   ambiente local: SQL Server + RabbitMQ; perfil demo com a API
 .env.example                         variáveis OMS_* para trocar portas e credenciais locais
 .config/dotnet-tools.json            ferramenta local dotnet-ef (migrations)
+.github/workflows/                   build-testes (CI) e compatibilidade do contrato
+.github/scripts/resumo-testes.sh     resumo de testes e cobertura do CI
+coverage.runsettings                 o que entra na cobertura
+.dockerignore                        contexto da imagem da API
 src/
   PedidoFulfillment.Domain/          entidades e enums: Produtos/, Pedidos/ (pedido, itens,
                                      histórico de status, tabela de transições), Pagamentos/,
@@ -178,7 +247,8 @@ src/
                                      configuração e saúde de banco e broker; a
                                      mensageria (REQ-06) entra aqui
   PedidoFulfillment.API/             Minimal APIs (só roteamento), segurança (validação e
-                                     emissão de JWT), erros, OpenAPI, saúde
+                                     emissão de JWT), erros, OpenAPI, saúde; Dockerfile da
+                                     demonstração
 tests/
   PedidoFulfillment.Testes.Unitarios/   DTOs, configurações, regras de autenticação e de pedidos
                                         e entidades do domínio

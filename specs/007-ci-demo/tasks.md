@@ -219,7 +219,7 @@ prontidão e o login.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T019 [P] Atualizar `README.md` (R-11):
+- [X] T019 [P] Atualizar `README.md` (R-11):
   - **Selo** de `build-testes` logo abaixo do título.
   - **"Demonstração rápida"**, depois de "Estado atual": comando, endereços, usuários de
     desenvolvimento (**somente desenvolvimento**), aviso da porta 5230 compartilhada com a
@@ -230,9 +230,9 @@ prontidão e o login.
   - **Próximos passos**: remover a linha da #15.
   - **Estrutura**: `.github/`, `coverage.runsettings` e o `Dockerfile`.
   - **Roteiros de validação**: acrescentar o quickstart do REQ-07.
-- [ ] T020 [P] Varredura de segredos nos arquivos novos (`git grep -n -i -E "password|senha|pwd|chave"`). Só podem aparecer os valores de desenvolvimento que já existiam (`OmsDev_2026!Local`, `oms-dev-local`, `AdminDev2026`) e nomes de variáveis. Conferir também que `grep -n "secrets." .github/workflows/build-testes.yml` não encontra nada (FR-012, achado L1).
-- [ ] T021 Rodar `dotnet format PedidoFulfillment.sln --verify-no-changes` e a suíte local inteira, com e sem Docker se possível.
-- [ ] T022 Commitar as fases e fazer push da branch para disparar a primeira execução (aceitar o push como parte da validação, porque o workflow só roda no GitHub).
+- [X] T020 [P] Varredura de segredos nos arquivos novos (`git grep -n -i -E "password|senha|pwd|chave"`). Só podem aparecer os valores de desenvolvimento que já existiam (`OmsDev_2026!Local`, `oms-dev-local`, `AdminDev2026`) e nomes de variáveis. Conferir também que `grep -n "secrets." .github/workflows/build-testes.yml` não encontra nada (FR-012, achado L1).
+- [X] T021 Rodar `dotnet format PedidoFulfillment.sln --verify-no-changes` e a suíte local inteira, com e sem Docker se possível.
+- [X] T022 Commitar as fases e fazer push da branch para disparar a primeira execução (aceitar o push como parte da validação, porque o workflow só roda no GitHub).
 - [ ] T023 Abrir o PR (com `Closes #15`) e acompanhar a execução com `gh pr checks --watch` e `gh run view`:
   - os dois jobs ficam verdes;
   - o resumo mostra 0 ignorados e a cobertura;
