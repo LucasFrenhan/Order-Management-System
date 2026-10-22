@@ -60,8 +60,9 @@ consumidor deve ser idempotente; a base de consumo descarta duplicados por consu
 
 1. Implementar `IManipuladorEvento<TDados>` no Application, com `Consumidor` (o nome da
    fila, por exemplo `estoque`) e `Tipos` (por exemplo `pedido.criado`).
-2. Gravar o efeito pelo `ContextoBancoDados` do escopo recebido. A base faz commit junto
+2. Gravar o efeito pelas portas do Application (por exemplo `IArmazenamentoPedidos`) resolvidas
+   no mesmo escopo; elas usam o `ContextoBancoDados` do escopo. A base faz commit junto
    com o registro de processado.
 3. Para publicar um evento, gravar um `EventoSaida` no mesmo escopo (outbox). Nunca
    publicar direto no broker.
-4. Registrar no `Program.cs` do Worker com `AdicionarConsumidor<TManipulador, TDados>()`.
+4. Registrar no `ProgramaWorker.cs` do Worker com `AdicionarConsumidor<TManipulador, TDados>()`.

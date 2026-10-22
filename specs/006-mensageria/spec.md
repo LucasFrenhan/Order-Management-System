@@ -6,7 +6,7 @@
 
 **Created**: 2026-10-22
 
-**Status**: Draft
+**Status**: Approved
 
 **Input**: User description: "REQ-06 (GitHub issue #7): configurar o barramento de mensagens para publicar os eventos de mudança de estado do pedido, com políticas de retry e Dead Letter Queue. Critérios da issue: barramento apontando para o RabbitMQ do Docker; contratos de eventos PedidoCriado, EstoqueReservado, PagamentoAprovado, PagamentoRecusado; a API dispara PedidoCriado logo após salvar o pedido; retry no consumidor (ex.: 3 tentativas com intervalo exponencial); mensagens com erro irrecuperável vão para a DLQ. Decisões do usuário: RabbitMQ.Client nativo em vez de MassTransit (constituição); consumidores num projeto Worker separado; publicação por outbox transacional; testes de serialização e conformidade de schema dos contratos (constituição V)."
 

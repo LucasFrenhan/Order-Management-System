@@ -102,7 +102,9 @@
       `ContentType = application/json`;
     - confirmação do broker (`PublisherConfirmationsEnabled` e
       `PublisherConfirmationTrackingEnabled` do RabbitMQ.Client 7). O `BasicPublishAsync`
-      só retorna depois do ack; um nack ou a falta de rota lança exceção.
+      só retorna depois do ack. Com `mandatory: false`, uma mensagem sem fila ligada é
+      descartada sem erro (edge case da spec). Só um nack do broker ou uma falha de canal
+      lança exceção (achado M3).
   - **Resultado**:
     - sucesso: `EnviadoEm = agora`;
     - falha: `Tentativas++`, `UltimoErro`, `ProximaTentativaEm = agora + min(2^tentativas s, 10 s)`,
@@ -198,7 +200,7 @@
 ## R-10. Worker: hospedagem e entrega
 
 - **Decisão**:
-  - **`Program.cs` do Worker**:
+  - **`ProgramaWorker.cs`** (com `Main` explícito, sem top-level statements, para não haver dois `Program` globais nos testes; achado H1):
     - `AdicionarInfraestrutura`;
     - `AdicionarMensageria`, com a conexão, as opções e o despachante;
     - os health checks;

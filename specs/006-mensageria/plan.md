@@ -122,7 +122,7 @@ src/
 │   ├── Persistencia/ArmazenamentoPedidos.cs                 # adiciona o evento
 │   └── Persistencia/Migracoes/                              # + MensageriaOutbox
 ├── PedidoFulfillment.Worker/                                # NOVO
-│   ├── PedidoFulfillment.Worker.csproj, Program.cs
+│   ├── PedidoFulfillment.Worker.csproj, ProgramaWorker.cs
 │   ├── appsettings.json, appsettings.Development.json, Properties/launchSettings.json
 │   └── Dockerfile
 docker-compose.yml                                           # + worker (perfil demo)
