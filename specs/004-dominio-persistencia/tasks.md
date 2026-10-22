@@ -399,7 +399,7 @@ conflito. Estoque negativo é recusado.
 
 ### Testes da US2
 
-- [ ] T023 [P] [US2] Concorrência do produto em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/ConcorrenciaProdutoTestes.cs`.
+- [X] T023 [P] [US2] Concorrência do produto em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/ConcorrenciaProdutoTestes.cs`.
   - **Cenários 1 e 2**:
     - Dois contextos leem o mesmo produto, com estoque 10.
     - O primeiro faz `AjustarEstoque(-3)` e grava.
@@ -424,7 +424,7 @@ conflito. Estoque negativo é recusado.
     - exatamente uma grava e a outra recebe `ConflitoConcorrenciaException`;
     - nenhuma recebe outra exceção;
     - o estoque final é 0, nunca negativo.
-- [ ] T024 [P] [US2] Restrições do produto em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/RestricoesProdutoTestes.cs`.
+- [X] T024 [P] [US2] Restrições do produto em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/RestricoesProdutoTestes.cs`.
   - **Cenário 4**, por SQL direto `UPDATE`:
     - `QuantidadeEstoque = -1` → `CK_Produtos_EstoqueNaoNegativo`;
     - `Preco = -0.01` → `CK_Produtos_PrecoNaoNegativo`.
@@ -434,7 +434,7 @@ conflito. Estoque negativo é recusado.
 
 ### Implementação da US2
 
-- [ ] T025 [US2] Rodar T023–T024 com o Docker no ar e corrigir até ficarem verdes, com a mesma regra da T022 para mudanças de modelo.
+- [X] T025 [US2] Rodar T023–T024 com o Docker no ar e corrigir até ficarem verdes, com a mesma regra da T022 para mudanças de modelo.
 
 **Checkpoint**: estoque protegido contra concorrência e valores inválidos.
 
