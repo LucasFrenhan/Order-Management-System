@@ -47,7 +47,7 @@ são escritos antes da implementação e devem falhar primeiro.
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Rodar `dotnet tool restore`, `dotnet build PedidoFulfillment.sln` e `dotnet test PedidoFulfillment.sln` na branch `feature/req-05-criacao-pedidos`. Registrar a contagem de testes, que é a linha de base. Esperado: zero avisos e 287 testes verdes, herdados do REQ-04.
+- [X] T001 Rodar `dotnet tool restore`, `dotnet build PedidoFulfillment.sln` e `dotnet test PedidoFulfillment.sln` na branch `feature/req-05-criacao-pedidos`. Registrar a contagem de testes, que é a linha de base. Esperado: zero avisos e 287 testes verdes, herdados do REQ-04.
 
 ---
 
@@ -60,7 +60,7 @@ número do pedido e utilitários de teste.
 
 ### Testes da fundação
 
-- [ ] T002 [P] Testes de `TransicoesStatusPedido` em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/TransicoesStatusPedidoTestes.cs` (SC-004):
+- [X] T002 [P] Testes de `TransicoesStatusPedido` em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/TransicoesStatusPedidoTestes.cs` (SC-004):
   - Usar `[Theory]` com `MemberData` cobrindo as 36 combinações (de, para) dos 6 status.
   - `PermitidaParaOperacao` é verdadeira exatamente para:
     - Pendente→Processando;
@@ -70,24 +70,24 @@ número do pedido e utilitários de teste.
   - `PermitidaParaCliente` é verdadeira só para Pendente→Cancelado.
   - Todas as demais combinações são falsas, inclusive `de == para` e as saídas de
     Despachado, Cancelado e PagamentoRejeitado.
-- [ ] T003 [P] Testes de `ImpressaoConteudo` em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ImpressaoConteudoTestes.cs` (FR-008, contracts/idempotencia.md):
+- [X] T003 [P] Testes de `ImpressaoConteudo` em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ImpressaoConteudoTestes.cs` (FR-008, contracts/idempotencia.md):
   - o resultado tem 64 caracteres hexadecimais;
   - os mesmos itens em ordens diferentes dão a mesma impressão;
   - outra quantidade ou outro produto dá impressão diferente;
   - o valor bate com o SHA-256 calculado à mão para o texto canônico
     `"<guid1>:2;<guid2>:1"`, com os Guids em minúsculas e ordenados.
-- [ ] T004 Atualizar `tests/PedidoFulfillment.Testes.Integracao/Persistencia/ModeloSincronizadoTestes.cs`: a lista de migrations passa a ser `InicialIdentidade`, `EntidadesNegocio` e `ChavesIdempotencia`.
+- [X] T004 Atualizar `tests/PedidoFulfillment.Testes.Integracao/Persistencia/ModeloSincronizadoTestes.cs`: a lista de migrations passa a ser `InicialIdentidade`, `EntidadesNegocio` e `ChavesIdempotencia`.
 
 ### Implementação da fundação
 
-- [ ] T005 [P] Criar `src/PedidoFulfillment.Domain/Pedidos/TransicoesStatusPedido.cs`:
+- [X] T005 [P] Criar `src/PedidoFulfillment.Domain/Pedidos/TransicoesStatusPedido.cs`:
   - classe `public static` com `PermitidaParaOperacao(StatusPedido de, StatusPedido para)`
     e `PermitidaParaCliente(StatusPedido de, StatusPedido para)`, conforme o data-model;
   - comentário com a tabela do contrato v1 e a nota de que o perfil é decidido pelo
     serviço (R-06).
 
   A T002 deve passar.
-- [ ] T006 [P] Criar as portas e tipos do Application em `src/PedidoFulfillment.Application/Pedidos/` (R-02 a R-04, data-model):
+- [X] T006 [P] Criar as portas e tipos do Application em `src/PedidoFulfillment.Application/Pedidos/` (R-02 a R-04, data-model):
   - **`IArmazenamentoPedidos.cs`**:
     - `Task<IReadOnlyList<Produto>> ObterProdutosAsync(IReadOnlyCollection<Guid> ids, CancellationToken)`;
     - `Task<Pedido?> ObterPedidoAsync(Guid id, bool paraAlterar, CancellationToken)`, com
@@ -109,17 +109,17 @@ número do pedido e utilitários de teste.
     `Convert.ToHexString`, em maiúsculas.
 
   A T003 deve passar.
-- [ ] T007 [P] Criar `src/PedidoFulfillment.Application/Pedidos/MapeamentoPedido.cs`:
+- [X] T007 [P] Criar `src/PedidoFulfillment.Application/Pedidos/MapeamentoPedido.cs`:
   - `internal static PedidoResponseDTO ParaResposta(this Pedido pedido)`;
   - os itens em ordem de `ProdutoId`, para que a resposta e a repetição sejam estáveis;
   - copia número, cliente, status, valores, moeda e datas.
-- [ ] T008 [P] Criar `src/PedidoFulfillment.Application/Pedidos/EventosPedidos.cs` (`internal static partial`, `LoggerMessage`, R-11):
+- [X] T008 [P] Criar `src/PedidoFulfillment.Application/Pedidos/EventosPedidos.cs` (`internal static partial`, `LoggerMessage`, R-11):
   - 4001 `PedidoCriado` (Information): `PedidoId`, `Numero`, `QuantidadeItens` e
     `ValorTotal`;
   - 4002 `PedidoRepetido` (Information): `PedidoId`;
   - 4003 `StatusPedidoAlterado` (Information): `PedidoId`, `StatusAnterior`, `StatusNovo`
     e `PapelAutor`.
-- [ ] T009 Infrastructure, idempotência e sequência (R-03, R-05):
+- [X] T009 Infrastructure, idempotência e sequência (R-03, R-05):
   - criar `src/PedidoFulfillment.Infrastructure/Persistencia/Configuracoes/ConfiguracaoRegistroIdempotencia.cs`:
     - tabela `ChavesIdempotencia`;
     - `HasKey(r => new { r.ClienteId, r.Chave }).HasName("PK_ChavesIdempotencia")`;
@@ -134,7 +134,7 @@ número do pedido e utilitários de teste.
   - em `ErrosBancoDados.cs`, a sobrecarga
     `EhViolacaoUnicidade(Exception excecao, string restricao)`, que confere o número e se
     `SqlException.Message` contém `restricao`.
-- [ ] T010 Criar `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoPedidos.cs` (`internal sealed`, sobre o `ContextoBancoDados`):
+- [X] T010 Criar `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoPedidos.cs` (`internal sealed`, sobre o `ContextoBancoDados`):
   - **Leituras**:
     - produtos com `AsNoTracking` e `Where(p => ids.Contains(p.Id))`;
     - o pedido com `Include(p => p.Itens)`, `AsNoTracking` quando não for `paraAlterar`;
@@ -147,19 +147,19 @@ número do pedido e utilitários de teste.
     também vira `ChaveIdempotenciaRegistradaException` (R-04, achado M1). Para isso,
     acrescentar `EhDeadlock(Exception)` em `ErrosBancoDados.cs`.
   - **`DescartarAlteracoes`**: `ChangeTracker.Clear()`.
-- [ ] T011 Criar `src/PedidoFulfillment.Infrastructure/Persistencia/GeradorNumeroPedido.cs` (`internal sealed`):
+- [X] T011 Criar `src/PedidoFulfillment.Infrastructure/Persistencia/GeradorNumeroPedido.cs` (`internal sealed`):
   - `SELECT NEXT VALUE FOR SequenciaNumeroPedido` via
     `contexto.Database.SqlQueryRaw<long>(...)`, ou `DbCommand` na conexão do contexto;
   - formato `$"PED-{instante.UtcDateTime:yyyyMMdd}-{valor % 1_000_000:D6}"`, com
     `CultureInfo.InvariantCulture`.
-- [ ] T012 Registrar `IArmazenamentoPedidos` → `ArmazenamentoPedidos` e `IGeradorNumeroPedido` → `GeradorNumeroPedido` (`scoped`) em `src/PedidoFulfillment.Infrastructure/ExtensoesInfraestrutura.cs`.
-- [ ] T013 Gerar a migration com `dotnet ef migrations add ChavesIdempotencia --project src/PedidoFulfillment.Infrastructure --startup-project src/PedidoFulfillment.API --output-dir Persistencia/Migracoes`. Revisar:
+- [X] T012 Registrar `IArmazenamentoPedidos` → `ArmazenamentoPedidos` e `IGeradorNumeroPedido` → `GeradorNumeroPedido` (`scoped`) em `src/PedidoFulfillment.Infrastructure/ExtensoesInfraestrutura.cs`.
+- [X] T013 Gerar a migration com `dotnet ef migrations add ChavesIdempotencia --project src/PedidoFulfillment.Infrastructure --startup-project src/PedidoFulfillment.API --output-dir Persistencia/Migracoes`. Revisar:
   - só `CreateSequence` e `CreateTable`/`CreateIndex` de `ChavesIdempotencia`;
   - a chave primária com o nome `PK_ChavesIdempotencia`;
   - a FK para `Pedidos` com `Cascade`.
 
   `dotnet ef migrations has-pending-model-changes` não acusa nada, e a T004 passa.
-- [ ] T014 [P] Criar os falsos unitários em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/Falsos.cs`:
+- [X] T014 [P] Criar os falsos unitários em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/Falsos.cs`:
   - **`ArmazenamentoPedidosFalso`**:
     - listas em memória de produtos, pedidos e registros;
     - `Salvar` move os adicionados para as listas;
@@ -174,7 +174,7 @@ número do pedido e utilitários de teste.
   - **Logs**: reaproveitar o `LoggerFalso<T>` de
     `tests/PedidoFulfillment.Testes.Unitarios/Autenticacao/Falsos.cs` para afirmar os
     eventos 4001 a 4003 (achado L2).
-- [ ] T015 [P] Criar `tests/PedidoFulfillment.Testes.Integracao/Pedidos/CenarioPedidos.cs` para os testes de integração:
+- [X] T015 [P] Criar `tests/PedidoFulfillment.Testes.Integracao/Pedidos/CenarioPedidos.cs` para os testes de integração:
   - `ApiAsync(BancoDadosTeste banco)`: uma `FabricaApi` com `PrepararBanco = true`, banco
     novo e `Configuracoes = UsuariosIniciaisComBancoTestes.Configuracao()`, que já traz o
     Admin e o OperadorLogistica de teste (achado L1).
@@ -182,7 +182,7 @@ número do pedido e utilitários de teste.
     `TokenAdminAsync` e `TokenOperadorAsync`.
   - `CriarAsync(HttpClient, Guid chave, params (Guid produto, int quantidade)[] itens)`.
   - Os IDs do catálogo inicial: `Cat001` … `Cat010`.
-- [ ] T016 Rodar `dotnet build` e `dotnet test`: T002–T004 verdes, o resto da suíte verde e zero avisos.
+- [X] T016 Rodar `dotnet build` e `dotnet test`: T002–T004 verdes, o resto da suíte verde e zero avisos.
 
 **Checkpoint**: portas, persistência da idempotência e número prontos.
 
