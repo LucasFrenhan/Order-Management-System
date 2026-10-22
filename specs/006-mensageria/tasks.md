@@ -373,7 +373,7 @@ duplicados.
 - [X] T037 [P] Atualizar os comentários que citam o REQ-06 como futuro: `ExtensoesInfraestrutura.cs` ("o REQ-06 acrescenta aqui a mensageria") e `CLAUDE.md`, se citar.
 - [X] T038 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados).
 - [X] T039 Executar o quickstart (§1 a §6) e registrar em Notes.
-- [ ] T040 Fazer push e abrir o PR com `Closes #7`. Acompanhar o CI (`build-testes`, com os dois jobs) até ficar verde e registrar os tempos em Notes.
+- [X] T040 Fazer push e abrir o PR com `Closes #7`. Acompanhar o CI (`build-testes`, com os dois jobs) até ficar verde e registrar os tempos em Notes.
 
 ---
 
@@ -450,6 +450,10 @@ Setup, Foundational e US1: o evento `pedido.criado` chega ao broker com outbox.
   - **§6**: coberto pela T035. Num projeto Compose isolado, os 4 serviços ficaram
     saudáveis em 33 s, com build; o pedido criado na API da demonstração saiu como
     `enviado`, e `oms.eventos` registrou 1 publicação.
+- T040 (2026-10-22): PR #21 com `Closes #7`. O CI (`build-testes`, execução 39848124292)
+  ficou verde em ~3m23s: "Build e testes" em 3m18s (485 testes, 262 unitários e 223 de
+  integração, nenhum ignorado, cobertura de linhas de 96,7%) e "Demonstração" em 1m49s,
+  com a prontidão da API e do Worker conferida.
 - `/speckit-analyze` (2026-10-22), achados aplicados:
   - **H1**: Worker com `Main` explícito em `ProgramaWorker`, sem top-level statements (T002,
     T016, T032, R-10).
