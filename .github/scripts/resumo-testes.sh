@@ -44,7 +44,8 @@ for trx in "${trxs[@]}"; do
   ignorados=$(atributo "$trx" Counters notExecuted)
   echo "| ${projeto:-?} | ${total:-0} | ${aprovados:-0} | ${falhos:-0} | ${ignorados:-0} |" >&3
   ignorados_total=$((ignorados_total + ${ignorados:-0}))
-  falhas+=$(grep -o '<UnitTestResult [^>]*outcome="Failed"[^>]*' "$trx" | grep -o ' testName="[^"]*"' | cut -d'"' -f2 | sed 's/^/- /' || true)
+  falhas+=$(grep -o '<UnitTestResult [^>]*outcome="Failed"[^>]*' "$trx" | grep -o ' testName="[^"]*"' | cut -d'"' -f2 \
+    | sed 's/&quot;/"/g; s/&apos;/'"'"'/g; s/&lt;/</g; s/&gt;/>/g; s/&amp;/\&/g; s/^/- /' || true)
   falhas+=$'\n'
 done
 
