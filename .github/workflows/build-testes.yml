@@ -1,0 +1,97 @@
+# Verificação de todo PR e push na main (REQ-07, specs/007-ci-demo): build com avisos como
+# erros, testes unitários e de integração com Docker obrigatório, e a demonstração no ar.
+name: build-testes
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-testes-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  testes:
+    name: Build e testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Sem Docker, os testes com banco e broker reais falham em vez de serem ignorados.
+      OMS_EXIGIR_DOCKER: "true"
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Cache de pacotes NuGet
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('global.json', 'Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restaurar
+        run: dotnet restore PedidoFulfillment.sln
+
+      - name: Compilar
+        run: dotnet build PedidoFulfillment.sln -c Release --no-restore
+
+      - name: Testar
+        run: >-
+          dotnet test PedidoFulfillment.sln -c Release --no-build
+          --logger "trx;LogFilePrefix=resultado"
+          --results-directory resultados
+          --collect "Code Coverage;Format=cobertura"
+          --settings coverage.runsettings
+
+      - name: Resumo dos testes
+        if: always()
+        run: bash .github/scripts/resumo-testes.sh resultados
+
+      - name: Publicar resultados
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: resultados-testes
+          path: resultados
+          retention-days: 14
+          if-no-files-found: warn
+
+  demo:
+    name: Demonstração
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Subir a demonstração
+        run: |
+          inicio=$(date +%s)
+          docker compose --profile demo up -d --wait --wait-timeout 300 --build
+          echo "Demonstração pronta em $(( $(date +%s) - inicio )) s (com build da imagem)." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Prontidão
+        run: curl -fsS http://localhost:5230/health/pronto
+
+      - name: Login do administrador
+        run: |
+          curl -fsS -H "Content-Type: application/json" \
+            -d '{"email":"admin@oms.local","senha":"AdminDev2026"}' \
+            http://localhost:5230/api/v1/auth/login | grep -q tokenAcesso
+
+      - name: Registros da API
+        if: failure()
+        run: docker compose --profile demo logs api sqlserver
+
+      - name: Encerrar
+        if: always()
+        run: docker compose --profile demo down -v
