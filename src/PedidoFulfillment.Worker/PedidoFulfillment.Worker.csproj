@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- Processo dos consumidores e do despachante do outbox (REQ-06, research R-01). SDK Web só
+       para expor /health e /health/pronto; nenhuma rota de negócio. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\PedidoFulfillment.Application\PedidoFulfillment.Application.csproj" />
+    <ProjectReference Include="..\PedidoFulfillment.Domain\PedidoFulfillment.Domain.csproj" />
+    <ProjectReference Include="..\PedidoFulfillment.Infrastructure\PedidoFulfillment.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -2,12 +2,14 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using PedidoFulfillment.Application.Comum;
+using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Domain.Entregas;
 using PedidoFulfillment.Domain.Pagamentos;
 using PedidoFulfillment.Domain.Pedidos;
 using PedidoFulfillment.Domain.Produtos;
 using PedidoFulfillment.Infrastructure.Identidade;
+using PedidoFulfillment.Infrastructure.Mensageria;
 
 namespace PedidoFulfillment.Infrastructure.Persistencia;
 
@@ -43,6 +45,10 @@ public sealed class ContextoBancoDados(DbContextOptions<ContextoBancoDados> opti
     public DbSet<OrdemEntrega> OrdensEntrega => Set<OrdemEntrega>();
 
     public DbSet<RegistroIdempotencia> ChavesIdempotencia => Set<RegistroIdempotencia>();
+
+    public DbSet<EventoSaida> EventosSaida => Set<EventoSaida>();
+
+    internal DbSet<EventoProcessado> EventosProcessados => Set<EventoProcessado>();
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {

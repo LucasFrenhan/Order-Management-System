@@ -13,9 +13,9 @@ using PedidoFulfillment.Infrastructure.Saude;
 namespace PedidoFulfillment.Infrastructure;
 
 /// <summary>
-/// Ponto único de registro da Infrastructure, chamado uma vez pela API (FR-004). A persistência
-/// de negócio (REQ-04) já vem com o <c>ContextoBancoDados</c>; o REQ-06 acrescenta aqui a
-/// mensageria.
+/// Registro da Infrastructure, chamado uma vez pela API e pelo Worker (FR-004). A persistência
+/// de negócio (REQ-04) vem com o <c>ContextoBancoDados</c>; a mensageria (REQ-06) tem registro
+/// próprio, <c>AdicionarMensageria</c>, usado só pelo Worker.
 /// </summary>
 public static class ExtensoesInfraestrutura
 {

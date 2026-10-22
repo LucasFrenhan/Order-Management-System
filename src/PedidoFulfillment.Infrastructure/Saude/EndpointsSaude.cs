@@ -1,12 +1,15 @@
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using PedidoFulfillment.Infrastructure;
 
-namespace PedidoFulfillment.API.Saude;
+namespace PedidoFulfillment.Infrastructure.Saude;
 
 /// <summary>
 /// Endereços de saúde (REQ-02, contracts/saude.md): públicos e fora do contrato v1. A
-/// resposta traz só nomes e estados, nunca descrições, exceções ou dados de conexão.
+/// resposta traz só nomes e estados, nunca descrições, exceções ou dados de conexão. Fica na
+/// Infrastructure para a API e o Worker usarem o mesmo mapeamento (REQ-06, achado M1).
 /// </summary>
 public static class EndpointsSaude
 {

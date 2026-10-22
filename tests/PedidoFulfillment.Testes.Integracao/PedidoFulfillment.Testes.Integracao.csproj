@@ -18,14 +18,18 @@
     <PackageReference Include="Microsoft.OpenApi.YamlReader" />
     <PackageReference Include="Testcontainers.MsSql" />
     <PackageReference Include="Testcontainers.RabbitMq" />
+    <PackageReference Include="JsonSchema.Net" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\PedidoFulfillment.API\PedidoFulfillment.API.csproj" />
+    <ProjectReference Include="..\..\src\PedidoFulfillment.Worker\PedidoFulfillment.Worker.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="..\..\specs\001-contratos-api\contracts\openapi-v1.yaml" Link="Contrato\openapi-v1.yaml" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Schemas dos eventos (REQ-06), para os testes de conformidade. -->
+    <None Include="..\..\specs\006-mensageria\contracts\eventos\*.schema.json" LinkBase="Eventos" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

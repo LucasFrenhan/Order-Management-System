@@ -4,6 +4,7 @@ using FluentAssertions;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Domain.Pedidos;
 using PedidoFulfillment.Infrastructure;
+using PedidoFulfillment.Worker;
 
 namespace PedidoFulfillment.Testes.Integracao.Arquitetura;
 
@@ -19,12 +20,16 @@ public sealed class DependenciasCamadasTestes
     private const string Infrastructure = "PedidoFulfillment.Infrastructure";
     private const string Api = "PedidoFulfillment.API";
 
+    // REQ-06: o Worker é uma camada de hospedagem, no mesmo nível da API.
+    private const string Worker = "PedidoFulfillment.Worker";
+
     private static readonly Dictionary<string, string[]> Permitidas = new()
     {
         [Domain] = [],
         [Application] = [Domain],
         [Infrastructure] = [Application, Domain],
-        [Api] = [Application, Infrastructure, Domain]
+        [Api] = [Application, Infrastructure, Domain],
+        [Worker] = [Application, Infrastructure, Domain]
     };
 
     private static readonly Dictionary<string, Assembly> Assemblies = new()
@@ -32,14 +37,24 @@ public sealed class DependenciasCamadasTestes
         [Domain] = typeof(StatusPedido).Assembly,
         [Application] = typeof(IServicoPedidos).Assembly,
         [Infrastructure] = typeof(ExtensoesInfraestrutura).Assembly,
-        [Api] = typeof(Program).Assembly
+        [Api] = typeof(Program).Assembly,
+        [Worker] = typeof(ProgramaWorker).Assembly
     };
 
     [Fact]
-    public void A_solucao_tem_exatamente_as_quatro_camadas()
+    public void A_solucao_tem_exatamente_as_cinco_camadas()
     {
         Directory.GetDirectories(Path.Combine(RaizRepositorio(), "src")).Select(Path.GetFileName)
-            .Should().BeEquivalentTo(Domain, Application, Infrastructure, Api);
+            .Should().BeEquivalentTo(Domain, Application, Infrastructure, Api, Worker);
+    }
+
+    [Fact]
+    public void API_e_Worker_nao_se_referenciam()
+    {
+        var referencias = ReferenciasReais();
+
+        referencias[Api].Should().NotContain(Worker);
+        referencias[Worker].Should().NotContain(Api);
     }
 
     [Fact]

@@ -1,0 +1,86 @@
+using System.Text.Json;
+using FluentAssertions;
+using PedidoFulfillment.Application.Contratos.Eventos;
+
+namespace PedidoFulfillment.Testes.Unitarios.Mensageria;
+
+/// <summary>Serialização dos quatro contratos de evento v1 (REQ-06, FR-001 a FR-004).</summary>
+public sealed class SerializacaoEventosTestes
+{
+    internal static readonly DateTimeOffset Instante = new(2026, 10, 22, 15, 30, 0, TimeSpan.Zero);
+    internal static readonly Guid PedidoId = Guid.Parse("0192b6a0-1111-7000-8000-000000000001");
+    private static readonly Guid ProdutoId = Guid.Parse("0192b6a0-0000-7000-8000-000000000001");
+
+    internal static EnvelopeEvento<PedidoCriado> PedidoCriado() => EnvelopeEvento.Criar(PedidoId, new PedidoCriado
+    {
+        PedidoId = PedidoId,
+        Numero = "PED-20261022-000001",
+        ClienteId = Guid.Parse("0192b6a0-2222-7000-8000-000000000001"),
+        Itens = [new ItemPedidoCriado { ProdutoId = ProdutoId, Quantidade = 2, PrecoUnitario = 349.90m }],
+        ValorTotal = 829.70m,
+        Moeda = "BRL"
+    }, Instante);
+
+    internal static EnvelopeEvento<EstoqueReservado> EstoqueReservado() => EnvelopeEvento.Criar(PedidoId, new EstoqueReservado
+    {
+        PedidoId = PedidoId,
+        Itens = [new ItemEstoqueReservado { ProdutoId = ProdutoId, Quantidade = 2 }]
+    }, Instante);
+
+    internal static EnvelopeEvento<PagamentoAprovado> PagamentoAprovado() => EnvelopeEvento.Criar(PedidoId, new PagamentoAprovado
+    {
+        PedidoId = PedidoId,
+        Valor = 829.70m,
+        IdentificadorTransacao = "TX-1"
+    }, Instante);
+
+    internal static EnvelopeEvento<PagamentoRecusado> PagamentoRecusado() => EnvelopeEvento.Criar(PedidoId, new PagamentoRecusado
+    {
+        PedidoId = PedidoId,
+        Valor = 829.70m,
+        Motivo = "Cartão recusado"
+    }, Instante);
+
+    [Fact]
+    public void Envelope_traz_tipo_versao_correlacao_e_campos_em_camelCase()
+    {
+        using var json = JsonDocument.Parse(SerializacaoEventos.Serializar(PedidoCriado()));
+        var raiz = json.RootElement;
+
+        raiz.EnumerateObject().Select(p => p.Name).Should().Equal("idEvento", "tipo", "versao", "ocorridoEm", "idCorrelacao", "dados");
+        raiz.GetProperty("tipo").GetString().Should().Be("pedido.criado");
+        raiz.GetProperty("versao").GetInt32().Should().Be(1);
+        raiz.GetProperty("ocorridoEm").GetString().Should().Be("2026-10-22T15:30:00+00:00");
+        raiz.GetProperty("idCorrelacao").GetGuid().Should().Be(PedidoId);
+        raiz.GetProperty("idEvento").GetGuid().Version.Should().Be(7);
+        raiz.GetProperty("dados").GetProperty("valorTotal").GetRawText().Should().Be("829.70");
+        raiz.GetProperty("dados").GetProperty("itens")[0].GetProperty("precoUnitario").GetRawText().Should().Be("349.90");
+    }
+
+    [Fact]
+    public void Cada_contrato_tem_o_seu_tipo()
+    {
+        PedidoCriado().Tipo.Should().Be(TiposEvento.PedidoCriado);
+        EstoqueReservado().Tipo.Should().Be(TiposEvento.EstoqueReservado);
+        PagamentoAprovado().Tipo.Should().Be(TiposEvento.PagamentoAprovado);
+        PagamentoRecusado().Tipo.Should().Be(TiposEvento.PagamentoRecusado);
+        TiposEvento.TipoDados.Should().HaveCount(4);
+    }
+
+    [Fact]
+    public void Ida_e_volta_preserva_os_valores_dos_quatro_eventos()
+    {
+        DeveVoltarIgual(PedidoCriado());
+        DeveVoltarIgual(EstoqueReservado());
+        DeveVoltarIgual(PagamentoAprovado());
+        DeveVoltarIgual(PagamentoRecusado());
+    }
+
+    private static void DeveVoltarIgual<T>(EnvelopeEvento<T> envelope)
+    {
+        var lido = SerializacaoEventos.Desserializar<T>(SerializacaoEventos.Serializar(envelope));
+
+        lido.Should().BeEquivalentTo(envelope);
+        lido.OcorridoEm.Offset.Should().Be(TimeSpan.Zero);
+    }
+}

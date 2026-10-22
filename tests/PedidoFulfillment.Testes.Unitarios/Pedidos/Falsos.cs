@@ -1,4 +1,5 @@
 using PedidoFulfillment.Application.Comum;
+using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Domain.Pedidos;
 using PedidoFulfillment.Domain.Produtos;
@@ -12,7 +13,7 @@ namespace PedidoFulfillment.Testes.Unitarios.Pedidos;
 public sealed class ArmazenamentoPedidosFalso : IArmazenamentoPedidos
 {
     private readonly Dictionary<Guid, Func<Pedido>> pedidos = [];
-    private readonly List<(Pedido Pedido, RegistroIdempotencia Registro)> adicionados = [];
+    private readonly List<(Pedido Pedido, RegistroIdempotencia Registro, EventoSaida Evento)> adicionados = [];
     private Pedido? emAlteracao;
 
     public List<Produto> Produtos { get; } = [];
@@ -21,6 +22,9 @@ public sealed class ArmazenamentoPedidosFalso : IArmazenamentoPedidos
 
     /// <summary>Pedidos gravados pelo serviço (pela criação), na ordem.</summary>
     public List<Pedido> PedidosGravados { get; } = [];
+
+    /// <summary>Eventos do outbox gravados junto com os pedidos (REQ-06).</summary>
+    public List<EventoSaida> EventosGravados { get; } = [];
 
     public int Gravacoes { get; private set; }
 
@@ -58,7 +62,7 @@ public sealed class ArmazenamentoPedidosFalso : IArmazenamentoPedidos
     public Task<RegistroIdempotencia?> ObterRegistroIdempotenciaAsync(Guid clienteId, Guid chave, CancellationToken cancellationToken) =>
         Task.FromResult(Registros.SingleOrDefault(r => r.ClienteId == clienteId && r.Chave == chave));
 
-    public void Adicionar(Pedido pedido, RegistroIdempotencia registro) => adicionados.Add((pedido, registro));
+    public void Adicionar(Pedido pedido, RegistroIdempotencia registro, EventoSaida evento) => adicionados.Add((pedido, registro, evento));
 
     public Task SalvarAsync(CancellationToken cancellationToken)
     {
@@ -81,10 +85,11 @@ public sealed class ArmazenamentoPedidosFalso : IArmazenamentoPedidos
         }
 
         Gravacoes++;
-        foreach (var (pedido, registro) in adicionados)
+        foreach (var (pedido, registro, evento) in adicionados)
         {
             PedidosGravados.Add(pedido);
             Registros.Add(registro);
+            EventosGravados.Add(evento);
             pedidos[pedido.Id] = () => pedido;
         }
 

@@ -1,4 +1,5 @@
 using PedidoFulfillment.Application.Comum;
+using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Domain.Pedidos;
 using PedidoFulfillment.Domain.Produtos;
 
@@ -18,7 +19,8 @@ public interface IArmazenamentoPedidos
 
     Task<RegistroIdempotencia?> ObterRegistroIdempotenciaAsync(Guid clienteId, Guid chave, CancellationToken cancellationToken);
 
-    void Adicionar(Pedido pedido, RegistroIdempotencia registro);
+    /// <summary>Pedido, chave de idempotência e evento do outbox, gravados juntos no próximo <see cref="SalvarAsync"/> (REQ-06, FR-005).</summary>
+    void Adicionar(Pedido pedido, RegistroIdempotencia registro, EventoSaida evento);
 
     /// <exception cref="ChaveIdempotenciaRegistradaException">O par (cliente, chave) já foi registrado por outra requisição.</exception>
     /// <exception cref="ConflitoConcorrenciaException">O pedido mudou desde que foi lido.</exception>

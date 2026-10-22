@@ -60,6 +60,7 @@ public sealed class ServicoPedidosIdempotenciaTestes
 
         resultado.Valor.Should().BeEquivalentTo(original);
         armazenamento.Gravacoes.Should().Be(0);
+        armazenamento.EventosGravados.Should().BeEmpty(); // a repetição não gera evento (REQ-06, FR-009)
         logger.Eventos.Should().ContainSingle(e => e.Id.Id == 4002).Which.Propriedades["PedidoId"].Should().Be(original.Id);
     }
 

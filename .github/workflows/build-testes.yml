@@ -88,9 +88,12 @@ jobs:
             -d '{"email":"admin@oms.local","senha":"AdminDev2026"}' \
             http://localhost:5230/api/v1/auth/login | grep -q tokenAcesso
 
+      - name: Prontidão do Worker
+        run: curl -fsS http://localhost:5231/health/pronto
+
       - name: Registros da API
         if: failure()
-        run: docker compose --profile demo logs api sqlserver
+        run: docker compose --profile demo logs api worker sqlserver
 
       - name: Encerrar
         if: always()

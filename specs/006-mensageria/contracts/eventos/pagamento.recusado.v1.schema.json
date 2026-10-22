@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/LucasFrenhan/Order-Management-System/specs/006-mensageria/contracts/eventos/pagamento.recusado.v1.schema.json",
+  "title": "pagamento.recusado v1",
+  "description": "Publicado pelo worker de pagamento (issue #9) quando o pagamento é recusado; dispara a compensação do estoque.",
+  "type": "object",
+  "required": ["idEvento", "tipo", "versao", "ocorridoEm", "idCorrelacao", "dados"],
+  "properties": {
+    "idEvento": { "type": "string", "format": "uuid" },
+    "tipo": { "const": "pagamento.recusado" },
+    "versao": { "const": 1 },
+    "ocorridoEm": { "type": "string", "format": "date-time" },
+    "idCorrelacao": { "type": "string", "format": "uuid" },
+    "dados": {
+      "type": "object",
+      "required": ["pedidoId", "valor", "motivo"],
+      "properties": {
+        "pedidoId": { "type": "string", "format": "uuid" },
+        "valor": { "type": "number", "minimum": 0, "multipleOf": 0.01 },
+        "motivo": { "type": "string", "minLength": 1, "maxLength": 500 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

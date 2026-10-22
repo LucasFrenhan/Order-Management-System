@@ -1,5 +1,5 @@
 <Project>
-  <!-- Pacotes justificados em specs/001-contratos-api/plan.md, specs/002-setup-infraestrutura/plan.md e specs/003-autenticacao-identity/plan.md (constituição: dependências exigem justificativa). -->
+  <!-- Pacotes justificados em specs/001-contratos-api/plan.md, specs/002-setup-infraestrutura/plan.md, specs/003-autenticacao-identity/plan.md e specs/006-mensageria/plan.md (constituição: dependências exigem justificativa). -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
@@ -36,5 +36,7 @@
     <!-- 4.15.0, não 4.16.0: a 4.16.0 saiu há menos de duas semanas (specs/002-setup-infraestrutura/plan.md). -->
     <PackageVersion Include="Testcontainers.MsSql" Version="4.15.0" />
     <PackageVersion Include="Testcontainers.RabbitMq" Version="4.15.0" />
+    <!-- Conformidade de schema dos eventos (specs/006-mensageria, R-12); a 9.4.1 tinha menos de duas semanas. -->
+    <PackageVersion Include="JsonSchema.Net" Version="9.4.0" />
   </ItemGroup>
 </Project>
