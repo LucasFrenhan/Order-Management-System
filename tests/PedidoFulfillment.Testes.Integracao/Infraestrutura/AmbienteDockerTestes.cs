@@ -10,7 +10,7 @@ public sealed class AmbienteDockerTestes
     [InlineData("TRUE")]
     public void Docker_e_obrigatorio_com_o_valor_true(string valor)
     {
-        AmbienteDocker.Obrigatorio(valor).Should().BeTrue();
+        AmbienteDocker.Obrigatorio(valor).Should().BeFalse(); // TEMPORÁRIO: prova que o CI reprova (T024)
     }
 
     [Theory]
