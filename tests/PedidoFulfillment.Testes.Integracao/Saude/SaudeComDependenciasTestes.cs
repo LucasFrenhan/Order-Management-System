@@ -11,7 +11,8 @@ namespace PedidoFulfillment.Testes.Integracao.Saude;
 
 /// <summary>
 /// SQL Server e RabbitMQ reais em contêineres (research R-07). Sem Docker, os testes são
-/// ignorados em vez de falhar, e a suíte continua rodando (SC-005).
+/// ignorados em vez de falhar, e a suíte continua rodando (SC-005), exceto com
+/// <c>OMS_EXIGIR_DOCKER=true</c>, quando falham (REQ-07).
 /// </summary>
 public sealed class ConteineresDependencias : IAsyncLifetime
 {
@@ -44,8 +45,14 @@ public sealed class ConteineresDependencias : IAsyncLifetime
             await Task.WhenAll(sqlServer.StartAsync(), rabbitMQ.StartAsync());
             DockerDisponivel = true;
         }
-        catch (DockerUnavailableException)
+        catch (DockerUnavailableException excecao)
         {
+            // No CI (OMS_EXIGIR_DOCKER=true), sem Docker os testes falham em vez de serem ignorados (REQ-07).
+            if (AmbienteDocker.Obrigatorio())
+            {
+                throw new InvalidOperationException(AmbienteDocker.MensagemObrigatorio, excecao);
+            }
+
             DockerDisponivel = false;
         }
     }

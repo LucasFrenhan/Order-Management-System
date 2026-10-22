@@ -40,8 +40,8 @@ description: "Lista de tarefas do REQ-07 — CI de build e testes e ambiente de 
 
 ## Phase 1: Setup
 
-- [ ] T001 Rodar `dotnet build PedidoFulfillment.sln` e `dotnet test PedidoFulfillment.sln` na branch `feature/req-07-ci-demo`, que parte da `main` com o REQ-04, e registrar a contagem de testes como linha de base (zero ignorados com o Docker no ar). A contagem depende do que já estiver na `main` (287 só com o REQ-04; mais se o REQ-05 já tiver entrado). Achado L2.
-- [ ] T002 [P] Criar `.gitattributes` na raiz com `*.sh text eol=lf`, `Dockerfile text eol=lf` e `*.yml text eol=lf`, para que scripts e arquivos de contêiner tenham LF também na cópia de trabalho no Windows.
+- [X] T001 Rodar `dotnet build PedidoFulfillment.sln` e `dotnet test PedidoFulfillment.sln` na branch `feature/req-07-ci-demo`, que parte da `main` com o REQ-04, e registrar a contagem de testes como linha de base (zero ignorados com o Docker no ar). A contagem depende do que já estiver na `main` (287 só com o REQ-04; mais se o REQ-05 já tiver entrado). Achado L2.
+- [X] T002 [P] Criar `.gitattributes` na raiz com `*.sh text eol=lf`, `Dockerfile text eol=lf` e `*.yml text eol=lf`, para que scripts e arquivos de contêiner tenham LF também na cópia de trabalho no Windows.
 
 ---
 
@@ -56,19 +56,19 @@ variável, nada muda.
 **Independent Test**: os testes unitários da regra passam; localmente, sem a variável, a
 suíte continua igual.
 
-- [ ] T003 [P] [US2] Teste em `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/AmbienteDockerTestes.cs`:
+- [X] T003 [P] [US2] Teste em `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/AmbienteDockerTestes.cs`:
   - `Obrigatorio("true")` e `Obrigatorio("TRUE")` são verdadeiros;
   - `null`, `""`, `"false"` e `"1"` são falsos;
   - `MensagemObrigatorio` é igual a
     "Docker obrigatório neste ambiente (OMS_EXIGIR_DOCKER=true).".
-- [ ] T004 [US2] Criar `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/AmbienteDocker.cs` (`public static`), com `Obrigatorio(string?)`, `Obrigatorio()` (lê a variável `OMS_EXIGIR_DOCKER`) e a constante `MensagemObrigatorio`, conforme a R-06. A T003 deve passar.
-- [ ] T005 [US2] Nas duas fixtures, no `catch (DockerUnavailableException excecao)`, acrescentar `when (!AmbienteDocker.Obrigatorio())` e um segundo `catch (DockerUnavailableException excecao)` que lança `new InvalidOperationException(AmbienteDocker.MensagemObrigatorio, excecao)`:
+- [X] T004 [US2] Criar `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/AmbienteDocker.cs` (`public static`), com `Obrigatorio(string?)`, `Obrigatorio()` (lê a variável `OMS_EXIGIR_DOCKER`) e a constante `MensagemObrigatorio`, conforme a R-06. A T003 deve passar.
+- [X] T005 [US2] Nas duas fixtures, no `catch (DockerUnavailableException excecao)`, acrescentar `when (!AmbienteDocker.Obrigatorio())` e um segundo `catch (DockerUnavailableException excecao)` que lança `new InvalidOperationException(AmbienteDocker.MensagemObrigatorio, excecao)`:
   - `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/BancoDadosTeste.cs`;
   - a classe `ConteineresDependencias` de `tests/PedidoFulfillment.Testes.Integracao/Saude/SaudeComDependenciasTestes.cs`.
 
   Atualizar os comentários das duas classes: sem Docker, os testes são ignorados, exceto
   com `OMS_EXIGIR_DOCKER=true`, quando falham.
-- [ ] T006 [US2] Rodar a suíte inteira com o Docker no ar, com e sem `OMS_EXIGIR_DOCKER=true`: tudo verde e zero ignorados nos dois casos.
+- [X] T006 [US2] Rodar a suíte inteira com o Docker no ar, com e sem `OMS_EXIGIR_DOCKER=true`: tudo verde e zero ignorados nos dois casos.
 
 **Checkpoint**: a exigência de Docker funciona e não muda o comportamento local.
 

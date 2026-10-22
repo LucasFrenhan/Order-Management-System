@@ -1,0 +1,5 @@
+# Scripts e arquivos de contêiner sempre com LF, inclusive na cópia de trabalho no Windows
+# (o repositório usa core.autocrlf=true; specs/007-ci-demo, T002).
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf

@@ -13,7 +13,8 @@ public sealed class ColecaoBancoDados : ICollectionFixture<BancoDadosTeste>;
 
 /// <summary>
 /// Um SQL Server real em contêiner, compartilhado pelas classes da coleção, com um banco novo
-/// por teste (research R-11). Sem Docker, os testes são ignorados.
+/// por teste (research R-11). Sem Docker, os testes são ignorados, exceto com
+/// <c>OMS_EXIGIR_DOCKER=true</c>, quando falham (REQ-07).
 /// </summary>
 public sealed class BancoDadosTeste : IAsyncLifetime
 {
@@ -78,8 +79,14 @@ public sealed class BancoDadosTeste : IAsyncLifetime
             await sqlServer.StartAsync();
             DockerDisponivel = true;
         }
-        catch (DockerUnavailableException)
+        catch (DockerUnavailableException excecao)
         {
+            // No CI (OMS_EXIGIR_DOCKER=true), sem Docker os testes falham em vez de serem ignorados (REQ-07).
+            if (AmbienteDocker.Obrigatorio())
+            {
+                throw new InvalidOperationException(AmbienteDocker.MensagemObrigatorio, excecao);
+            }
+
             DockerDisponivel = false;
         }
     }
