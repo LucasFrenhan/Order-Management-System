@@ -535,7 +535,7 @@ partir dele. A segunda gravação de cada um é recusada.
 
 ### Testes da US3
 
-- [ ] T031 [P] [US3] Em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/PagamentoEntregaTestes.cs`:
+- [X] T031 [P] [US3] Em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/PagamentoEntregaTestes.cs`:
   - **Cenário 1**: gravar um `Pagamento` com resultado `Aprovado` e reler o pedido com
     `Include(p => p.Pagamento)`. Conferir valor, situação, transação e `ProcessadoEm`. A
     coluna `Situacao` guarda o texto `Aprovado`.
@@ -557,7 +557,7 @@ partir dele. A segunda gravação de cada um é recusada.
 
 ### Implementação da US3
 
-- [ ] T032 [US3] Rodar a T031 com o Docker no ar e corrigir até ficar verde, com a mesma regra da T022 para mudanças de modelo.
+- [X] T032 [US3] Rodar a T031 com o Docker no ar e corrigir até ficar verde, com a mesma regra da T022 para mudanças de modelo.
 
 **Checkpoint**: todas as histórias validadas contra o SQL Server.
 
