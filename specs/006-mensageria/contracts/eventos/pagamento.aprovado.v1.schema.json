@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/LucasFrenhan/Order-Management-System/specs/006-mensageria/contracts/eventos/pagamento.aprovado.v1.schema.json",
+  "title": "pagamento.aprovado v1",
+  "description": "Publicado pelo worker de pagamento (issue #9) quando o pagamento do pedido é aprovado.",
+  "type": "object",
+  "required": ["idEvento", "tipo", "versao", "ocorridoEm", "idCorrelacao", "dados"],
+  "properties": {
+    "idEvento": { "type": "string", "format": "uuid" },
+    "tipo": { "const": "pagamento.aprovado" },
+    "versao": { "const": 1 },
+    "ocorridoEm": { "type": "string", "format": "date-time" },
+    "idCorrelacao": { "type": "string", "format": "uuid" },
+    "dados": {
+      "type": "object",
+      "required": ["pedidoId", "valor", "identificadorTransacao"],
+      "properties": {
+        "pedidoId": { "type": "string", "format": "uuid" },
+        "valor": { "type": "number", "minimum": 0, "multipleOf": 0.01 },
+        "identificadorTransacao": { "type": "string", "minLength": 1, "maxLength": 100 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
