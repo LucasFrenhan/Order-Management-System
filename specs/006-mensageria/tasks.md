@@ -182,7 +182,7 @@ broker, criar 20 pedidos, retomar e receber os 20.
 
 ### Testes da US1
 
-- [ ] T018 [P] [US1] Unitários em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosCriacaoTestes.cs` (acrescentar):
+- [X] T018 [P] [US1] Unitários em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosCriacaoTestes.cs` (acrescentar):
   - a criação adiciona um `EventoSaida` do tipo `pedido.criado`, cujo `Conteudo` tem
     `pedidoId`, `numero`, `clienteId`, itens com preço, `valorTotal` e `moeda` iguais aos da
     resposta, e `idCorrelacao` igual ao `pedidoId`;
@@ -191,7 +191,7 @@ broker, criar 20 pedidos, retomar e receber os 20.
   Em `ServicoPedidosIdempotenciaTestes.cs`, a repetição não adiciona evento. Atualizar
   `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/Falsos.cs` (`Adicionar` com o evento e
   a lista `EventosGravados`).
-- [ ] T019 [P] [US1] Integração em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/OutboxComBrokerTestes.cs` (coleção `ColecaoMensageria`; API pela `FabricaApi`, com a preparação ligada e o broker do contêiner; Worker pela `FabricaWorker`):
+- [X] T019 [P] [US1] Integração em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/OutboxComBrokerTestes.cs` (coleção `ColecaoMensageria`; API pela `FabricaApi`, com a preparação ligada e o broker do contêiner; Worker pela `FabricaWorker`):
   - **Cenário 1**: criar um pedido. Em até 5 s, a fila de teste ligada a `pedido.criado`
     recebe uma mensagem com:
     - `MessageId` igual ao `idEvento`;
@@ -211,7 +211,7 @@ broker, criar 20 pedidos, retomar e receber os 20.
 
 ### Implementação da US1
 
-- [ ] T020 [US1] Outbox na criação:
+- [X] T020 [US1] Outbox na criação:
   - Em `src/PedidoFulfillment.Application/Pedidos/IArmazenamentoPedidos.cs`, mudar para
     `Adicionar(Pedido, RegistroIdempotencia, EventoSaida)`.
   - Em `ServicoPedidos.CriarAsync`, montar `EnvelopeEvento<PedidoCriado>` a partir do
@@ -220,7 +220,7 @@ broker, criar 20 pedidos, retomar e receber os 20.
   - Em `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoPedidos.cs`,
     adicionar o evento ao contexto.
   - Os testes da T018 devem passar.
-- [ ] T021 [US1] Criar `src/PedidoFulfillment.Infrastructure/Mensageria/DespachanteEventosSaida.cs` (`BackgroundService`, R-05):
+- [X] T021 [US1] Criar `src/PedidoFulfillment.Infrastructure/Mensageria/DespachanteEventosSaida.cs` (`BackgroundService`, R-05):
   - laço com `PeriodicTimer(IntervaloDespachoMs)`;
   - `DespacharLoteAsync`:
     1. escopo de DI e transação no contexto;
@@ -238,7 +238,7 @@ broker, criar 20 pedidos, retomar e receber os 20.
   - Falha de conexão: loga e espera o próximo ciclo, sem derrubar o processo.
   - Logs com `LoggerMessage`: `EventoPublicado` (5001) e `FalhaPublicacao` (5002), com
     `IdEvento`, `Tipo` e `Tentativas` (FR-020).
-- [ ] T022 [US1] Registrar o despachante em `AdicionarMensageria`. No `Program.cs` do Worker, chamar `AdicionarInfraestrutura` e `AdicionarMensageria`. Rodar T018–T019 e a suíte, e corrigir até ficarem verdes.
+- [X] T022 [US1] Registrar o despachante em `AdicionarMensageria`. No `Program.cs` do Worker, chamar `AdicionarInfraestrutura` e `AdicionarMensageria`. Rodar T018–T019 e a suíte, e corrigir até ficarem verdes.
 
 **Checkpoint**: o evento `pedido.criado` chega ao broker com garantia de outbox.
 

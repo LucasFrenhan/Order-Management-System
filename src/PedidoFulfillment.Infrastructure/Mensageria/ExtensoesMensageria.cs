@@ -16,6 +16,7 @@ public static class ExtensoesMensageria
         services.AddSingleton<IValidateOptions<OpcoesMensageria>, ValidadorOpcoesMensageria>();
         services.AddOptions<OpcoesMensageria>().BindConfiguration(OpcoesMensageria.Secao).ValidateOnStart();
         services.TryAddSingleton<ConexaoRabbitMQ>();
+        services.AddHostedService<DespachanteEventosSaida>();
         return services;
     }
 }

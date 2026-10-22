@@ -1,16 +1,24 @@
+using PedidoFulfillment.Infrastructure;
+using PedidoFulfillment.Infrastructure.Mensageria;
+using PedidoFulfillment.Infrastructure.Saude;
+
 namespace PedidoFulfillment.Worker;
 
 /// <summary>
-/// Ponto de entrada do Worker. Main explícito, sem top-level statements: a API já gera um
-/// <c>Program</c> global, e dois no projeto de testes seriam ambíguos (REQ-06, achado H1).
+/// Processo dos consumidores e do despachante do outbox (REQ-06, R-10). Só expõe /health e
+/// /health/pronto. Main explícito, sem top-level statements: a API já gera um <c>Program</c>
+/// global, e dois no projeto de testes seriam ambíguos (achado H1).
 /// </summary>
 public sealed class ProgramaWorker
 {
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+        builder.Services.AdicionarInfraestrutura(builder.Configuration);
+        builder.Services.AdicionarMensageria();
+
         var app = builder.Build();
-        app.MapGet("/health", () => TypedResults.Ok());
+        app.MapearEndpointsSaude();
         app.Run();
     }
 }

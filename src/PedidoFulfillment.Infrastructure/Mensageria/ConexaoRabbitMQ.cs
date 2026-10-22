@@ -43,7 +43,11 @@ internal sealed class ConexaoRabbitMQ(IOptions<OpcoesRabbitMQ> opcoes) : IAsyncD
                 VirtualHost = configuracao.VirtualHost,
                 AutomaticRecoveryEnabled = true,
                 TopologyRecoveryEnabled = true,
-                ClientProvidedName = "oms-worker"
+                ClientProvidedName = "oms-worker",
+                // Prazos curtos: com o broker sem responder, a falha volta logo para quem chamou.
+                RequestedConnectionTimeout = TimeSpan.FromSeconds(5),
+                ContinuationTimeout = TimeSpan.FromSeconds(5),
+                RequestedHeartbeat = TimeSpan.FromSeconds(10)
             };
             conexao = await fabrica.CreateConnectionAsync(cancellationToken);
             return conexao;

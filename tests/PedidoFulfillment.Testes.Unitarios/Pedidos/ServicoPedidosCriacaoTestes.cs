@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using FluentAssertions;
 using PedidoFulfillment.Application.Comum;
+using PedidoFulfillment.Application.Contratos.Eventos;
 using PedidoFulfillment.Application.Contratos.Erros;
 using PedidoFulfillment.Application.Contratos.Pedidos;
 using PedidoFulfillment.Application.Pedidos;
@@ -137,6 +138,41 @@ public sealed class ServicoPedidosCriacaoTestes
         evento.Propriedades["PedidoId"].Should().Be(resultado.Valor!.Id);
         evento.Propriedades["QuantidadeItens"].Should().Be(1);
         evento.Mensagem.Should().NotContain(produto.Id.ToString());
+    }
+
+    [Fact]
+    public async Task Criacao_grava_pedido_criado_no_outbox_com_os_dados_do_pedido()
+    {
+        var teclado = Produto(349.90m);
+        var mouse = Produto(129.90m);
+
+        var resultado = await Servico().CriarAsync(ClienteId, Guid.NewGuid(), Requisicao((teclado.Id, 2), (mouse.Id, 1)), CancellationToken.None);
+
+        var pedido = resultado.Valor!;
+        var evento = armazenamento.EventosGravados.Should().ContainSingle().Subject;
+        evento.Tipo.Should().Be(TiposEvento.PedidoCriado);
+        evento.CriadoEm.Should().Be(Agora);
+        var envelope = SerializacaoEventos.Desserializar<PedidoCriado>(evento.Conteudo);
+        envelope.IdEvento.Should().Be(evento.IdEvento);
+        envelope.IdCorrelacao.Should().Be(pedido.Id);
+        envelope.OcorridoEm.Should().Be(Agora);
+        envelope.Dados.Should().BeEquivalentTo(new PedidoCriado
+        {
+            PedidoId = pedido.Id,
+            Numero = pedido.Numero,
+            ClienteId = ClienteId,
+            Itens = [.. pedido.Itens.Select(i => new ItemPedidoCriado { ProdutoId = i.ProdutoId, Quantidade = i.Quantidade, PrecoUnitario = i.PrecoUnitario })],
+            ValorTotal = 829.70m,
+            Moeda = "BRL"
+        });
+    }
+
+    [Fact]
+    public async Task Falha_de_produto_nao_grava_evento()
+    {
+        await Servico().CriarAsync(ClienteId, Guid.NewGuid(), Requisicao((Guid.CreateVersion7(), 1)), CancellationToken.None);
+
+        armazenamento.EventosGravados.Should().BeEmpty();
     }
 
     private void DeveSer422(Resultado<PedidoResponseDTO> resultado, string codigo)

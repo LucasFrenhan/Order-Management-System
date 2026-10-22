@@ -72,7 +72,8 @@ public sealed class MensageriaTeste : IAsyncLifetime
         var consumidor = new AsyncEventingBasicConsumer(canal);
         consumidor.ReceivedAsync += (_, entrega) =>
         {
-            teste.Mensagens.Enqueue(entrega);
+            // O corpo só vale durante o callback (a memória é reaproveitada): copia agora.
+            teste.Mensagens.Enqueue(new MensagemRecebida(entrega.BasicProperties, entrega.Body.ToArray()));
             return Task.CompletedTask;
         };
         await canal.BasicConsumeAsync(fila.QueueName, autoAck: true, consumidor, TestContext.Current.CancellationToken);
@@ -137,11 +138,17 @@ public sealed class MensageriaTeste : IAsyncLifetime
 /// <summary>Mensagens recebidas por uma fila de teste.</summary>
 public sealed class FilaTeste(IConnection conexao, IChannel canal) : IAsyncDisposable
 {
-    public ConcurrentQueue<BasicDeliverEventArgs> Mensagens { get; } = new();
+    public ConcurrentQueue<MensagemRecebida> Mensagens { get; } = new();
 
     public async ValueTask DisposeAsync()
     {
         await canal.DisposeAsync();
         await conexao.DisposeAsync();
     }
+}
+
+/// <summary>Uma mensagem recebida, com o corpo já copiado.</summary>
+public sealed record MensagemRecebida(IReadOnlyBasicProperties Propriedades, byte[] Corpo)
+{
+    public string Texto => System.Text.Encoding.UTF8.GetString(Corpo);
 }

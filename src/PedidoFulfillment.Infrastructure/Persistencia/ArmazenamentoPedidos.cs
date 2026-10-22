@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Domain.Pedidos;
 using PedidoFulfillment.Domain.Produtos;
@@ -23,10 +24,11 @@ internal sealed class ArmazenamentoPedidos(ContextoBancoDados contexto) : IArmaz
     public Task<RegistroIdempotencia?> ObterRegistroIdempotenciaAsync(Guid clienteId, Guid chave, CancellationToken cancellationToken) =>
         contexto.ChavesIdempotencia.AsNoTracking().SingleOrDefaultAsync(r => r.ClienteId == clienteId && r.Chave == chave, cancellationToken);
 
-    public void Adicionar(Pedido pedido, RegistroIdempotencia registro)
+    public void Adicionar(Pedido pedido, RegistroIdempotencia registro, EventoSaida evento)
     {
         contexto.Pedidos.Add(pedido);
         contexto.ChavesIdempotencia.Add(registro);
+        contexto.EventosSaida.Add(evento);
     }
 
     public async Task SalvarAsync(CancellationToken cancellationToken)

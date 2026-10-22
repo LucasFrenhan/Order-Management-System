@@ -2,8 +2,10 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using PedidoFulfillment.Application.Comum;
+using PedidoFulfillment.Application.Contratos.Eventos;
 using PedidoFulfillment.Application.Contratos.Erros;
 using PedidoFulfillment.Application.Contratos.Pedidos;
+using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Domain.Pedidos;
 using PedidoFulfillment.Domain.Produtos;
 using PedidoFulfillment.Domain.Usuarios;
@@ -66,8 +68,10 @@ public sealed class ServicoPedidos(
         var numero = await geradorNumero.ProximoAsync(agora, cancellationToken);
         var novo = new Pedido(clienteId, numero, pedido.Itens.Select(i => (produtos[i.ProdutoId], i.Quantidade)), agora);
         var resposta = novo.ParaResposta();
-        armazenamento.Adicionar(novo, new RegistroIdempotencia(
-            clienteId, chaveIdempotencia, impressao, novo.Id, JsonSerializer.Serialize(resposta, OpcoesJsonRegistro), agora));
+        armazenamento.Adicionar(
+            novo,
+            new RegistroIdempotencia(clienteId, chaveIdempotencia, impressao, novo.Id, JsonSerializer.Serialize(resposta, OpcoesJsonRegistro), agora),
+            EventoSaida.De(EventoPedidoCriado(novo, agora), agora));
         try
         {
             await armazenamento.SalvarAsync(cancellationToken);
@@ -152,6 +156,26 @@ public sealed class ServicoPedidos(
             : new Falha(TipoFalha.Conflito, "Transição de status inválida.",
                 $"O pedido está em {atual} e não pode passar para {solicitado}.", CodigosErro.PedidoTransicaoInvalida);
     }
+
+    /// <summary>
+    /// <c>pedido.criado</c>, gravado no outbox junto com o pedido; o Worker publica depois
+    /// (REQ-06, FR-005). A repetição idempotente não passa por aqui (FR-009).
+    /// </summary>
+    private static EnvelopeEvento<PedidoCriado> EventoPedidoCriado(Pedido pedido, DateTimeOffset agora) =>
+        EnvelopeEvento.Criar(pedido.Id, new PedidoCriado
+        {
+            PedidoId = pedido.Id,
+            Numero = pedido.Numero,
+            ClienteId = pedido.ClienteId,
+            Itens = [.. pedido.Itens.OrderBy(i => i.ProdutoId).Select(i => new ItemPedidoCriado
+            {
+                ProdutoId = i.ProdutoId,
+                Quantidade = i.Quantidade,
+                PrecoUnitario = i.PrecoUnitario
+            })],
+            ValorTotal = pedido.ValorTotal,
+            Moeda = pedido.Moeda
+        }, agora);
 
     /// <summary>Admin e OperadorLogistica operam qualquer pedido; os demais, só como Cliente dono.</summary>
     private static bool EhOperacao(IReadOnlyCollection<PerfilUsuario> perfis) =>
