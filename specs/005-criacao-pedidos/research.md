@@ -108,6 +108,12 @@
        - mesma impressão: devolve a resposta dela;
        - impressão diferente: 409 divergente;
        - registro ainda não visível: 409 `IDEMPOTENCIA_EM_PROCESSAMENTO` (FR-012).
+  - **Deadlock**: se o SQL Server escolher a gravação como vítima de deadlock (erro 1205),
+    o `ArmazenamentoPedidos` também lança `ChaveIdempotenciaRegistradaException`. O
+    serviço então relê o registro e responde a repetição ou 409
+    `IDEMPOTENCIA_EM_PROCESSAMENTO`, nunca 500 (SC-002; achado M1 do `/speckit-analyze`).
+    Pela análise de travas (cada transação insere linhas próprias e só disputa a chave),
+    o deadlock é improvável, mas assim fica coberto.
   - **Tradução do erro**: o `ArmazenamentoPedidos` reconhece a violação pelo nome
     `PK_ChavesIdempotencia` na mensagem do SQL Server. Para isso, `ErrosBancoDados` ganha
     uma sobrecarga com o nome da restrição. A violação vira
@@ -226,7 +232,8 @@
   - 4001 `PedidoCriado`: `PedidoId`, `Numero`, `QuantidadeItens` e `ValorTotal`;
   - 4002 `PedidoRepetido`: `PedidoId`, para a repetição idempotente;
   - 4003 `StatusPedidoAlterado`: `PedidoId`, `StatusAnterior`, `StatusNovo` e
-    `PapelAutor` (`Operacao` ou `Cliente`).
+    `PapelAutor` (`Operacao` ou `Cliente`). É o papel que decidiu a regra (FR-020); com
+    Admin ou OperadorLogistica entre os perfis, o papel é `Operacao`.
 
   Nenhum evento traz e-mail, token nem corpo da requisição (FR-020).
 - **Justificativa**: segue o padrão dos eventos de autenticação do REQ-03 (série 3000).

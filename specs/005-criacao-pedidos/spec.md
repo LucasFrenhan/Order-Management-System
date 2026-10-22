@@ -6,7 +6,7 @@
 
 **Created**: 2026-10-22
 
-**Status**: Draft
+**Status**: Approved
 
 **Input**: User description: "REQ-05 (GitHub issue #6 — \"[Core] API de Criação de Pedidos e Controle de Idempotência\"): implementar o endpoint POST /api/v1/pedidos com validações de regra de negócio e suporte ao cabeçalho de idempotência. Critérios de aceite: endpoint restrito a usuários com a role Cliente; captura do cabeçalho X-Idempotency-Key — se a chave já existir no banco/cache, retorna a resposta do pedido previamente criado; validação de existência e preço dos produtos solicitados; pedido salvo no banco de dados com o status Pendente; o UserId do token JWT é associado automaticamente ao pedido. Contexto: o contrato v1 (REQ-01) já define a rota, CriarPedidoRequestDTO/PedidoResponseDTO, o número PED-AAAAMMDD-NNNNNN, os códigos IDEMPOTENCIA_CONTEUDO_DIVERGENTE, IDEMPOTENCIA_EM_PROCESSAMENTO, PRODUTO_INEXISTENTE e PRODUTO_INDISPONIVEL e a regra de idempotência (escopo usuário+chave, retenção mínima de 24 h, impressão do corpo normalizado; armazenamento definido no REQ-05). O REQ-04 entregou Pedido, Produto, histórico, concorrência otimista e catálogo inicial. Specs anteriores atribuem ao REQ-05 também as regras do GET /pedidos/{id} e do PATCH /pedidos/{id}/status e a remoção do ServicoNaoImplementado; a issue #11 (consulta e rastreio) também cita o GET. A publicação do evento PedidoCriado é do REQ-06. Branch feature/req-05-criacao-pedidos, empilhada sobre a do REQ-04 (PR #16 em revisão)."
 
@@ -307,7 +307,7 @@ Processando (403).
 
 - **FR-020**: A API MUST registrar em log a criação do pedido (identificador, número,
   quantidade de itens e valor total), a repetição idempotente e cada mudança de status
-  (identificador, status anterior e novo, perfil do autor). Os logs MUST NOT conter e-mail,
+  (identificador, status anterior e novo, papel do autor: operação ou Cliente, o papel que decidiu a regra). Os logs MUST NOT conter e-mail,
   token nem o corpo da requisição.
 
 **Contrato e transição**

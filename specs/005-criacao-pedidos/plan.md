@@ -78,7 +78,7 @@ local (SC-005)
 | I. Specification-First | ✅ | Spec aprovada após o specify (escopo com o usuário) e o clarify (3 perguntas); commit `[REQ-05]` |
 | II. Contratos versionados | ✅ | OpenAPI v1 intocado (FR-021). O comportamento de idempotência está detalhado em `contracts/idempotencia.md`, sem status nem código novo |
 | III. Segurança por padrão | ✅ | O dono vem só do token. Pedido de outra pessoa responde o mesmo 404 de inexistente (FR-015). Os logs não têm e-mail, token nem corpo (FR-020). As políticas de acesso continuam iguais |
-| IV. Desacoplamento assíncrono | ➖ Adiado com justificativa | O evento de pedido criado e o outbox são do REQ-06 (issue gh #7), por decisão de escopo das issues. Este requisito não faz integração entre domínios |
+| IV. Desacoplamento assíncrono | ➖ N/A | Nenhuma integração entre domínios neste requisito; o evento de pedido criado e o outbox são do REQ-06 (issue gh #7) |
 | V. Qualidade verificável | ✅ | Testes unitários do serviço, da impressão e da tabela de transições. Integração com banco real para idempotência concorrente, números, consulta, status e as respostas 401/403 que já existem |
 | Stack | ✅ | .NET 10, Minimal APIs, SQL Server via EF Core |
 | Endpoint só roteia | ✅ | `EndpointsPedidos` não muda |
@@ -87,9 +87,8 @@ local (SC-005)
 | Nomes em português | ✅ | `ServicoPedidos`, `ArmazenamentoPedidos`, `RegistroIdempotencia`, `ChavesIdempotencia`, `SequenciaNumeroPedido` |
 | Branch dedicada | ✅ | `feature/req-05-criacao-pedidos`, a partir de `main` com o REQ-04 mergeado |
 
-**Resultado**: aprovado. O único item não atendido agora é o Princípio IV, adiado para o
-REQ-06 com justificativa; não é violação, porque nenhuma integração entre domínios
-acontece neste requisito. Reavaliado após a Fase 1, sem mudanças.
+**Resultado**: aprovado, sem violações. Reavaliado após a Fase 1 e após o
+`/speckit-analyze`, sem mudanças.
 
 ## Project Structure
 
