@@ -127,6 +127,54 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                     b.ToTable("UsuariosTokens", (string)null);
                 });
 
+            modelBuilder.Entity("PedidoFulfillment.Application.Mensageria.EventoSaida", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Conteudo")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("CriadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("EnviadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("IdEvento")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("ProximaTentativaEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Tentativas")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("UltimoErro")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IdEvento")
+                        .IsUnique();
+
+                    b.HasIndex("ProximaTentativaEm", "Id")
+                        .HasDatabaseName("IX_EventosSaida_Pendentes")
+                        .HasFilter("[EnviadoEm] IS NULL");
+
+                    b.ToTable("EventosSaida", (string)null);
+                });
+
             modelBuilder.Entity("PedidoFulfillment.Application.Pedidos.RegistroIdempotencia", b =>
                 {
                     b.Property<Guid>("ClienteId")
@@ -529,6 +577,24 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
                     b.ToTable("Usuarios", (string)null);
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Infrastructure.Mensageria.EventoProcessado", b =>
+                {
+                    b.Property<string>("Consumidor")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("IdEvento")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("ProcessadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Consumidor", "IdEvento")
+                        .HasName("PK_EventosProcessados");
+
+                    b.ToTable("EventosProcessados", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>

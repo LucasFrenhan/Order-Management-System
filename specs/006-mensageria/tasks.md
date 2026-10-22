@@ -51,10 +51,10 @@ US4 fecha o Worker na entrega.
 
 ## Phase 1: Setup
 
-- [ ] T001 Rodar `dotnet build` e `dotnet test` na branch `feature/req-06-mensageria` e registrar a contagem de testes como linha de base (zero ignorados com o Docker no ar).
-- [ ] T002 Criar `src/PedidoFulfillment.Worker/PedidoFulfillment.Worker.csproj` (`Microsoft.NET.Sdk.Web`, referências a Application, Domain e Infrastructure) e adicioná-lo à `PedidoFulfillment.sln` (`dotnet sln add`). Criar `src/PedidoFulfillment.Worker/ProgramaWorker.cs`, sem top-level statements (achado H1): `namespace PedidoFulfillment.Worker; public sealed class ProgramaWorker { public static void Main(string[] args) { ... } }`, com um host mínimo que mapeia `/health`, só para compilar. Ele é completado na US4. A API gera `Program` no namespace global, e um segundo `Program` global no Worker deixaria a `FabricaApi` e o teste de arquitetura ambíguos (CS0433) no projeto de testes, que referencia os dois.
-- [ ] T003 [P] Em `Directory.Packages.props`, no `ItemGroup Label="Testes"`, acrescentar `JsonSchema.Net` `9.4.0`, com o comentário "conformidade de schema dos eventos (specs/006-mensageria, R-12); a 9.4.1 tinha menos de duas semanas". Acrescentar o `PackageReference` em `tests/PedidoFulfillment.Testes.Integracao/PedidoFulfillment.Testes.Integracao.csproj`, junto com a referência de projeto ao Worker. Atualizar o comentário do topo do `Directory.Packages.props` para citar `specs/006-mensageria/plan.md`.
-- [ ] T004 Atualizar `tests/PedidoFulfillment.Testes.Integracao/Arquitetura/DependenciasCamadasTestes.cs`:
+- [X] T001 Rodar `dotnet build` e `dotnet test` na branch `feature/req-06-mensageria` e registrar a contagem de testes como linha de base (zero ignorados com o Docker no ar).
+- [X] T002 Criar `src/PedidoFulfillment.Worker/PedidoFulfillment.Worker.csproj` (`Microsoft.NET.Sdk.Web`, referências a Application, Domain e Infrastructure) e adicioná-lo à `PedidoFulfillment.sln` (`dotnet sln add`). Criar `src/PedidoFulfillment.Worker/ProgramaWorker.cs`, sem top-level statements (achado H1): `namespace PedidoFulfillment.Worker; public sealed class ProgramaWorker { public static void Main(string[] args) { ... } }`, com um host mínimo que mapeia `/health`, só para compilar. Ele é completado na US4. A API gera `Program` no namespace global, e um segundo `Program` global no Worker deixaria a `FabricaApi` e o teste de arquitetura ambíguos (CS0433) no projeto de testes, que referencia os dois.
+- [X] T003 [P] Em `Directory.Packages.props`, no `ItemGroup Label="Testes"`, acrescentar `JsonSchema.Net` `9.4.0`, com o comentário "conformidade de schema dos eventos (specs/006-mensageria, R-12); a 9.4.1 tinha menos de duas semanas". Acrescentar o `PackageReference` em `tests/PedidoFulfillment.Testes.Integracao/PedidoFulfillment.Testes.Integracao.csproj`, junto com a referência de projeto ao Worker. Atualizar o comentário do topo do `Directory.Packages.props` para citar `specs/006-mensageria/plan.md`.
+- [X] T004 Atualizar `tests/PedidoFulfillment.Testes.Integracao/Arquitetura/DependenciasCamadasTestes.cs`:
   - constante `Worker`;
   - `Permitidas[Worker] = [Application, Infrastructure, Domain]`;
   - assembly do Worker no dicionário `Assemblies` (por um tipo público do Worker, por
@@ -72,26 +72,26 @@ US4 fecha o Worker na entrega.
 
 ### Testes da fundação
 
-- [ ] T005 [P] Testes de serialização em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/SerializacaoEventosTestes.cs`. Para cada um dos 4 eventos:
+- [X] T005 [P] Testes de serialização em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/SerializacaoEventosTestes.cs`. Para cada um dos 4 eventos:
   - envelope com os campos em camelCase;
   - `tipo` e `versao` corretos;
   - `ocorridoEm` em UTC;
   - decimais com 2 casas;
   - ida e volta (`Serializar` → `Desserializar`) igual por valor.
-- [ ] T006 [P] Testes de `EventoSaida` em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/EventoSaidaTestes.cs`:
+- [X] T006 [P] Testes de `EventoSaida` em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/EventoSaidaTestes.cs`:
   - `De(envelope, instante)` preenche `IdEvento`, `Tipo` e `Conteudo` (o JSON do envelope),
     com `Tentativas = 0`, `ProximaTentativaEm = instante` e `EnviadoEm` nulo;
   - `RegistrarFalha` incrementa as tentativas, com esperas de 2, 4, 8 e 10 s (teto) e o
     erro cortado em 500 caracteres;
   - `MarcarEnviado` preenche `EnviadoEm`.
-- [ ] T007 [P] Testes de `OpcoesMensageria` em `tests/PedidoFulfillment.Testes.Unitarios/Configuracao/OpcoesMensageriaTestes.cs`:
+- [X] T007 [P] Testes de `OpcoesMensageria` em `tests/PedidoFulfillment.Testes.Unitarios/Configuracao/OpcoesMensageriaTestes.cs`:
   - os padrões são válidos;
   - 2 ou 4 intervalos, intervalos não crescentes, intervalo ≤ 0, lote 0 e despacho fora
     de 100–60000 são recusados, com mensagens que nomeiam a chave.
 
 ### Implementação da fundação
 
-- [ ] T008 [P] Criar os contratos em `src/PedidoFulfillment.Application/Contratos/Eventos/`, conforme o data-model e os schemas:
+- [X] T008 [P] Criar os contratos em `src/PedidoFulfillment.Application/Contratos/Eventos/`, conforme o data-model e os schemas:
   - `EnvelopeEvento.cs` (`sealed record EnvelopeEvento<T>`, com membros `required`);
   - `PedidoCriado.cs` (com `ItemPedidoCriado`);
   - `EstoqueReservado.cs` (com `ItemEstoqueReservado`);
@@ -106,7 +106,7 @@ US4 fecha o Worker na entrega.
     - `EnvelopeEvento<T> Desserializar<T>(string)`.
 
   Comentários citando FR-001 a FR-003 e `contracts/eventos/`.
-- [ ] T009 [P] Criar `src/PedidoFulfillment.Application/Mensageria/EventoSaida.cs` (R-04 e data-model):
+- [X] T009 [P] Criar `src/PedidoFulfillment.Application/Mensageria/EventoSaida.cs` (R-04 e data-model):
   - setters privados;
   - fábrica `De<T>`;
   - `MarcarEnviado(DateTimeOffset)`;
@@ -114,9 +114,9 @@ US4 fecha o Worker na entrega.
   - constante `TetoEsperaSegundos = 10`.
 
   Os testes da T006 devem passar.
-- [ ] T010 [P] Criar `src/PedidoFulfillment.Application/Mensageria/IManipuladorEvento.cs`, com `Consumidor`, `Tipos` e `ManipularAsync(EnvelopeEvento<TDados>, CancellationToken)`. Documentar que o efeito deve ser gravado pelas portas do Application resolvidas no mesmo escopo (que usam o `ContextoBancoDados` do escopo), porque a base faz o commit (contracts/topologia-e-consumo.md).
-- [ ] T011 [P] Criar `src/PedidoFulfillment.Infrastructure/Configuracao/OpcoesMensageria.cs`, com a seção `Mensageria`, os padrões do data-model e um `ValidadorOpcoesMensageria`. Os testes da T007 devem passar.
-- [ ] T012 Infrastructure: persistência.
+- [X] T010 [P] Criar `src/PedidoFulfillment.Application/Mensageria/IManipuladorEvento.cs`, com `Consumidor`, `Tipos` e `ManipularAsync(EnvelopeEvento<TDados>, CancellationToken)`. Documentar que o efeito deve ser gravado pelas portas do Application resolvidas no mesmo escopo (que usam o `ContextoBancoDados` do escopo), porque a base faz o commit (contracts/topologia-e-consumo.md).
+- [X] T011 [P] Criar `src/PedidoFulfillment.Infrastructure/Configuracao/OpcoesMensageria.cs`, com a seção `Mensageria`, os padrões do data-model e um `ValidadorOpcoesMensageria`. Os testes da T007 devem passar.
+- [X] T012 Infrastructure: persistência.
   - Criar `Mensageria/EventoProcessado.cs`.
   - Criar `Persistencia/Configuracoes/ConfiguracaoEventoSaida.cs`:
     - tabela `EventosSaida`;
@@ -130,8 +130,8 @@ US4 fecha o Worker na entrega.
     `Consumidor` com 100.
   - Em `ContextoBancoDados.cs`, acrescentar os `DbSet` `EventosSaida` e
     `EventosProcessados`.
-- [ ] T013 Gerar a migration `MensageriaOutbox` (`dotnet ef migrations add MensageriaOutbox ... --output-dir Persistencia/Migracoes`). Revisar se ela só cria as 2 tabelas e os índices. Atualizar `ModeloSincronizadoTestes` e `MigracaoBancoTestes` para a quarta migration, e conferir `has-pending-model-changes`.
-- [ ] T014 Criar a conexão e a topologia em `src/PedidoFulfillment.Infrastructure/Mensageria/` (R-06, R-09):
+- [X] T013 Gerar a migration `MensageriaOutbox` (`dotnet ef migrations add MensageriaOutbox ... --output-dir Persistencia/Migracoes`). Revisar se ela só cria as 2 tabelas e os índices. Atualizar `ModeloSincronizadoTestes` e `MigracaoBancoTestes` para a quarta migration, e conferir `has-pending-model-changes`.
+- [X] T014 Criar a conexão e a topologia em `src/PedidoFulfillment.Infrastructure/Mensageria/` (R-06, R-09):
   - `ConexaoRabbitMQ.cs`:
     - singleton `IAsyncDisposable`;
     - `Task<IConnection> ObterAsync(CancellationToken)`, preguiçoso e protegido por
@@ -148,7 +148,7 @@ US4 fecha o Worker na entrega.
   - `ExtensoesMensageria.cs`: `AdicionarMensageria(this IServiceCollection, IConfiguration)`,
     que registra as opções validadas na partida, a `ConexaoRabbitMQ` e o despachante (US1),
     e `AdicionarConsumidor<TManipulador, TDados>()` (US3).
-- [ ] T015 [P] Fixture de teste `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/MensageriaTeste.cs`:
+- [X] T015 [P] Fixture de teste `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/MensageriaTeste.cs`:
   - coleção `ColecaoMensageria`;
   - um SQL Server e um RabbitMQ (`rabbitmq:4.3.6-management`) reais, com a mesma regra de
     `AmbienteDocker` das fixtures que já existem;
@@ -160,13 +160,13 @@ US4 fecha o Worker na entrega.
   - utilitário `EsperarAteAsync(Func<Task<bool>> condicao, TimeSpan prazo)`;
   - utilitário `FilaTesteAsync(string chave)`: cria uma fila exclusiva ligada a
     `oms.eventos` e devolve as mensagens recebidas.
-- [ ] T016 [P] Criar `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/FabricaWorker.cs`: uma `WebApplicationFactory<PedidoFulfillment.Worker.ProgramaWorker>` (achado H1), com:
+- [X] T016 [P] Criar `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/FabricaWorker.cs`: uma `WebApplicationFactory<PedidoFulfillment.Worker.ProgramaWorker>` (achado H1), com:
   - ambiente `Testes`;
   - string de conexão e broker configuráveis;
   - `Mensageria:IntervaloDespachoMs = 100`;
   - `Mensageria:IntervalosNovaTentativaMs = [100, 200, 400]`;
   - `ConfigureTestServices` para registrar manipuladores de teste.
-- [ ] T017 Mover `src/PedidoFulfillment.API/Saude/EndpointsSaude.cs` para `src/PedidoFulfillment.Infrastructure/Saude/EndpointsSaude.cs` (namespace `PedidoFulfillment.Infrastructure.Saude`), para a API e o Worker usarem o mesmo mapeamento de `/health` e `/health/pronto` (achado M1). Atualizar o `using` no `Program.cs` da API. Depois, rodar `dotnet build` e `dotnet test`: T004–T007 verdes, a suíte toda verde, zero avisos, e os testes de saúde do REQ-02 inalterados.
+- [X] T017 Mover `src/PedidoFulfillment.API/Saude/EndpointsSaude.cs` para `src/PedidoFulfillment.Infrastructure/Saude/EndpointsSaude.cs` (namespace `PedidoFulfillment.Infrastructure.Saude`), para a API e o Worker usarem o mesmo mapeamento de `/health` e `/health/pronto` (achado M1). Atualizar o `using` no `Program.cs` da API. Depois, rodar `dotnet build` e `dotnet test`: T004–T007 verdes, a suíte toda verde, zero avisos, e os testes de saúde do REQ-02 inalterados.
 
 **Checkpoint**: contratos, tabelas, topologia e fixtures prontos.
 
