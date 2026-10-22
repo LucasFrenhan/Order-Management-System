@@ -100,8 +100,8 @@ insuficiente".
 
 1. **Given** um pedido `Pendente` em que pelo menos um item tem estoque menor que a
    quantidade pedida, **When** "pedido criado" é consumido, **Then** nenhum produto do
-   pedido tem o estoque alterado, o pedido muda para `Cancelado` com o motivo "estoque
-   insuficiente" no histórico, sem autor (mudança do sistema), e "estoque insuficiente" é
+   pedido tem o estoque alterado, o pedido muda para `Cancelado` com o motivo
+   `Estoque insuficiente.` no histórico, sem autor (mudança do sistema), e "estoque insuficiente" é
    publicado.
 2. **Given** um item cujo produto foi desativado depois da criação do pedido, **When** o
    pedido é consumido, **Then** ele é tratado como sem estoque, como no cenário 1.
@@ -262,8 +262,8 @@ cancelado antes da reserva e conferir que o estoque não mudou.
   O status do pedido MUST NOT mudar (em geral, continua `Pendente`).
 - **FR-006**: Se algum item não está disponível, o consumidor MUST NOT alterar nenhum
   estoque. Na mesma gravação, MUST mudar o pedido do status atual para `Cancelado`
-  (transição já permitida no contrato v1), com o motivo "estoque
-  insuficiente" no histórico e sem autor, e registrar o evento "estoque insuficiente".
+  (transição já permitida no contrato v1), com o motivo `Estoque insuficiente.` no
+  histórico e sem autor, e registrar o evento "estoque insuficiente".
 - **FR-007**: O estoque de um produto MUST NOT ficar negativo e MUST NOT ser abatido duas
   vezes para o mesmo pedido, mesmo com reentregas e processamento simultâneo.
 
@@ -355,7 +355,7 @@ cancelado antes da reserva e conferir que o estoque não mudou.
   pagamento aprovado (issue #9), como já está no README.
 - A reserva é "tudo ou nada": não há reserva parcial nem pedido parcialmente atendido.
 - O cancelamento por falta de estoque é uma mudança do sistema: entra no histórico sem
-  autor, com o motivo "estoque insuficiente". Ele não passa pelas regras de quem pode
+  autor, com o motivo `Estoque insuficiente.`. Ele não passa pelas regras de quem pode
   mudar o status pela API (REQ-05), mas respeita a transição `Pendente → Cancelado` já
   prevista no contrato v1.
 - A devolução do estoque no cancelamento pela API entra neste requisito (clarify; US5). A
