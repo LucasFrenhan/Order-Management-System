@@ -204,7 +204,7 @@ A proporção (SC-002) e o validador já são cobertos na fundação (T003, T004
 - [X] T023 [P] Em `specs/006-mensageria/contracts/topologia-e-consumo.md`, citar o consumidor de pagamento ao lado do de estoque, sem mudar o contrato. Em `specs/008-estoque/quickstart.md`, nota nos §3 e §5: com o pagamento ligado, o pedido reservado vai para `Processando` (ou `PagamentoRejeitado`); para repetir o roteiro do REQ-08, suba o Worker com a taxa em 100% e cancele como operação.
 - [X] T024 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados).
 - [X] T025 Executar o quickstart (§1 a §7) e registrar em Notes. Conferir nos logs do Worker os EventIds 7001, 7002 e 7003.
-- [ ] T026 Fazer push e abrir o PR com `Closes #9`. Acompanhar o CI (`build-testes`, com os dois jobs) até ficar verde e registrar os tempos em Notes.
+- [X] T026 Fazer push e abrir o PR com `Closes #9`. Acompanhar o CI (`build-testes`, com os dois jobs) até ficar verde e registrar os tempos em Notes.
 
 ---
 
@@ -287,3 +287,6 @@ Setup, Foundational e US1: o pedido reservado é pago, vai para `Processando`, e
     e o pedido criado na demonstração foi pago (taxa padrão) em cerca de 2 s.
   - O ambiente local recebeu pedidos de teste; API e Worker locais parados, e a fila de
     teste removida.
+- **T026** (2026-10-23): PR #23 com `Closes #9`. O CI (`build-testes`, execução
+  39898197793) ficou verde: "Build e testes" em 3m54s (596 testes, 346 unitários e 250 de
+  integração, nenhum ignorado) e "Demonstração" em 2m08s.
