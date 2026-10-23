@@ -46,8 +46,25 @@ Este requisito fecha esse caminho em duas frentes:
   alguém dispara? → A: Automática, a cada ciclo no processo de workers, com o primeiro
   ciclo logo após a subida; sem disparo manual.
 - Q: Se a regra da etapa falhar sempre para o mesmo pedido, a reconciliação tenta a cada
-  ciclo sem limite ou desiste depois de algumas tentativas? → A: Tenta a cada ciclo, sem
-  limite, com a falha registrada em log a cada vez; nada novo é gravado no pedido.
+  ciclo sem limite ou desiste depois de algumas tentativas? → A: Tenta a cada ciclo, com a
+  falha registrada em log a cada vez e nada novo gravado no pedido enquanto ele não se
+  esgota (revisto pela pergunta seguinte).
+- Q: Como impedir que pedidos que falham sempre fiquem para sempre na reconciliação e ocupem
+  o lote? → A: O pedido se esgota quando está parado há mais de 24 h (configurável) **e** a
+  regra já falhou nele em pelo menos 3 ciclos, contados em memória no processo de workers
+  (reinício zera a contagem, o que só adia o esgotamento). Esgotado:
+  - estoque: o pedido vai para `Cancelado`, sem autor, com o motivo
+    `Não foi possível reservar o estoque.`, sem evento de saída;
+  - pagamento: o pagamento é registrado com a situação nova "não foi possível processar",
+    o estoque volta na mesma gravação, e o pedido vai para `Cancelado`, sem autor, com o
+    motivo `Não foi possível processar o pagamento.`, sem evento de saída;
+  - entrega: o pedido já está pago, e cancelar sem estorno deixaria o Cliente cobrado; não
+    há cancelamento neste REQ. O pedido segue na reconciliação, no fim da fila, e o
+    tratamento fica para o próximo requisito (cancelamento depois do pagamento, com
+    estorno).
+  Em cada ciclo, os pedidos sem falha recente vêm antes dos que falharam no ciclo anterior.
+  A visibilidade desses cancelamentos para outros sistemas (não existe evento de
+  cancelamento) fica anotada como pendência.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -133,6 +150,22 @@ de workers e conferir que, no ciclo seguinte, o pedido ganha a ordem, vai para
    pedido avança uma única vez, com um único evento de saída.
 7. **Given** pedidos em status final (`Cancelado`, `Despachado`, `PagamentoRejeitado`) ou
    já com o efeito da etapa, **When** a reconciliação roda, **Then** nada muda.
+8. **Given** um pedido `Pendente` sem reserva, parado há mais de 24 h, cuja reserva já
+   falhou em 3 ciclos, **When** a reconciliação roda, **Then** o pedido vai para
+   `Cancelado`, sem autor, com o motivo `Não foi possível reservar o estoque.`, e nenhum
+   evento de saída é registrado.
+9. **Given** um pedido com estoque reservado e sem pagamento, parado há mais de 24 h, cuja
+   cobrança já falhou em 3 ciclos, **When** a reconciliação roda, **Then**, numa única
+   gravação, o pagamento é registrado com a situação "não foi possível processar", o
+   estoque volta aos produtos, e o pedido vai para `Cancelado`, sem autor, com o motivo
+   `Não foi possível processar o pagamento.`, sem evento de saída.
+10. **Given** um pedido parado há mais de 24 h cuja regra falhou só uma ou duas vezes,
+    **When** a reconciliação roda, **Then** ele não é cancelado: é tentado de novo.
+11. **Given** um pedido pago sem ordem de entrega cuja criação da ordem falha sempre,
+    **When** passam 24 h e 3 ciclos com falha, **Then** ele não é cancelado: segue na
+    reconciliação, com a falha em log.
+12. **Given** um lote cheio de pedidos que falharam no ciclo anterior e um pedido parado
+    novo, **When** o ciclo seguinte roda, **Then** o pedido novo é tratado nesse ciclo.
 
 ---
 
@@ -156,6 +189,8 @@ contagens.
    com o total por etapa; um ciclo sem pedidos parados não gera aviso.
 3. **Given** um evento devolvido sem rota pelo broker, **When** o log é lido, **Then** a
    falha de publicação traz o identificador e o tipo do evento e o motivo "sem rota".
+4. **Given** um pedido esgotado e cancelado, **When** o log é lido, **Then** há um registro
+   de erro com o identificador do pedido, a etapa e o número de ciclos com falha.
 
 ---
 
@@ -171,8 +206,22 @@ contagens.
   mesmo tempo): a reconciliação usa a mesma concorrência otimista e as mesmas reavaliações
   do consumidor. Se o pedido deixou de estar parado, termina sem gravar.
 - **Falha da regra para um pedido** (por exemplo, o gateway de pagamento falha): o pedido é
-  pulado no ciclo, com a falha em log, e volta a ser avaliado no ciclo seguinte, sem limite
-  de ciclos e sem gravar nada no pedido. Os demais pedidos do ciclo continuam.
+  pulado no ciclo, com a falha em log, e volta a ser avaliado no ciclo seguinte, depois dos
+  pedidos sem falha recente, sem gravar nada no pedido. Os demais pedidos do ciclo
+  continuam. Parado há mais de 24 h e com pelo menos 3 ciclos com falha, ele se esgota
+  (FR-012).
+- **Falha passageira num pedido antigo** (por exemplo, um pedido pago antes do REQ-10,
+  tentado pela primeira vez com dias de parado): uma falha isolada não o cancela; o
+  esgotamento exige pelo menos 3 ciclos com falha.
+- **Processo de workers reiniciado**: a contagem de falhas, que fica em memória, recomeça;
+  o esgotamento só é adiado, nunca antecipado.
+- **Pedido na etapa de entrega que falha sempre**: não é cancelado (já está pago, e não há
+  estorno); segue na reconciliação, depois dos demais, com a falha em log a cada ciclo, até
+  o próximo requisito tratar o cancelamento depois do pagamento. A operação pode despachá-lo
+  pela API, e o despacho cria a ordem que falta (REQ-11).
+- **Esgotamento ao mesmo tempo que a operação ou o consumidor mexem no pedido**: o
+  cancelamento usa a mesma concorrência otimista; se o pedido deixou de estar parado, a
+  reconciliação não o cancela.
 - **Pedido cuja mensagem foi para a DLQ** (por exemplo, falhas repetidas no consumidor): o
   pedido continua parado pelo estado e é reavaliado pela reconciliação, que aplica a mesma
   regra. O reprocessamento da mensagem na DLQ continua manual e fora do escopo.
@@ -226,31 +275,47 @@ contagens.
   gerar evento de saída duplicado.
 - **FR-010**: A reconciliação MUST NOT republicar eventos antigos do outbox nem depender
   deles.
-- **FR-011**: Cada ciclo MUST tratar no máximo um lote configurável de pedidos, dos mais
-  antigos para os mais novos. A falha de um pedido MUST NOT interromper os demais, e o
-  pedido que falhou MUST ser reavaliado no ciclo seguinte, sem limite de ciclos e sem
-  gravar nada no pedido. Pedidos que falham sempre MUST NOT impedir, ciclo após ciclo, que
-  os demais pedidos parados sejam tratados, mesmo que ocupem o lote inteiro.
-- **FR-012**: O intervalo dos ciclos, o limite de tempo parado e o tamanho do lote MUST ser
-  configuráveis, com valores padrão (Assumptions) e validação na partida, como as demais
-  opções de mensageria.
+- **FR-011**: Cada ciclo MUST tratar no máximo um lote configurável de pedidos. A falha de
+  um pedido MUST NOT interromper os demais, e o pedido que falhou MUST ser reavaliado nos
+  ciclos seguintes sem gravar nada nele até se esgotar (FR-012). Os pedidos que falharam
+  no ciclo anterior MUST vir depois dos demais na escolha do lote; entre pedidos do mesmo
+  grupo, os mais antigos vêm primeiro. Assim, pedidos que falham sempre MUST NOT impedir
+  que os demais pedidos parados sejam tratados.
+- **FR-012**: Um pedido das etapas de estoque ou de pagamento MUST se esgotar quando está
+  parado há mais que o limite de esgotamento (padrão 24 h) **e** a regra já falhou nele em
+  pelo menos 3 ciclos. A contagem de falhas fica em memória no processo de workers e
+  recomeça quando ele reinicia. Esgotado, numa única gravação, sem autor e sem evento de
+  saída:
+  - estoque: o pedido MUST ir para `Cancelado`, com o motivo
+    `Não foi possível reservar o estoque.`;
+  - pagamento: o pagamento MUST ser registrado com a situação "não foi possível processar",
+    o estoque reservado MUST voltar aos produtos, e o pedido MUST ir para `Cancelado`, com o
+    motivo `Não foi possível processar o pagamento.`.
+- **FR-013**: Um pedido da etapa de entrega MUST NOT ser cancelado pela reconciliação. Ele
+  continua sendo reavaliado, com a ordem do FR-011.
+- **FR-014**: O intervalo dos ciclos, o limite de tempo parado, o limite de esgotamento, o
+  número mínimo de ciclos com falha e o tamanho do lote MUST ser configuráveis, com valores
+  padrão (Assumptions) e validação na partida, como as demais opções de mensageria; o
+  limite de esgotamento MUST ser maior que o limite de tempo parado.
 
 **Observabilidade**
 
-- **FR-013**: Pedido recuperado (identificador do pedido, etapa e resultado), resumo do
-  ciclo (total por etapa), falha de um pedido e falha do ciclo MUST ser registrados em log,
-  sem dados pessoais além dos identificadores. A falha de publicação sem rota MUST trazer o
-  identificador e o tipo do evento e o motivo.
+- **FR-015**: Pedido recuperado (identificador do pedido, etapa e resultado), pedido
+  esgotado e cancelado (identificador, etapa e número de ciclos com falha), resumo do ciclo
+  (total por etapa), falha de um pedido (com o número de ciclos com falha) e falha do ciclo
+  MUST ser registrados em log, sem dados pessoais além dos identificadores. A falha de
+  publicação sem rota MUST trazer o identificador e o tipo do evento e o motivo.
 
 **Compatibilidade**
 
-- **FR-014**: Os contratos de eventos v1 e o contrato HTTP v1 MUST permanecer inalterados.
-- **FR-015**: Os consumidores de estoque, pagamento e entrega MUST continuar com o
+- **FR-016**: Os contratos de eventos v1 e o contrato HTTP v1 MUST permanecer inalterados.
+  A situação de pagamento nova é interna: não aparece na API nem nos eventos.
+- **FR-017**: Os consumidores de estoque, pagamento e entrega MUST continuar com o
   comportamento atual; a reconciliação reaproveita as regras deles, sem duplicá-las.
-- **FR-016**: A suíte MUST ter um teste de integração que reproduz a publicação num broker
+- **FR-018**: A suíte MUST ter um teste de integração que reproduz a publicação num broker
   sem as filas dos consumidores e prova que nenhum evento com consumidor é perdido, além dos
-  testes da reconciliação por etapa, todos com banco e broker reais, e MUST continuar verde
-  no CI.
+  testes da reconciliação por etapa e do esgotamento, todos com banco e broker reais, e
+  MUST continuar verde no CI.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -261,6 +326,11 @@ contagens.
 - **Pedido** (REQ-04, REQ-08 a REQ-10): status, estoque reservado, pagamento, ordem de
   entrega e instante da última atualização, que a reconciliação usa para saber há quanto
   tempo o pedido está parado.
+- **Pagamento** (REQ-04, REQ-09): ganha a situação "não foi possível processar", ao lado de
+  pendente, aprovado e recusado, para a cobrança que se esgotou sem resposta válida do
+  gateway. Não tem identificador de transação, e o motivo fica registrado.
+- **Contagem de falhas da reconciliação**: por pedido, quantos ciclos seguidos a regra
+  falhou e se falhou no ciclo anterior. Fica só na memória do processo de workers.
 
 ## Success Criteria *(mandatory)*
 
@@ -276,7 +346,12 @@ contagens.
   reconciliação.
 - **SC-005**: Os pedidos pagos sem ordem de entrega do REQ-10 existentes num ambiente são
   recuperados no primeiro ciclo depois da subida (até o tamanho do lote por ciclo).
-- **SC-006**: O tempo do fluxo normal (do pedido criado ao "entrega criada") continua
+- **SC-006**: Nenhum pedido das etapas de estoque e de pagamento fica na reconciliação por
+  mais que o limite de esgotamento mais 3 ciclos com o processo de workers no ar (com os
+  padrões, cerca de 24 h e 15 min), e nenhum pedido da etapa de entrega é cancelado por ela.
+- **SC-007**: Com o lote cheio de pedidos que falham sempre, um pedido parado novo é
+  tratado no ciclo seguinte ao que o encontrou, em 100% dos casos.
+- **SC-008**: O tempo do fluxo normal (do pedido criado ao "entrega criada") continua
   dentro da meta do REQ-10 (95% em até 10 segundos no ambiente de demonstração), e a suíte
   continua 100% verde no CI.
 
@@ -288,9 +363,24 @@ contagens.
   consumidor interno e continuam publicados sem exigir rota; sistemas externos que os
   queiram declaram as próprias filas.
 - **Valores padrão** da reconciliação, ajustáveis no plano: ciclo a cada 5 minutos, limite
-  de 10 minutos parado e lote de 100 pedidos por ciclo. O limite fica bem acima do tempo do
-  fluxo normal (segundos, REQ-10) e das novas tentativas do consumo (REQ-06), para não
-  disputar com eles.
+  de 10 minutos parado, lote de 100 pedidos por ciclo, esgotamento com 24 horas parado e
+  pelo menos 3 ciclos com falha. O limite de tempo parado fica bem acima do tempo do fluxo
+  normal (segundos, REQ-10) e das novas tentativas do consumo (REQ-06), para não disputar
+  com eles.
+- "Falha da regra" é o processamento que termina em erro (por exemplo, o gateway falha ou
+  não responde, ou os conflitos de concorrência persistem). Uma recusa do gateway não é
+  falha: é o resultado normal do REQ-09. Um pedido que deixou de estar parado não conta
+  falha.
+- A situação "não foi possível processar" é registrada pela reconciliação, no esgotamento.
+  O consumidor de pagamento continua como hoje: as falhas dele seguem as novas tentativas
+  e a DLQ do REQ-06.
+- O cancelamento por esgotamento não publica evento, porque não existe evento de
+  cancelamento. **Pendência anotada**: decidir como outros sistemas ficam sabendo desses
+  cancelamentos (e dos cancelamentos em geral).
+- **Pendência anotada para o próximo requisito**: o pedido da etapa de entrega que falha
+  sempre já está pago; cancelá-lo exige o estorno, que entra no requisito de cancelamento
+  depois do pagamento. Até lá, ele segue na reconciliação, e a operação pode despachá-lo
+  pela API.
 - O "tempo parado" é medido pela última atualização do pedido.
 - A reconciliação roda no processo de workers, não na API, e o primeiro ciclo acontece logo
   após a subida.

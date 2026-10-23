@@ -34,11 +34,11 @@
 - Validação em 2026-10-23, uma iteração, 16/16. Termos como "fila", "DLQ", "outbox",
   "broker", "rota" e "concorrência otimista" seguem o vocabulário das specs do REQ-06 ao
   REQ-11 e descrevem comportamento observável.
-- Decisões tomadas como padrão (o clarify de 2026-10-23 confirmou a reconciliação automática e
-  a reavaliação sem limite do pedido que falha):
+- Decisões tomadas como padrão (o clarify de 2026-10-23 confirmou a reconciliação automática e o
+  esgotamento após 24 h e 3 ciclos com falha, com cancelamento só no estoque e no pagamento):
   - só os tipos com consumidor interno exigem rota; os demais seguem publicados sem fila;
   - reconciliação periódica e automática no processo de workers (não um comando manual),
-    com ciclo de 5 min, limite de 10 min parado e lote de 100;
+    com ciclo de 5 min, limite de 10 min parado, lote de 100 e esgotamento com 24 h e 3 ciclos;
   - as três etapas (estoque, pagamento e entrega) entram, não só a entrega do REQ-10;
   - pedidos cuja mensagem foi para a DLQ também são reavaliados pelo estado;
   - "tempo parado" medido pela última atualização do pedido.
