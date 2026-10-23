@@ -170,21 +170,21 @@ A proporção (SC-002) e o validador já são cobertos na fundação (T003, T004
 
 ### Testes da US4
 
-- [ ] T019 [P] [US4] Em `tests/PedidoFulfillment.Testes.Unitarios/Pagamentos/ProcessamentoPagamentoTestes.cs`:
+- [X] T019 [P] [US4] Em `tests/PedidoFulfillment.Testes.Unitarios/Pagamentos/ProcessamentoPagamentoTestes.cs`:
   - `Cancelado`, `Despachado` e `PagamentoRejeitado` (theory), pedido sem reserva e pedido já pago: gateway não chamado, nenhum `SalvarAsync`, nenhum evento, log 7003 com o motivo;
   - `Processando` e `ProntoParaEnvio` reservados (theory): aprovado mantém o status e publica `pagamento.aprovado`; recusado vai para `PagamentoRejeitado` e devolve o estoque;
   - um conflito e depois sucesso: duas leituras, `DescartarAlteracoes` uma vez, gateway chamado uma vez só, um único evento;
   - conflito e, na releitura, o pedido foi cancelado (sem reserva): termina sem gravar, log 7003, gateway chamado uma vez;
   - conflito e, na releitura, o pedido foi movido para `Processando` pela operação (achado L2): aprovação sem mudança de status, gateway chamado uma vez;
   - conflito nas 3 vezes: relança `ConflitoConcorrenciaException`, sem evento pendente no falso, log 7004 três vezes e gateway chamado uma vez.
-- [ ] T020 [P] [US4] Teste de integração em `tests/PedidoFulfillment.Testes.Integracao/Pagamentos/PedidoIgnoradoNoPagamentoTestes.cs`:
+- [X] T020 [P] [US4] Teste de integração em `tests/PedidoFulfillment.Testes.Integracao/Pagamentos/PedidoIgnoradoNoPagamentoTestes.cs`:
   - cenário 1 (achado H1): com o Worker do estoque (`CenarioEstoque`), reservar um pedido; parar; cancelar pela API (estoque devolvido pelo REQ-08); subir o Worker completo e só então publicar direto na troca o `estoque.reservado` dele, com `idEvento` novo: nenhum pagamento, estoque igual ao do cancelamento, nenhum `pagamento.*`, nada em `oms.pagamento.dlq` e log 7003;
   - cenário 4: `estoque.reservado` válido com `pedidoId` inexistente chega a `oms.pagamento.dlq` depois das 4 execuções (100, 200 e 400 ms);
   - cenário 5: com o produto de estoque 1, rodar 10 vezes, em paralelo, o cancelamento pela operação (`PATCH`) e o pagamento executado como a base (helper como `DisputaEstoqueTestes.ReservarComoABaseAsync`, com gateway fixo de recusa): em todas as rodadas, o estoque termina em 1 e o pedido em `Cancelado` sem pagamento ou em `PagamentoRejeitado` com pagamento `Recusado`; nunca estoque 2.
 
 ### Implementação da US4
 
-- [ ] T021 [US4] Em `ProcessamentoPagamento` (R-05):
+- [X] T021 [US4] Em `ProcessamentoPagamento` (R-05):
   - depois da leitura, `!pedido.AptoParaPagamento` → log 7003 e retorno sem gravar;
   - envolver ler-decidir-gravar num laço de até 3 reavaliações (`Reavaliacoes = 3`, como `ReservaEstoque`): em `ConflitoConcorrenciaException`, `DescartarAlteracoes()`, log 7004 e nova volta; na última, relançar;
   - o resultado do gateway fica guardado fora do laço: a cobrança acontece só na primeira volta em que o pedido está apto.

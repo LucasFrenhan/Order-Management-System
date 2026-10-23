@@ -158,6 +158,128 @@ public sealed class ProcessamentoPagamentoTestes
         Gravado().Status.Should().Be(StatusPedido.PagamentoRejeitado);
     }
 
+    [Theory]
+    [InlineData(StatusPedido.Cancelado, true, false)]
+    [InlineData(StatusPedido.Despachado, true, false)]
+    [InlineData(StatusPedido.PagamentoRejeitado, true, false)]
+    [InlineData(StatusPedido.Pendente, false, false)]
+    [InlineData(StatusPedido.Processando, true, true)]
+    public async Task Pedido_nao_apto_e_ignorado_sem_cobrar_nem_gravar(StatusPedido status, bool reservado, bool pago)
+    {
+        PedidoEm(status, reservado, pago);
+
+        await Manipular();
+
+        gateway.Chamadas.Should().BeEmpty();
+        armazenamento.Gravacoes.Should().Be(0);
+        armazenamento.EventosGravados.Should().BeEmpty();
+        armazenamento.LeiturasProdutosParaAlterar.Should().Be(0);
+        var log = logger.Eventos.Should().ContainSingle(e => e.Id.Id == 7003).Subject;
+        log.Propriedades["Status"].Should().Be(status);
+        log.Propriedades["EstoqueReservado"].Should().Be(reservado);
+        log.Propriedades["JaPago"].Should().Be(pago);
+    }
+
+    [Theory]
+    [InlineData(StatusPedido.Processando)]
+    [InlineData(StatusPedido.ProntoParaEnvio)]
+    public async Task Pedido_movido_antes_do_pagamento_e_cobrado_e_aprovado_sem_mudar_o_status(StatusPedido status)
+    {
+        PedidoEm(status);
+        gateway.Proximo = ResultadoCobranca.Aprovada(Transacao);
+
+        await Manipular();
+
+        var pedido = Gravado();
+        pedido.Status.Should().Be(status);
+        pedido.Pagamento!.Situacao.Should().Be(SituacaoPagamento.Aprovado);
+        pedido.Historico.Last().Motivo.Should().NotBe(Pedido.MotivoPagamentoAprovado);
+        EventoGravado<PagamentoAprovado>(TiposEvento.PagamentoAprovado).Dados.PedidoId.Should().Be(PedidoId);
+    }
+
+    [Theory]
+    [InlineData(StatusPedido.Processando)]
+    [InlineData(StatusPedido.ProntoParaEnvio)]
+    public async Task Pedido_movido_antes_do_pagamento_e_recusado_vai_para_pagamento_rejeitado(StatusPedido status)
+    {
+        PedidoEm(status);
+        gateway.Proximo = ResultadoCobranca.Recusada(MotivoRecusa);
+
+        await Manipular();
+
+        Gravado().Status.Should().Be(StatusPedido.PagamentoRejeitado);
+        (Estoque(a), Estoque(b)).Should().Be((10, 5));
+        EventoGravado<PagamentoRecusado>(TiposEvento.PagamentoRecusado).Dados.Motivo.Should().Be(MotivoRecusa);
+    }
+
+    [Fact]
+    public async Task Conflito_e_reavaliado_sem_cobrar_de_novo()
+    {
+        PedidoEm();
+        armazenamento.ConflitosRestantes = 1;
+        gateway.Proximo = ResultadoCobranca.Aprovada(Transacao);
+
+        await Manipular();
+
+        gateway.Chamadas.Should().ContainSingle("o resultado da cobrança é reaproveitado (R-05)");
+        armazenamento.Descartes.Should().Be(1);
+        armazenamento.Gravacoes.Should().Be(1);
+        EventoGravado<PagamentoAprovado>(TiposEvento.PagamentoAprovado).Dados.IdentificadorTransacao.Should().Be(Transacao);
+        Gravado().Status.Should().Be(StatusPedido.Processando);
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 7004).Which.Propriedades["Reavaliacao"].Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Conflito_com_cancelamento_pela_api_termina_sem_gravar()
+    {
+        PedidoEm();
+        armazenamento.ConflitosRestantes = 1;
+        armazenamento.AoConflitar = () => PedidoEm(StatusPedido.Cancelado, reservado: false);
+        gateway.Proximo = ResultadoCobranca.Recusada(MotivoRecusa);
+
+        await Manipular();
+
+        gateway.Chamadas.Should().ContainSingle();
+        armazenamento.Gravacoes.Should().Be(0);
+        armazenamento.EventosGravados.Should().BeEmpty();
+        (Estoque(a), Estoque(b)).Should().Be((7, 3), "o cancelamento já devolveu o estoque; o consumidor não devolve de novo");
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 7003);
+    }
+
+    [Fact]
+    public async Task Conflito_com_o_pedido_movido_para_processando_aprova_sem_mudar_o_status()
+    {
+        PedidoEm();
+        armazenamento.ConflitosRestantes = 1;
+        armazenamento.AoConflitar = () => PedidoEm(StatusPedido.Processando);
+        gateway.Proximo = ResultadoCobranca.Aprovada(Transacao);
+
+        await Manipular();
+
+        gateway.Chamadas.Should().ContainSingle();
+        var pedido = Gravado();
+        pedido.Status.Should().Be(StatusPedido.Processando);
+        pedido.Pagamento!.Situacao.Should().Be(SituacaoPagamento.Aprovado);
+        pedido.Historico.Last().Motivo.Should().NotBe(Pedido.MotivoPagamentoAprovado, "a operação já tinha movido o pedido");
+    }
+
+    [Fact]
+    public async Task Conflitos_nas_3_reavaliacoes_vao_para_as_novas_tentativas_da_base()
+    {
+        PedidoEm();
+        armazenamento.ConflitosRestantes = 3;
+        gateway.Proximo = ResultadoCobranca.Recusada(MotivoRecusa);
+
+        await FluentActions.Awaiting(() => Manipular()).Should().ThrowAsync<Application.Comum.ConflitoConcorrenciaException>();
+
+        gateway.Chamadas.Should().ContainSingle();
+        armazenamento.Gravacoes.Should().Be(0);
+        armazenamento.EventosAdicionados.Should().BeEmpty();
+        armazenamento.EventosGravados.Should().BeEmpty();
+        (Estoque(a), Estoque(b)).Should().Be((7, 3));
+        logger.Eventos.Where(e => e.Id.Id == 7004).Select(e => e.Propriedades["Reavaliacao"]).Should().Equal(1, 2, 3);
+    }
+
     [Fact]
     public async Task Pedido_inexistente_falha_sem_cobrar_nem_gravar()
     {
