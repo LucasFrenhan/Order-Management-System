@@ -102,7 +102,7 @@ public sealed class MigracaoBancoTestes(BancoDadosTeste banco)
             var excecao = Record.Exception(() => fabrica.CreateClient());
 
             excecao.Should().NotBeNull();
-            PreparacaoInicializacaoTestes.Cadeia(excecao!).Should().Contain(e => e.Message ==
+            fabrica.FalhaPartida.Cadeia(excecao!).Should().Contain(e => e.Message ==
                 "O banco de dados tem migrations pendentes. Aplique-as com o comando documentado antes de iniciar a API.");
         }
 

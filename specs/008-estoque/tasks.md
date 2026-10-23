@@ -309,9 +309,21 @@ broker.
   `Mensageria:TamanhoLote`. Quando a partida falha, o `Main` do Worker libera o host, e o
   `WebApplicationFactory` pode consultar os serviços depois disso. O Worker continua
   recusando a configuração corretamente; a corrida é do harness de teste, e o consumidor de
-  estoque mudou o tempo da parada. O teste passou a conferir o log `HostedServiceStartupFaulted`
-  (EventId 11), gravado antes da liberação, e a ausência de segredos no log e na exceção.
-  Isolado, o teste original passou 15 vezes em 15 localmente; o corrigido, 10 em 10.
+  estoque mudou o tempo da parada. Isolado, o teste original passou 15 vezes em 15
+  localmente.
+- **CI intermitente, 2ª rodada** (execução 39881612312, commit `ba48996`): a mesma corrida
+  apareceu na API (`PreparacaoInicializacaoTestes`), e `ConsumoComNovaTentativaTestes`
+  recebeu um `pedido.criado` de outro teste. Correções, só nos testes:
+  - `Infraestrutura/FalhaPartida`: provedor de log ligado à `FabricaApi` e à `FabricaWorker`
+    que guarda a exceção do `HostedServiceStartupFaulted`, gravada antes da liberação. Os 5
+    testes de falha de partida (preparação, migrations e Worker) avaliam essa cadeia, e o
+    teste falha se o host não a registrar.
+  - `MensageriaTeste.LimparFilasConsumidorAsync`: o broker é compartilhado pela coleção e as
+    filas são duráveis, então `oms.verificacao` acumulava os `pedido.criado` dos testes
+    seguintes (os do REQ-08 aumentaram esse tráfego). Os testes de consumo e de estoque
+    esvaziam as filas do consumidor antes de subir o Worker, exceto quando o próprio teste já
+    publicou para ele.
+  - Suíte em Release duas vezes seguidas: 534 verdes, nenhum ignorado.
 - Desvios registrados na implementação:
   - **T006**: a configuração não usa `HasDefaultValue(false)`. A migration gera
     `defaultValue: false` para a coluna nova de qualquer jeito, e sem a configuração o EF

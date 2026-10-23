@@ -29,6 +29,8 @@ internal static class CenarioEstoque
     /// <summary>Sobe o Worker e espera o consumidor de estoque ficar ligado à fila.</summary>
     public static async Task<FabricaWorker> WorkerProntoAsync(MensageriaTeste mensageria, string stringConexao, CapturaLogs? logs = null)
     {
+        // Só o pedido.criado deste teste: o dele ainda está no outbox, publicado pelo Worker.
+        await mensageria.LimparFilasConsumidorAsync(FilaEstoque);
         var worker = Worker(mensageria, stringConexao, logs);
         worker.CreateClient().Dispose();
         await using var conexao = await mensageria.ConectarAsync();

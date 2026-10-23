@@ -26,8 +26,14 @@ public sealed class ConsumoComNovaTentativaTestes(MensageriaTeste mensageria)
 
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;
 
-    private async Task<(FabricaWorker Worker, ControleVerificacao Controle)> WorkerAsync(string stringConexao, CapturaLogs? logs = null)
+    /// <param name="limpar">Esvazia antes as filas do consumidor; falso quando o teste já publicou para este Worker.</param>
+    private async Task<(FabricaWorker Worker, ControleVerificacao Controle)> WorkerAsync(string stringConexao, CapturaLogs? logs = null, bool limpar = true)
     {
+        if (limpar)
+        {
+            await mensageria.LimparFilasConsumidorAsync(Consumidor);
+        }
+
         var controle = new ControleVerificacao();
         var worker = new FabricaWorker
         {
@@ -201,7 +207,7 @@ public sealed class ConsumoComNovaTentativaTestes(MensageriaTeste mensageria)
             await PublicarAsync(evento);
         }
 
-        var (segundo, controle) = await WorkerAsync(stringConexao);
+        var (segundo, controle) = await WorkerAsync(stringConexao, limpar: false);
         await using var _ = segundo;
 
         (await MensageriaTeste.EsperarAteAsync(

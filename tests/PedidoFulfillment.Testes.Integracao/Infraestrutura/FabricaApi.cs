@@ -54,6 +54,9 @@ public class FabricaApi : WebApplicationFactory<Program>
     /// <summary>Quando informado, recebe todos os logs da API.</summary>
     public CapturaLogs? Logs { get; init; }
 
+    /// <summary>Recebe a exceção original de uma falha de partida (ver <see cref="Infraestrutura.FalhaPartida"/>).</summary>
+    public FalhaPartida FalhaPartida { get; } = new();
+
     public IServicoAutenticacao? ServicoAutenticacao { get; init; }
 
     public IServicoPedidos? ServicoPedidos { get; init; }
@@ -84,6 +87,8 @@ public class FabricaApi : WebApplicationFactory<Program>
         {
             builder.ConfigureLogging(logging => logging.AddProvider(Logs).SetMinimumLevel(LogLevel.Trace));
         }
+
+        builder.ConfigureLogging(logging => logging.AddProvider(FalhaPartida));
 
         builder.ConfigureTestServices(services =>
         {
