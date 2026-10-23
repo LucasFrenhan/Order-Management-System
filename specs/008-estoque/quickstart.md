@@ -46,6 +46,11 @@ Crie um pedido com um produto em estoque, como no
 - o estoque do produto caiu a quantidade do item;
 - o pedido continua `Pendente` na consulta.
 
+> **Com o pagamento (REQ-09)**: o Worker também cobra o pedido reservado, que vai para
+> `Processando` (aprovado) ou `PagamentoRejeitado` (recusado, com o estoque devolvido). Para
+> repetir este roteiro, suba o Worker com `$env:GatewayPagamento__TaxaAprovacaoPercentual = "100"`:
+> o pedido termina em `Processando`, com o estoque ainda abatido.
+
 ## 4. Disputa pelo último item
 
 1. Pare o Worker (Ctrl+C). Com um produto de estoque 1 (por exemplo `CAT-008`, se ainda
@@ -60,7 +65,9 @@ Crie um pedido com um produto em estoque, como no
 
 ## 5. Devolução no cancelamento
 
-Cancele, como Cliente dono, o pedido reservado no §3:
+Cancele, como Cliente dono, o pedido reservado no §3. Com o pagamento ligado (REQ-09), o
+pedido já está em `Processando`, e só a operação o cancela: use o token do Admin ou do
+OperadorLogistica, com o mesmo resultado no estoque.
 
 ```http
 PATCH /api/v1/pedidos/{id}/status

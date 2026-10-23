@@ -195,14 +195,14 @@ A proporção (SC-002) e o validador já são cobertos na fundação (T003, T004
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T022 [P] Atualizar `README.md`:
+- [X] T022 [P] Atualizar `README.md`:
   - **Estado atual**: linha do REQ-09;
   - **Próximos passos**: tirar a #9; na #10, citar que consome `pagamento.aprovado` com o pedido já em `Processando`;
   - **Mensageria**: a fila `oms.pagamento`, os eventos `pagamento.aprovado` e `pagamento.recusado` e a configuração `GatewayPagamento:TaxaAprovacaoPercentual`;
   - **Status do pedido**: manter a nota sobre "AguardandoEnvio";
   - **Roteiros de validação**: o quickstart do REQ-09.
-- [ ] T023 [P] Em `specs/006-mensageria/contracts/topologia-e-consumo.md`, citar o consumidor de pagamento ao lado do de estoque, sem mudar o contrato. Em `specs/008-estoque/quickstart.md`, nota nos §3 e §5: com o pagamento ligado, o pedido reservado vai para `Processando` (ou `PagamentoRejeitado`); para repetir o roteiro do REQ-08, suba o Worker com a taxa em 100% e cancele como operação.
-- [ ] T024 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados).
+- [X] T023 [P] Em `specs/006-mensageria/contracts/topologia-e-consumo.md`, citar o consumidor de pagamento ao lado do de estoque, sem mudar o contrato. Em `specs/008-estoque/quickstart.md`, nota nos §3 e §5: com o pagamento ligado, o pedido reservado vai para `Processando` (ou `PagamentoRejeitado`); para repetir o roteiro do REQ-08, suba o Worker com a taxa em 100% e cancele como operação.
+- [X] T024 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados).
 - [ ] T025 Executar o quickstart (§1 a §7) e registrar em Notes. Conferir nos logs do Worker os EventIds 7001, 7002 e 7003.
 - [ ] T026 Fazer push e abrir o PR com `Closes #9`. Acompanhar o CI (`build-testes`, com os dois jobs) até ficar verde e registrar os tempos em Notes.
 
@@ -263,3 +263,6 @@ Setup, Foundational e US1: o pedido reservado é pago, vai para `Processando`, e
   `CenarioEstoque.PublicarAsync` recebe o tipo. Suíte: 331 unitários e 244 de integração.
 - **T018** (2026-10-23): o serviço `worker` do `docker-compose.yml` não define
   `GatewayPagamento`, então a demonstração usa os 90% do `appsettings.json` do Worker.
+- **T024** (2026-10-23): nenhum segredo novo no diff (a única chave sensível citada é a
+  `RabbitMQ:Senha` vazia do teste de configuração), zero avisos, `dotnet format` passa e
+  596 testes verdes (346 unitários e 250 de integração), nenhum ignorado.
