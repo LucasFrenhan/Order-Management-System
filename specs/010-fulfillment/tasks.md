@@ -174,15 +174,20 @@ Sem implementação nova: o contrato é da T004 e a publicação, da T009 (US2 c
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T016 [P] Atualizar `README.md`:
+- [ ] T016 [P] Atualizar `README.md` (inclui, em Mensageria, que pedidos pagos antes de a fila `oms.entrega` existir ficam sem ordem, com link para a pendência em `specs/006-mensageria/spec.md`):
   - **Estado atual**: linha do REQ-10 (consumidor `entrega`, ordem sem dados de despacho, `ProntoParaEnvio` e `entrega.criada`);
   - **Próximos passos**: tirar a #10; na #11, citar que o despacho parte da ordem criada aqui;
   - **Mensageria**: a fila `oms.entrega` e o evento `entrega.criada`;
   - **Status do pedido**: o fluxo automático termina em `ProntoParaEnvio`;
   - **Roteiros de validação**: o quickstart do REQ-10.
 - [ ] T017 [P] Em `specs/006-mensageria/contracts/topologia-e-consumo.md`, `entrega.criada` no catálogo de eventos (publicado pelo worker de entrega, #10, com link para o schema do 010) e o consumidor de entrega ao lado dos de estoque e pagamento. Em `specs/009-pagamento/quickstart.md`, nota no §3: com o Worker completo, o pedido aprovado segue para `ProntoParaEnvio` (REQ-10).
+- [ ] T021 [P] Desempenho em `tests/PedidoFulfillment.Testes.Integracao/Entregas/DesempenhoEntregaTestes.cs` (`ColecaoMensageria`, Worker completo com `CenarioEntrega.WorkerProntoAsync`; SC-001 e SC-005):
+  - 3 pedidos de aquecimento;
+  - 20 pedidos criados pela API, em sequência, com produtos em estoque; para cada um, esperar `ProntoParaEnvio` com a ordem (prazo de 15 s);
+  - pelos instantes gravados no banco: do pagamento aprovado à criação da ordem (SC-001) e da criação do pedido à criação da ordem (SC-005);
+  - percentil 95 abaixo de 5 s e de 10 s, respectivamente; os valores vão para a saída do teste e para Notes.
 - [ ] T018 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados).
-- [ ] T019 Executar o quickstart (§1 a §6) e registrar em Notes. Conferir nos logs do Worker os EventIds 8001 e 8002.
+- [ ] T019 Executar o quickstart (§1 a §6) e registrar em Notes, com os percentis da T021. Conferir nos logs do Worker os EventIds 8001 e 8002.
 - [ ] T020 Fazer push e abrir o PR com `Closes #10`. Acompanhar o CI (`build-testes`, com os dois jobs) até ficar verde e registrar os tempos em Notes.
 
 ---
@@ -199,7 +204,7 @@ Sem implementação nova: o contrato é da T004 e a publicação, da T009 (US2 c
 ### Parallel Opportunities
 
 - T002 com T004 e T005; T007 e T008; T011 e T012 (e a US2 inteira com a US1); T013 e T014;
-  T016 e T017.
+  T016, T017 e T021 (a T021 roda antes da T018, que a inclui na suíte).
 
 ---
 

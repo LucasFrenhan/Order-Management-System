@@ -66,7 +66,7 @@ Testcontainers MsSql e RabbitMq
 
 | Princípio / regra | Situação | Evidência |
 |-------------------|----------|-----------|
-| I. Specification-First | ✅ | spec após o specify e o clarify (sem perguntas), commit `e773406` `[REQ-10]` |
+| I. Specification-First | ✅ | spec após o specify e o clarify (1 pergunta: pedidos pagos antes da fila, fora do escopo), commits `e773406` e `d2ff5a0` `[REQ-10]` |
 | II. Contratos versionados | ✅ | `entrega.criada` nasce na v1, com schema e testes; `pagamento.aprovado` v1 usado sem mudança; OpenAPI v1 intocado |
 | III. Segurança por padrão | ✅ | Nenhuma rota nova. Evento e logs só com identificadores, sem dados pessoais (R-07, R-08). Nenhum segredo novo |
 | IV. Desacoplamento assíncrono | ✅ | O fulfillment roda no Worker, disparado por `pagamento.aprovado`; `entrega.criada` sai pelo outbox na transação do efeito |

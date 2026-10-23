@@ -30,7 +30,10 @@ Para ver todos os pedidos aprovados, suba o Worker com
 `$env:GatewayPagamento__TaxaAprovacaoPercentual = "100"`.
 
 **Esperado**: no painel do RabbitMQ (`http://localhost:15672`), as filas `oms.entrega`,
-`oms.entrega.dlq` e as três de espera existem.
+`oms.entrega.dlq` e as três de espera existem. Só crie pedidos depois de `oms.entrega`
+existir: num broker novo, um `pagamento.aprovado` publicado antes disso é descartado e o
+pedido fica em `Processando` sem ordem (spec, Edge Cases; pendência em
+`specs/006-mensageria/spec.md`).
 
 Crie a fila `teste.entrega`, durável, e ligue-a a `oms.eventos` com a chave
 `entrega.criada`.
