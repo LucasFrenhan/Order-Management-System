@@ -304,6 +304,14 @@ broker.
   39876083118) ficou verde em ~3m46s: "Build e testes" em 3m46s (534 testes, 292 unitários
   e 242 de integração, nenhum ignorado, cobertura de linhas de 96,4%) e "Demonstração" em
   2m09s, com a prontidão da API e do Worker conferida.
+- **CI intermitente** (execução 39877138132, commit `2cf4ebf`): `WorkerTestes.Configuracao_invalida_impede_o_Worker_de_subir_sem_mostrar_valores`
+  recebeu `ObjectDisposedException` (`IServiceProvider`) em vez da validação de
+  `Mensageria:TamanhoLote`. Quando a partida falha, o `Main` do Worker libera o host, e o
+  `WebApplicationFactory` pode consultar os serviços depois disso. O Worker continua
+  recusando a configuração corretamente; a corrida é do harness de teste, e o consumidor de
+  estoque mudou o tempo da parada. O teste passou a conferir o log `HostedServiceStartupFaulted`
+  (EventId 11), gravado antes da liberação, e a ausência de segredos no log e na exceção.
+  Isolado, o teste original passou 15 vezes em 15 localmente; o corrigido, 10 em 10.
 - Desvios registrados na implementação:
   - **T006**: a configuração não usa `HasDefaultValue(false)`. A migration gera
     `defaultValue: false` para a coluna nova de qualquer jeito, e sem a configuração o EF

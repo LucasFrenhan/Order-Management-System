@@ -1,5 +1,7 @@
 using System.Net;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using PedidoFulfillment.Infrastructure.Mensageria;
 using PedidoFulfillment.Testes.Integracao.Autenticacao;
 using PedidoFulfillment.Testes.Integracao.Infraestrutura;
@@ -58,17 +60,25 @@ public sealed class WorkerTestes(MensageriaTeste mensageria)
             ["RabbitMQ:Senha"] = "senha-secreta",
             ["RabbitMQ:VirtualHost"] = "/"
         };
+        using var logs = new CapturaLogs();
         using var worker = new FabricaWorker
         {
             StringConexao = FabricaApi.StringConexaoTeste,
             ConfiguracoesBroker = broker,
-            Configuracoes = new Dictionary<string, string?> { [chave] = valor }
+            Configuracoes = new Dictionary<string, string?> { [chave] = valor },
+            Servicos = servicos => servicos.AddSingleton<ILoggerProvider>(logs)
         };
 
         var excecao = Record.Exception(() => worker.CreateClient());
 
+        // A falha de partida faz o Main liberar o host; se o WebApplicationFactory consultar os
+        // serviços depois disso, a exceção que chega aqui é ObjectDisposedException, e não a de
+        // validação (intermitente no CI, PR #22). O log "Hosting failed to start" (EventId 11) é
+        // gravado antes da liberação e traz sempre a falha original.
         excecao.Should().NotBeNull();
-        var mensagens = string.Join(" | ", PreparacaoInicializacaoTestes.Cadeia(excecao!).Select(e => e.Message));
-        mensagens.Should().Contain(esperado).And.NotContain("usuario-secreto").And.NotContain("senha-secreta");
+        var falhaPartida = logs.Registros.Where(r => r.Evento.Id == 11).Select(r => r.Texto).Should().ContainSingle().Subject;
+        falhaPartida.Should().Contain(esperado);
+        var mensagens = string.Join(" | ", PreparacaoInicializacaoTestes.Cadeia(excecao!).Select(e => e.Message).Append(falhaPartida));
+        mensagens.Should().NotContain("usuario-secreto").And.NotContain("senha-secreta");
     }
 }
