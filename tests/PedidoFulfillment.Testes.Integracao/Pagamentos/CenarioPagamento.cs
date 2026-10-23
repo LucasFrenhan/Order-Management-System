@@ -3,6 +3,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PedidoFulfillment.Application.Contratos.Eventos;
+using PedidoFulfillment.Application.Entregas;
 using PedidoFulfillment.Testes.Integracao.Estoque;
 using PedidoFulfillment.Testes.Integracao.Infraestrutura;
 
@@ -18,7 +19,7 @@ internal static class CenarioPagamento
     public const string MotivoRecusa = "Pagamento recusado pelo emissor.";
 
     /// <summary>
-    /// Sobe o Worker completo (estoque e pagamento) com a taxa de aprovação dada e espera os dois
+    /// Sobe o Worker do estoque e do pagamento, sem a entrega, com a taxa de aprovação dada e espera os dois
     /// consumidores ligados, depois de limpar as filas deles: o broker é compartilhado, e um
     /// evento publicado antes de a fila existir não tem rota (achado M3).
     /// </summary>
@@ -34,7 +35,15 @@ internal static class CenarioPagamento
             {
                 ["GatewayPagamento:TaxaAprovacaoPercentual"] = taxaAprovacao.ToString(CultureInfo.InvariantCulture)
             },
-            Servicos = logs is null ? null : servicos => servicos.AddSingleton<ILoggerProvider>(logs)
+            Servicos = servicos =>
+            {
+                // Sem a entrega (REQ-10), o pedido aprovado continua em Processando (research R-09 do REQ-10).
+                CenarioEstoque.RemoverConsumidor<CriacaoOrdemEntrega, PagamentoAprovado>(servicos);
+                if (logs is not null)
+                {
+                    servicos.AddSingleton<ILoggerProvider>(logs);
+                }
+            }
         };
         worker.CreateClient().Dispose();
         (await mensageria.ConsumidorLigadoAsync(CenarioEstoque.FilaEstoque, TimeSpan.FromSeconds(10))).Should().BeTrue("o consumidor de estoque precisa estar pronto");

@@ -55,7 +55,7 @@ US1.
 
 ## Phase 1: Setup
 
-- [ ] T001 Rodar `dotnet build` e `dotnet test` na branch `feature/req-10-fulfillment` e registrar em Notes a contagem de testes como linha de base (596 no fim do REQ-09: 346 unitários e 250 de integração; zero ignorados com o Docker no ar).
+- [X] T001 Rodar `dotnet build` e `dotnet test` na branch `feature/req-10-fulfillment` e registrar em Notes a contagem de testes como linha de base (596 no fim do REQ-09: 346 unitários e 250 de integração; zero ignorados com o Docker no ar).
 
 ---
 
@@ -65,7 +65,7 @@ US1.
 
 ### Testes da fundação
 
-- [ ] T002 [P] Testes de domínio em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PedidoOrdemEntregaTestes.cs` (data-model, R-02), com o pedido reservado pelo `ReservarEstoque` do REQ-08 e pago pelo `AprovarPagamento` do REQ-09 (como em `PedidoPagamentoTestes`):
+- [X] T002 [P] Testes de domínio em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PedidoOrdemEntregaTestes.cs` (data-model, R-02), com o pedido reservado pelo `ReservarEstoque` do REQ-08 e pago pelo `AprovarPagamento` do REQ-09 (como em `PedidoPagamentoTestes`):
   - `AptoParaOrdemEntrega`: verdadeiro com reserva, pagamento `Aprovado`, sem ordem e em `Processando` ou `ProntoParaEnvio` (theory); falso em `Pendente`, `Cancelado`, `Despachado` e `PagamentoRejeitado` (theory), sem reserva, sem pagamento, com pagamento `Recusado` e com ordem já criada;
   - `CriarOrdemEntrega` em `Processando`: devolve a ordem e a guarda em `OrdemEntrega`, com `PedidoId = Id`, `CriadoEm = AtualizadoEm = instante`, `Transportadora`, `CodigoRastreio` e `DespachadoEm` nulos; status `ProntoParaEnvio`; histórico com `AutorId` nulo, de `Processando` para `ProntoParaEnvio`, com motivo `Ordem de entrega criada.`; `EstoqueReservado` continua verdadeiro e o pagamento não muda;
   - `CriarOrdemEntrega` em `ProntoParaEnvio`: ordem criada, status e histórico sem mudança, `AtualizadoEm = instante`;
@@ -74,13 +74,13 @@ US1.
 
 ### Implementação da fundação
 
-- [ ] T003 Em `src/PedidoFulfillment.Domain/Pedidos/Pedido.cs`, ao lado do pagamento: `const string MotivoOrdemEntregaCriada = "Ordem de entrega criada."`, `bool AptoParaOrdemEntrega => EstoqueReservado && Pagamento?.Situacao == SituacaoPagamento.Aprovado && OrdemEntrega is null && Status is StatusPedido.Processando or StatusPedido.ProntoParaEnvio` e `OrdemEntrega CriarOrdemEntrega(DateTimeOffset instante)`: fora de apto, `InvalidOperationException` com o número, o status e as condições (como `NovoPagamento`); senão `OrdemEntrega = new OrdemEntrega(Id, instante)` e, em `Processando`, `MudarStatus(StatusPedido.ProntoParaEnvio, null, MotivoOrdemEntregaCriada, instante)`; em `ProntoParaEnvio`, `AtualizadoEm = instante` (a versão do pedido precisa mudar, R-04). XML doc citando R-02, R-03 e R-04. T002 deve passar.
-- [ ] T004 [P] Contrato (R-07):
+- [X] T003 Em `src/PedidoFulfillment.Domain/Pedidos/Pedido.cs`, ao lado do pagamento: `const string MotivoOrdemEntregaCriada = "Ordem de entrega criada."`, `bool AptoParaOrdemEntrega => EstoqueReservado && Pagamento?.Situacao == SituacaoPagamento.Aprovado && OrdemEntrega is null && Status is StatusPedido.Processando or StatusPedido.ProntoParaEnvio` e `OrdemEntrega CriarOrdemEntrega(DateTimeOffset instante)`: fora de apto, `InvalidOperationException` com o número, o status e as condições (como `NovoPagamento`); senão `OrdemEntrega = new OrdemEntrega(Id, instante)` e, em `Processando`, `MudarStatus(StatusPedido.ProntoParaEnvio, null, MotivoOrdemEntregaCriada, instante)`; em `ProntoParaEnvio`, `AtualizadoEm = instante` (a versão do pedido precisa mudar, R-04). XML doc citando R-02, R-03 e R-04. T002 deve passar.
+- [X] T004 [P] Contrato (R-07):
   - em `src/PedidoFulfillment.Application/Contratos/Eventos/Eventos.cs`, `sealed record EntregaCriada` (`required Guid PedidoId`, `required string Numero`, `required Guid OrdemEntregaId`, `required IReadOnlyList<ItemEntregaCriada> Itens`) e `sealed record ItemEntregaCriada` (`required Guid ProdutoId`, `required int Quantidade`), com XML doc `<c>entrega.criada</c>: publicado pelo worker de entrega (issue #10)`;
   - em `src/PedidoFulfillment.Application/Contratos/Eventos/TiposEvento.cs`, `public const string EntregaCriada = "entrega.criada";` e a entrada em `TipoDados`; o XML doc da classe cita o REQ-10;
   - em `tests/PedidoFulfillment.Testes.Integracao/PedidoFulfillment.Testes.Integracao.csproj`, a linha `<None Include="..\..\specs\010-fulfillment\contracts\eventos\*.schema.json" LinkBase="Eventos" CopyToOutputDirectory="PreserveNewest" />`, ao lado das do 006 e do 008.
-- [ ] T005 [P] Leitura com a ordem (R-05): em `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoPedidos.cs`, `ObterPedidoAsync` passa a incluir `.Include(p => p.OrdemEntrega)`, e o XML doc de `IArmazenamentoPedidos.ObterPedidoAsync` (`src/PedidoFulfillment.Application/Pedidos/IArmazenamentoPedidos.cs`) cita a ordem de entrega (REQ-10). Rodar a suíte: tudo verde.
-- [ ] T006 Esqueleto do consumidor (R-01, R-08):
+- [X] T005 [P] Leitura com a ordem (R-05): em `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoPedidos.cs`, `ObterPedidoAsync` passa a incluir `.Include(p => p.OrdemEntrega)`, e o XML doc de `IArmazenamentoPedidos.ObterPedidoAsync` (`src/PedidoFulfillment.Application/Pedidos/IArmazenamentoPedidos.cs`) cita a ordem de entrega (REQ-10). Rodar a suíte: tudo verde.
+- [X] T006 Esqueleto do consumidor (R-01, R-08):
   - `src/PedidoFulfillment.Application/Entregas/EventosEntrega.cs`: `internal static partial class EventosEntrega` com `LoggerMessage` 8001 `OrdemEntregaCriada` (Information: pedido, ordem, status mudou, evento), 8002 `PedidoIgnoradoNaEntrega` (Information: pedido, status, estoque reservado, pagamento aprovado, já tem ordem, evento) e 8003 `ConflitoNaEntrega` (Warning: pedido, reavaliação, evento), só com identificadores e situação (FR-011);
   - `src/PedidoFulfillment.Application/Entregas/CriacaoOrdemEntrega.cs`: `public sealed class CriacaoOrdemEntrega(IArmazenamentoPedidos armazenamento, TimeProvider relogio, ILogger<CriacaoOrdemEntrega> logger) : IManipuladorEvento<PagamentoAprovado>`, com `Consumidor = "entrega"`, `Tipos = [TiposEvento.PagamentoAprovado]` e `ManipularAsync` lançando `NotImplementedException`; XML doc citando `specs/010-fulfillment/contracts/consumidor-entrega.md`.
 
@@ -98,11 +98,11 @@ US1.
 
 ### Testes da US1
 
-- [ ] T007 [P] [US1] Testes unitários em `tests/PedidoFulfillment.Testes.Unitarios/Entregas/CriacaoOrdemEntregaTestes.cs`, com o armazenamento falso de `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/Falsos.cs` (a fábrica registrada cria o pedido reservado e pago a cada leitura, como nos testes do REQ-09):
+- [X] T007 [P] [US1] Testes unitários em `tests/PedidoFulfillment.Testes.Unitarios/Entregas/CriacaoOrdemEntregaTestes.cs`, com o armazenamento falso de `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/Falsos.cs` (a fábrica registrada cria o pedido reservado e pago a cada leitura, como nos testes do REQ-09):
   - `Consumidor` é `entrega` e `Tipos` é `[pagamento.aprovado]`;
   - pedido `Processando` apto: ordem criada; status `ProntoParaEnvio`; nenhum produto lido; uma chamada a `SalvarAsync`; um `EventoSaida` `entrega.criada` com `idCorrelacao` igual ao pedido e `dados` com o id e o número do pedido, o id da ordem criada e os itens do pedido (produto e quantidade, na ordem dos itens); log 8001;
   - pedido inexistente: `InvalidOperationException` com o id, nada gravado.
-- [ ] T008 [P] [US1] Teste de integração em `tests/PedidoFulfillment.Testes.Integracao/Entregas/OrdemEntregaCriadaTestes.cs` (`ColecaoMensageria`), com o helper novo `tests/PedidoFulfillment.Testes.Integracao/Entregas/CenarioEntrega.cs`:
+- [X] T008 [P] [US1] Teste de integração em `tests/PedidoFulfillment.Testes.Integracao/Entregas/OrdemEntregaCriadaTestes.cs` (`ColecaoMensageria`), com o helper novo `tests/PedidoFulfillment.Testes.Integracao/Entregas/CenarioEntrega.cs`:
   - helper: `FilaEntrega = "entrega"`; `WorkerProntoAsync` limpa as filas de `estoque`, `pagamento` e `entrega` (`LimparFilasConsumidorAsync`), sobe o Worker completo (taxa 100, logs opcionais) e espera os três consumidores ligados (`ConsumidorLigadoAsync`, 10 s), como `CenarioPagamento.WorkerProntoAsync`; consultas `OrdensAsync` (`COUNT(*)` em `OrdensEntrega` do pedido), `OrdemAsync` (id, transportadora, rastreio e despacho da ordem), contagem de `EventosSaida` `entrega.criada` do pedido; `PublicarPagamentoAprovadoAsync` (direto na troca, `idEvento` novo ou dado) e `RepublicarPagamentoAprovadoAsync` (o corpo gravado no outbox, mesmo `idEvento`), como os de `CenarioPagamento`;
   - cenários 1 a 3: o pedido criado pela API (`CenarioPedidos.Api`) termina em `ProntoParaEnvio` em até 10 s (SC-005), com uma linha em `OrdensEntrega` sem transportadora, rastreio e despacho, a entrada `Ordem de entrega criada.` sem autor no histórico (`CenarioPagamento.UltimoMotivoSemAutorAsync`) e `entrega.criada` na `FilaTesteAsync("entrega.criada")` válido pelo schema (`SchemaEventosTestes`), com o pedido, o número, o id da ordem gravada e os itens do pedido;
   - cenário 4: republicar o mesmo `pagamento.aprovado` (mesmo `idEvento`) direto na troca não cria ordem nem evento novo, e o status continua `ProntoParaEnvio`;
@@ -110,8 +110,8 @@ US1.
 
 ### Implementação da US1
 
-- [ ] T009 [US1] Em `CriacaoOrdemEntrega.ManipularAsync`: ler o pedido com `paraAlterar: true` (inexistente → `InvalidOperationException` com o id, FR-003), `var ordem = pedido.CriarOrdemEntrega(agora)`, `armazenamento.Adicionar(EventoSaida.De(EnvelopeEvento.Criar(pedido.Id, new EntregaCriada { PedidoId, Numero, OrdemEntregaId = ordem.Id, Itens = pedido.Itens.Select(...) }, agora), agora))`, `SalvarAsync` e log 8001. No Worker (`src/PedidoFulfillment.Worker/ProgramaWorker.cs`), `builder.Services.AdicionarConsumidor<CriacaoOrdemEntrega, PagamentoAprovado>();` depois do pagamento. T007 e T008 devem passar.
-- [ ] T010 [US1] Isolamento e regressão (R-09):
+- [X] T009 [US1] Em `CriacaoOrdemEntrega.ManipularAsync`: ler o pedido com `paraAlterar: true` (inexistente → `InvalidOperationException` com o id, FR-003), `var ordem = pedido.CriarOrdemEntrega(agora)`, `armazenamento.Adicionar(EventoSaida.De(EnvelopeEvento.Criar(pedido.Id, new EntregaCriada { PedidoId, Numero, OrdemEntregaId = ordem.Id, Itens = pedido.Itens.Select(...) }, agora), agora))`, `SalvarAsync` e log 8001. No Worker (`src/PedidoFulfillment.Worker/ProgramaWorker.cs`), `builder.Services.AdicionarConsumidor<CriacaoOrdemEntrega, PagamentoAprovado>();` depois do pagamento. T007 e T008 devem passar.
+- [X] T010 [US1] Isolamento e regressão (R-09):
   - `tests/PedidoFulfillment.Testes.Integracao/Pagamentos/CenarioPagamento.cs`: o Worker do pagamento remove o `IHostedService` `ConsumidorEventos<CriacaoOrdemEntrega, PagamentoAprovado>` pelo `Servicos` (combinando com o registro de logs), com comentário citando R-09 do REQ-10;
   - `tests/PedidoFulfillment.Testes.Integracao/Estoque/CenarioEstoque.cs`: o Worker do estoque também remove o consumidor de entrega;
   - revisar os testes do REQ-06 que sobem o Worker (`Mensageria/OutboxComBrokerTestes.cs`, `WorkerTestes.cs`, `ConsumoComNovaTentativaTestes.cs`) e restringir ao tipo tratado as asserções sobre `EventosSaida` ou filas que passariam a contar `entrega.criada`.
@@ -128,8 +128,8 @@ US1.
 
 **Independent Test**: serializar um evento de exemplo, validar contra o schema e conferir que exemplos inválidos são recusados.
 
-- [ ] T011 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/SerializacaoEventosTestes.cs`, como para `estoque.insuficiente`: fábrica `internal static EnvelopeEvento<EntregaCriada> EntregaCriada()`; `Tipo` é `entrega.criada` e `TiposEvento.EntregaCriada` é `"entrega.criada"`; ida e volta igual (`DeveVoltarIgual`, comparando os itens); JSON em camelCase com `tipo`, `versao` 1 e `dados.pedidoId`, `dados.numero`, `dados.ordemEntregaId` e `dados.itens[0].produtoId`/`quantidade`.
-- [ ] T012 [P] [US2] Em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/SchemaEventosTestes.cs`: `JsonEntregaCriada()` com número no padrão `PED-AAAAMMDD-NNNNNN` e dois itens, incluído no theory de eventos válidos; theory `Entrega_criada_fora_do_contrato_e_recusada` com as alterações: sem `ordemEntregaId`, `itens` vazio, `quantidade` 0, número fora do padrão, campo extra em `dados`, campo extra no item e `tipo` diferente (US2 cenário 2). O XML doc da classe cita `specs/010-fulfillment/contracts/eventos/`.
+- [X] T011 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/SerializacaoEventosTestes.cs`, como para `estoque.insuficiente`: fábrica `internal static EnvelopeEvento<EntregaCriada> EntregaCriada()`; `Tipo` é `entrega.criada` e `TiposEvento.EntregaCriada` é `"entrega.criada"`; ida e volta igual (`DeveVoltarIgual`, comparando os itens); JSON em camelCase com `tipo`, `versao` 1 e `dados.pedidoId`, `dados.numero`, `dados.ordemEntregaId` e `dados.itens[0].produtoId`/`quantidade`.
+- [X] T012 [P] [US2] Em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/SchemaEventosTestes.cs`: `JsonEntregaCriada()` com número no padrão `PED-AAAAMMDD-NNNNNN` e dois itens, incluído no theory de eventos válidos; theory `Entrega_criada_fora_do_contrato_e_recusada` com as alterações: sem `ordemEntregaId`, `itens` vazio, `quantidade` 0, número fora do padrão, campo extra em `dados`, campo extra no item e `tipo` diferente (US2 cenário 2). O XML doc da classe cita `specs/010-fulfillment/contracts/eventos/`.
 
 Sem implementação nova: o contrato é da T004 e a publicação, da T009 (US2 cenário 3 coberto na T008).
 
@@ -233,3 +233,11 @@ Setup, Foundational e US1: o pedido pago ganha a ordem, vai para `ProntoParaEnvi
   ficam fora do escopo (issue #11; spec, Assumptions).
 - A branch carrega o commit `9a6e17a` (CI verde do PR #23, T026 do REQ-09), que não chegou à
   `main`; ele vai junto no PR deste REQ.
+- **T001 (linha de base, 2026-10-23)**: 596 testes, 346 unitários e 250 de integração, zero
+  ignorados, com o Docker no ar.
+- **T006, desvio**: o esqueleto com `NotImplementedException` não compila com
+  `TreatWarningsAsErrors` (CS9113: parâmetros do construtor primário não lidos). O caminho
+  feliz entrou direto na T009, depois dos testes da T007.
+- **US2 junto com a fundação**: o teste `Cada_contrato_tem_o_seu_tipo` conta o catálogo e
+  reprova assim que `entrega.criada` entra em `TiposEvento` (T004). Os testes da US2 (T011 e
+  T012) foram no mesmo commit da fundação, para nenhum commit ficar vermelho.

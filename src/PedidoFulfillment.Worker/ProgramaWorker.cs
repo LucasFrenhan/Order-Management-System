@@ -1,4 +1,5 @@
 using PedidoFulfillment.Application.Contratos.Eventos;
+using PedidoFulfillment.Application.Entregas;
 using PedidoFulfillment.Application.Estoque;
 using PedidoFulfillment.Application.Pagamentos;
 using PedidoFulfillment.Infrastructure;
@@ -23,6 +24,7 @@ public sealed class ProgramaWorker
         builder.Services.AdicionarConsumidor<ReservaEstoque, PedidoCriado>();
         builder.Services.AdicionarGatewayPagamentoSimulado();
         builder.Services.AdicionarConsumidor<ProcessamentoPagamento, EstoqueReservado>();
+        builder.Services.AdicionarConsumidor<CriacaoOrdemEntrega, PagamentoAprovado>();
 
         var app = builder.Build();
         app.MapearEndpointsSaude();
