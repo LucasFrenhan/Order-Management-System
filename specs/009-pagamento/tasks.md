@@ -203,7 +203,7 @@ A proporção (SC-002) e o validador já são cobertos na fundação (T003, T004
   - **Roteiros de validação**: o quickstart do REQ-09.
 - [X] T023 [P] Em `specs/006-mensageria/contracts/topologia-e-consumo.md`, citar o consumidor de pagamento ao lado do de estoque, sem mudar o contrato. Em `specs/008-estoque/quickstart.md`, nota nos §3 e §5: com o pagamento ligado, o pedido reservado vai para `Processando` (ou `PagamentoRejeitado`); para repetir o roteiro do REQ-08, suba o Worker com a taxa em 100% e cancele como operação.
 - [X] T024 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados).
-- [ ] T025 Executar o quickstart (§1 a §7) e registrar em Notes. Conferir nos logs do Worker os EventIds 7001, 7002 e 7003.
+- [X] T025 Executar o quickstart (§1 a §7) e registrar em Notes. Conferir nos logs do Worker os EventIds 7001, 7002 e 7003.
 - [ ] T026 Fazer push e abrir o PR com `Closes #9`. Acompanhar o CI (`build-testes`, com os dois jobs) até ficar verde e registrar os tempos em Notes.
 
 ---
@@ -266,3 +266,24 @@ Setup, Foundational e US1: o pedido reservado é pago, vai para `Processando`, e
 - **T024** (2026-10-23): nenhum segredo novo no diff (a única chave sensível citada é a
   `RabbitMQ:Senha` vazia do teste de configuração), zero avisos, `dotnet format` passa e
   596 testes verdes (346 unitários e 250 de integração), nenhum ignorado.
+- **T025**, quickstart no ambiente local de desenvolvimento (2026-10-23):
+  - **§1**: coberto pela T024.
+  - **§2**: com o Worker no ar, existem `oms.pagamento`, `oms.pagamento.dlq` e as três filas
+    de espera. A fila de teste precisou ser durável (o RabbitMQ 4 recusa fila transitória
+    não exclusiva); o roteiro foi ajustado.
+  - **§3** (taxa 100): pedido de 2 `CAT-001` em `Processando`, pagamento `Aprovado` de
+    699,80 (igual ao total) com `SIM-...`, histórico `Pagamento aprovado.`, estoque 50 → 48
+    mantido; `pagamento.aprovado` na fila de teste e log 7001.
+  - **§4** (taxa 0): pedido de 3 `CAT-002` em `PagamentoRejeitado`, pagamento `Recusado` de
+    389,70 sem transação, estoque de volta a 100, motivo `Pagamento recusado pelo emissor.`
+    no histórico; `pagamento.recusado` na fila de teste, log 7002, e o `PATCH` para
+    `Cancelado` como Admin respondeu 409.
+  - **§5**: pedido cancelado com o Worker parado e `estoque.reservado` publicado pelo painel;
+    ao subir, logs 6003 e 7003 (status `Cancelado`), nenhum pagamento, estoque intacto e
+    DLQ vazia.
+  - **§6**: com a taxa 150, o Worker não subiu (`OptionsValidationException` citando
+    `GatewayPagamento:TaxaAprovacaoPercentual`), e o valor não aparece no log.
+  - **§7**: num projeto Compose isolado, os 4 serviços ficaram saudáveis em 26 s, com build,
+    e o pedido criado na demonstração foi pago (taxa padrão) em cerca de 2 s.
+  - O ambiente local recebeu pedidos de teste; API e Worker locais parados, e a fila de
+    teste removida.

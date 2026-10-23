@@ -28,7 +28,7 @@ dotnet run --project src/PedidoFulfillment.Worker --launch-profile http   # term
 **Esperado**: no painel do RabbitMQ (`http://localhost:15672`), as filas `oms.pagamento`,
 `oms.pagamento.dlq` e as três de espera existem.
 
-Crie a fila `teste.pagamento` e ligue-a a `oms.eventos` com a chave `pagamento.*`.
+Crie a fila `teste.pagamento`, durável (o RabbitMQ 4 não aceita fila transitória não exclusiva), e ligue-a a `oms.eventos` com a chave `pagamento.*`.
 
 Para conferir pedidos, pagamentos e estoque, use o SQL Server do ambiente local:
 
