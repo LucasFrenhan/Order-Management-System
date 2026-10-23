@@ -187,15 +187,15 @@ método do serviço, por isso correm em sequência.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T022 [P] Desempenho em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/DesempenhoRastreioTestes.cs` (`ColecaoBancoDados`; SC-004): pedido de 10 itens (como `DesempenhoCriacaoTestes`) levado a `ProntoParaEnvio` e com o histórico completado por SQL até 10 entradas; 5 consultas de aquecimento; 40 consultas e 40 rastreios (o primeiro despacha, os demais alternam dois códigos), cada um medido com `Stopwatch`; percentil 95 abaixo de 500 ms para cada operação, com os valores na saída do teste.
-- [ ] T023 [P] Atualizar `README.md`:
+- [X] T022 [P] Desempenho em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/DesempenhoRastreioTestes.cs` (`ColecaoBancoDados`; SC-004): pedido de 10 itens (como `DesempenhoCriacaoTestes`) levado a `ProntoParaEnvio` e com o histórico completado por SQL até 10 entradas; 5 consultas de aquecimento; 40 consultas e 40 rastreios (o primeiro despacha, os demais alternam dois códigos), cada um medido com `Stopwatch`; percentil 95 abaixo de 500 ms para cada operação, com os valores na saída do teste.
+- [X] T023 [P] Atualizar `README.md`:
   - **Estado atual**: linha do REQ-11; tirar "Issue #11 pendente";
   - **Próximos passos**: sem issues de negócio pendentes; citar a #18 (SonarQube) e as pendências futuras de mensageria;
   - **Decisões**: o fluxo do pedido vai até `Despachado` com rastreio; despacho pela rota de status continua sem rastreio; correção do rastreio; ordem criada no despacho;
   - **Roteiros de validação**: o quickstart do REQ-11.
-- [ ] T024 [P] Em `specs/005-criacao-pedidos/quickstart.md`, nota de que a resposta do pedido passou a trazer `historico` e `entrega` (REQ-11).
-- [ ] T025 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados).
-- [ ] T026 Executar o quickstart (§1 a §5) com a API e o Worker locais e registrar em Notes, com os percentis da T022. Conferir nos logs da API os EventIds 4004 e 4005.
+- [X] T024 [P] Em `specs/005-criacao-pedidos/quickstart.md`, nota de que a resposta do pedido passou a trazer `historico` e `entrega` (REQ-11).
+- [X] T025 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados).
+- [X] T026 Executar o quickstart (§1 a §5) com a API e o Worker locais e registrar em Notes, com os percentis da T022. Conferir nos logs da API os EventIds 4004 e 4005.
 - [ ] T027 Fazer push e abrir o PR com `Closes #11`. Acompanhar os workflows `build-testes` e "Compatibilidade do contrato" até ficarem verdes, **inclusive depois de cada push posterior**, e registrar em Notes.
 
 ---
@@ -255,3 +255,26 @@ Setup, Foundational e US1: a consulta mostra o histórico e a entrega.
   `maxLength` dos atributos); o YAML segue o gerado, e o "não vazio" fica descrito no schema e
   garantido pela validação (400). O catálogo de códigos de `specs/001-contratos-api/data-model.md`
   ganhou `PEDIDO_RASTREIO_DUPLICADO`.
+- **T022 (2026-10-23, local)**: 40 consultas e 40 rastreios de um pedido com 10 itens e 10
+  entradas de histórico. O p95 da consulta foi de 4 ms e o do rastreio, de 18 ms (limite de
+  500 ms, SC-004).
+- **T025 (2026-10-23)**: varredura de segredos sem achados; `dotnet format --verify-no-changes`
+  limpo; suíte local com 720 testes (430 unitários e 290 de integração), zero ignorados com o
+  Docker no ar; eram 650 na linha de base.
+- **T026 (2026-10-23, quickstart com API e Worker locais, taxa em 100%)**:
+  - §1 e §2: suíte e conformidade verdes (T025); a migration `RastreioSemCaixa` foi aplicada
+    ao banco local pela API;
+  - §3: um pedido criado pelo Cliente chegou a `ProntoParaEnvio`. A consulta do Cliente
+    mostrou o histórico `→ Pendente`, `Pendente → Processando` ("Pagamento aprovado."),
+    `Processando → ProntoParaEnvio` ("Ordem de entrega criada."), só com os campos
+    `statusAnterior`, `statusNovo`, `ocorridoEm` e `motivo`, e a entrega com `criadoEm` e sem
+    dados de despacho. O despacho pelo operador respondeu 200, com `Despachado`, a entrada
+    `ProntoParaEnvio → Despachado` ("Pedido despachado.") e a entrega com Correios,
+    `BR123456789BR` e `despachadoEm`;
+  - §4: a repetição respondeu 200 com o mesmo `atualizadoEm`; a correção para `BR999999999BR`
+    respondeu 200, com a mesma data de despacho e o mesmo histórico; outro pedido com
+    `correios`/`br999999999br` recebeu 409 `PEDIDO_RASTREIO_DUPLICADO`;
+  - §5: Cliente 403; pedido cancelado 409 `PEDIDO_TRANSICAO_INVALIDA`; transportadora só com
+    espaços 400 com o campo `transportadora`;
+  - logs da API: 4004 com `Despachado`, `SemMudanca` e `Corrigido` e 4005 no duplicado, sem
+    transportadora nem código em nenhum log.

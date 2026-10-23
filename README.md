@@ -20,7 +20,7 @@ constituição do projeto fica em [`.specify/memory/constitution.md`](.specify/m
 | REQ-08 — Reserva de estoque assíncrona ([spec](specs/008-estoque/spec.md)) | Consumidor `estoque` no Worker: reserva tudo ou nada com concorrência otimista e publica `estoque.reservado`; sem estoque, cancela o pedido e publica `estoque.insuficiente`. O cancelamento pela API devolve o estoque reservado |
 | REQ-09 — Pagamento assíncrono simulado ([spec](specs/009-pagamento/spec.md)) | Consumidor `pagamento` no Worker: cobra o pedido com estoque reservado num gateway simulado (90% aprova, configurável); aprovado → `Processando` e `pagamento.aprovado`; recusado → `PagamentoRejeitado`, estoque devolvido na mesma gravação e `pagamento.recusado` |
 | REQ-10 — Ordem de entrega assíncrona ([spec](specs/010-fulfillment/spec.md)) | Consumidor `entrega` no Worker: para o pedido pago, cria a ordem de entrega (sem transportadora, rastreio nem data de despacho), muda o pedido para `ProntoParaEnvio` e publica `entrega.criada`; pedido cancelado, despachado ou já com ordem é ignorado |
-| Issue #11 | Pendente; ver [Próximos passos](#próximos-passos) |
+| REQ-11 — Rastreio, despacho e histórico na consulta ([spec](specs/011-rastreio/spec.md)) | A resposta do pedido traz o histórico de status (sem o autor) e a entrega; `PATCH /api/v1/pedidos/{id}/rastreio` (Admin e OperadorLogistica) despacha o pedido pronto com transportadora e código de rastreio, ou corrige o rastreio de um despachado; evolução compatível do contrato v1 |
 
 ## Demonstração rápida
 
@@ -53,17 +53,18 @@ catálogo inicial (`CAT-001` a `CAT-010`).
 
 ## Próximos passos
 
-Issues abertas que formam o escopo restante, na ordem sugerida de implementação. Cada uma
-segue o fluxo SDD (`/speckit-specify` → `/speckit-clarify` → `/speckit-plan` →
-`/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`), em uma branch
-`feature/req-XX-...`. A numeração de requisito a partir do REQ-11 é definida quando cada
-especificação começa.
+Com o REQ-11, as issues de negócio do roteiro original (#1 a #11) estão entregues: o pedido
+vai da criação ao despacho com rastreio. Cada trabalho novo segue o fluxo SDD
+(`/speckit-specify` → `/speckit-clarify` → `/speckit-plan` → `/speckit-tasks` →
+`/speckit-analyze` → `/speckit-implement`), em uma branch `feature/req-XX-...`, com a
+numeração a partir do REQ-12.
 
-| Ordem | Requisito | Issue | Escopo | Depende de |
-|-------|-----------|-------|--------|------------|
-| 1 | a numerar | [#11](https://github.com/LucasFrenhan/Order-Management-System/issues/11) — Rastreio e histórico na consulta | A consulta com dono validado pelo token já existe (REQ-05). Faltam o histórico de status na resposta do `GET /api/v1/pedidos/{id}` e o `PATCH /api/v1/pedidos/{id}/rastreio` (Admin e OperadorLogistica) para registrar o rastreio e despachar. O despacho parte da ordem de entrega criada pelo REQ-10, que nasce sem transportadora, rastreio e data de despacho | fulfillment (REQ-10) |
+| Ordem | Requisito | Origem | Escopo |
+|-------|-----------|--------|--------|
+| 1 | a numerar | [#18](https://github.com/LucasFrenhan/Order-Management-System/issues/18) — SonarQube Cloud | Análise estática de código no CI |
+| 2 | a numerar | [Pendências futuras de mensageria](specs/006-mensageria/spec.md#pendências-futuras) | Evento publicado antes de a fila do consumidor existir (com a recuperação dos pedidos pagos sem ordem), limpeza do outbox e reprocessamento da DLQ |
 
-O que os REQ-04 a REQ-10 já deixaram pronto para esses requisitos:
+O que os REQ-04 a REQ-11 já deixaram pronto:
 
 - **Armazenamento**: produtos, pedidos com itens e histórico de status, pagamentos e ordens
   de entrega, com as restrições no banco.
@@ -87,6 +88,9 @@ O que os REQ-04 a REQ-10 já deixaram pronto para esses requisitos:
 - **Entrega** (REQ-10): `Pedido.CriarOrdemEntrega`, com a condição `AptoParaOrdemEntrega`;
   a `OrdemEntrega` passa a ser lida com o pedido
   ([consumidor de entrega](specs/010-fulfillment/contracts/consumidor-entrega.md)).
+- **Rastreio** (REQ-11): `Pedido.RegistrarRastreio` (despacho, correção ou sem mudança) e
+  `OrdemEntrega.CorrigirRastreio`; a política `PoliticaRastreioPedido`; a resposta do pedido
+  com `historico` e `entrega` ([contrato do rastreio](specs/011-rastreio/contracts/rastreio-http.md)).
 
 Decisões e pontos já conhecidos:
 
@@ -100,13 +104,20 @@ Decisões e pontos já conhecidos:
   existir ficam em `Processando` sem ordem de entrega, e o REQ-10 não os recupera. Estão
   anotadas em [pendências futuras](specs/006-mensageria/spec.md#pendências-futuras), para
   virar requisito próprio.
-- **Mudanças de contrato (Princípio II).** A rota `PATCH /api/v1/pedidos/{id}/rastreio` e o
-  histórico de status na consulta (#11) não existem no contrato v1. Eles exigem evolução
-  compatível do contrato ou uma versão nova, decidida na especificação.
+- **Mudanças de contrato (Princípio II).** O REQ-11 evoluiu a v1 só com acréscimos: os
+  campos `historico` e `entrega` na resposta do pedido e a rota `PATCH .../rastreio`. O
+  workflow "Compatibilidade do contrato" (oasdiff) barra mudanças incompatíveis no PR.
 - **Status do pedido.** A issue #9 cita "AguardandoEnvio", que não existe no contrato v1;
   o pagamento aprovado leva a `Processando` (REQ-09), e a ordem de entrega leva a
-  `ProntoParaEnvio` (REQ-10), onde termina o fluxo automático. `Despachado` vem com o
-  rastreio (#11).
+  `ProntoParaEnvio` (REQ-10), onde termina o fluxo automático. O despacho com rastreio leva a
+  `Despachado` (REQ-11).
+- **Despacho e rastreio** (REQ-11). O despacho cria a ordem de entrega se ela faltar (o que
+  também atende aos pedidos pagos sem ordem). Num pedido despachado, a mesma rota corrige
+  a transportadora ou o código, sem mudar o status nem a data de despacho. O código é único
+  por transportadora, sem diferenciar maiúsculas. A mudança de status do REQ-05 continua
+  aceitando `ProntoParaEnvio → Despachado` sem rastreio, que pode ser registrado depois. O
+  histórico na consulta mostra o motivo de cada mudança a todos os perfis, inclusive o
+  Cliente, e nunca o autor.
 - **Ordem de entrega de pedido cancelado.** A operação ainda pode cancelar um pedido
   `ProntoParaEnvio` (o estoque volta); a ordem continua registrada, sem despacho, e o
   cancelamento dela fica para um requisito futuro (REQ-10).
@@ -118,7 +129,7 @@ Decisões e pontos já conhecidos:
 - SDK do .NET 10 (`winget install Microsoft.DotNet.SDK.10`)
 - Docker com Compose v2, para o [ambiente local](#ambiente-local) (`winget install Docker.DockerDesktop`)
 
-Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md), [domínio e persistência](specs/004-dominio-persistencia/quickstart.md), [pedidos](specs/005-criacao-pedidos/quickstart.md), [mensageria](specs/006-mensageria/quickstart.md), [CI e demonstração](specs/007-ci-demo/quickstart.md), [estoque](specs/008-estoque/quickstart.md), [pagamento](specs/009-pagamento/quickstart.md) e [entrega](specs/010-fulfillment/quickstart.md).
+Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md), [domínio e persistência](specs/004-dominio-persistencia/quickstart.md), [pedidos](specs/005-criacao-pedidos/quickstart.md), [mensageria](specs/006-mensageria/quickstart.md), [CI e demonstração](specs/007-ci-demo/quickstart.md), [estoque](specs/008-estoque/quickstart.md), [pagamento](specs/009-pagamento/quickstart.md), [entrega](specs/010-fulfillment/quickstart.md) e [rastreio](specs/011-rastreio/quickstart.md).
 
 ## Ambiente local
 

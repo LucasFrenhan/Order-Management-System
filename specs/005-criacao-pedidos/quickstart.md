@@ -76,6 +76,10 @@ Os IDs estão na tabela do catálogo (`0192b6a0-0000-7000-8000-00000000000N`).
 | outro Cliente | 404, igual ao de um id inexistente |
 | Admin ou OperadorLogistica | 200 |
 
+> **Com o REQ-11**: a resposta do pedido (criação, consulta e status) também traz
+> `historico`, com as mudanças de status em ordem e sem o autor, e `entrega` (`null` até
+> existir a ordem de entrega). Veja o [quickstart do REQ-11](../011-rastreio/quickstart.md).
+
 ## 6. Status (User Story 4)
 
 `PATCH .../{id}/status` com `{"status": "...", "motivo": "..."}`:
