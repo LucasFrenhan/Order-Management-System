@@ -22,7 +22,7 @@ internal sealed class ArmazenamentoPedidos(ContextoBancoDados contexto) : IArmaz
     public Task<Pedido?> ObterPedidoAsync(Guid id, bool paraAlterar, CancellationToken cancellationToken)
     {
         var pedidos = paraAlterar ? contexto.Pedidos : contexto.Pedidos.AsNoTracking();
-        return pedidos.Include(p => p.Itens).SingleOrDefaultAsync(p => p.Id == id, cancellationToken);
+        return pedidos.Include(p => p.Itens).Include(p => p.Pagamento).SingleOrDefaultAsync(p => p.Id == id, cancellationToken);
     }
 
     public Task<RegistroIdempotencia?> ObterRegistroIdempotenciaAsync(Guid clienteId, Guid chave, CancellationToken cancellationToken) =>

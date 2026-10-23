@@ -1,7 +1,9 @@
 using PedidoFulfillment.Application.Contratos.Eventos;
 using PedidoFulfillment.Application.Estoque;
+using PedidoFulfillment.Application.Pagamentos;
 using PedidoFulfillment.Infrastructure;
 using PedidoFulfillment.Infrastructure.Mensageria;
+using PedidoFulfillment.Infrastructure.Pagamentos;
 using PedidoFulfillment.Infrastructure.Saude;
 
 namespace PedidoFulfillment.Worker;
@@ -19,6 +21,8 @@ public sealed class ProgramaWorker
         builder.Services.AdicionarInfraestrutura(builder.Configuration);
         builder.Services.AdicionarMensageria();
         builder.Services.AdicionarConsumidor<ReservaEstoque, PedidoCriado>();
+        builder.Services.AdicionarGatewayPagamentoSimulado();
+        builder.Services.AdicionarConsumidor<ProcessamentoPagamento, EstoqueReservado>();
 
         var app = builder.Build();
         app.MapearEndpointsSaude();

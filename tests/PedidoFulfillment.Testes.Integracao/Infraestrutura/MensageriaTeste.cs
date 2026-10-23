@@ -109,6 +109,25 @@ public sealed class MensageriaTeste : IAsyncLifetime
         }
     }
 
+    /// <summary>Espera a fila principal do consumidor existir e ter consumidor ligado, até o prazo.</summary>
+    public async Task<bool> ConsumidorLigadoAsync(string consumidor, TimeSpan prazo)
+    {
+        await using var conexao = await ConectarAsync();
+        return await EsperarAteAsync(async () =>
+        {
+            // Fila ainda inexistente fecha o canal (404): um canal novo por tentativa.
+            await using var canal = await conexao.CreateChannelAsync(cancellationToken: TestContext.Current.CancellationToken);
+            try
+            {
+                return (await canal.QueueDeclarePassiveAsync(TopologiaMensageria.FilaPrincipal(consumidor), TestContext.Current.CancellationToken)).ConsumerCount > 0;
+            }
+            catch (RabbitMQ.Client.Exceptions.OperationInterruptedException)
+            {
+                return false;
+            }
+        }, prazo);
+    }
+
     /// <summary>Espera a condição ficar verdadeira, verificando a cada 50 ms, até o prazo.</summary>
     public static async Task<bool> EsperarAteAsync(Func<Task<bool>> condicao, TimeSpan prazo)
     {

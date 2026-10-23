@@ -18,7 +18,8 @@ constituição do projeto fica em [`.specify/memory/constitution.md`](.specify/m
 | REQ-06 — Mensageria, publicação de eventos e DLQ ([spec](specs/006-mensageria/spec.md)) | Contratos de eventos v1 com schema, `pedido.criado` publicado por outbox, processo `PedidoFulfillment.Worker` e base de consumo com novas tentativas, DLQ e descarte de duplicados |
 | REQ-07 — CI e ambiente de demonstração ([spec](specs/007-ci-demo/spec.md)) | Verificação `build-testes` em todo PR (build, testes com Docker obrigatório, cobertura, demonstração) e perfil `demo` que sobe a API com um comando |
 | REQ-08 — Reserva de estoque assíncrona ([spec](specs/008-estoque/spec.md)) | Consumidor `estoque` no Worker: reserva tudo ou nada com concorrência otimista e publica `estoque.reservado`; sem estoque, cancela o pedido e publica `estoque.insuficiente`. O cancelamento pela API devolve o estoque reservado |
-| Issues #9 a #11 | Pendentes; ver [Próximos passos](#próximos-passos) |
+| REQ-09 — Pagamento assíncrono simulado ([spec](specs/009-pagamento/spec.md)) | Consumidor `pagamento` no Worker: cobra o pedido com estoque reservado num gateway simulado (90% aprova, configurável); aprovado → `Processando` e `pagamento.aprovado`; recusado → `PagamentoRejeitado`, estoque devolvido na mesma gravação e `pagamento.recusado` |
+| Issues #10 e #11 | Pendentes; ver [Próximos passos](#próximos-passos) |
 
 ## Demonstração rápida
 
@@ -54,16 +55,15 @@ catálogo inicial (`CAT-001` a `CAT-010`).
 Issues abertas que formam o escopo restante, na ordem sugerida de implementação. Cada uma
 segue o fluxo SDD (`/speckit-specify` → `/speckit-clarify` → `/speckit-plan` →
 `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`), em uma branch
-`feature/req-XX-...`. A numeração de requisito a partir do REQ-09 é definida quando cada
+`feature/req-XX-...`. A numeração de requisito a partir do REQ-10 é definida quando cada
 especificação começa.
 
 | Ordem | Requisito | Issue | Escopo | Depende de |
 |-------|-----------|-------|--------|------------|
-| 1 | a numerar | [#9](https://github.com/LucasFrenhan/Order-Management-System/issues/9) — Worker de pagamento assíncrono | Consome `estoque.reservado`, simula o gateway (90% aprova); aprovado → `Processando`; recusado → `PagamentoRejeitado` e compensação do estoque, reaproveitando `Pedido.DevolverEstoque` e a marca `EstoqueReservado` (REQ-08) | REQ-08 |
-| 2 | a numerar | [#10](https://github.com/LucasFrenhan/Order-Management-System/issues/10) — Worker de fulfillment e logística | Consome `PagamentoAprovado`, cria a `OrdemEntrega`, muda o pedido para `ProntoParaEnvio` e publica o evento de despacho | pagamento |
-| 3 | a numerar | [#11](https://github.com/LucasFrenhan/Order-Management-System/issues/11) — Rastreio e histórico na consulta | A consulta com dono validado pelo token já existe (REQ-05). Faltam o histórico de status na resposta do `GET /api/v1/pedidos/{id}` e o `PATCH /api/v1/pedidos/{id}/rastreio` (Admin e OperadorLogistica) para registrar o rastreio e despachar | fulfillment |
+| 1 | a numerar | [#10](https://github.com/LucasFrenhan/Order-Management-System/issues/10) — Worker de fulfillment e logística | Consome `pagamento.aprovado` (o pedido já chega em `Processando`, REQ-09), cria a `OrdemEntrega`, muda o pedido para `ProntoParaEnvio` e publica o evento de despacho | pagamento |
+| 2 | a numerar | [#11](https://github.com/LucasFrenhan/Order-Management-System/issues/11) — Rastreio e histórico na consulta | A consulta com dono validado pelo token já existe (REQ-05). Faltam o histórico de status na resposta do `GET /api/v1/pedidos/{id}` e o `PATCH /api/v1/pedidos/{id}/rastreio` (Admin e OperadorLogistica) para registrar o rastreio e despachar | fulfillment |
 
-O que os REQ-04 a REQ-08 já deixaram pronto para esses requisitos:
+O que os REQ-04 a REQ-09 já deixaram pronto para esses requisitos:
 
 - **Armazenamento**: produtos, pedidos com itens e histórico de status, pagamentos e ordens
   de entrega, com as restrições no banco.
@@ -81,6 +81,9 @@ O que os REQ-04 a REQ-08 já deixaram pronto para esses requisitos:
 - **Estoque** (REQ-08): `Pedido.ReservarEstoque` e `Pedido.DevolverEstoque`, com a marca
   `EstoqueReservado`; o consumidor `ReservaEstoque` é o exemplo de worker de negócio
   ([consumidor de estoque](specs/008-estoque/contracts/consumidor-estoque.md)).
+- **Pagamento** (REQ-09): `Pedido.AprovarPagamento` e `Pedido.RecusarPagamento`, com a
+  condição `AptoParaPagamento`; a porta `IGatewayPagamento` e o gateway simulado
+  ([consumidor de pagamento](specs/009-pagamento/contracts/consumidor-pagamento.md)).
 
 Decisões e pontos já conhecidos:
 
@@ -97,14 +100,16 @@ Decisões e pontos já conhecidos:
   histórico de status na consulta (#11) não existem no contrato v1. Eles exigem evolução
   compatível do contrato ou uma versão nova, decidida na especificação.
 - **Status do pedido.** A issue #9 cita "AguardandoEnvio", que não existe no contrato v1;
-  o pagamento aprovado leva a `Processando`.
+  o pagamento aprovado leva a `Processando` (REQ-09).
+- **Estorno.** Cancelar pela API um pedido com pagamento aprovado devolve o estoque, mas o
+  pagamento continua `Aprovado`; o estorno fica para um requisito futuro (clarify do REQ-09).
 
 ## Pré-requisitos
 
 - SDK do .NET 10 (`winget install Microsoft.DotNet.SDK.10`)
 - Docker com Compose v2, para o [ambiente local](#ambiente-local) (`winget install Docker.DockerDesktop`)
 
-Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md), [domínio e persistência](specs/004-dominio-persistencia/quickstart.md), [pedidos](specs/005-criacao-pedidos/quickstart.md), [mensageria](specs/006-mensageria/quickstart.md), [CI e demonstração](specs/007-ci-demo/quickstart.md) e [estoque](specs/008-estoque/quickstart.md).
+Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md), [domínio e persistência](specs/004-dominio-persistencia/quickstart.md), [pedidos](specs/005-criacao-pedidos/quickstart.md), [mensageria](specs/006-mensageria/quickstart.md), [CI e demonstração](specs/007-ci-demo/quickstart.md), [estoque](specs/008-estoque/quickstart.md) e [pagamento](specs/009-pagamento/quickstart.md).
 
 ## Ambiente local
 
@@ -225,6 +230,14 @@ Os eventos de domínio trafegam pelo RabbitMQ ([spec](specs/006-mensageria/spec.
   ([schema](specs/008-estoque/contracts/eventos/)). Conflitos de concorrência no mesmo
   produto são reavaliados com o estoque atual. Cancelar pela API um pedido com estoque
   reservado devolve o estoque na mesma gravação.
+- **Pagamento** (REQ-09, [consumidor de pagamento](specs/009-pagamento/contracts/consumidor-pagamento.md)):
+  o consumidor `pagamento` (fila `oms.pagamento`) recebe `estoque.reservado` e cobra o valor
+  total num gateway simulado, que aprova com a chance de
+  `GatewayPagamento:TaxaAprovacaoPercentual` (padrão 90, de 0 a 100; fora disso o Worker não
+  sobe). Aprovado, o pedido vai de `Pendente` para `Processando` e sai `pagamento.aprovado`.
+  Recusado, o pedido vai para `PagamentoRejeitado` (final), o estoque volta na mesma
+  gravação e sai `pagamento.recusado`. Pedido cancelado, em status final ou já pago é
+  ignorado.
 
 Para rodar localmente, com o [ambiente local](#ambiente-local) no ar e a API já iniciada
 (é ela que aplica as migrations):
@@ -290,23 +303,25 @@ src/
                                      Entregas/
   PedidoFulfillment.Application/     DTOs de contrato, contratos de eventos, serviços de
                                      autenticação e de pedidos (portas de persistência,
-                                     idempotência, outbox), consumidor de estoque (Estoque/),
+                                     idempotência, outbox), consumidores de estoque (Estoque/) e
+                                     de pagamento (Pagamentos/, com a porta do gateway),
                                      IManipuladorEvento, Resultado,
                                      ConflitoConcorrenciaException
   PedidoFulfillment.Infrastructure/  banco (EF Core + Identity, Persistencia/Configuracoes com o
                                      mapeamento do domínio, armazenamento de pedidos, número do
                                      pedido, migrations, preparação e catálogo inicial),
                                      mensageria (Mensageria/: conexão, topologia, despachante
-                                     do outbox, base de consumo), configuração e saúde
+                                     do outbox, base de consumo), gateway de pagamento
+                                     simulado (Pagamentos/), configuração e saúde
   PedidoFulfillment.API/             Minimal APIs (só roteamento), segurança (validação e
                                      emissão de JWT), erros, OpenAPI; Dockerfile da demonstração
-  PedidoFulfillment.Worker/          processo dos consumidores (estoque) e do despachante do outbox
+  PedidoFulfillment.Worker/          processo dos consumidores (estoque e pagamento) e do despachante do outbox
                                      (só /health e /health/pronto); Dockerfile
 tests/
   PedidoFulfillment.Testes.Unitarios/   DTOs, configurações, regras de autenticação, de pedidos,
-                                        de estoque e de mensageria, e entidades do domínio
+                                        de estoque, de pagamento e de mensageria, e entidades do domínio
   PedidoFulfillment.Testes.Integracao/  contrato, segurança, erros, serialização, configuração,
-                                        saúde, autenticação, persistência, pedidos, mensageria e estoque
+                                        saúde, autenticação, persistência, pedidos, mensageria, estoque e pagamento
                                         com SQL Server e RabbitMQ reais (Testcontainers),
                                         schemas de eventos e arquitetura
 specs/                               especificações SDD (spec, plano, tarefas, contrato)
