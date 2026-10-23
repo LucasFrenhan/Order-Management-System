@@ -1,0 +1,91 @@
+using Microsoft.Extensions.Logging;
+using PedidoFulfillment.Application.Comum;
+using PedidoFulfillment.Application.Contratos.Eventos;
+using PedidoFulfillment.Application.Mensageria;
+using PedidoFulfillment.Application.Pedidos;
+using PedidoFulfillment.Domain.Pagamentos;
+using PedidoFulfillment.Domain.Pedidos;
+
+namespace PedidoFulfillment.Application.Entregas;
+
+/// <summary>
+/// Consumidor de entrega (REQ-10, <c>specs/010-fulfillment/contracts/consumidor-entrega.md</c>):
+/// cria a ordem de entrega do pedido pago, leva o pedido a ProntoParaEnvio e publica
+/// <c>entrega.criada</c>. Roda dentro da transação da base de consumo do REQ-06; o evento sai pelo
+/// outbox na mesma gravação.
+/// </summary>
+public sealed class CriacaoOrdemEntrega(IArmazenamentoPedidos armazenamento, TimeProvider relogio, ILogger<CriacaoOrdemEntrega> logger)
+    : IManipuladorEvento<PagamentoAprovado>
+{
+    /// <summary>Como <see cref="Pagamentos.ProcessamentoPagamento"/> (research R-04).</summary>
+    private const int Reavaliacoes = 3;
+
+    public string Consumidor => "entrega";
+
+    public IReadOnlyCollection<string> Tipos { get; } = [TiposEvento.PagamentoAprovado];
+
+    /// <summary>
+    /// Ler, decidir e gravar, até <see cref="Reavaliacoes"/> vezes em conflito de concorrência
+    /// (FR-007). A cada volta o pedido é relido: se deixou de estar apto (por exemplo, foi
+    /// cancelado), termina sem gravar. Esgotadas as reavaliações, o conflito vai para as novas
+    /// tentativas da base.
+    /// </summary>
+    public async Task ManipularAsync(EnvelopeEvento<PagamentoAprovado> evento, CancellationToken cancellationToken)
+    {
+        for (var reavaliacao = 1; ; reavaliacao++)
+        {
+            try
+            {
+                if (await LerAptoAsync(evento, cancellationToken) is { } pedido)
+                {
+                    await CriarAsync(evento.IdEvento, pedido, cancellationToken);
+                }
+
+                return;
+            }
+            catch (ConflitoConcorrenciaException)
+            {
+                armazenamento.DescartarAlteracoes();
+                EventosEntrega.ConflitoNaEntrega(logger, evento.IdEvento, evento.Dados.PedidoId, reavaliacao);
+                if (reavaliacao == Reavaliacoes)
+                {
+                    throw;
+                }
+            }
+        }
+    }
+
+    /// <summary>O pedido atual, se ainda pode ganhar a ordem (FR-002); inexistente é falha (FR-003).</summary>
+    private async Task<Pedido?> LerAptoAsync(EnvelopeEvento<PagamentoAprovado> evento, CancellationToken cancellationToken)
+    {
+        var pedidoId = evento.Dados.PedidoId;
+        var pedido = await armazenamento.ObterPedidoAsync(pedidoId, paraAlterar: true, cancellationToken)
+            ?? throw new InvalidOperationException($"O pedido {pedidoId} não existe.");
+        if (pedido.AptoParaOrdemEntrega)
+        {
+            return pedido;
+        }
+
+        // Cancelado ou despachado antes do fulfillment, sem pagamento aprovado ou já com ordem: nada a fazer (FR-002).
+        EventosEntrega.PedidoIgnoradoNaEntrega(logger, evento.IdEvento, pedido.Id, pedido.Status, pedido.EstoqueReservado,
+            pedido.Pagamento?.Situacao == SituacaoPagamento.Aprovado, pedido.OrdemEntrega is not null);
+        return null;
+    }
+
+    /// <summary>Ordem, status e <c>entrega.criada</c> na mesma gravação (FR-004); os itens vêm do pedido gravado.</summary>
+    private async Task CriarAsync(Guid idEvento, Pedido pedido, CancellationToken cancellationToken)
+    {
+        var agora = relogio.GetUtcNow();
+        var statusAntes = pedido.Status;
+        var ordem = pedido.CriarOrdemEntrega(agora);
+        armazenamento.Adicionar(EventoSaida.De(EnvelopeEvento.Criar(pedido.Id, new EntregaCriada
+        {
+            PedidoId = pedido.Id,
+            Numero = pedido.Numero,
+            OrdemEntregaId = ordem.Id,
+            Itens = [.. pedido.Itens.Select(i => new ItemEntregaCriada { ProdutoId = i.ProdutoId, Quantidade = i.Quantidade })]
+        }, agora), agora));
+        await armazenamento.SalvarAsync(cancellationToken);
+        EventosEntrega.OrdemEntregaCriada(logger, idEvento, pedido.Id, ordem.Id, pedido.Status != statusAntes);
+    }
+}

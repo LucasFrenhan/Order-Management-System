@@ -12,6 +12,7 @@ Este documento fixa o que os workers das issues #8 a #10 e a operação podem es
 | `estoque.reservado` | worker de estoque (#8) | [estoque.reservado.v1](./eventos/estoque.reservado.v1.schema.json) |
 | `pagamento.aprovado` | worker de pagamento (#9) | [pagamento.aprovado.v1](./eventos/pagamento.aprovado.v1.schema.json) |
 | `pagamento.recusado` | worker de pagamento (#9) | [pagamento.recusado.v1](./eventos/pagamento.recusado.v1.schema.json) |
+| `entrega.criada` | worker de entrega (#10, REQ-10) | [entrega.criada.v1](../../010-fulfillment/contracts/eventos/entrega.criada.v1.schema.json) |
 
 O envelope é comum a todos: `idEvento`, `tipo`, `versao`, `ocorridoEm` (UTC),
 `idCorrelacao` (o id do pedido) e `dados`. Mudanças seguem o Princípio II: na mesma versão,
@@ -74,4 +75,7 @@ como reavaliar um conflito de concorrência dentro da transação da base. O con
 pagamento do REQ-09 (`ProcessamentoPagamento`, em `src/PedidoFulfillment.Application/Pagamentos/`,
 descrito em [consumidor de pagamento](../../009-pagamento/contracts/consumidor-pagamento.md))
 mostra como chamar um serviço externo por uma porta, uma vez só por processamento, mesmo
-com reavaliações.
+com reavaliações. O consumidor de entrega do REQ-10 (`CriacaoOrdemEntrega`, em
+`src/PedidoFulfillment.Application/Entregas/`, fila `oms.entrega`, descrito em
+[consumidor de entrega](../../010-fulfillment/contracts/consumidor-entrega.md)) consome
+`pagamento.aprovado` e publica `entrega.criada`.

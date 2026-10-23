@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/LucasFrenhan/Order-Management-System/specs/010-fulfillment/contracts/eventos/entrega.criada.v1.schema.json",
+  "title": "entrega.criada v1",
+  "description": "Publicado pelo worker de entrega (REQ-10) quando a ordem de entrega do pedido pago foi criada; o pedido está pronto para separação e despacho.",
+  "type": "object",
+  "required": ["idEvento", "tipo", "versao", "ocorridoEm", "idCorrelacao", "dados"],
+  "properties": {
+    "idEvento": { "type": "string", "format": "uuid" },
+    "tipo": { "const": "entrega.criada" },
+    "versao": { "const": 1 },
+    "ocorridoEm": { "type": "string", "format": "date-time" },
+    "idCorrelacao": { "type": "string", "format": "uuid" },
+    "dados": {
+      "type": "object",
+      "required": ["pedidoId", "numero", "ordemEntregaId", "itens"],
+      "properties": {
+        "pedidoId": { "type": "string", "format": "uuid" },
+        "numero": { "type": "string", "pattern": "^PED-\\d{8}-\\d{6}$" },
+        "ordemEntregaId": { "type": "string", "format": "uuid" },
+        "itens": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["produtoId", "quantidade"],
+            "properties": {
+              "produtoId": { "type": "string", "format": "uuid" },
+              "quantidade": { "type": "integer", "minimum": 1 }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -18,6 +18,9 @@ public sealed class Pedido
     /// <summary>Motivo do histórico na mudança para Processando pelo pagamento aprovado (REQ-09, FR-008).</summary>
     public const string MotivoPagamentoAprovado = "Pagamento aprovado.";
 
+    /// <summary>Motivo do histórico na mudança para ProntoParaEnvio pela ordem de entrega (REQ-10, FR-004).</summary>
+    public const string MotivoOrdemEntregaCriada = "Ordem de entrega criada.";
+
     private readonly List<ItemPedido> itens = [];
     private readonly List<HistoricoStatusPedido> historico = [];
 
@@ -200,6 +203,44 @@ public sealed class Pedido
         DevolverEstoque(produtos, instante);
         Pagamento = pagamento;
         MudarStatus(StatusPedido.PagamentoRejeitado, null, motivoAparado, instante);
+    }
+
+    /// <summary>
+    /// Pode ganhar a ordem de entrega (REQ-10, FR-002, R-02): estoque reservado, pagamento aprovado,
+    /// sem ordem e em Processando ou ProntoParaEnvio.
+    /// </summary>
+    public bool AptoParaOrdemEntrega =>
+        EstoqueReservado && Pagamento?.Situacao == SituacaoPagamento.Aprovado && OrdemEntrega is null
+        && Status is StatusPedido.Processando or StatusPedido.ProntoParaEnvio;
+
+    /// <summary>
+    /// Cria a ordem de entrega, sem dados de despacho, e, em Processando, leva o pedido a
+    /// ProntoParaEnvio, sem autor (REQ-10, R-02 e R-03). Em ProntoParaEnvio, o status não muda, mas
+    /// <see cref="AtualizadoEm"/> sim, para a versão do pedido mudar (R-04). Estoque e pagamento ficam
+    /// como estão.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">O pedido não está <see cref="AptoParaOrdemEntrega"/>.</exception>
+    public OrdemEntrega CriarOrdemEntrega(DateTimeOffset instante)
+    {
+        if (!AptoParaOrdemEntrega)
+        {
+            throw new InvalidOperationException(
+                $"O pedido {Numero} não pode ganhar ordem de entrega: status {Status}, estoque reservado: {EstoqueReservado}, "
+                + $"pagamento aprovado: {Pagamento?.Situacao == SituacaoPagamento.Aprovado}, já tem ordem: {OrdemEntrega is not null}.");
+        }
+
+        var ordem = new OrdemEntrega(Id, instante);
+        OrdemEntrega = ordem;
+        if (Status == StatusPedido.Processando)
+        {
+            MudarStatus(StatusPedido.ProntoParaEnvio, null, MotivoOrdemEntregaCriada, instante);
+        }
+        else
+        {
+            AtualizadoEm = instante;
+        }
+
+        return ordem;
     }
 
     private Pagamento NovoPagamento(DateTimeOffset instante) =>

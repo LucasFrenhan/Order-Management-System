@@ -19,7 +19,8 @@ constituição do projeto fica em [`.specify/memory/constitution.md`](.specify/m
 | REQ-07 — CI e ambiente de demonstração ([spec](specs/007-ci-demo/spec.md)) | Verificação `build-testes` em todo PR (build, testes com Docker obrigatório, cobertura, demonstração) e perfil `demo` que sobe a API com um comando |
 | REQ-08 — Reserva de estoque assíncrona ([spec](specs/008-estoque/spec.md)) | Consumidor `estoque` no Worker: reserva tudo ou nada com concorrência otimista e publica `estoque.reservado`; sem estoque, cancela o pedido e publica `estoque.insuficiente`. O cancelamento pela API devolve o estoque reservado |
 | REQ-09 — Pagamento assíncrono simulado ([spec](specs/009-pagamento/spec.md)) | Consumidor `pagamento` no Worker: cobra o pedido com estoque reservado num gateway simulado (90% aprova, configurável); aprovado → `Processando` e `pagamento.aprovado`; recusado → `PagamentoRejeitado`, estoque devolvido na mesma gravação e `pagamento.recusado` |
-| Issues #10 e #11 | Pendentes; ver [Próximos passos](#próximos-passos) |
+| REQ-10 — Ordem de entrega assíncrona ([spec](specs/010-fulfillment/spec.md)) | Consumidor `entrega` no Worker: para o pedido pago, cria a ordem de entrega (sem transportadora, rastreio nem data de despacho), muda o pedido para `ProntoParaEnvio` e publica `entrega.criada`; pedido cancelado, despachado ou já com ordem é ignorado |
+| Issue #11 | Pendente; ver [Próximos passos](#próximos-passos) |
 
 ## Demonstração rápida
 
@@ -55,15 +56,14 @@ catálogo inicial (`CAT-001` a `CAT-010`).
 Issues abertas que formam o escopo restante, na ordem sugerida de implementação. Cada uma
 segue o fluxo SDD (`/speckit-specify` → `/speckit-clarify` → `/speckit-plan` →
 `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`), em uma branch
-`feature/req-XX-...`. A numeração de requisito a partir do REQ-10 é definida quando cada
+`feature/req-XX-...`. A numeração de requisito a partir do REQ-11 é definida quando cada
 especificação começa.
 
 | Ordem | Requisito | Issue | Escopo | Depende de |
 |-------|-----------|-------|--------|------------|
-| 1 | a numerar | [#10](https://github.com/LucasFrenhan/Order-Management-System/issues/10) — Worker de fulfillment e logística | Consome `pagamento.aprovado` (o pedido já chega em `Processando`, REQ-09), cria a `OrdemEntrega`, muda o pedido para `ProntoParaEnvio` e publica o evento de despacho | pagamento |
-| 2 | a numerar | [#11](https://github.com/LucasFrenhan/Order-Management-System/issues/11) — Rastreio e histórico na consulta | A consulta com dono validado pelo token já existe (REQ-05). Faltam o histórico de status na resposta do `GET /api/v1/pedidos/{id}` e o `PATCH /api/v1/pedidos/{id}/rastreio` (Admin e OperadorLogistica) para registrar o rastreio e despachar | fulfillment |
+| 1 | a numerar | [#11](https://github.com/LucasFrenhan/Order-Management-System/issues/11) — Rastreio e histórico na consulta | A consulta com dono validado pelo token já existe (REQ-05). Faltam o histórico de status na resposta do `GET /api/v1/pedidos/{id}` e o `PATCH /api/v1/pedidos/{id}/rastreio` (Admin e OperadorLogistica) para registrar o rastreio e despachar. O despacho parte da ordem de entrega criada pelo REQ-10, que nasce sem transportadora, rastreio e data de despacho | fulfillment (REQ-10) |
 
-O que os REQ-04 a REQ-09 já deixaram pronto para esses requisitos:
+O que os REQ-04 a REQ-10 já deixaram pronto para esses requisitos:
 
 - **Armazenamento**: produtos, pedidos com itens e histórico de status, pagamentos e ordens
   de entrega, com as restrições no banco.
@@ -84,6 +84,9 @@ O que os REQ-04 a REQ-09 já deixaram pronto para esses requisitos:
 - **Pagamento** (REQ-09): `Pedido.AprovarPagamento` e `Pedido.RecusarPagamento`, com a
   condição `AptoParaPagamento`; a porta `IGatewayPagamento` e o gateway simulado
   ([consumidor de pagamento](specs/009-pagamento/contracts/consumidor-pagamento.md)).
+- **Entrega** (REQ-10): `Pedido.CriarOrdemEntrega`, com a condição `AptoParaOrdemEntrega`;
+  a `OrdemEntrega` passa a ser lida com o pedido
+  ([consumidor de entrega](specs/010-fulfillment/contracts/consumidor-entrega.md)).
 
 Decisões e pontos já conhecidos:
 
@@ -93,14 +96,20 @@ Decisões e pontos já conhecidos:
 - **Pendências futuras de mensageria**: limpeza do outbox, dos eventos processados e das
   chaves de idempotência, reprocessamento da DLQ (hoje manual, pelo painel) e o evento
   descartado quando é publicado antes de a fila do consumidor existir num broker novo
-  (encontrado no REQ-08). Estão
+  (encontrado no REQ-08). Um caso dele: os pedidos pagos antes de a fila `oms.entrega`
+  existir ficam em `Processando` sem ordem de entrega, e o REQ-10 não os recupera. Estão
   anotadas em [pendências futuras](specs/006-mensageria/spec.md#pendências-futuras), para
   virar requisito próprio.
 - **Mudanças de contrato (Princípio II).** A rota `PATCH /api/v1/pedidos/{id}/rastreio` e o
   histórico de status na consulta (#11) não existem no contrato v1. Eles exigem evolução
   compatível do contrato ou uma versão nova, decidida na especificação.
 - **Status do pedido.** A issue #9 cita "AguardandoEnvio", que não existe no contrato v1;
-  o pagamento aprovado leva a `Processando` (REQ-09).
+  o pagamento aprovado leva a `Processando` (REQ-09), e a ordem de entrega leva a
+  `ProntoParaEnvio` (REQ-10), onde termina o fluxo automático. `Despachado` vem com o
+  rastreio (#11).
+- **Ordem de entrega de pedido cancelado.** A operação ainda pode cancelar um pedido
+  `ProntoParaEnvio` (o estoque volta); a ordem continua registrada, sem despacho, e o
+  cancelamento dela fica para um requisito futuro (REQ-10).
 - **Estorno.** Cancelar pela API um pedido com pagamento aprovado devolve o estoque, mas o
   pagamento continua `Aprovado`; o estorno fica para um requisito futuro (clarify do REQ-09).
 
@@ -109,7 +118,7 @@ Decisões e pontos já conhecidos:
 - SDK do .NET 10 (`winget install Microsoft.DotNet.SDK.10`)
 - Docker com Compose v2, para o [ambiente local](#ambiente-local) (`winget install Docker.DockerDesktop`)
 
-Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md), [domínio e persistência](specs/004-dominio-persistencia/quickstart.md), [pedidos](specs/005-criacao-pedidos/quickstart.md), [mensageria](specs/006-mensageria/quickstart.md), [CI e demonstração](specs/007-ci-demo/quickstart.md), [estoque](specs/008-estoque/quickstart.md) e [pagamento](specs/009-pagamento/quickstart.md).
+Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md), [domínio e persistência](specs/004-dominio-persistencia/quickstart.md), [pedidos](specs/005-criacao-pedidos/quickstart.md), [mensageria](specs/006-mensageria/quickstart.md), [CI e demonstração](specs/007-ci-demo/quickstart.md), [estoque](specs/008-estoque/quickstart.md), [pagamento](specs/009-pagamento/quickstart.md) e [entrega](specs/010-fulfillment/quickstart.md).
 
 ## Ambiente local
 
@@ -238,6 +247,15 @@ Os eventos de domínio trafegam pelo RabbitMQ ([spec](specs/006-mensageria/spec.
   Recusado, o pedido vai para `PagamentoRejeitado` (final), o estoque volta na mesma
   gravação e sai `pagamento.recusado`. Pedido cancelado, em status final ou já pago é
   ignorado.
+- **Entrega** (REQ-10, [consumidor de entrega](specs/010-fulfillment/contracts/consumidor-entrega.md)):
+  o consumidor `entrega` (fila `oms.entrega`) recebe `pagamento.aprovado`, cria a ordem de
+  entrega do pedido (sem transportadora, rastreio nem data de despacho), muda o pedido de
+  `Processando` para `ProntoParaEnvio` e publica `entrega.criada`
+  ([schema](specs/010-fulfillment/contracts/eventos/)), tudo na mesma gravação. Pedido
+  cancelado, despachado, sem pagamento aprovado ou já com ordem é ignorado. Pedidos pagos
+  antes de `oms.entrega` existir não ganham ordem (o evento deles foi descartado pelo
+  broker); a recuperação está nas
+  [pendências futuras](specs/006-mensageria/spec.md#pendências-futuras).
 
 Para rodar localmente, com o [ambiente local](#ambiente-local) no ar e a API já iniciada
 (é ela que aplica as migrations):

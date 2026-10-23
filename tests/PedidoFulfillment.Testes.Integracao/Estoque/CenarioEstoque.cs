@@ -3,6 +3,8 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PedidoFulfillment.Application.Contratos.Eventos;
+using PedidoFulfillment.Application.Entregas;
+using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Pagamentos;
 using PedidoFulfillment.Infrastructure.Mensageria;
 using PedidoFulfillment.Testes.Integracao.Infraestrutura;
@@ -22,7 +24,8 @@ internal static class CenarioEstoque
 
     /// <summary>
     /// Worker só com o consumidor de estoque: sem o pagamento (REQ-09), o pedido reservado
-    /// continua <c>Pendente</c>, como estes testes esperam (research R-09 do REQ-09).
+    /// continua <c>Pendente</c>, como estes testes esperam (research R-09 do REQ-09). O de entrega
+    /// (REQ-10) também sai, por simetria (research R-09 do REQ-10).
     /// </summary>
     public static FabricaWorker Worker(MensageriaTeste mensageria, string stringConexao, CapturaLogs? logs = null) => new()
     {
@@ -30,14 +33,19 @@ internal static class CenarioEstoque
         ConfiguracoesBroker = mensageria.ConfiguracoesBroker,
         Servicos = servicos =>
         {
-            var pagamento = servicos.Single(d => d.ImplementationType == typeof(ConsumidorEventos<ProcessamentoPagamento, EstoqueReservado>));
-            servicos.Remove(pagamento);
+            RemoverConsumidor<ProcessamentoPagamento, EstoqueReservado>(servicos);
+            RemoverConsumidor<CriacaoOrdemEntrega, PagamentoAprovado>(servicos);
             if (logs is not null)
             {
                 servicos.AddSingleton<ILoggerProvider>(logs);
             }
         }
     };
+
+    /// <summary>Tira do Worker o <c>IHostedService</c> de um consumidor, para isolar os testes de outro.</summary>
+    public static void RemoverConsumidor<TManipulador, TDados>(IServiceCollection servicos)
+        where TManipulador : class, IManipuladorEvento<TDados> =>
+        servicos.Remove(servicos.Single(d => d.ImplementationType == typeof(ConsumidorEventos<TManipulador, TDados>)));
 
     /// <summary>Sobe o Worker e espera o consumidor de estoque ficar ligado à fila.</summary>
     public static async Task<FabricaWorker> WorkerProntoAsync(MensageriaTeste mensageria, string stringConexao, CapturaLogs? logs = null)
@@ -87,17 +95,17 @@ internal static class CenarioEstoque
     }
 
     /// <summary>
-    /// Espera chegar a <c>oms.estoque.dlq</c> uma mensagem que cite o texto (por exemplo o id do
+    /// Espera chegar à DLQ do consumidor (<c>oms.estoque.dlq</c>, por padrão) uma mensagem que cite o texto (por exemplo o id do
     /// pedido) e devolve os cabeçalhos dela. Lê com <c>BasicGet</c> e confirma o que lê.
     /// </summary>
-    public static async Task<IDictionary<string, object?>?> EsperarNaDlqAsync(MensageriaTeste mensageria, string texto, TimeSpan prazo)
+    public static async Task<IDictionary<string, object?>?> EsperarNaDlqAsync(MensageriaTeste mensageria, string texto, TimeSpan prazo, string consumidor = FilaEstoque)
     {
         await using var conexao = await mensageria.ConectarAsync();
         await using var canal = await conexao.CreateChannelAsync(cancellationToken: Cancelamento);
         IDictionary<string, object?>? encontrada = null;
         await MensageriaTeste.EsperarAteAsync(async () =>
         {
-            while (await canal.BasicGetAsync(TopologiaMensageria.FilaMortas(FilaEstoque), autoAck: true, Cancelamento) is { } mensagem)
+            while (await canal.BasicGetAsync(TopologiaMensageria.FilaMortas(consumidor), autoAck: true, Cancelamento) is { } mensagem)
             {
                 if (Encoding.UTF8.GetString(mensagem.Body.Span).Contains(texto, StringComparison.Ordinal))
                 {

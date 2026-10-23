@@ -55,6 +55,11 @@ Crie um pedido com um produto em estoque, como no
 - o pedido aparece em `Processando`, com a entrada `Pagamento aprovado.` no histórico;
 - o estoque continua abatido (a reserva segue para o envio).
 
+> **Com o REQ-10**: o Worker completo também tem o consumidor de entrega, e o pedido
+> aprovado segue logo depois para `ProntoParaEnvio`, com a entrada `Ordem de entrega criada.`
+> ([quickstart do REQ-10](../010-fulfillment/quickstart.md) §3). Para ver o pedido parado em
+> `Processando`, confira o histórico: a entrada `Pagamento aprovado.` vem antes.
+
 ## 4. Pagamento recusado
 
 Repita o §3 com `$env:GatewayPagamento__TaxaAprovacaoPercentual = "0"`, anotando antes o

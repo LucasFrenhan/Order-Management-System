@@ -4,7 +4,7 @@ using PedidoFulfillment.Application.Contratos.Eventos;
 
 namespace PedidoFulfillment.Testes.Unitarios.Mensageria;
 
-/// <summary>Serialização dos contratos de evento v1 (REQ-06, FR-001 a FR-004; REQ-08, FR-012 e FR-013).</summary>
+/// <summary>Serialização dos contratos de evento v1 (REQ-06, FR-001 a FR-004; REQ-08, FR-012 e FR-013; REQ-10, FR-008 e FR-009).</summary>
 public sealed class SerializacaoEventosTestes
 {
     internal static readonly DateTimeOffset Instante = new(2026, 10, 22, 15, 30, 0, TimeSpan.Zero);
@@ -47,6 +47,18 @@ public sealed class SerializacaoEventosTestes
         Motivo = "Cartão recusado"
     }, Instante);
 
+    internal static EnvelopeEvento<EntregaCriada> EntregaCriada() => EnvelopeEvento.Criar(PedidoId, new EntregaCriada
+    {
+        PedidoId = PedidoId,
+        Numero = "PED-20261022-000001",
+        OrdemEntregaId = Guid.Parse("0192b6a0-3333-7000-8000-000000000001"),
+        Itens =
+        [
+            new ItemEntregaCriada { ProdutoId = ProdutoId, Quantidade = 2 },
+            new ItemEntregaCriada { ProdutoId = Guid.Parse("0192b6a0-0000-7000-8000-000000000002"), Quantidade = 1 }
+        ]
+    }, Instante);
+
     [Fact]
     public void Envelope_traz_tipo_versao_correlacao_e_campos_em_camelCase()
     {
@@ -72,17 +84,39 @@ public sealed class SerializacaoEventosTestes
         PagamentoRecusado().Tipo.Should().Be(TiposEvento.PagamentoRecusado);
         EstoqueInsuficiente().Tipo.Should().Be(TiposEvento.EstoqueInsuficiente);
         TiposEvento.EstoqueInsuficiente.Should().Be("estoque.insuficiente");
-        TiposEvento.TipoDados.Should().HaveCount(5);
+        EntregaCriada().Tipo.Should().Be(TiposEvento.EntregaCriada);
+        TiposEvento.EntregaCriada.Should().Be("entrega.criada");
+        TiposEvento.TipoDados.Should().HaveCount(6);
     }
 
     [Fact]
-    public void Ida_e_volta_preserva_os_valores_dos_cinco_eventos()
+    public void Ida_e_volta_preserva_os_valores_dos_seis_eventos()
     {
         DeveVoltarIgual(PedidoCriado());
         DeveVoltarIgual(EstoqueReservado());
         DeveVoltarIgual(PagamentoAprovado());
         DeveVoltarIgual(PagamentoRecusado());
         DeveVoltarIgual(EstoqueInsuficiente());
+        DeveVoltarIgual(EntregaCriada());
+    }
+
+    [Fact]
+    public void Entrega_criada_traz_a_ordem_e_os_itens_em_camelCase()
+    {
+        using var json = JsonDocument.Parse(SerializacaoEventos.Serializar(EntregaCriada()));
+        var raiz = json.RootElement;
+
+        raiz.GetProperty("tipo").GetString().Should().Be("entrega.criada");
+        raiz.GetProperty("versao").GetInt32().Should().Be(1);
+        var dados = raiz.GetProperty("dados");
+        dados.EnumerateObject().Select(p => p.Name).Should().Equal("pedidoId", "numero", "ordemEntregaId", "itens");
+        dados.GetProperty("pedidoId").GetGuid().Should().Be(PedidoId);
+        dados.GetProperty("numero").GetString().Should().Be("PED-20261022-000001");
+        dados.GetProperty("ordemEntregaId").GetGuid().Should().Be(Guid.Parse("0192b6a0-3333-7000-8000-000000000001"));
+        var item = dados.GetProperty("itens")[0];
+        item.EnumerateObject().Select(p => p.Name).Should().Equal("produtoId", "quantidade");
+        item.GetProperty("produtoId").GetGuid().Should().Be(ProdutoId);
+        item.GetProperty("quantidade").GetInt32().Should().Be(2);
     }
 
     [Fact]
