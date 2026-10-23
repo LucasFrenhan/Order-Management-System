@@ -143,14 +143,14 @@ Sem implementação nova: o contrato é da T004 e a publicação, da T009 (US2 c
 
 ### Testes da US3
 
-- [ ] T013 [P] [US3] Em `tests/PedidoFulfillment.Testes.Unitarios/Entregas/CriacaoOrdemEntregaTestes.cs`:
+- [X] T013 [P] [US3] Em `tests/PedidoFulfillment.Testes.Unitarios/Entregas/CriacaoOrdemEntregaTestes.cs`:
   - `Pendente`, `Cancelado`, `Despachado` e `PagamentoRejeitado` (theory), pedido sem reserva, sem pagamento aprovado e já com ordem: nenhum `SalvarAsync`, nenhum evento, log 8002 com as condições;
   - pedido em `ProntoParaEnvio` apto: ordem criada, status sem mudança, `entrega.criada` publicado, log 8001 indicando que o status não mudou;
   - um conflito e depois sucesso: duas leituras, `DescartarAlteracoes` uma vez, um único evento, log 8003 com reavaliação 1;
   - conflito e, na releitura, o pedido foi cancelado (sem reserva): termina sem gravar, log 8002;
   - conflito e, na releitura, o pedido foi movido para `ProntoParaEnvio` pela operação: ordem criada sem mudança de status;
   - conflito nas 3 vezes: relança `ConflitoConcorrenciaException`, sem evento pendente no falso e log 8003 três vezes.
-- [ ] T014 [P] [US3] Teste de integração em `tests/PedidoFulfillment.Testes.Integracao/Entregas/PedidoIgnoradoNaEntregaTestes.cs`, com o Worker completo pronto (`CenarioEntrega.WorkerProntoAsync`):
+- [X] T014 [P] [US3] Teste de integração em `tests/PedidoFulfillment.Testes.Integracao/Entregas/PedidoIgnoradoNaEntregaTestes.cs`, com o Worker completo pronto (`CenarioEntrega.WorkerProntoAsync`):
   - cenário 1: com o Worker do pagamento (`CenarioPagamento`, sem o consumidor de entrega), deixar o pedido chegar a `Processando` e parar; cancelar pela API como operação (estoque devolvido, REQ-08); subir o Worker completo e só então publicar direto na troca o `pagamento.aprovado` dele, com `idEvento` novo: nenhuma ordem, status `Cancelado`, nenhum `entrega.criada`, nada em `oms.entrega.dlq` e log 8002;
   - cenário 1, `Despachado`: mesmo roteiro, movendo o pedido pela API (`PATCH` como operação) para `ProntoParaEnvio` e depois `Despachado` (transições permitidas pelo REQ-05); nenhuma ordem e status `Despachado`;
   - cenário 2: pedido que já tem ordem (criada pelo fluxo normal) recebe outro `pagamento.aprovado` com `idEvento` novo: nenhuma ordem nova, nenhum evento, log 8002;
@@ -164,7 +164,7 @@ Sem implementação nova: o contrato é da T004 e a publicação, da T009 (US2 c
 
 ### Implementação da US3
 
-- [ ] T015 [US3] Em `CriacaoOrdemEntrega` (R-04):
+- [X] T015 [US3] Em `CriacaoOrdemEntrega` (R-04):
   - depois da leitura, `!pedido.AptoParaOrdemEntrega` → log 8002 e retorno sem gravar (FR-002);
   - envolver ler-decidir-gravar num laço de até 3 reavaliações (`Reavaliacoes = 3`, como `ProcessamentoPagamento`): em `ConflitoConcorrenciaException`, `DescartarAlteracoes()`, log 8003 e nova volta; na última, relançar (FR-007).
 

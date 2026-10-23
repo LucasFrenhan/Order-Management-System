@@ -60,7 +60,7 @@ public sealed class OrdemEntregaCriadaTestes(MensageriaTeste mensageria)
         await using var api = Api(stringConexao);
         var (cliente, _, _) = await ClienteAsync(api);
         await using var fila = await mensageria.FilaTesteAsync(TiposEvento.EntregaCriada);
-        var logs = new CapturaLogs();
+        using var logs = new CapturaLogs();
         await using var worker = await CenarioEntrega.WorkerProntoAsync(mensageria, stringConexao, logs);
         var pedidoId = (await CriadoAsync(cliente, (Cat001, 1))).GetProperty("id").GetGuid();
         (await EsperarOrdemAsync(stringConexao, pedidoId, Prazo)).Should().BeTrue();
