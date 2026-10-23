@@ -393,5 +393,25 @@ próprio depois:
   - publicar com `mandatory: true` e tratar o retorno sem rota como falha de publicação
     (o evento continua pendente);
   - teste que reproduza o caso com um broker novo.
+
+  **Consumidor novo para um evento já publicado** (decidido no clarify do REQ-10, em
+  2026-10-23): o mesmo problema aparece quando um consumidor novo entra para um evento que
+  já circulava sem fila. O caso concreto é o `pagamento.aprovado`: antes do REQ-10, nenhuma
+  fila o recebia, e o broker descartou os eventos dos pedidos pagos até então. Esses pedidos
+  ficam em `Processando` sem ordem de entrega, e o REQ-10 não os recupera (spec do 010,
+  Assumptions). Proposta para o REQ de mensageria:
+  - **evitar perdas futuras**: declarar na partida do despachante a topologia de todos os
+    consumidores conhecidos e publicar com `mandatory: true`, tratando o retorno sem rota
+    como falha (o evento continua pendente no outbox);
+  - **recuperar o que já se perdeu**: o `mandatory` não ajuda, porque o outbox já marcou
+    esses eventos como enviados. A recuperação parte do estado do pedido, com uma
+    reconciliação idempotente (comando ou job no processo de workers) que procura pedidos
+    aptos sem o efeito esperado (no REQ-10, `AptoParaOrdemEntrega` sem ordem) e aplica a
+    mesma regra do consumidor, com o mesmo evento de saída;
+  - rejeitado: republicar os eventos antigos do outbox. Isso depende de eles ainda
+    existirem, e a limpeza pendente acima os apagaria. Além disso, a publicação vai para
+    todas as filas ligadas àquela chave, não só para a do consumidor novo;
+  - até lá, a operação pode mover esses pedidos pela API, mas eles continuam sem ordem de
+    entrega.
 - O ambiente local do REQ-02 (broker no ar) é pré-requisito para os testes de integração
   de mensageria. Sem Docker, eles são ignorados localmente e reprovam no CI (REQ-07).
