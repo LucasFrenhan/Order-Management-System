@@ -196,7 +196,7 @@ método do serviço, por isso correm em sequência.
 - [X] T024 [P] Em `specs/005-criacao-pedidos/quickstart.md`, nota de que a resposta do pedido passou a trazer `historico` e `entrega` (REQ-11).
 - [X] T025 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados).
 - [X] T026 Executar o quickstart (§1 a §5) com a API e o Worker locais e registrar em Notes, com os percentis da T022. Conferir nos logs da API os EventIds 4004 e 4005.
-- [ ] T027 Fazer push e abrir o PR com `Closes #11`. Acompanhar os workflows `build-testes` e "Compatibilidade do contrato" até ficarem verdes, **inclusive depois de cada push posterior**, e registrar em Notes.
+- [X] T027 Fazer push e abrir o PR com `Closes #11`. Acompanhar os workflows `build-testes` e "Compatibilidade do contrato" até ficarem verdes, **inclusive depois de cada push posterior**, e registrar em Notes.
 
 ---
 
@@ -278,3 +278,7 @@ Setup, Foundational e US1: a consulta mostra o histórico e a entrega.
     espaços 400 com o campo `transportadora`;
   - logs da API: 4004 com `Despachado`, `SemMudanca` e `Corrigido` e 4005 no duplicado, sem
     transportadora nem código em nenhum log.
+- **T027 (2026-10-23)**: PR #25 aberto com `Closes #11`. No commit `dea550f`, todos verdes:
+  "Build e testes" em 4m28s, "Demonstração" em 2m2s e "Compatibilidade do contrato"
+  (`breaking-changes`, oasdiff) em 10s. O CI foi acompanhado de novo depois do push deste
+  registro.
