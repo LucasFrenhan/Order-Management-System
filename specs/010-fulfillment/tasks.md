@@ -268,3 +268,11 @@ Setup, Foundational e US1: o pedido pago ganha a ordem, vai para `ProntoParaEnvi
   mensagem fora do contrato. Essa mensagem ficou na DLQ do broker local.
 - **T020 (2026-10-23)**: PR #24 aberto com `Closes #10`. CI `build-testes` verde: "Build e
   testes" em 4m18s e "Demonstração" em 1m52s.
+- **Teste instável no CI do PR #24 (2026-10-23)**: a segunda rodada reprovou em
+  `PagamentoAprovadoTestes.Estoque_reservado_entregue_de_novo_nao_cobra_de_novo` (REQ-09) e em
+  `OrdemEntregaCriadaTestes.Pagamento_aprovado_entregue_de_novo_nao_cria_outra_ordem`, que
+  copiou o mesmo formato. Os dois esperavam o efeito no banco (status ou ordem) e reentregavam
+  o evento. A mensagem original só sai depois, pelo despachante do outbox, e o descarte do
+  duplicado (5005) podia chegar antes dela; a fila de teste então estava vazia na conferência.
+  Correção: esperar a mensagem original na fila antes da reentrega, como os testes do REQ-08 já
+  fazem. Sem mudança no código de produção.

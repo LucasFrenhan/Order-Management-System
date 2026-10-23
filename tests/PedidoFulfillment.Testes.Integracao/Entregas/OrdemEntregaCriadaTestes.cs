@@ -63,7 +63,9 @@ public sealed class OrdemEntregaCriadaTestes(MensageriaTeste mensageria)
         using var logs = new CapturaLogs();
         await using var worker = await CenarioEntrega.WorkerProntoAsync(mensageria, stringConexao, logs);
         var pedidoId = (await CriadoAsync(cliente, (Cat001, 1))).GetProperty("id").GetGuid();
-        (await EsperarOrdemAsync(stringConexao, pedidoId, Prazo)).Should().BeTrue();
+        // A ordem é gravada junto com o outbox, mas entrega.criada sai depois, pelo despachante: espera
+        // a mensagem original antes da reentrega, senão o 5005 pode chegar antes dela.
+        (await MensageriaTeste.EsperarAteAsync(() => Task.FromResult(DoPedido(fila, pedidoId).Count > 0), Prazo)).Should().BeTrue();
         var ordem = await OrdemAsync(stringConexao, pedidoId);
 
         await RepublicarPagamentoAprovadoAsync(mensageria, stringConexao, pedidoId);

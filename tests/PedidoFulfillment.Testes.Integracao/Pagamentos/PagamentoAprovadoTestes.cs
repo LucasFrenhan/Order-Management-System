@@ -60,6 +60,9 @@ public sealed class PagamentoAprovadoTestes(MensageriaTeste mensageria)
         await using var worker = await WorkerProntoAsync(mensageria, stringConexao, taxaAprovacao: 100, logs);
         var pedidoId = (await CriadoAsync(cliente, (Cat001, 1))).GetProperty("id").GetGuid();
         (await EsperarStatusAsync(stringConexao, pedidoId, "Processando", Prazo)).Should().BeTrue();
+        // O status é gravado junto com o outbox, mas o evento sai depois, pelo despachante: espera a
+        // mensagem original antes da reentrega, senão o 5005 pode chegar antes dela.
+        (await MensageriaTeste.EsperarAteAsync(() => Task.FromResult(DoPedido(fila, pedidoId).Count > 0), Prazo)).Should().BeTrue();
         var transacao = await TransacaoAsync(stringConexao, pedidoId);
 
         await RepublicarEstoqueReservadoAsync(mensageria, stringConexao, pedidoId);
