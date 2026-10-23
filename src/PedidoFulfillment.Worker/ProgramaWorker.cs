@@ -1,3 +1,5 @@
+using PedidoFulfillment.Application.Contratos.Eventos;
+using PedidoFulfillment.Application.Estoque;
 using PedidoFulfillment.Infrastructure;
 using PedidoFulfillment.Infrastructure.Mensageria;
 using PedidoFulfillment.Infrastructure.Saude;
@@ -16,6 +18,7 @@ public sealed class ProgramaWorker
         var builder = WebApplication.CreateBuilder(args);
         builder.Services.AdicionarInfraestrutura(builder.Configuration);
         builder.Services.AdicionarMensageria();
+        builder.Services.AdicionarConsumidor<ReservaEstoque, PedidoCriado>();
 
         var app = builder.Build();
         app.MapearEndpointsSaude();

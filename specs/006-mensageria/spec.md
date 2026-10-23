@@ -379,5 +379,19 @@ próprio depois:
   - limite de reenvios para não criar ciclo;
   - registro de quem reenviou;
   - alerta quando a DLQ cresce.
+- **Evento publicado antes de a fila do consumidor existir** (encontrado no REQ-08, em
+  2026-10-22, e pedido pelo usuário para tratar depois): num broker vazio, o despachante
+  pode publicar um evento pendente antes de o consumidor declarar a fila dele. Como a
+  publicação usa `mandatory: false` e a troca não tem fila ligada para aquela chave, a
+  mensagem é descartada, embora o outbox a marque como enviada. Em uso normal a fila
+  durável já existe; o risco é a primeira subida de um broker novo (ou recriado) com
+  eventos pendentes. Os testes do REQ-08 contornam declarando a fila antes
+  (`CenarioEstoque.DeclararFilaEstoqueAsync`). A decidir:
+  - o despachante só começar depois de os consumidores do mesmo processo declararem a
+    topologia;
+  - declarar a topologia de todos os consumidores conhecidos na partida do despachante;
+  - publicar com `mandatory: true` e tratar o retorno sem rota como falha de publicação
+    (o evento continua pendente);
+  - teste que reproduza o caso com um broker novo.
 - O ambiente local do REQ-02 (broker no ar) é pré-requisito para os testes de integração
   de mensageria. Sem Docker, eles são ignorados localmente e reprovam no CI (REQ-07).

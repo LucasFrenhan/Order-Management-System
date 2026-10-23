@@ -16,7 +16,8 @@ namespace PedidoFulfillment.Testes.Integracao.Mensageria;
 [Collection(nameof(ColecaoMensageria))]
 public sealed class OutboxComBrokerTestes(MensageriaTeste mensageria)
 {
-    private const string ContarPendentes = "SELECT COUNT(*) FROM EventosSaida WHERE EnviadoEm IS NULL";
+    // Só pedido.criado: com o consumidor de estoque (REQ-08) no Worker, estoque.* também entra no outbox.
+    private const string ContarPendentes = "SELECT COUNT(*) FROM EventosSaida WHERE EnviadoEm IS NULL AND Tipo = 'pedido.criado'";
 
     // A API não fala com o broker (clarify): só grava o evento no outbox.
     private static FabricaApi ApiComBroker(string stringConexao) => Api(stringConexao);
@@ -109,7 +110,7 @@ public sealed class OutboxComBrokerTestes(MensageriaTeste mensageria)
         (await CriarAsync(cliente, chave, (Cat001, 1))).StatusCode.Should().Be(HttpStatusCode.Created);
         (await CriarAsync(cliente, chave, (Cat001, 1))).StatusCode.Should().Be(HttpStatusCode.Created);
 
-        (await BancoDadosTeste.ConsultarAsync<int>(stringConexao, "SELECT COUNT(*) FROM EventosSaida")).Should().Be(1);
+        (await BancoDadosTeste.ConsultarAsync<int>(stringConexao, "SELECT COUNT(*) FROM EventosSaida WHERE Tipo = 'pedido.criado'")).Should().Be(1);
     }
 
     [Fact]

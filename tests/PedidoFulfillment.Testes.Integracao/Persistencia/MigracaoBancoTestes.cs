@@ -87,7 +87,7 @@ public sealed class MigracaoBancoTestes(BancoDadosTeste banco)
         (await BancoDadosTeste.ConsultarAsync<int>(stringConexao, ContarTabelasNegocio)).Should().Be(6);
         (await BancoDadosTeste.ConsultarAsync<string>(stringConexao,
             "SELECT STRING_AGG(SUBSTRING(MigrationId, 16, 100), ',') WITHIN GROUP (ORDER BY MigrationId) FROM __EFMigrationsHistory"))
-            .Should().Be("InicialIdentidade,EntidadesNegocio,ChavesIdempotencia,MensageriaOutbox");
+            .Should().Be("InicialIdentidade,EntidadesNegocio,ChavesIdempotencia,MensageriaOutbox,ReservaEstoque");
     }
 
     [Fact]
@@ -102,7 +102,7 @@ public sealed class MigracaoBancoTestes(BancoDadosTeste banco)
             var excecao = Record.Exception(() => fabrica.CreateClient());
 
             excecao.Should().NotBeNull();
-            PreparacaoInicializacaoTestes.Cadeia(excecao!).Should().Contain(e => e.Message ==
+            fabrica.FalhaPartida.Cadeia(excecao!).Should().Contain(e => e.Message ==
                 "O banco de dados tem migrations pendentes. Aplique-as com o comando documentado antes de iniciar a API.");
         }
 

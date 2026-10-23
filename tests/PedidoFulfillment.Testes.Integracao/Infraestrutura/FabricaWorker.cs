@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using PedidoFulfillment.Worker;
 
 namespace PedidoFulfillment.Testes.Integracao.Infraestrutura;
@@ -20,6 +21,9 @@ public sealed class FabricaWorker : WebApplicationFactory<ProgramaWorker>
 
     public IReadOnlyDictionary<string, string?> Configuracoes { get; init; } = new Dictionary<string, string?>();
 
+    /// <summary>Recebe a exceção original de uma falha de partida (ver <see cref="Infraestrutura.FalhaPartida"/>).</summary>
+    public FalhaPartida FalhaPartida { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testes");
@@ -34,6 +38,7 @@ public sealed class FabricaWorker : WebApplicationFactory<ProgramaWorker>
             builder.UseSetting(chave, valor);
         }
 
+        builder.ConfigureLogging(logging => logging.AddProvider(FalhaPartida));
         if (Servicos is not null)
         {
             builder.ConfigureTestServices(Servicos);

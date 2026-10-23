@@ -80,6 +80,35 @@ public sealed class MensageriaTeste : IAsyncLifetime
         return teste;
     }
 
+    /// <summary>
+    /// Esvazia as filas do consumidor (principal, espera de 100, 200 e 400 ms e DLQ), se existirem.
+    /// O broker é compartilhado pela coleção e as filas são duráveis: sem isso, um teste consome o
+    /// que os anteriores publicaram (CI do PR #22).
+    /// </summary>
+    public async Task LimparFilasConsumidorAsync(string consumidor)
+    {
+        await using var conexao = await ConectarAsync();
+        string[] filas =
+        [
+            TopologiaMensageria.FilaPrincipal(consumidor),
+            .. new[] { 100, 200, 400 }.Select(ms => TopologiaMensageria.FilaEspera(consumidor, ms)),
+            TopologiaMensageria.FilaMortas(consumidor)
+        ];
+        foreach (var fila in filas)
+        {
+            // Fila inexistente fecha o canal (404): um canal por fila.
+            await using var canal = await conexao.CreateChannelAsync(cancellationToken: TestContext.Current.CancellationToken);
+            try
+            {
+                await canal.QueuePurgeAsync(fila, TestContext.Current.CancellationToken);
+            }
+            catch (RabbitMQ.Client.Exceptions.OperationInterruptedException)
+            {
+                // Ainda não existe: nada a limpar.
+            }
+        }
+    }
+
     /// <summary>Espera a condição ficar verdadeira, verificando a cada 50 ms, até o prazo.</summary>
     public static async Task<bool> EsperarAteAsync(Func<Task<bool>> condicao, TimeSpan prazo)
     {

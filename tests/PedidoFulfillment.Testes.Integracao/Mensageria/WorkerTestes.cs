@@ -68,7 +68,7 @@ public sealed class WorkerTestes(MensageriaTeste mensageria)
         var excecao = Record.Exception(() => worker.CreateClient());
 
         excecao.Should().NotBeNull();
-        var mensagens = string.Join(" | ", PreparacaoInicializacaoTestes.Cadeia(excecao!).Select(e => e.Message));
+        var mensagens = string.Join(" | ", worker.FalhaPartida.Cadeia(excecao!).Select(e => e.Message));
         mensagens.Should().Contain(esperado).And.NotContain("usuario-secreto").And.NotContain("senha-secreta");
     }
 }

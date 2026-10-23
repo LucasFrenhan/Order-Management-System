@@ -25,12 +25,13 @@ public sealed class ServicoPedidosStatusTestes
     private ServicoPedidos Servico() => new(armazenamento, new GeradorNumeroPedidoFalso(), new RelogioFixo(Agora.AddHours(1)), logger);
 
     /// <summary>Guarda um pedido no status pedido; cada leitura monta uma instância nova.</summary>
-    private void PedidoEm(StatusPedido status) => armazenamento.GuardarPedido(PedidoId, () => Montar(status));
+    private void PedidoEm(StatusPedido status, bool reservado = false) => armazenamento.GuardarPedido(PedidoId, () => Montar(status, reservado));
 
-    private Pedido Montar(StatusPedido status)
+    private Pedido Montar(StatusPedido status, bool reservado = false)
     {
         var pedido = new Pedido(Dono, "PED-20261022-000001", [(produto, 1)], Agora);
         typeof(Pedido).GetProperty(nameof(Pedido.Id))!.SetValue(pedido, PedidoId);
+        typeof(Pedido).GetProperty(nameof(Pedido.EstoqueReservado))!.SetValue(pedido, reservado);
         foreach (var passo in Caminho(status))
         {
             pedido.MudarStatus(passo, null, passo == StatusPedido.Cancelado ? "motivo" : null, Agora);
@@ -173,5 +174,77 @@ public sealed class ServicoPedidosStatusTestes
         resultado.Falha.Detalhe.Should().Be("O pedido foi alterado por outra operação; tente novamente.");
         armazenamento.Descartes.Should().Be(3);
         armazenamento.Gravacoes.Should().Be(0);
+    }
+
+    private int EstoqueGravado() => armazenamento.Produtos.Single(p => p.Id == produto.Id).QuantidadeEstoque;
+
+    private Pedido Gravado() => armazenamento.ObterPedidoAsync(PedidoId, false, CancellationToken.None).Result!;
+
+    [Fact]
+    public async Task Cliente_cancela_pedido_reservado_e_o_estoque_volta()
+    {
+        armazenamento.Produtos.Add(produto);
+        PedidoEm(StatusPedido.Pendente, reservado: true);
+
+        var resultado = await Mudar(Dono, StatusPedido.Cancelado, "Desisti", PerfilUsuario.Cliente);
+
+        resultado.Valor!.Status.Should().Be(StatusPedido.Cancelado);
+        EstoqueGravado().Should().Be(11);
+        Gravado().EstoqueReservado.Should().BeFalse();
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 6005);
+    }
+
+    [Theory]
+    [InlineData(StatusPedido.Processando)]
+    [InlineData(StatusPedido.ProntoParaEnvio)]
+    public async Task Operacao_cancela_pedido_reservado_e_o_estoque_volta(StatusPedido status)
+    {
+        armazenamento.Produtos.Add(produto);
+        PedidoEm(status, reservado: true);
+
+        var resultado = await Mudar(Operador, StatusPedido.Cancelado, "Sem pagamento", PerfilUsuario.Admin);
+
+        resultado.Valor!.Status.Should().Be(StatusPedido.Cancelado);
+        EstoqueGravado().Should().Be(11);
+        Gravado().EstoqueReservado.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Cancelar_pedido_sem_reserva_nao_mexe_no_estoque()
+    {
+        armazenamento.Produtos.Add(produto);
+        PedidoEm(StatusPedido.Pendente);
+
+        (await Mudar(Dono, StatusPedido.Cancelado, "Desisti", PerfilUsuario.Cliente)).Valor!.Status.Should().Be(StatusPedido.Cancelado);
+
+        armazenamento.LeiturasProdutosParaAlterar.Should().Be(0);
+        EstoqueGravado().Should().Be(10);
+        logger.Eventos.Should().NotContain(e => e.Id.Id == 6005);
+    }
+
+    [Fact]
+    public async Task Outra_transicao_de_pedido_reservado_nao_devolve()
+    {
+        armazenamento.Produtos.Add(produto);
+        PedidoEm(StatusPedido.Pendente, reservado: true);
+
+        (await Mudar(Operador, StatusPedido.Processando, null, PerfilUsuario.OperadorLogistica)).Valor!.Status.Should().Be(StatusPedido.Processando);
+
+        EstoqueGravado().Should().Be(10);
+        Gravado().EstoqueReservado.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Conflito_no_cancelamento_rele_e_devolve_uma_vez()
+    {
+        armazenamento.Produtos.Add(produto);
+        PedidoEm(StatusPedido.Pendente, reservado: true);
+        armazenamento.ConflitosRestantes = 1;
+
+        (await Mudar(Dono, StatusPedido.Cancelado, "Desisti", PerfilUsuario.Cliente)).Valor!.Status.Should().Be(StatusPedido.Cancelado);
+
+        armazenamento.Descartes.Should().Be(1);
+        armazenamento.LeiturasProdutosParaAlterar.Should().Be(2);
+        EstoqueGravado().Should().Be(11);
     }
 }

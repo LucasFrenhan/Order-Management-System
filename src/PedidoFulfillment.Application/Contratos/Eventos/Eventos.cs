@@ -43,6 +43,30 @@ public sealed record ItemEstoqueReservado
     public required int Quantidade { get; init; }
 }
 
+/// <summary>
+/// <c>estoque.insuficiente</c>: publicado pelo worker de estoque quando algum item faltou; o
+/// pedido foi cancelado e nenhum estoque mudou (REQ-08, FR-012).
+/// </summary>
+public sealed record EstoqueInsuficiente
+{
+    public required Guid PedidoId { get; init; }
+
+    /// <summary>Só os itens que faltaram.</summary>
+    public required IReadOnlyList<ItemEstoqueInsuficiente> Itens { get; init; }
+}
+
+public sealed record ItemEstoqueInsuficiente
+{
+    public required Guid ProdutoId { get; init; }
+
+    public required int QuantidadeSolicitada { get; init; }
+
+    /// <summary>Estoque lido no momento da reserva.</summary>
+    public required int QuantidadeDisponivel { get; init; }
+
+    public required bool Inativo { get; init; }
+}
+
 /// <summary><c>pagamento.aprovado</c>: publicado pelo worker de pagamento (issue #9).</summary>
 public sealed record PagamentoAprovado
 {

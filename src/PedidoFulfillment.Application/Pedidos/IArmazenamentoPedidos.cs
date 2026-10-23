@@ -11,8 +11,11 @@ namespace PedidoFulfillment.Application.Pedidos;
 /// </summary>
 public interface IArmazenamentoPedidos
 {
-    /// <summary>Produtos encontrados entre <paramref name="ids"/>, só para leitura.</summary>
-    Task<IReadOnlyList<Produto>> ObterProdutosAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
+    /// <summary>
+    /// Produtos encontrados entre <paramref name="ids"/>. Com <paramref name="paraAlterar"/>, as
+    /// alterações neles (estoque, no REQ-08) são gravadas no próximo <see cref="SalvarAsync"/>.
+    /// </summary>
+    Task<IReadOnlyList<Produto>> ObterProdutosAsync(IReadOnlyCollection<Guid> ids, bool paraAlterar, CancellationToken cancellationToken);
 
     /// <summary>Pedido com os itens. Com <paramref name="paraAlterar"/>, as alterações nele são gravadas no próximo <see cref="SalvarAsync"/>.</summary>
     Task<Pedido?> ObterPedidoAsync(Guid id, bool paraAlterar, CancellationToken cancellationToken);
@@ -21,6 +24,9 @@ public interface IArmazenamentoPedidos
 
     /// <summary>Pedido, chave de idempotência e evento do outbox, gravados juntos no próximo <see cref="SalvarAsync"/> (REQ-06, FR-005).</summary>
     void Adicionar(Pedido pedido, RegistroIdempotencia registro, EventoSaida evento);
+
+    /// <summary>Evento do outbox gravado junto com as alterações do próximo <see cref="SalvarAsync"/> (REQ-08).</summary>
+    void Adicionar(EventoSaida evento);
 
     /// <exception cref="ChaveIdempotenciaRegistradaException">O par (cliente, chave) já foi registrado por outra requisição.</exception>
     /// <exception cref="ConflitoConcorrenciaException">O pedido mudou desde que foi lido.</exception>

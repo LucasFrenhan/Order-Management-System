@@ -21,7 +21,7 @@ public sealed class PreparacaoInicializacaoTestes
         var excecao = Record.Exception(() => fabrica.CreateClient());
 
         excecao.Should().NotBeNull();
-        var cadeia = Cadeia(excecao!).ToArray();
+        var cadeia = fabrica.FalhaPartida.Cadeia(excecao!).ToArray();
         cadeia.Should().Contain(e => e.Message == MensagemBancoInacessivel);
         foreach (var item in cadeia)
         {
@@ -46,7 +46,7 @@ public sealed class PreparacaoInicializacaoTestes
         var excecao = Record.Exception(() => fabrica.CreateClient());
 
         excecao.Should().NotBeNull();
-        var mensagens = Cadeia(excecao!).Select(e => e.Message).ToArray();
+        var mensagens = fabrica.FalhaPartida.Cadeia(excecao!).Select(e => e.Message).ToArray();
         mensagens.Should().Contain(m => m.Contains("UsuariosIniciais:0:Senha"));
         mensagens.Should().NotContain(m => m.Contains("senhafraca"));
     }
