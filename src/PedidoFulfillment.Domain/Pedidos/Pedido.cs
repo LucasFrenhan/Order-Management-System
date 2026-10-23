@@ -21,6 +21,9 @@ public sealed class Pedido
     /// <summary>Motivo do histórico na mudança para ProntoParaEnvio pela ordem de entrega (REQ-10, FR-004).</summary>
     public const string MotivoOrdemEntregaCriada = "Ordem de entrega criada.";
 
+    /// <summary>Motivo do histórico no despacho com rastreio (REQ-11, FR-008).</summary>
+    public const string MotivoPedidoDespachado = "Pedido despachado.";
+
     private readonly List<ItemPedido> itens = [];
     private readonly List<HistoricoStatusPedido> historico = [];
 
@@ -241,6 +244,36 @@ public sealed class Pedido
         }
 
         return ordem;
+    }
+
+    /// <summary>O rastreio pode ser registrado (REQ-11, FR-008 e FR-009): pronto para envio ou já despachado.</summary>
+    public bool PodeRegistrarRastreio => Status is StatusPedido.ProntoParaEnvio or StatusPedido.Despachado;
+
+    /// <summary>
+    /// Registra o rastreio (REQ-11, R-05). Em ProntoParaEnvio, cria a ordem de entrega se faltar,
+    /// grava transportadora, código e data de despacho e leva o pedido a Despachado, com o autor.
+    /// Os textos são validados antes de qualquer mudança.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">O pedido não está <see cref="PodeRegistrarRastreio"/>.</exception>
+    /// <exception cref="ArgumentException">Transportadora ou código vazios ou acima do tamanho.</exception>
+    public ResultadoRastreio RegistrarRastreio(string transportadora, string codigoRastreio, Guid autorId, DateTimeOffset instante)
+    {
+        if (!PodeRegistrarRastreio)
+        {
+            throw new InvalidOperationException($"O pedido {Numero} não pode registrar rastreio: status {Status}.");
+        }
+
+        var transportadoraAparada = Guardas.Texto(transportadora, OrdemEntrega.TamanhoMaximoTransportadora);
+        var codigoAparado = Guardas.Texto(codigoRastreio, OrdemEntrega.TamanhoMaximoCodigoRastreio);
+        if (Status == StatusPedido.Despachado)
+        {
+            throw new NotImplementedException("Correção do rastreio: User Story 3 (T021).");
+        }
+
+        OrdemEntrega ??= new OrdemEntrega(Id, instante);
+        OrdemEntrega.RegistrarDespacho(transportadoraAparada, codigoAparado, instante);
+        MudarStatus(StatusPedido.Despachado, autorId, MotivoPedidoDespachado, instante);
+        return ResultadoRastreio.Despachado;
     }
 
     private Pagamento NovoPagamento(DateTimeOffset instante) =>

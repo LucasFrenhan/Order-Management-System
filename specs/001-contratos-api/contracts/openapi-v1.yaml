@@ -11,7 +11,8 @@ info:
 
     Todos os erros seguem RFC 7807 (application/problem+json).
 
-    Evoluções compatíveis: REQ-11 acrescentou `historico` e `entrega` à resposta do pedido.
+    Evoluções compatíveis: REQ-11 acrescentou `historico` e `entrega` à resposta do pedido e
+    a operação `PATCH /api/v1/pedidos/{id}/rastreio`.
 servers:
   - url: /
 tags:
@@ -241,6 +242,70 @@ paths:
           $ref: '#/components/responses/ErroNaoEncontrado'
         '409':
           $ref: '#/components/responses/ErroConflito'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /api/v1/pedidos/{id}/rastreio:
+    patch:
+      tags: [Pedidos]
+      operationId: RegistrarRastreioPedido
+      summary: Registra a transportadora e o código de rastreio e despacha o pedido (ou corrige o rastreio).
+      description: |
+        Perfis autorizados: **Admin**, **OperadorLogistica**. Cliente: 403 (REQ-11).
+
+        | Status atual | Resultado |
+        |--------------|-----------|
+        | ProntoParaEnvio | Ordem de entrega criada se faltar; transportadora, código e data de despacho gravados; pedido em Despachado, com a entrada "Pedido despachado." no histórico |
+        | Despachado, dados iguais | Nada muda |
+        | Despachado, dados diferentes | Transportadora e código corrigidos; status, data de despacho e histórico mantidos |
+        | Pendente, Processando, Cancelado, PagamentoRejeitado | 409 `PEDIDO_TRANSICAO_INVALIDA` |
+
+        Os espaços nas pontas são removidos. O mesmo código na mesma transportadora, em outro
+        pedido e sem diferenciar maiúsculas de minúsculas, responde 409
+        `PEDIDO_RASTREIO_DUPLICADO`. A transição ProntoParaEnvio → Despachado pela rota de status
+        continua permitida, sem rastreio.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPedido'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrarRastreioRequestDTO'
+            example:
+              transportadora: Correios
+              codigoRastreio: BR123456789BR
+      responses:
+        '200':
+          description: Pedido despachado, rastreio corrigido ou sem mudança.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PedidoResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '404':
+          $ref: '#/components/responses/ErroNaoEncontrado'
+        '409':
+          description: Status que não permite rastreio, ou código de rastreio já usado.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/NegocioProblemDetails'
+              example:
+                type: https://tools.ietf.org/html/rfc9110#section-15.5.10
+                title: Código de rastreio já usado.
+                status: 409
+                detail: Outro pedido já usa este código de rastreio nesta transportadora.
+                instance: /api/v1/pedidos/0f8fad5b-d9cb-469f-a165-70867728950e/rastreio
+                traceId: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00
+                codigo: PEDIDO_RASTREIO_DUPLICADO
         '500':
           $ref: '#/components/responses/ErroInterno'
 
@@ -610,6 +675,18 @@ components:
           type: [string, 'null']
           maxLength: 500
           description: Obrigatório quando status = Cancelado.
+
+    RegistrarRastreioRequestDTO:
+      type: object
+      required: [transportadora, codigoRastreio]
+      description: Ambos obrigatórios, sem contar os espaços nas pontas (REQ-11).
+      properties:
+        transportadora:
+          type: string
+          maxLength: 100
+        codigoRastreio:
+          type: string
+          maxLength: 50
 
     ProblemDetails:
       type: object

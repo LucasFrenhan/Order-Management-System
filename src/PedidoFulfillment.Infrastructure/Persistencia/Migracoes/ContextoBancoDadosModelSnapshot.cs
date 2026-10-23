@@ -219,7 +219,8 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
 
                     b.Property<string>("CodigoRastreio")
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(50)")
+                        .UseCollation("SQL_Latin1_General_CP1_CI_AS");
 
                     b.Property<DateTimeOffset>("CriadoEm")
                         .HasColumnType("datetimeoffset");
@@ -232,7 +233,8 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
 
                     b.Property<string>("Transportadora")
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("nvarchar(100)")
+                        .UseCollation("SQL_Latin1_General_CP1_CI_AS");
 
                     b.HasKey("Id");
 

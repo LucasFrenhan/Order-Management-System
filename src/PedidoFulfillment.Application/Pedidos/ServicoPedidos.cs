@@ -40,6 +40,10 @@ public sealed class ServicoPedidos(
 
     private const int TentativasStatus = 3;
 
+    private static readonly Falha RastreioDuplicado = new(
+        TipoFalha.Conflito, "Código de rastreio já usado.",
+        "Outro pedido já usa este código de rastreio nesta transportadora.", CodigosErro.PedidoRastreioDuplicado);
+
     private static readonly Falha ConteudoDivergente = new(
         TipoFalha.Conflito, "Chave de idempotência já usada.", "A chave já foi usada com outro conteúdo.", CodigosErro.IdempotenciaConteudoDivergente);
 
@@ -151,6 +155,63 @@ public sealed class ServicoPedidos(
             }
 
             EventosPedidos.StatusPedidoAlterado(logger, pedido.Id, anterior, pedido.Status, operacao ? "Operacao" : "Cliente");
+            return pedido.ParaResposta();
+        }
+
+        return AlteradoPorOutraOperacao;
+    }
+
+    /// <summary>
+    /// Despacho ou correção do rastreio (REQ-11, R-05 a R-07). A cada tentativa a decisão é
+    /// refeita sobre o pedido relido: se o cancelamento venceu, é transição inválida; se outro
+    /// despacho venceu, vira correção. "Sem mudança" não grava.
+    /// </summary>
+    public async Task<Resultado<PedidoResponseDTO>> RegistrarRastreioAsync(
+        Guid pedidoId, Guid usuarioId, RegistrarRastreioRequestDTO rastreio, CancellationToken cancellationToken)
+    {
+        var transportadora = rastreio.Transportadora.Trim();
+        var codigo = rastreio.CodigoRastreio.Trim();
+        for (var tentativa = 1; tentativa <= TentativasStatus; tentativa++)
+        {
+            var pedido = await armazenamento.ObterPedidoAsync(pedidoId, paraAlterar: true, cancellationToken);
+            if (pedido is null)
+            {
+                return PedidoNaoEncontrado;
+            }
+
+            if (!pedido.PodeRegistrarRastreio)
+            {
+                return new Falha(TipoFalha.Conflito, "Transição de status inválida.",
+                    $"O pedido está em {pedido.Status} e não pode ser despachado.", CodigosErro.PedidoTransicaoInvalida);
+            }
+
+            if (await armazenamento.RastreioEmUsoAsync(transportadora, codigo, pedido.Id, cancellationToken))
+            {
+                EventosPedidos.RastreioDuplicado(logger, pedido.Id, usuarioId);
+                return RastreioDuplicado;
+            }
+
+            var resultado = pedido.RegistrarRastreio(transportadora, codigo, usuarioId, relogio.GetUtcNow());
+            if (resultado != ResultadoRastreio.SemMudanca)
+            {
+                try
+                {
+                    await armazenamento.SalvarAsync(cancellationToken);
+                }
+                catch (ConflitoConcorrenciaException)
+                {
+                    armazenamento.DescartarAlteracoes();
+                    continue;
+                }
+                catch (RastreioDuplicadoException)
+                {
+                    armazenamento.DescartarAlteracoes();
+                    EventosPedidos.RastreioDuplicado(logger, pedido.Id, usuarioId);
+                    return RastreioDuplicado;
+                }
+            }
+
+            EventosPedidos.RastreioRegistrado(logger, pedido.Id, usuarioId, resultado);
             return pedido.ParaResposta();
         }
 

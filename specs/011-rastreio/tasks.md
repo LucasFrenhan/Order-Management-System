@@ -101,13 +101,13 @@ método do serviço, por isso correm em sequência.
 
 ### Testes da US2
 
-- [ ] T009 [P] [US2] Testes de domínio em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PedidoRastreioTestes.cs` (data-model, R-05), com o pedido levado a `ProntoParaEnvio` por `MudarStatus` (sem ordem) e por `CriarOrdemEntrega` (com ordem, como em `PedidoOrdemEntregaTestes`):
+- [X] T009 [P] [US2] Testes de domínio em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PedidoRastreioTestes.cs` (data-model, R-05), com o pedido levado a `ProntoParaEnvio` por `MudarStatus` (sem ordem) e por `CriarOrdemEntrega` (com ordem, como em `PedidoOrdemEntregaTestes`):
   - `PodeRegistrarRastreio` verdadeiro só em `ProntoParaEnvio` e `Despachado` (theory com os 6 status);
   - `ProntoParaEnvio` com ordem: devolve `Despachado`; ordem com a transportadora, o código e `DespachadoEm = instante`; status `Despachado`; histórico com `ProntoParaEnvio → Despachado`, o autor e o motivo `Pedido despachado.` (`Pedido.MotivoPedidoDespachado`); `AtualizadoEm = instante`;
   - `ProntoParaEnvio` sem ordem: a ordem é criada com `PedidoId = Id`, `CriadoEm = instante` e os dados do despacho;
   - `Pendente`, `Processando`, `Cancelado` e `PagamentoRejeitado`: `InvalidOperationException` sem alterar nada;
   - transportadora acima de 100 ou código acima de 50 caracteres: exceção das guardas, sem alterar nada.
-- [ ] T010 [P] [US2] Testes unitários em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosRastreioTestes.cs`, com o armazenamento falso de `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/Falsos.cs` (acrescentar `RastreiosEmUso` consultado por `RastreioEmUsoAsync` e `DuplicadoNaProximaGravacao`, que faz `SalvarAsync` lançar `RastreioDuplicadoException`):
+- [X] T010 [P] [US2] Testes unitários em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosRastreioTestes.cs`, com o armazenamento falso de `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/Falsos.cs` (acrescentar `RastreiosEmUso` consultado por `RastreioEmUsoAsync` e `DuplicadoNaProximaGravacao`, que faz `SalvarAsync` lançar `RastreioDuplicadoException`):
   - pedido `ProntoParaEnvio`: sucesso com o pedido `Despachado`, uma gravação e log 4004 com resultado `Despachado`; transportadora e código gravados sem os espaços nas pontas;
   - pedido inexistente: `NaoEncontrado`;
   - `Pendente`, `Processando`, `Cancelado`, `PagamentoRejeitado`: `Conflito` com `PEDIDO_TRANSICAO_INVALIDA`, nenhuma gravação;
@@ -116,7 +116,7 @@ método do serviço, por isso correm em sequência.
   - conflito de concorrência e, na releitura, o pedido foi cancelado: `Conflito` com `PEDIDO_TRANSICAO_INVALIDA`, nada gravado;
   - conflito de concorrência porque o consumidor de entrega criou a ordem ao mesmo tempo (analyze C1): na releitura, o pedido tem ordem, e o despacho grava sobre ela (uma ordem só);
   - conflito nas 3 tentativas: `Conflito` "alterado por outra operação".
-- [ ] T011 [P] [US2] Teste de integração em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/RastreioPedidoComBancoTestes.cs` (`ColecaoBancoDados`, API com banco real; pedido levado a `ProntoParaEnvio` pela operação via `PATCH /status`, com ordem inserida por SQL quando o cenário pede):
+- [X] T011 [P] [US2] Teste de integração em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/RastreioPedidoComBancoTestes.cs` (`ColecaoBancoDados`, API com banco real; pedido levado a `ProntoParaEnvio` pela operação via `PATCH /status`, com ordem inserida por SQL quando o cenário pede):
   - OperadorLogistica e Admin (theory): 200, `status: Despachado`, histórico terminando em `ProntoParaEnvio → Despachado` com `Pedido despachado.`, entrega com os dados e `despachadoEm`; a consulta seguinte mostra o mesmo; uma linha em `OrdensEntrega`;
   - pedido sem ordem: 200, uma ordem criada com os dados e nenhum `entrega.criada` em `EventosSaida` para o pedido (spec, Assumptions; analyze G1);
   - Cliente dono: 403; sem token: 401; pedido inexistente: 404; identificador inválido: 400;
@@ -128,25 +128,25 @@ método do serviço, por isso correm em sequência.
 
 ### Implementação da US2
 
-- [ ] T012 [US2] Domínio (R-05):
+- [X] T012 [US2] Domínio (R-05):
   - `src/PedidoFulfillment.Domain/Pedidos/ResultadoRastreio.cs`: `enum ResultadoRastreio { Despachado, Corrigido, SemMudanca }`;
   - em `src/PedidoFulfillment.Domain/Pedidos/Pedido.cs`: `const string MotivoPedidoDespachado = "Pedido despachado."`; `bool PodeRegistrarRastreio => Status is StatusPedido.ProntoParaEnvio or StatusPedido.Despachado`; `ResultadoRastreio RegistrarRastreio(string transportadora, string codigoRastreio, Guid autorId, DateTimeOffset instante)`: fora de `PodeRegistrarRastreio`, `InvalidOperationException` com o número e o status; em `ProntoParaEnvio`, `OrdemEntrega ??= new OrdemEntrega(Id, instante)`, `OrdemEntrega.RegistrarDespacho(...)` e `MudarStatus(StatusPedido.Despachado, autorId, MotivoPedidoDespachado, instante)`; o caso `Despachado` lança `NotImplementedException` até a T021, sem teste ainda. As guardas da `OrdemEntrega` validam antes de qualquer mudança no pedido.
 
   T009 deve passar.
-- [ ] T013 [P] [US2] Collation (R-06): em `src/PedidoFulfillment.Infrastructure/Persistencia/Configuracoes/ConfiguracaoOrdemEntrega.cs`, `Transportadora` e `CodigoRastreio` com `.UseCollation("SQL_Latin1_General_CP1_CI_AS")` e comentário citando o REQ-11 e o SKU (REQ-04, R-06); gerar a migration com `dotnet ef migrations add RastreioSemCaixa --project src/PedidoFulfillment.Infrastructure --startup-project src/PedidoFulfillment.API --output-dir Persistencia/Migracoes` (analyze U2) e conferir que ela recria `IX_OrdensEntrega_Transportadora_CodigoRastreio` com o filtro. `ModeloSincronizadoTestes` deve passar.
-- [ ] T014 [US2] Armazenamento (R-06):
+- [X] T013 [P] [US2] Collation (R-06): em `src/PedidoFulfillment.Infrastructure/Persistencia/Configuracoes/ConfiguracaoOrdemEntrega.cs`, `Transportadora` e `CodigoRastreio` com `.UseCollation("SQL_Latin1_General_CP1_CI_AS")` e comentário citando o REQ-11 e o SKU (REQ-04, R-06); gerar a migration com `dotnet ef migrations add RastreioSemCaixa --project src/PedidoFulfillment.Infrastructure --startup-project src/PedidoFulfillment.API --output-dir Persistencia/Migracoes` (analyze U2) e conferir que ela recria `IX_OrdensEntrega_Transportadora_CodigoRastreio` com o filtro. `ModeloSincronizadoTestes` deve passar.
+- [X] T014 [US2] Armazenamento (R-06):
   - `src/PedidoFulfillment.Application/Pedidos/RastreioDuplicadoException.cs` (como `ChaveIdempotenciaRegistradaException`);
   - `IArmazenamentoPedidos.RastreioEmUsoAsync(string transportadora, string codigoRastreio, Guid pedidoId, CancellationToken)`: existe ordem de **outro** pedido com o mesmo par (a collation da coluna cuida da caixa);
   - em `ArmazenamentoPedidos.SalvarAsync`, violação de unicidade de `IX_OrdensEntrega_Transportadora_CodigoRastreio` (`ErrosBancoDados.EhViolacaoUnicidade`) → `RastreioDuplicadoException`;
   - violação do índice único de `OrdensEntrega.PedidoId` (ordem criada ao mesmo tempo por outra operação, como o consumidor de entrega) → `ConflitoConcorrenciaException` (research R-07, analyze C1); conferir o nome do índice na migration `EntidadesNegocio`.
-- [ ] T015 [US2] Serviço (R-07, R-10):
+- [X] T015 [US2] Serviço (R-07, R-10):
   - `IServicoPedidos.RegistrarRastreioAsync(Guid pedidoId, Guid usuarioId, RegistrarRastreioRequestDTO rastreio, CancellationToken)`, com XML doc da tabela de contracts/rastreio-http.md;
   - em `ServicoPedidos`: aparar os dois textos; laço de até `TentativasStatus`: ler para alterar (inexistente → `PedidoNaoEncontrado`); `!PodeRegistrarRastreio` → `Conflito` `PEDIDO_TRANSICAO_INVALIDA` com o status atual; `RastreioEmUsoAsync` → `Conflito` `PEDIDO_RASTREIO_DUPLICADO` e log 4005; `RegistrarRastreio`; `SalvarAsync`; em `ConflitoConcorrenciaException`, descartar e reler; em `RastreioDuplicadoException`, descartar e responder o duplicado; sucesso → log 4004 e `ParaResposta()`; esgotado → `AlteradoPorOutraOperacao`;
   - em `src/PedidoFulfillment.Application/Pedidos/EventosPedidos.cs`, `LoggerMessage` 4004 `RastreioRegistrado` (Information: pedido, usuário, resultado) e 4005 `RastreioDuplicado` (Information: pedido, usuário), sem transportadora nem código (FR-016).
 
   T010 deve passar.
-- [ ] T016 [US2] API (R-08): em `src/PedidoFulfillment.API/Seguranca/PoliticasAutorizacao.cs`, `PoliticaRastreioPedido` (`RequireRole` de `Admin` e `OperadorLogistica`); em `src/PedidoFulfillment.API/Endpoints/EndpointsPedidos.cs`, `MapPatch("/{id}/rastreio", ...)` como o de status: `WithName("RegistrarRastreioPedido")`, `WithSummary(...)`, a política nova, `FiltroValidacao<RegistrarRastreioRequestDTO>`, `Produces<PedidoResponseDTO>()` e `ProduzErros(400, 404, 409)`.
-- [ ] T017 [US2] Contrato da operação: em `specs/001-contratos-api/contracts/openapi-v1.yaml`, o caminho `/api/v1/pedidos/{id}/rastreio` com o `patch` de contracts/rastreio-http.md (descrição com a tabela de resultados, perfis, exemplo de corpo, respostas 200/400/401/403/404/409 e exemplo de 409 com `PEDIDO_RASTREIO_DUPLICADO`), o schema `RegistrarRastreioRequestDTO` e o código novo na lista de códigos, se houver; em `ConformidadeOpenApiTestes.Operacoes`, a linha `{ "PATCH", "/api/v1/pedidos/{id}/rastreio" }`. T011 e a conformidade devem passar; rodar a suíte inteira no checkpoint.
+- [X] T016 [US2] API (R-08): em `src/PedidoFulfillment.API/Seguranca/PoliticasAutorizacao.cs`, `PoliticaRastreioPedido` (`RequireRole` de `Admin` e `OperadorLogistica`); em `src/PedidoFulfillment.API/Endpoints/EndpointsPedidos.cs`, `MapPatch("/{id}/rastreio", ...)` como o de status: `WithName("RegistrarRastreioPedido")`, `WithSummary(...)`, a política nova, `FiltroValidacao<RegistrarRastreioRequestDTO>`, `Produces<PedidoResponseDTO>()` e `ProduzErros(400, 404, 409)`.
+- [X] T017 [US2] Contrato da operação: em `specs/001-contratos-api/contracts/openapi-v1.yaml`, o caminho `/api/v1/pedidos/{id}/rastreio` com o `patch` de contracts/rastreio-http.md (descrição com a tabela de resultados, perfis, exemplo de corpo, respostas 200/400/401/403/404/409 e exemplo de 409 com `PEDIDO_RASTREIO_DUPLICADO`), o schema `RegistrarRastreioRequestDTO` e o código novo na lista de códigos, se houver; em `ConformidadeOpenApiTestes.Operacoes`, a linha `{ "PATCH", "/api/v1/pedidos/{id}/rastreio" }`. T011 e a conformidade devem passar; rodar a suíte inteira no checkpoint.
 
 **Checkpoint**: a logística despacha com rastreio.
 
@@ -247,3 +247,11 @@ Setup, Foundational e US1: a consulta mostra o histórico e a entrega.
   e texto anulável como `type: ['null', string]`; o YAML segue essa forma.
 - **T008**: só `SerializacaoPedidoTestes` fixava a lista exata de campos do pedido; ela ganhou
   `historico` e `entrega`, com o tipo de cada um.
+- **T013**: a migration `RastreioSemCaixa` só tem os dois `AlterColumn` com a collation; o
+  SQL Server aceitou a troca com o índice filtrado no lugar (aplicada pelos testes de
+  integração em banco novo). `ModeloSincronizadoTestes` e `MigracaoBancoTestes` ganharam a
+  migration nova na lista.
+- **T017**: o gerador não escreve `minLength` para `RegistrarRastreioRequestDTO` (só o
+  `maxLength` dos atributos); o YAML segue o gerado, e o "não vazio" fica descrito no schema e
+  garantido pela validação (400). O catálogo de códigos de `specs/001-contratos-api/data-model.md`
+  ganhou `PEDIDO_RASTREIO_DUPLICADO`.

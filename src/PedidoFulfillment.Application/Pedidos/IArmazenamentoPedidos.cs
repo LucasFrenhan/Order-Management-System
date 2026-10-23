@@ -20,6 +20,12 @@ public interface IArmazenamentoPedidos
     /// <summary>Pedido com os itens, o histórico (REQ-11), o pagamento (REQ-09) e a ordem de entrega (REQ-10). Com <paramref name="paraAlterar"/>, as alterações nele são gravadas no próximo <see cref="SalvarAsync"/>.</summary>
     Task<Pedido?> ObterPedidoAsync(Guid id, bool paraAlterar, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Outro pedido (diferente de <paramref name="pedidoId"/>) já tem a ordem com esta transportadora e
+    /// este código de rastreio, sem diferenciar maiúsculas e minúsculas (REQ-11, FR-010).
+    /// </summary>
+    Task<bool> RastreioEmUsoAsync(string transportadora, string codigoRastreio, Guid pedidoId, CancellationToken cancellationToken);
+
     Task<RegistroIdempotencia?> ObterRegistroIdempotenciaAsync(Guid clienteId, Guid chave, CancellationToken cancellationToken);
 
     /// <summary>Pedido, chave de idempotência e evento do outbox, gravados juntos no próximo <see cref="SalvarAsync"/> (REQ-06, FR-005).</summary>
@@ -29,7 +35,8 @@ public interface IArmazenamentoPedidos
     void Adicionar(EventoSaida evento);
 
     /// <exception cref="ChaveIdempotenciaRegistradaException">O par (cliente, chave) já foi registrado por outra requisição.</exception>
-    /// <exception cref="ConflitoConcorrenciaException">O pedido mudou desde que foi lido.</exception>
+    /// <exception cref="ConflitoConcorrenciaException">O pedido mudou desde que foi lido, ou outra operação criou a ordem de entrega dele (REQ-11).</exception>
+    /// <exception cref="RastreioDuplicadoException">Outro pedido gravou o mesmo rastreio antes (REQ-11).</exception>
     Task SalvarAsync(CancellationToken cancellationToken);
 
     /// <summary>Esquece as alterações pendentes, para reler depois de um conflito.</summary>

@@ -160,6 +160,8 @@ ProblemDetails + `codigo` (string estável).
 | `PRODUTO_INEXISTENTE` | 422 | criar pedido | `produtoId` não encontrado |
 | `PRODUTO_INDISPONIVEL` | 422 | criar pedido | produto inativo ou sem estoque |
 | `PEDIDO_TRANSICAO_INVALIDA` | 409 | atualizar status | transição fora da tabela |
+| `PEDIDO_TRANSICAO_INVALIDA` | 409 | registrar rastreio (REQ-11) | pedido fora de `ProntoParaEnvio` e `Despachado` |
+| `PEDIDO_RASTREIO_DUPLICADO` | 409 | registrar rastreio (REQ-11) | mesmo código na mesma transportadora em outro pedido, sem diferenciar maiúsculas |
 
 Novos códigos podem ser adicionados (mudança compatível). Códigos existentes não podem
 ser renomeados nem reaproveitados (Princípio II).

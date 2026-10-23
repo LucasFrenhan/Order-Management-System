@@ -42,4 +42,20 @@ public interface IServicoPedidos
     /// </summary>
     Task<Resultado<PedidoResponseDTO>> AtualizarStatusAsync(
         Guid pedidoId, Guid usuarioId, IReadOnlyCollection<PerfilUsuario> perfis, AtualizarStatusPedidoRequestDTO atualizacao, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Registra o rastreio (REQ-11, <c>specs/011-rastreio/contracts/rastreio-http.md</c>); só a
+    /// operação chega aqui (a política barra o Cliente):
+    /// <list type="table">
+    /// <listheader><term>Status atual</term><description>Resultado</description></listheader>
+    /// <item><term>ProntoParaEnvio</term><description>ordem criada se faltar, rastreio gravado, Despachado</description></item>
+    /// <item><term>Despachado, dados iguais</term><description>nada muda</description></item>
+    /// <item><term>Despachado, dados diferentes</term><description>rastreio corrigido, status e data de despacho mantidos</description></item>
+    /// <item><term>outro</term><description><see cref="TipoFalha.Conflito"/> com <c>PEDIDO_TRANSICAO_INVALIDA</c></description></item>
+    /// </list>
+    /// Rastreio usado por outro pedido da mesma transportadora (sem diferenciar caixa):
+    /// <see cref="TipoFalha.Conflito"/> com <c>PEDIDO_RASTREIO_DUPLICADO</c>. Pedido inexistente:
+    /// <see cref="TipoFalha.NaoEncontrado"/>.
+    /// </summary>
+    Task<Resultado<PedidoResponseDTO>> RegistrarRastreioAsync(Guid pedidoId, Guid usuarioId, RegistrarRastreioRequestDTO rastreio, CancellationToken cancellationToken);
 }

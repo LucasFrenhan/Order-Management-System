@@ -73,6 +73,10 @@ internal static class CenarioPedidos
     public static Task<HttpResponseMessage> MudarStatusAsync(HttpClient cliente, Guid pedidoId, string status, string? motivo = null) =>
         cliente.PatchAsJsonAsync($"{Rota}/{pedidoId}/status", new { status, motivo }, Cancelamento);
 
+    /// <summary>Despacho ou correção do rastreio (REQ-11).</summary>
+    public static Task<HttpResponseMessage> RegistrarRastreioAsync(HttpClient cliente, Guid pedidoId, string? transportadora, string? codigoRastreio) =>
+        cliente.PatchAsJsonAsync($"{Rota}/{pedidoId}/rastreio", new { transportadora, codigoRastreio }, Cancelamento);
+
     public static Task<JsonElement> CorpoAsync(HttpResponseMessage resposta) =>
         resposta.Content.ReadFromJsonAsync<JsonElement>(Cancelamento);
 

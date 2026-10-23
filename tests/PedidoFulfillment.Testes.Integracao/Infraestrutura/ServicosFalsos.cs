@@ -78,4 +78,15 @@ public sealed class ServicoPedidosFalso : IServicoPedidos
         (UltimoPedidoId, UltimoUsuarioId, UltimosPerfis, UltimaAtualizacao) = (pedidoId, usuarioId, perfis, atualizacao);
         return Task.FromResult(ResultadoAtualizarStatus ?? throw new InvalidOperationException("Resultado de atualização não configurado."));
     }
+
+    public Resultado<PedidoResponseDTO>? ResultadoRegistrarRastreio { get; set; }
+
+    public RegistrarRastreioRequestDTO? UltimoRastreio { get; private set; }
+
+    public Task<Resultado<PedidoResponseDTO>> RegistrarRastreioAsync(
+        Guid pedidoId, Guid usuarioId, RegistrarRastreioRequestDTO rastreio, CancellationToken cancellationToken)
+    {
+        (UltimoPedidoId, UltimoUsuarioId, UltimoRastreio) = (pedidoId, usuarioId, rastreio);
+        return Task.FromResult(ResultadoRegistrarRastreio ?? throw new InvalidOperationException("Resultado de rastreio não configurado."));
+    }
 }
