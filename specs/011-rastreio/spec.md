@@ -32,6 +32,17 @@ A consulta ganha campos novos, sem mudar nem remover os existentes, e o despacho
 nova. Clientes atuais da v1 continuam funcionando sem mudança, e a verificação automática
 de compatibilidade do contrato (REQ-01) precisa continuar aprovando.
 
+## Clarifications
+
+### Session 2026-10-23
+
+- Q: O Cliente deve ver o motivo de cada mudança de status no histórico, mesmo quando foi
+  escrito pela operação? → A: Sim; o Cliente vê o motivo de todas as entradas, como a
+  operação. A operação escreve os motivos sabendo que o Cliente os lê.
+- Q: Na conferência de rastreio duplicado, maiúsculas e minúsculas contam como diferentes?
+  → A: Não; a comparação ignora maiúsculas e minúsculas, na transportadora e no código, e o
+  texto é gravado como informado (sem os espaços nas pontas).
+
 ## User Scenarios & Testing *(mandatory)*
 
 Os usuários são o **Cliente**, que acompanha o próprio pedido, e a equipe de logística
@@ -156,6 +167,8 @@ consulta o novo código, com o status e a data de despacho preservados.
   `Despachado` (User Story 3). O histórico ganha uma única entrada de despacho.
 - **Transportadora ou código de rastreio com espaços nas pontas**: os espaços são removidos
   antes de gravar e antes de conferir a duplicidade.
+- **Mesmo rastreio com outra caixa** (`BR123` e `br123`, ou `Correios` e `correios`): conta
+  como duplicado (FR-010).
 - **Pedido cancelado depois de `ProntoParaEnvio`** (REQ-10): a ordem continua registrada,
   sem despacho, e a consulta mostra a entrega sem dados de despacho e o status `Cancelado`.
 - **Consulta de pedido antigo** (anterior ao REQ-10, sem ordem): a entrega vem ausente, e o
@@ -172,7 +185,8 @@ consulta o novo código, com o status e a data de despacho preservados.
   OperadorLogistica veem qualquer pedido.
 - **FR-002**: A resposta da consulta MUST trazer o histórico de status do pedido, em ordem
   cronológica, cada entrada com o status anterior (ausente na criação), o novo status, o
-  instante e o motivo (quando houver).
+  instante e o motivo (quando houver). O motivo aparece igual para todos os perfis,
+  inclusive o Cliente, também nas mudanças feitas pela operação.
 - **FR-003**: O histórico MUST NOT expor quem fez cada mudança, para nenhum perfil.
 - **FR-004**: A resposta da consulta MUST trazer a entrega do pedido quando houver ordem de
   entrega: transportadora, código de rastreio, data de despacho (os três podem estar
@@ -204,7 +218,9 @@ consulta o novo código, com o status e a data de despacho preservados.
 - **FR-009b**: A transição `ProntoParaEnvio → Despachado` pela mudança de status do REQ-05
   MUST continuar permitida, sem rastreio.
 - **FR-010**: O mesmo código de rastreio MUST NOT ser usado em dois pedidos da mesma
-  transportadora; a tentativa MUST ser recusada como conflito, sem mudar nada.
+  transportadora; a tentativa MUST ser recusada como conflito, sem mudar nada. A comparação
+  MUST ignorar maiúsculas e minúsculas, na transportadora e no código (`BR123` em `Correios`
+  conflita com `br123` em `correios`); o texto é gravado como informado.
 - **FR-011**: Despacho de pedido inexistente MUST responder "não encontrado".
 - **FR-012**: A resposta de um despacho aceito MUST trazer o pedido no mesmo formato da
   consulta, já com o status, o histórico e a entrega atualizados.
@@ -273,6 +289,8 @@ consulta o novo código, com o status e a data de despacho preservados.
   logística não informa uma data diferente.
 - **Sem autor no histórico exibido**: nem o Cliente nem a operação veem quem fez cada
   mudança pela consulta; a informação continua gravada para auditoria.
+- **Motivo visível ao Cliente** (clarify): os motivos digitados pela operação, por exemplo
+  num cancelamento, aparecem para o Cliente; anotações internas não devem ir no motivo.
 - **Rastreio não é validado com a transportadora**: o sistema não consulta serviços
   externos; aceita o código informado, dentro dos tamanhos.
 - **Tamanhos**: os de `OrdemEntrega` desde o REQ-04 (transportadora até 100 caracteres,
