@@ -73,8 +73,9 @@
   - `ProntoParaEnvio`: cria a `OrdemEntrega` se não houver; registra transportadora,
     código e `DespachadoEm = instante`; `MudarStatus(Despachado, autorId, "Pedido despachado.")`
     → `Despachado` (FR-008);
-  - `Despachado`: cria a ordem se não houver; mesmos dados (comparação sem diferenciar
-    maiúsculas) → `SemMudanca`, nada muda; dados diferentes → atualiza transportadora e
+  - `Despachado`: cria a ordem se não houver; mesmos dados (comparação ordinal, depois de
+    aparar; analyze I1) → `SemMudanca`, nada muda; dados diferentes, inclusive só na caixa
+    → atualiza transportadora e
     código, mantém `DespachadoEm` (ou usa o instante, se não houver) e não mexe no status
     nem no histórico → `Corrigido` (FR-009);
   - outros status: `InvalidOperationException`; o serviço testa antes com
@@ -114,6 +115,11 @@
   refeita sobre o estado atual (FR-013):
   - cancelamento venceu → o pedido está `Cancelado` → 409;
   - outro despacho venceu → o pedido está `Despachado` → vira correção ou `SemMudanca`.
+- **Ordem criada ao mesmo tempo pelo consumidor de entrega** (analyze C1): se o despacho e
+  o `CriacaoOrdemEntrega` (REQ-10) criam a ordem do mesmo pedido juntos, a gravação perdedora
+  pode falhar no índice único de `OrdensEntrega.PedidoId` antes da `rowversion`.
+  `ArmazenamentoPedidos.SalvarAsync` traduz essa violação em `ConflitoConcorrenciaException`:
+  a API relê e reavalia, e o worker usa as novas tentativas da base.
 - **Versão do pedido**: a correção não muda o status, mas o serviço atualiza
   `Pedido.AtualizadoEm`, para o `UPDATE` do pedido levar a `rowversion` e serializar duas
   correções simultâneas.
@@ -131,8 +137,10 @@
 
 - **Decisão**: `RegistrarRastreioRequestDTO` com `transportadora` (1 a 100) e
   `codigoRastreio` (1 a 50), validados pelo `FiltroValidacao` (400 com o campo, como o
-  REQ-05). Os espaços nas pontas são removidos antes de validar o tamanho e de gravar; só
-  espaços conta como vazio (FR-007).
+  REQ-05). O DTO implementa `IValidatableObject`, como `AtualizarStatusPedidoRequestDTO`:
+  em `Validate`, vazio ou só espaços dá "obrigatório", e o tamanho é contado depois de
+  aparar; `MaxLength` continua nas propriedades para o schema. O serviço apara antes de
+  gravar (FR-007; analyze U1).
 
 ## R-10. Logs
 

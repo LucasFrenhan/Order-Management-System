@@ -98,7 +98,7 @@ e os dados de rastreio.
 1. **Given** um pedido `ProntoParaEnvio` com ordem de entrega, **When** o OperadorLogistica
    informa transportadora e código de rastreio válidos, **Then** a resposta traz o pedido em
    `Despachado` com os dados de rastreio e a data de despacho, e o histórico ganha a entrada
-   `ProntoParaEnvio → Despachado` com o autor da operação.
+   `ProntoParaEnvio → Despachado`, gravada com o autor da operação (não exibido, FR-003).
 2. **Given** o mesmo cenário, **When** o Admin faz o despacho, **Then** o resultado é o
    mesmo.
 3. **Given** um Cliente (mesmo o dono do pedido), **When** ele tenta despachar, **Then** a
@@ -140,7 +140,9 @@ consulta o novo código, com o status e a data de despacho preservados.
    novos, o status e a data de despacho original continuam, e o histórico não ganha
    entrada nova.
 2. **Given** um pedido `Despachado`, **When** a logística envia de novo exatamente os mesmos
-   dados, **Then** a operação é aceita sem mudar nada (repetição segura de uma requisição).
+   dados (depois de remover os espaços nas pontas), **Then** a operação é aceita sem mudar
+   nada (repetição segura de uma requisição). Uma mudança só de maiúsculas e minúsculas
+   (`br123` → `BR123`) é uma correção.
 3. **Given** um pedido `Despachado`, **When** a correção usa um código de rastreio já usado
    em outro pedido da mesma transportadora, **Then** ela é recusada como conflito, sem mudar
    nada.
@@ -211,8 +213,8 @@ consulta o novo código, com o status e a data de despacho preservados.
 - **FR-009**: Para um pedido já `Despachado`, a mesma operação MUST registrar ou corrigir a
   transportadora e o código de rastreio (criando a ordem, se não houver), sem mudar o
   status nem o histórico. A data de despacho já gravada MUST ser mantida; sem data, ela
-  passa a ser o instante do registro. Dados iguais aos gravados MUST ser aceitos sem mudar
-  nada.
+  passa a ser o instante do registro. Dados exatamente iguais aos gravados (depois de
+  aparar) MUST ser aceitos sem mudar nada; uma diferença só de caixa é uma correção.
 - **FR-009a**: A operação de rastreio em pedido `Pendente`, `Processando`, `Cancelado` ou
   `PagamentoRejeitado` MUST ser recusada como transição inválida, sem mudar nada.
 - **FR-009b**: A transição `ProntoParaEnvio → Despachado` pela mudança de status do REQ-05
@@ -226,7 +228,9 @@ consulta o novo código, com o status e a data de despacho preservados.
   consulta, já com o status, o histórico e a entrega atualizados.
 - **FR-013**: O despacho e as demais mudanças do pedido (mudança de status, cancelamento e
   os workers) MUST ser protegidos pela concorrência otimista do pedido: o lado que perder
-  reavalia com o estado atual ou é recusado, nunca grava pela metade.
+  reavalia com o estado atual ou é recusado, nunca grava pela metade. Isso inclui a corrida
+  em que o despacho e o consumidor de entrega (REQ-10) tentam criar a ordem do mesmo pedido
+  ao mesmo tempo: quem perder relê o pedido, sem erro interno.
 
 **Contrato**
 

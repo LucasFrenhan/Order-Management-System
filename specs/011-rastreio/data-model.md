@@ -18,8 +18,8 @@ Nenhuma tabela nova. Uma migration muda a collation das colunas de rastreio (R-0
 | Status atual | Ordem | Dados | Efeito | Resultado |
 |--------------|-------|-------|--------|-----------|
 | `ProntoParaEnvio` | existe ou não | quaisquer válidos | cria a ordem se faltar; transportadora, código e `DespachadoEm = instante`; `→ Despachado` com `Pedido despachado.` e o autor | `Despachado` |
-| `Despachado` | existe ou não | iguais aos gravados (sem diferenciar caixa) | nada | `SemMudanca` |
-| `Despachado` | existe ou não | diferentes | cria a ordem se faltar; atualiza transportadora e código; `DespachadoEm` mantido (ou `instante`, se nulo); `Pedido.AtualizadoEm = instante`; status e histórico sem mudança | `Corrigido` |
+| `Despachado` | existe | exatamente iguais aos gravados (comparação ordinal, depois de aparar) | nada | `SemMudanca` |
+| `Despachado` | existe ou não | diferentes (inclusive só na caixa), ou sem ordem | cria a ordem se faltar; atualiza transportadora e código; `DespachadoEm` mantido (ou `instante`, se nulo); `Pedido.AtualizadoEm = instante`; status e histórico sem mudança | `Corrigido` |
 | outro | — | — | `InvalidOperationException` (o serviço responde 409 antes) | — |
 
 Transportadora e código chegam já sem espaços nas pontas e dentro dos tamanhos (validados

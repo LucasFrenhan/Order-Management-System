@@ -54,7 +54,7 @@ método do serviço, por isso correm em sequência.
 - [ ] T002 [P] DTOs e código de erro (data-model, R-02, R-03):
   - `src/PedidoFulfillment.Application/Contratos/Pedidos/HistoricoStatusPedidoResponseDTO.cs`: `sealed record` com `StatusPedido? StatusAnterior`, `required StatusPedido StatusNovo`, `required DateTimeOffset OcorridoEm`, `string? Motivo`;
   - `src/PedidoFulfillment.Application/Contratos/Pedidos/EntregaPedidoResponseDTO.cs`: `string? Transportadora`, `string? CodigoRastreio`, `DateTimeOffset? DespachadoEm`, `required DateTimeOffset CriadoEm`;
-  - `src/PedidoFulfillment.Application/Contratos/Pedidos/RegistrarRastreioRequestDTO.cs`: `Transportadora` (`[Required]`, `[StringLength(100, MinimumLength = 1)]`) e `CodigoRastreio` (`[Required]`, `[StringLength(50, MinimumLength = 1)]`), na convenção de validação de `AtualizarStatusPedidoRequestDTO`; "só espaços" conta como vazio e os espaços nas pontas não contam para o tamanho (R-09);
+  - `src/PedidoFulfillment.Application/Contratos/Pedidos/RegistrarRastreioRequestDTO.cs`: `sealed record ... : IValidatableObject`, como `AtualizarStatusPedidoRequestDTO`, com `Transportadora` (`[Required]`, `[MaxLength(100)]`, para o schema) e `CodigoRastreio` (`[Required]`, `[MaxLength(50)]`); em `Validate`, vazio ou só espaços → "obrigatório" e tamanho depois de `Trim()` acima do limite → erro no campo (R-09, analyze U1);
   - `PedidoResponseDTO`: `[Required] public IReadOnlyList<HistoricoStatusPedidoResponseDTO> Historico { get; init; } = [];` (não `required` em C#, R-03) e `public EntregaPedidoResponseDTO? Entrega { get; init; }`, depois de `AtualizadoEm`;
   - `CodigosErro.PedidoRastreioDuplicado = "PEDIDO_RASTREIO_DUPLICADO"`.
 - [ ] T003 [P] Leitura com o histórico (R-04): em `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoPedidos.cs`, `ObterPedidoAsync` inclui `.Include(p => p.Historico)` e usa `.AsSplitQuery()`; o XML doc de `IArmazenamentoPedidos.ObterPedidoAsync` cita o histórico (REQ-11). Rodar a suíte: tudo verde (o contrato ainda não mudou, então os campos novos ficam fora do documento gerado até a T007; se a conformidade reprovar por causa da T002, a T007 corrige).
@@ -114,10 +114,11 @@ método do serviço, por isso correm em sequência.
   - rastreio em uso por outro pedido: `Conflito` com `PEDIDO_RASTREIO_DUPLICADO`, nenhuma gravação, log 4005;
   - duplicado só na gravação (corrida): `Conflito` com `PEDIDO_RASTREIO_DUPLICADO`, alterações descartadas;
   - conflito de concorrência e, na releitura, o pedido foi cancelado: `Conflito` com `PEDIDO_TRANSICAO_INVALIDA`, nada gravado;
+  - conflito de concorrência porque o consumidor de entrega criou a ordem ao mesmo tempo (analyze C1): na releitura, o pedido tem ordem, e o despacho grava sobre ela (uma ordem só);
   - conflito nas 3 tentativas: `Conflito` "alterado por outra operação".
 - [ ] T011 [P] [US2] Teste de integração em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/RastreioPedidoComBancoTestes.cs` (`ColecaoBancoDados`, API com banco real; pedido levado a `ProntoParaEnvio` pela operação via `PATCH /status`, com ordem inserida por SQL quando o cenário pede):
   - OperadorLogistica e Admin (theory): 200, `status: Despachado`, histórico terminando em `ProntoParaEnvio → Despachado` com `Pedido despachado.`, entrega com os dados e `despachadoEm`; a consulta seguinte mostra o mesmo; uma linha em `OrdensEntrega`;
-  - pedido sem ordem: 200 e uma ordem criada com os dados;
+  - pedido sem ordem: 200, uma ordem criada com os dados e nenhum `entrega.criada` em `EventosSaida` para o pedido (spec, Assumptions; analyze G1);
   - Cliente dono: 403; sem token: 401; pedido inexistente: 404; identificador inválido: 400;
   - transportadora vazia, só espaços, com 101 caracteres; código com 51 caracteres: 400 com o campo em `erros`;
   - `Pendente` e `Cancelado`: 409 `PEDIDO_TRANSICAO_INVALIDA`, nada muda;
@@ -132,11 +133,12 @@ método do serviço, por isso correm em sequência.
   - em `src/PedidoFulfillment.Domain/Pedidos/Pedido.cs`: `const string MotivoPedidoDespachado = "Pedido despachado."`; `bool PodeRegistrarRastreio => Status is StatusPedido.ProntoParaEnvio or StatusPedido.Despachado`; `ResultadoRastreio RegistrarRastreio(string transportadora, string codigoRastreio, Guid autorId, DateTimeOffset instante)`: fora de `PodeRegistrarRastreio`, `InvalidOperationException` com o número e o status; em `ProntoParaEnvio`, `OrdemEntrega ??= new OrdemEntrega(Id, instante)`, `OrdemEntrega.RegistrarDespacho(...)` e `MudarStatus(StatusPedido.Despachado, autorId, MotivoPedidoDespachado, instante)`; o caso `Despachado` lança `NotImplementedException` até a T021, sem teste ainda. As guardas da `OrdemEntrega` validam antes de qualquer mudança no pedido.
 
   T009 deve passar.
-- [ ] T013 [P] [US2] Collation (R-06): em `src/PedidoFulfillment.Infrastructure/Persistencia/Configuracoes/ConfiguracaoOrdemEntrega.cs`, `Transportadora` e `CodigoRastreio` com `.UseCollation("SQL_Latin1_General_CP1_CI_AS")` e comentário citando o REQ-11 e o SKU (REQ-04, R-06); gerar a migration `RastreioSemCaixa` em `src/PedidoFulfillment.Infrastructure/Persistencia/Migracoes/` com o comando já usado no projeto (ver README, seção de banco) e conferir que ela recria `IX_OrdensEntrega_Transportadora_CodigoRastreio` com o filtro. `ModeloSincronizadoTestes` deve passar.
+- [ ] T013 [P] [US2] Collation (R-06): em `src/PedidoFulfillment.Infrastructure/Persistencia/Configuracoes/ConfiguracaoOrdemEntrega.cs`, `Transportadora` e `CodigoRastreio` com `.UseCollation("SQL_Latin1_General_CP1_CI_AS")` e comentário citando o REQ-11 e o SKU (REQ-04, R-06); gerar a migration com `dotnet ef migrations add RastreioSemCaixa --project src/PedidoFulfillment.Infrastructure --startup-project src/PedidoFulfillment.API --output-dir Persistencia/Migracoes` (analyze U2) e conferir que ela recria `IX_OrdensEntrega_Transportadora_CodigoRastreio` com o filtro. `ModeloSincronizadoTestes` deve passar.
 - [ ] T014 [US2] Armazenamento (R-06):
   - `src/PedidoFulfillment.Application/Pedidos/RastreioDuplicadoException.cs` (como `ChaveIdempotenciaRegistradaException`);
   - `IArmazenamentoPedidos.RastreioEmUsoAsync(string transportadora, string codigoRastreio, Guid pedidoId, CancellationToken)`: existe ordem de **outro** pedido com o mesmo par (a collation da coluna cuida da caixa);
-  - em `ArmazenamentoPedidos.SalvarAsync`, violação de unicidade de `IX_OrdensEntrega_Transportadora_CodigoRastreio` (`ErrosBancoDados.EhViolacaoUnicidade`) → `RastreioDuplicadoException`.
+  - em `ArmazenamentoPedidos.SalvarAsync`, violação de unicidade de `IX_OrdensEntrega_Transportadora_CodigoRastreio` (`ErrosBancoDados.EhViolacaoUnicidade`) → `RastreioDuplicadoException`;
+  - violação do índice único de `OrdensEntrega.PedidoId` (ordem criada ao mesmo tempo por outra operação, como o consumidor de entrega) → `ConflitoConcorrenciaException` (research R-07, analyze C1); conferir o nome do índice na migration `EntidadesNegocio`.
 - [ ] T015 [US2] Serviço (R-07, R-10):
   - `IServicoPedidos.RegistrarRastreioAsync(Guid pedidoId, Guid usuarioId, RegistrarRastreioRequestDTO rastreio, CancellationToken)`, com XML doc da tabela de contracts/rastreio-http.md;
   - em `ServicoPedidos`: aparar os dois textos; laço de até `TentativasStatus`: ler para alterar (inexistente → `PedidoNaoEncontrado`); `!PodeRegistrarRastreio` → `Conflito` `PEDIDO_TRANSICAO_INVALIDA` com o status atual; `RastreioEmUsoAsync` → `Conflito` `PEDIDO_RASTREIO_DUPLICADO` e log 4005; `RegistrarRastreio`; `SalvarAsync`; em `ConflitoConcorrenciaException`, descartar e reler; em `RastreioDuplicadoException`, descartar e responder o duplicado; sucesso → log 4004 e `ParaResposta()`; esgotado → `AlteradoPorOutraOperacao`;
@@ -159,8 +161,8 @@ método do serviço, por isso correm em sequência.
 ### Testes da US3
 
 - [ ] T018 [P] [US3] Em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PedidoRastreioTestes.cs`:
-  - `Despachado` com os mesmos dados (inclusive com outra caixa): `SemMudanca`, nada muda (`AtualizadoEm` da ordem e do pedido iguais);
-  - `Despachado` com outro código ou outra transportadora: `Corrigido`; ordem com os dados novos e `AtualizadoEm = instante`; `DespachadoEm` original; status e histórico iguais; `Pedido.AtualizadoEm = instante` (R-07);
+  - `Despachado` com exatamente os mesmos dados: `SemMudanca`, nada muda (`AtualizadoEm` da ordem e do pedido iguais);
+  - `Despachado` com outro código, outra transportadora ou só outra caixa (`br123` → `BR123`): `Corrigido` (analyze I1); ordem com os dados novos e `AtualizadoEm = instante`; `DespachadoEm` original; status e histórico iguais; `Pedido.AtualizadoEm = instante` (R-07);
   - `Despachado` pela rota de status, sem ordem: `Corrigido`, ordem criada com `DespachadoEm = instante`;
   - `Despachado` com ordem sem `DespachadoEm`: `Corrigido`, `DespachadoEm = instante`;
   - em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PagamentoEntregaTestes.cs` (onde a `OrdemEntrega` é testada), `CorrigirRastreio` mantém `DespachadoEm` e valida os tamanhos.
@@ -177,7 +179,7 @@ método do serviço, por isso correm em sequência.
 
 ### Implementação da US3
 
-- [ ] T021 [US3] Em `src/PedidoFulfillment.Domain/Entregas/OrdemEntrega.cs`, `CorrigirRastreio(string transportadora, string codigoRastreio, DateTimeOffset instante)` (guardas como `RegistrarDespacho`, `DespachadoEm ??= instante`, `AtualizadoEm = instante`); em `Pedido.RegistrarRastreio`, o caso `Despachado` de data-model.md (comparação com `string.Equals(..., StringComparison.OrdinalIgnoreCase)` depois de aparar; `SemMudanca` sem tocar em nada; `Corrigido` com `OrdemEntrega ??= new OrdemEntrega(Id, instante)`, `CorrigirRastreio` e `AtualizadoEm = instante`); no serviço, `SemMudanca` não chama `SalvarAsync`. T018 a T020 devem passar.
+- [ ] T021 [US3] Em `src/PedidoFulfillment.Domain/Entregas/OrdemEntrega.cs`, `CorrigirRastreio(string transportadora, string codigoRastreio, DateTimeOffset instante)` (guardas como `RegistrarDespacho`, `DespachadoEm ??= instante`, `AtualizadoEm = instante`); em `Pedido.RegistrarRastreio`, o caso `Despachado` de data-model.md (comparação ordinal, `string.Equals(..., StringComparison.Ordinal)`, depois de aparar, analyze I1; `SemMudanca` sem tocar em nada; `Corrigido` com `OrdemEntrega ??= new OrdemEntrega(Id, instante)`, `CorrigirRastreio` e `AtualizadoEm = instante`); no serviço, `SemMudanca` não chama `SalvarAsync`. T018 a T020 devem passar.
 
 **Checkpoint**: despacho e correção completos.
 
