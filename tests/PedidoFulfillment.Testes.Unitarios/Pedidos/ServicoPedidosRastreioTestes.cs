@@ -172,6 +172,64 @@ public sealed class ServicoPedidosRastreioTestes
     }
 
     [Fact]
+    public async Task Pedido_despachado_tem_o_rastreio_corrigido()
+    {
+        PedidoEm(StatusPedido.Despachado, comOrdem: true, "Correios", "BR123");
+
+        var resultado = await Registrar("Correios", "BR999");
+
+        resultado.Valor!.Entrega!.CodigoRastreio.Should().Be("BR999");
+        resultado.Valor.Status.Should().Be(StatusPedido.Despachado);
+        armazenamento.Gravacoes.Should().Be(1);
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 4004).Which.Propriedades["Resultado"].Should().Be(ResultadoRastreio.Corrigido);
+    }
+
+    [Fact]
+    public async Task Mesmos_dados_respondem_sem_gravar()
+    {
+        PedidoEm(StatusPedido.Despachado, comOrdem: true, "Correios", "BR123");
+
+        var resultado = await Registrar("Correios", "BR123");
+
+        resultado.Valor!.Entrega!.CodigoRastreio.Should().Be("BR123");
+        armazenamento.Gravacoes.Should().Be(0);
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 4004).Which.Propriedades["Resultado"].Should().Be(ResultadoRastreio.SemMudanca);
+    }
+
+    [Fact]
+    public async Task Correcao_para_rastreio_de_outro_pedido_e_duplicado()
+    {
+        PedidoEm(StatusPedido.Despachado, comOrdem: true, "Correios", "BR123");
+        armazenamento.RastreiosEmUso.Add(("Correios", "BR999", Guid.CreateVersion7()));
+
+        (await Registrar("Correios", "br999")).Falha!.Codigo.Should().Be(CodigosErro.PedidoRastreioDuplicado);
+        armazenamento.Gravacoes.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Rastreio_do_proprio_pedido_nao_conta_como_duplicado()
+    {
+        PedidoEm(StatusPedido.Despachado, comOrdem: true, "Correios", "BR123");
+        armazenamento.RastreiosEmUso.Add(("Correios", "BR123", PedidoId));
+
+        (await Registrar("Correios", "br123")).Sucesso.Should().BeTrue("mudar só a caixa do próprio código é uma correção");
+    }
+
+    [Fact]
+    public async Task Conflito_com_outro_despacho_vira_correcao_com_uma_entrada_de_despacho()
+    {
+        PedidoEm(StatusPedido.ProntoParaEnvio, comOrdem: true);
+        armazenamento.ConflitosRestantes = 1;
+        armazenamento.AoConflitar = () => PedidoEm(StatusPedido.Despachado, comOrdem: true, "Correios", "BR-OUTRO");
+
+        var resultado = await Registrar("Correios", "BR123");
+
+        resultado.Valor!.Entrega!.CodigoRastreio.Should().Be("BR123");
+        resultado.Valor.Historico.Count(h => h.StatusNovo == StatusPedido.Despachado).Should().Be(1);
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 4004).Which.Propriedades["Resultado"].Should().Be(ResultadoRastreio.Corrigido);
+    }
+
+    [Fact]
     public async Task Conflitos_nas_3_tentativas_respondem_alterado_por_outra_operacao()
     {
         PedidoEm(StatusPedido.ProntoParaEnvio);

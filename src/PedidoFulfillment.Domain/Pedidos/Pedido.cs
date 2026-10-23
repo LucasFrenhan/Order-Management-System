@@ -252,7 +252,10 @@ public sealed class Pedido
     /// <summary>
     /// Registra o rastreio (REQ-11, R-05). Em ProntoParaEnvio, cria a ordem de entrega se faltar,
     /// grava transportadora, código e data de despacho e leva o pedido a Despachado, com o autor.
-    /// Os textos são validados antes de qualquer mudança.
+    /// Em Despachado, dados exatamente iguais (depois de aparar) não mudam nada; diferentes,
+    /// inclusive só na caixa, corrigem o rastreio sem mudar status nem histórico, e
+    /// <see cref="AtualizadoEm"/> muda para a versão do pedido mudar (R-07). Os textos são
+    /// validados antes de qualquer mudança.
     /// </summary>
     /// <exception cref="InvalidOperationException">O pedido não está <see cref="PodeRegistrarRastreio"/>.</exception>
     /// <exception cref="ArgumentException">Transportadora ou código vazios ou acima do tamanho.</exception>
@@ -267,7 +270,17 @@ public sealed class Pedido
         var codigoAparado = Guardas.Texto(codigoRastreio, OrdemEntrega.TamanhoMaximoCodigoRastreio);
         if (Status == StatusPedido.Despachado)
         {
-            throw new NotImplementedException("Correção do rastreio: User Story 3 (T021).");
+            if (OrdemEntrega is { } atual
+                && string.Equals(atual.Transportadora, transportadoraAparada, StringComparison.Ordinal)
+                && string.Equals(atual.CodigoRastreio, codigoAparado, StringComparison.Ordinal))
+            {
+                return ResultadoRastreio.SemMudanca;
+            }
+
+            OrdemEntrega ??= new OrdemEntrega(Id, instante);
+            OrdemEntrega.CorrigirRastreio(transportadoraAparada, codigoAparado, instante);
+            AtualizadoEm = instante;
+            return ResultadoRastreio.Corrigido;
         }
 
         OrdemEntrega ??= new OrdemEntrega(Id, instante);

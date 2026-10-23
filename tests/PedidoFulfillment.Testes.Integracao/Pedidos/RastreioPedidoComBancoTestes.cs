@@ -228,5 +228,91 @@ public sealed class RastreioPedidoComBancoTestes(BancoDadosTeste banco)
         }
     }
 
+    /// <summary>User Story 3: repetição sem mudança e correção, com a data e o histórico preservados.</summary>
+    [Fact]
+    public async Task Repeticao_nao_muda_nada_e_correcao_preserva_data_e_historico()
+    {
+        Assert.SkipUnless(banco.DockerDisponivel, "Docker indisponível");
+        var c = await CenarioAsync();
+        await using var _ = c.Api;
+        var pedidoId = await PedidoAsync(c);
+        var despachado = await CorpoAsync(await RegistrarRastreioAsync(c.Operador, pedidoId, "Correios", "BR123"));
+
+        var repetido = await CorpoAsync(await RegistrarRastreioAsync(c.Operador, pedidoId, "Correios", "BR123"));
+        var corrigida = await RegistrarRastreioAsync(c.Admin, pedidoId, "Correios", "BR999");
+
+        repetido.GetProperty("atualizadoEm").GetString().Should().Be(despachado.GetProperty("atualizadoEm").GetString());
+        corrigida.StatusCode.Should().Be(HttpStatusCode.OK);
+        var corpo = await CorpoAsync(corrigida);
+        corpo.GetProperty("status").GetString().Should().Be("Despachado");
+        corpo.GetProperty("entrega").GetProperty("codigoRastreio").GetString().Should().Be("BR999");
+        corpo.GetProperty("entrega").GetProperty("despachadoEm").GetString()
+            .Should().Be(despachado.GetProperty("entrega").GetProperty("despachadoEm").GetString());
+        corpo.GetProperty("historico").GetArrayLength().Should().Be(despachado.GetProperty("historico").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task Correcao_para_rastreio_de_outro_pedido_com_outra_caixa_e_duplicado()
+    {
+        Assert.SkipUnless(banco.DockerDisponivel, "Docker indisponível");
+        var c = await CenarioAsync();
+        await using var _ = c.Api;
+        var primeiro = await PedidoAsync(c);
+        var segundo = await PedidoAsync(c);
+        (await RegistrarRastreioAsync(c.Operador, primeiro, "Correios", "BR111")).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await RegistrarRastreioAsync(c.Operador, segundo, "Correios", "BR222")).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var resposta = await RegistrarRastreioAsync(c.Operador, segundo, "CORREIOS", "br111");
+
+        resposta.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await CodigoAsync(resposta)).Should().Be("PEDIDO_RASTREIO_DUPLICADO");
+        (await RastreioGravadoAsync(c, segundo)).Should().Be("Correios/BR222");
+        (await RegistrarRastreioAsync(c.Operador, segundo, "Correios", "br222")).StatusCode.Should().Be(HttpStatusCode.OK, "só a caixa do próprio código");
+        (await RastreioGravadoAsync(c, segundo)).Should().Be("Correios/br222");
+    }
+
+    [Fact]
+    public async Task Pedido_despachado_pela_rota_de_status_recebe_o_rastreio_depois()
+    {
+        Assert.SkipUnless(banco.DockerDisponivel, "Docker indisponível");
+        var c = await CenarioAsync();
+        await using var _ = c.Api;
+        var pedidoId = await PedidoAsync(c, "Despachado", comOrdem: false);
+        var antes = await CorpoAsync(await c.Operador.GetAsync($"{Rota}/{pedidoId}", Cancelamento));
+
+        var corpo = await CorpoAsync(await RegistrarRastreioAsync(c.Operador, pedidoId, "Correios", "BR1"));
+
+        corpo.GetProperty("status").GetString().Should().Be("Despachado");
+        corpo.GetProperty("entrega").GetProperty("despachadoEm").ValueKind.Should().Be(JsonValueKind.String);
+        corpo.GetProperty("historico").GetArrayLength().Should().Be(antes.GetProperty("historico").GetArrayLength());
+        (await OrdensAsync(c, pedidoId)).Should().Be(1);
+    }
+
+    /// <summary>Dois despachos simultâneos do mesmo pedido: uma só entrada de despacho e o código de um deles.</summary>
+    [Fact]
+    public async Task Despachos_simultaneos_do_mesmo_pedido_gravam_uma_entrada_de_despacho()
+    {
+        Assert.SkipUnless(banco.DockerDisponivel, "Docker indisponível");
+        var c = await CenarioAsync();
+        await using var _ = c.Api;
+
+        for (var rodada = 1; rodada <= 10; rodada++)
+        {
+            var pedidoId = await PedidoAsync(c);
+            var (a, b) = ($"BR-A-{Guid.NewGuid():N}"[..30], $"BR-B-{Guid.NewGuid():N}"[..30]);
+
+            var respostas = await Task.WhenAll(
+                RegistrarRastreioAsync(c.Operador, pedidoId, "Correios", a),
+                RegistrarRastreioAsync(c.Admin, pedidoId, "Correios", b));
+
+            respostas.Select(r => r.StatusCode).Should().AllBeEquivalentTo(HttpStatusCode.OK, $"rodada {rodada}");
+            var corpo = await CorpoAsync(await c.Operador.GetAsync($"{Rota}/{pedidoId}", Cancelamento));
+            corpo.GetProperty("historico").EnumerateArray().Count(h => h.GetProperty("statusNovo").GetString() == "Despachado")
+                .Should().Be(1, $"rodada {rodada}");
+            corpo.GetProperty("entrega").GetProperty("codigoRastreio").GetString().Should().BeOneOf([a, b], $"rodada {rodada}");
+            (await OrdensAsync(c, pedidoId)).Should().Be(1, $"rodada {rodada}");
+        }
+    }
+
     private sealed record Cenario(string StringConexao, FabricaApi Api, HttpClient Cliente, HttpClient Admin, HttpClient Operador);
 }

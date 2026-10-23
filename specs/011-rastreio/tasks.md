@@ -160,18 +160,18 @@ método do serviço, por isso correm em sequência.
 
 ### Testes da US3
 
-- [ ] T018 [P] [US3] Em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PedidoRastreioTestes.cs`:
+- [X] T018 [P] [US3] Em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PedidoRastreioTestes.cs`:
   - `Despachado` com exatamente os mesmos dados: `SemMudanca`, nada muda (`AtualizadoEm` da ordem e do pedido iguais);
   - `Despachado` com outro código, outra transportadora ou só outra caixa (`br123` → `BR123`): `Corrigido` (analyze I1); ordem com os dados novos e `AtualizadoEm = instante`; `DespachadoEm` original; status e histórico iguais; `Pedido.AtualizadoEm = instante` (R-07);
   - `Despachado` pela rota de status, sem ordem: `Corrigido`, ordem criada com `DespachadoEm = instante`;
   - `Despachado` com ordem sem `DespachadoEm`: `Corrigido`, `DespachadoEm = instante`;
   - em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PagamentoEntregaTestes.cs` (onde a `OrdemEntrega` é testada), `CorrigirRastreio` mantém `DespachadoEm` e valida os tamanhos.
-- [ ] T019 [P] [US3] Em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosRastreioTestes.cs`:
+- [X] T019 [P] [US3] Em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosRastreioTestes.cs`:
   - correção: sucesso, uma gravação, log 4004 `Corrigido`;
   - mesmos dados: sucesso **sem** gravação, log 4004 `SemMudanca`;
   - correção para um rastreio em uso por outro pedido: `PEDIDO_RASTREIO_DUPLICADO`;
   - conflito e, na releitura, o pedido foi despachado por outra operação com outros dados: a segunda chamada vira correção (`Corrigido`), com uma única entrada de despacho no histórico.
-- [ ] T020 [P] [US3] Em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/RastreioPedidoComBancoTestes.cs`:
+- [X] T020 [P] [US3] Em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/RastreioPedidoComBancoTestes.cs`:
   - despachar, repetir o mesmo corpo (200, `atualizadoEm` igual) e corrigir o código (200, código novo, `despachadoEm` e histórico iguais);
   - correção para um rastreio já usado em outro pedido (com outra caixa): 409 `PEDIDO_RASTREIO_DUPLICADO`;
   - pedido despachado pela rota de status, sem ordem: o rastreio cria a ordem com `despachadoEm`, status e histórico iguais;
@@ -179,7 +179,7 @@ método do serviço, por isso correm em sequência.
 
 ### Implementação da US3
 
-- [ ] T021 [US3] Em `src/PedidoFulfillment.Domain/Entregas/OrdemEntrega.cs`, `CorrigirRastreio(string transportadora, string codigoRastreio, DateTimeOffset instante)` (guardas como `RegistrarDespacho`, `DespachadoEm ??= instante`, `AtualizadoEm = instante`); em `Pedido.RegistrarRastreio`, o caso `Despachado` de data-model.md (comparação ordinal, `string.Equals(..., StringComparison.Ordinal)`, depois de aparar, analyze I1; `SemMudanca` sem tocar em nada; `Corrigido` com `OrdemEntrega ??= new OrdemEntrega(Id, instante)`, `CorrigirRastreio` e `AtualizadoEm = instante`); no serviço, `SemMudanca` não chama `SalvarAsync`. T018 a T020 devem passar.
+- [X] T021 [US3] Em `src/PedidoFulfillment.Domain/Entregas/OrdemEntrega.cs`, `CorrigirRastreio(string transportadora, string codigoRastreio, DateTimeOffset instante)` (guardas como `RegistrarDespacho`, `DespachadoEm ??= instante`, `AtualizadoEm = instante`); em `Pedido.RegistrarRastreio`, o caso `Despachado` de data-model.md (comparação ordinal, `string.Equals(..., StringComparison.Ordinal)`, depois de aparar, analyze I1; `SemMudanca` sem tocar em nada; `Corrigido` com `OrdemEntrega ??= new OrdemEntrega(Id, instante)`, `CorrigirRastreio` e `AtualizadoEm = instante`); no serviço, `SemMudanca` não chama `SalvarAsync`. T018 a T020 devem passar.
 
 **Checkpoint**: despacho e correção completos.
 

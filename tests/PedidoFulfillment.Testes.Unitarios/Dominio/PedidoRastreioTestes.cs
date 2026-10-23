@@ -105,6 +105,66 @@ public sealed class PedidoRastreioTestes
         DeveFalharSemAlterar<ArgumentException>(pedido, new string('T', tamanhoTransportadora), new string('C', tamanhoCodigo));
     }
 
+    /// <summary>Pedido despachado com Correios/BR123 em <see cref="Despacho"/>.</summary>
+    private Pedido PedidoDespachado()
+    {
+        var pedido = PedidoEm(StatusPedido.ProntoParaEnvio);
+        pedido.RegistrarRastreio("Correios", "BR123", Operador, Despacho).Should().Be(ResultadoRastreio.Despachado);
+        return pedido;
+    }
+
+    [Fact]
+    public void Mesmos_dados_em_pedido_despachado_nao_mudam_nada()
+    {
+        var pedido = PedidoDespachado();
+        var (entradas, atualizadoEm, ordemAtualizadaEm) = (pedido.Historico.Count, pedido.AtualizadoEm, pedido.OrdemEntrega!.AtualizadoEm);
+
+        pedido.RegistrarRastreio(" Correios ", "BR123 ", Operador, Despacho.AddHours(1)).Should().Be(ResultadoRastreio.SemMudanca);
+
+        (pedido.Historico.Count, pedido.AtualizadoEm, pedido.OrdemEntrega.AtualizadoEm).Should().Be((entradas, atualizadoEm, ordemAtualizadaEm));
+    }
+
+    [Theory]
+    [InlineData("Correios", "BR999")]
+    [InlineData("Jadlog", "BR123")]
+    [InlineData("Correios", "br123")]
+    public void Dados_diferentes_em_pedido_despachado_corrigem_o_rastreio_sem_mudar_status_nem_historico(string transportadora, string codigo)
+    {
+        var pedido = PedidoDespachado();
+        var entradas = pedido.Historico.Count;
+        var correcao = Despacho.AddHours(1);
+
+        pedido.RegistrarRastreio(transportadora, codigo, Operador, correcao).Should().Be(ResultadoRastreio.Corrigido);
+
+        var ordem = pedido.OrdemEntrega!;
+        (ordem.Transportadora, ordem.CodigoRastreio, ordem.DespachadoEm, ordem.AtualizadoEm)
+            .Should().Be((transportadora, codigo, (DateTimeOffset?)Despacho, correcao));
+        (pedido.Status, pedido.Historico.Count, pedido.AtualizadoEm).Should().Be((StatusPedido.Despachado, entradas, correcao));
+    }
+
+    [Fact]
+    public void Pedido_despachado_pela_rota_de_status_sem_ordem_ganha_a_ordem_com_a_data_do_registro()
+    {
+        var pedido = PedidoEm(StatusPedido.Despachado, comOrdem: false);
+        var entradas = pedido.Historico.Count;
+
+        pedido.RegistrarRastreio("Correios", "BR1", Operador, Despacho).Should().Be(ResultadoRastreio.Corrigido);
+
+        var ordem = pedido.OrdemEntrega!;
+        (ordem.PedidoId, ordem.Transportadora, ordem.CodigoRastreio, ordem.DespachadoEm).Should().Be((pedido.Id, "Correios", "BR1", (DateTimeOffset?)Despacho));
+        (pedido.Status, pedido.Historico.Count).Should().Be((StatusPedido.Despachado, entradas));
+    }
+
+    [Fact]
+    public void Pedido_despachado_com_ordem_sem_data_ganha_a_data_do_registro()
+    {
+        var pedido = PedidoEm(StatusPedido.Despachado);
+
+        pedido.RegistrarRastreio("Correios", "BR1", Operador, Despacho).Should().Be(ResultadoRastreio.Corrigido);
+
+        pedido.OrdemEntrega!.DespachadoEm.Should().Be(Despacho);
+    }
+
     private static void DeveFalharSemAlterar<TExcecao>(Pedido pedido, string transportadora, string codigo)
         where TExcecao : Exception
     {
