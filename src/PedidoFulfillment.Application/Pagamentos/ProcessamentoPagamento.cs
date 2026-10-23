@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using PedidoFulfillment.Application.Contratos.Eventos;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Pedidos;
+using PedidoFulfillment.Domain.Pedidos;
 
 namespace PedidoFulfillment.Application.Pagamentos;
 
@@ -27,14 +28,47 @@ public sealed class ProcessamentoPagamento(
         var resultado = await gateway.CobrarAsync(pedido.Id, pedido.ValorTotal, cancellationToken);
         var agora = relogio.GetUtcNow();
 
-        pedido.AprovarPagamento(resultado.IdentificadorTransacao!, agora);
+        if (resultado.Aprovado)
+        {
+            await AprovarAsync(evento.IdEvento, pedido, resultado.IdentificadorTransacao!, agora, cancellationToken);
+        }
+        else
+        {
+            await RecusarAsync(evento.IdEvento, pedido, resultado.Motivo!, agora, cancellationToken);
+        }
+    }
+
+    /// <summary>Pagamento aprovado, Pendente → Processando e <c>pagamento.aprovado</c> (FR-008).</summary>
+    private async Task AprovarAsync(Guid idEvento, Pedido pedido, string identificadorTransacao, DateTimeOffset agora, CancellationToken cancellationToken)
+    {
+        pedido.AprovarPagamento(identificadorTransacao, agora);
+        var pagamento = pedido.Pagamento!;
         armazenamento.Adicionar(EventoSaida.De(EnvelopeEvento.Criar(pedido.Id, new PagamentoAprovado
         {
             PedidoId = pedido.Id,
-            Valor = pedido.Pagamento!.Valor,
-            IdentificadorTransacao = pedido.Pagamento.IdentificadorTransacao!
+            Valor = pagamento.Valor,
+            IdentificadorTransacao = identificadorTransacao
         }, agora), agora));
         await armazenamento.SalvarAsync(cancellationToken);
-        EventosPagamento.PagamentoAprovado(logger, evento.IdEvento, pedido.Id, pedido.Pagamento.Valor, pedido.Pagamento.IdentificadorTransacao!);
+        EventosPagamento.PagamentoAprovado(logger, idEvento, pedido.Id, pagamento.Valor, identificadorTransacao);
+    }
+
+    /// <summary>
+    /// Pagamento recusado, estoque devolvido, PagamentoRejeitado e <c>pagamento.recusado</c>, na
+    /// mesma gravação (FR-009, clarify). Os produtos só são lidos aqui: a aprovação não mexe em estoque (R-06).
+    /// </summary>
+    private async Task RecusarAsync(Guid idEvento, Pedido pedido, string motivo, DateTimeOffset agora, CancellationToken cancellationToken)
+    {
+        var ids = pedido.Itens.Select(i => i.ProdutoId).ToList();
+        var produtos = (await armazenamento.ObterProdutosAsync(ids, paraAlterar: true, cancellationToken)).ToDictionary(p => p.Id);
+        pedido.RecusarPagamento(motivo, produtos, agora);
+        armazenamento.Adicionar(EventoSaida.De(EnvelopeEvento.Criar(pedido.Id, new PagamentoRecusado
+        {
+            PedidoId = pedido.Id,
+            Valor = pedido.Pagamento!.Valor,
+            Motivo = motivo
+        }, agora), agora));
+        await armazenamento.SalvarAsync(cancellationToken);
+        EventosPagamento.PagamentoRecusado(logger, idEvento, pedido.Id, pedido.Pagamento.Valor);
     }
 }

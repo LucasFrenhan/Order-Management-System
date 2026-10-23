@@ -120,6 +120,45 @@ public sealed class ProcessamentoPagamentoTestes
     }
 
     [Fact]
+    public async Task Pagamento_recusado_devolve_o_estoque_rejeita_o_pedido_e_publica_pagamento_recusado()
+    {
+        PedidoEm();
+        gateway.Proximo = ResultadoCobranca.Recusada(MotivoRecusa);
+
+        await Manipular();
+
+        armazenamento.LeiturasProdutosParaAlterar.Should().Be(1);
+        (Estoque(a), Estoque(b)).Should().Be((10, 5));
+        var pedido = Gravado();
+        pedido.EstoqueReservado.Should().BeFalse();
+        pedido.Pagamento!.Situacao.Should().Be(SituacaoPagamento.Recusado);
+        pedido.Status.Should().Be(StatusPedido.PagamentoRejeitado);
+        var entrada = pedido.Historico.Last();
+        (entrada.StatusAnterior, entrada.StatusNovo, entrada.AutorId, entrada.Motivo, entrada.OcorridoEm)
+            .Should().Be((StatusPedido.Pendente, StatusPedido.PagamentoRejeitado, (Guid?)null, MotivoRecusa, Agora));
+        armazenamento.Gravacoes.Should().Be(1);
+
+        var envelope = EventoGravado<PagamentoRecusado>(TiposEvento.PagamentoRecusado);
+        envelope.IdCorrelacao.Should().Be(PedidoId);
+        (envelope.Dados.PedidoId, envelope.Dados.Valor, envelope.Dados.Motivo).Should().Be((PedidoId, 55m, MotivoRecusa));
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 7002);
+    }
+
+    [Fact]
+    public async Task Recusa_devolve_o_estoque_de_produto_inativo()
+    {
+        armazenamento.AlterarProduto(a.Id, p => p.Desativar(Criacao));
+        PedidoEm();
+        gateway.Proximo = ResultadoCobranca.Recusada(MotivoRecusa);
+
+        await Manipular();
+
+        Estoque(a).Should().Be(10);
+        armazenamento.Produtos.Single(p => p.Id == a.Id).Ativo.Should().BeFalse();
+        Gravado().Status.Should().Be(StatusPedido.PagamentoRejeitado);
+    }
+
+    [Fact]
     public async Task Pedido_inexistente_falha_sem_cobrar_nem_gravar()
     {
         await FluentActions.Awaiting(() => Manipular(Guid.CreateVersion7())).Should().ThrowAsync<InvalidOperationException>();

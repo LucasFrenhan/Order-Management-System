@@ -134,10 +134,10 @@ a US2.
 
 ### Testes da US2
 
-- [ ] T014 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Pagamentos/ProcessamentoPagamentoTestes.cs`:
+- [X] T014 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Pagamentos/ProcessamentoPagamentoTestes.cs`:
   - cobrança recusada em `Pendente`: produtos dos itens lidos com `paraAlterar: true`; estoque devolvido; `EstoqueReservado` falso; pagamento `Recusado`; status `PagamentoRejeitado` com o motivo do gateway; um `EventoSaida` `pagamento.recusado` com valor e motivo; uma chamada a `SalvarAsync`; log 7002;
   - recusa com produto inativo: estoque devolvido do mesmo jeito.
-- [ ] T015 [P] [US2] Teste de integração em `tests/PedidoFulfillment.Testes.Integracao/Pagamentos/PagamentoRecusadoTestes.cs`, com o Worker em taxa 0:
+- [X] T015 [P] [US2] Teste de integração em `tests/PedidoFulfillment.Testes.Integracao/Pagamentos/PagamentoRecusadoTestes.cs`, com o Worker em taxa 0:
   - cenários 1 a 3: anotar o estoque, criar o pedido e conferir `PagamentoRejeitado`, pagamento `Recusado`, `EstoqueReservado` falso, estoque igual ao anotado e `pagamento.recusado` válido pelo schema com o motivo `Pagamento recusado pelo emissor.`;
   - cenário 4: republicar o mesmo `estoque.reservado` não devolve o estoque de novo nem gera evento;
   - cenário 5 (achado H1): reservar com o Worker do estoque (`CenarioEstoque`, sem o consumidor de pagamento) e pará-lo; desativar o produto; subir o Worker completo (que limpa e declara as filas) e só então publicar direto na troca o `estoque.reservado` do pedido, com `idEvento` novo. Conferir a devolução com o produto ainda inativo. O `estoque.reservado` da primeira etapa não é usado: sem `oms.pagamento` ele não tem rota, e com a fila ele é limpo pelo cenário;
@@ -145,7 +145,7 @@ a US2.
 
 ### Implementação da US2
 
-- [ ] T016 [US2] Em `ProcessamentoPagamento`, com a cobrança recusada: ler os produtos dos itens com `paraAlterar: true`, `pedido.RecusarPagamento(resultado.Motivo, produtos, agora)`, gravar `pagamento.recusado`, `SalvarAsync` e log 7002. T014 e T015 devem passar.
+- [X] T016 [US2] Em `ProcessamentoPagamento`, com a cobrança recusada: ler os produtos dos itens com `paraAlterar: true`, `pedido.RecusarPagamento(resultado.Motivo, produtos, agora)`, gravar `pagamento.recusado`, `SalvarAsync` e log 7002. T014 e T015 devem passar.
 
 ---
 
