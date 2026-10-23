@@ -77,7 +77,7 @@ a US2.
 
 ### Implementação da fundação
 
-- [ ] T005 Em `src/PedidoFulfillment.Domain/Pedidos/Pedido.cs`: `const string MotivoPagamentoAprovado = "Pagamento aprovado."`, `bool AptoParaPagamento` e os métodos `AprovarPagamento(string identificadorTransacao, DateTimeOffset instante)` e `RecusarPagamento(string motivo, IReadOnlyDictionary<Guid, Produto> produtos, DateTimeOffset instante)`, conforme o data-model. Criar o `Pagamento` com `new Pagamento(Id, ValorTotal, instante)` e `RegistrarResultado`; a recusa chama `DevolverEstoque` e `MudarStatus(PagamentoRejeitado, null, motivo, instante)`. Validar o motivo (obrigatório, até 500) com `Guardas`. XML doc citando R-03 e R-04. T002 deve passar.
+- [ ] T005 Em `src/PedidoFulfillment.Domain/Pedidos/Pedido.cs`: `const string MotivoPagamentoAprovado = "Pagamento aprovado."`, `bool AptoParaPagamento` e os métodos `AprovarPagamento(string identificadorTransacao, DateTimeOffset instante)` e `RecusarPagamento(string motivo, IReadOnlyDictionary<Guid, Produto> produtos, DateTimeOffset instante)`, conforme o data-model. Criar o `Pagamento` com `new Pagamento(Id, ValorTotal, instante)` e `RegistrarResultado`; a recusa chama `DevolverEstoque` e `MudarStatus(PagamentoRejeitado, null, motivo, instante)`. Validar com `Guardas.Texto`, antes de qualquer alteração, o motivo da recusa (obrigatório, até 500) e o identificador da aprovação (obrigatório, até 100; `RegistrarResultado` o aceita opcional, achado M1). XML doc citando R-03 e R-04. T002 deve passar.
 - [ ] T006 [P] Porta em `src/PedidoFulfillment.Application/Pagamentos/IGatewayPagamento.cs`: `Task<ResultadoCobranca> CobrarAsync(Guid pedidoId, decimal valor, CancellationToken cancellationToken)` e o `sealed record ResultadoCobranca(bool Aprovado, string? IdentificadorTransacao, string? Motivo)` com as fábricas `Aprovada(string identificadorTransacao)` e `Recusada(string motivo)`.
 - [ ] T007 Gateway simulado (R-02):
   - `src/PedidoFulfillment.Infrastructure/Configuracao/OpcoesGatewayPagamento.cs`: `OpcoesGatewayPagamento` (`Secao = "GatewayPagamento"`, `double TaxaAprovacaoPercentual = 90`) e `ValidadorOpcoesGatewayPagamento` (0 a 100; mensagem com a chave, sem o valor);
@@ -85,7 +85,7 @@ a US2.
   - `src/PedidoFulfillment.Infrastructure/Pagamentos/ExtensoesPagamento.cs`: `AdicionarGatewayPagamentoSimulado()` registra o validador, `AddOptions<OpcoesGatewayPagamento>().BindConfiguration(...).ValidateOnStart()` e o gateway como singleton.
 
   T003 e T004 devem passar.
-- [ ] T008 Leitura com o pagamento (R-06): em `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoPedidos.cs`, `ObterPedidoAsync` passa a incluir `Pagamento` (`.Include(p => p.Pagamento)`), e o XML doc de `IArmazenamentoPedidos.ObterPedidoAsync` cita o pagamento. Em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/Falsos.cs`, conferir que as cópias do pedido feitas na leitura com `paraAlterar: true` preservam `Pagamento` e que o pagamento criado numa tentativa descartada por `DescartarAlteracoes` não sobrevive. Rodar a suíte: tudo verde.
+- [ ] T008 Leitura com o pagamento (R-06): em `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoPedidos.cs`, `ObterPedidoAsync` passa a incluir `Pagamento` (`.Include(p => p.Pagamento)`), e o XML doc de `IArmazenamentoPedidos.ObterPedidoAsync` cita o pagamento. O falso de `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/Falsos.cs` não copia pedidos: cada leitura chama a fábrica registrada e devolve uma instância nova (achado M2). O pedido "já pago" dos testes sai da própria fábrica (`AprovarPagamento` dentro dela), e o pagamento criado numa tentativa que perdeu some na releitura; a T019 confere isso. Rodar a suíte: tudo verde.
 - [ ] T009 Esqueleto do consumidor (R-01, R-08):
   - `src/PedidoFulfillment.Application/Pagamentos/EventosPagamento.cs`: `LoggerMessage` 7001 `PagamentoAprovado` (pedido, valor, transação, evento), 7002 `PagamentoRecusado` (pedido, valor, evento), 7003 `PedidoIgnoradoNoPagamento` (status, reservado, já pago, evento) e 7004 `ConflitoNoPagamento` (Warning, reavaliação), só com identificadores e valores;
   - `src/PedidoFulfillment.Application/Pagamentos/ProcessamentoPagamento.cs`: `public sealed class ProcessamentoPagamento(IArmazenamentoPedidos armazenamento, IGatewayPagamento gateway, TimeProvider relogio, ILogger<ProcessamentoPagamento> logger) : IManipuladorEvento<EstoqueReservado>`, com `Consumidor = "pagamento"`, `Tipos = [TiposEvento.EstoqueReservado]` e `ManipularAsync` lançando `NotImplementedException`; XML doc citando `contracts/consumidor-pagamento.md`.
@@ -108,7 +108,7 @@ a US2.
   - `Consumidor` é `pagamento` e `Tipos` é `[estoque.reservado]`;
   - pedido `Pendente` reservado e cobrança aprovada: gateway chamado uma vez com o id e o `ValorTotal`; pagamento `Aprovado`; status `Processando`; nenhum produto lido para alteração; uma chamada a `SalvarAsync`; um `EventoSaida` `pagamento.aprovado` com `idCorrelacao` igual ao pedido, valor e identificador iguais aos do pagamento; log 7001;
   - pedido inexistente: `InvalidOperationException`, gateway não chamado, nada gravado.
-- [ ] T011 [P] [US1] Teste de integração em `tests/PedidoFulfillment.Testes.Integracao/Pagamentos/PagamentoAprovadoTestes.cs` (`ColecaoMensageria`), com o helper novo `tests/PedidoFulfillment.Testes.Integracao/Pagamentos/CenarioPagamento.cs` (Worker com `GatewayPagamento:TaxaAprovacaoPercentual` configurável, `LimparFilasConsumidorAsync("pagamento")` e espera do consumidor ligado a `oms.pagamento`, como `CenarioEstoque.WorkerProntoAsync`; consultas de status, pagamento e estoque), API (`CenarioPedidos.Api`) e `FilaTesteAsync("pagamento.*")`:
+- [ ] T011 [P] [US1] Teste de integração em `tests/PedidoFulfillment.Testes.Integracao/Pagamentos/PagamentoAprovadoTestes.cs` (`ColecaoMensageria`), com o helper novo `tests/PedidoFulfillment.Testes.Integracao/Pagamentos/CenarioPagamento.cs` (Worker com `GatewayPagamento:TaxaAprovacaoPercentual` configurável; `LimparFilasConsumidorAsync` de `estoque` e de `pagamento` e espera dos dois consumidores ligados a `oms.estoque` e `oms.pagamento` antes de criar pedidos, como `CenarioEstoque.WorkerProntoAsync` (achado M3); publicação direta de `estoque.reservado` na troca; consultas de status, pagamento e estoque), API (`CenarioPedidos.Api`) e `FilaTesteAsync("pagamento.*")`:
   - cenários 1 a 3: o pedido criado pela API termina em `Processando` em até 5 s, com uma linha em `Pagamentos` (`Aprovado`, `Valor = ValorTotal`, `SIM-...`), a entrada `Pagamento aprovado.` no histórico e `pagamento.aprovado` válido pelo schema (`SchemaEventosTestes`) com os mesmos valores;
   - cenário 4: republicar o mesmo `estoque.reservado` (mesmo `idEvento`) direto na troca não cria pagamento nem evento novo.
 
@@ -140,7 +140,7 @@ a US2.
 - [ ] T015 [P] [US2] Teste de integração em `tests/PedidoFulfillment.Testes.Integracao/Pagamentos/PagamentoRecusadoTestes.cs`, com o Worker em taxa 0:
   - cenários 1 a 3: anotar o estoque, criar o pedido e conferir `PagamentoRejeitado`, pagamento `Recusado`, `EstoqueReservado` falso, estoque igual ao anotado e `pagamento.recusado` válido pelo schema com o motivo `Pagamento recusado pelo emissor.`;
   - cenário 4: republicar o mesmo `estoque.reservado` não devolve o estoque de novo nem gera evento;
-  - cenário 5: com o Worker parado depois da reserva (subir só o estoque, depois o pagamento), desativar o produto e conferir a devolução com o produto ainda inativo;
+  - cenário 5 (achado H1): reservar com o Worker do estoque (`CenarioEstoque`, sem o consumidor de pagamento) e pará-lo; desativar o produto; subir o Worker completo (que limpa e declara as filas) e só então publicar direto na troca o `estoque.reservado` do pedido, com `idEvento` novo. Conferir a devolução com o produto ainda inativo. O `estoque.reservado` da primeira etapa não é usado: sem `oms.pagamento` ele não tem rota, e com a fila ele é limpo pelo cenário;
   - pela API, `PATCH` para `Cancelado` no pedido rejeitado responde a recusa de transição que já existe (status final, FR-010), sem mexer no estoque.
 
 ### Implementação da US2
@@ -175,9 +175,10 @@ A proporção (SC-002) e o validador já são cobertos na fundação (T003, T004
   - `Processando` e `ProntoParaEnvio` reservados (theory): aprovado mantém o status e publica `pagamento.aprovado`; recusado vai para `PagamentoRejeitado` e devolve o estoque;
   - um conflito e depois sucesso: duas leituras, `DescartarAlteracoes` uma vez, gateway chamado uma vez só, um único evento;
   - conflito e, na releitura, o pedido foi cancelado (sem reserva): termina sem gravar, log 7003, gateway chamado uma vez;
+  - conflito e, na releitura, o pedido foi movido para `Processando` pela operação (achado L2): aprovação sem mudança de status, gateway chamado uma vez;
   - conflito nas 3 vezes: relança `ConflitoConcorrenciaException`, sem evento pendente no falso, log 7004 três vezes e gateway chamado uma vez.
 - [ ] T020 [P] [US4] Teste de integração em `tests/PedidoFulfillment.Testes.Integracao/Pagamentos/PedidoIgnoradoNoPagamentoTestes.cs`:
-  - cenário 1: com o Worker de estoque, reservar um pedido; parar; cancelar pela API (estoque devolvido pelo REQ-08); publicar o `estoque.reservado` dele direto na troca e subir o Worker completo: nenhum pagamento, estoque igual ao do cancelamento, nenhum `pagamento.*`, nada em `oms.pagamento.dlq` e log 7003;
+  - cenário 1 (achado H1): com o Worker do estoque (`CenarioEstoque`), reservar um pedido; parar; cancelar pela API (estoque devolvido pelo REQ-08); subir o Worker completo e só então publicar direto na troca o `estoque.reservado` dele, com `idEvento` novo: nenhum pagamento, estoque igual ao do cancelamento, nenhum `pagamento.*`, nada em `oms.pagamento.dlq` e log 7003;
   - cenário 4: `estoque.reservado` válido com `pedidoId` inexistente chega a `oms.pagamento.dlq` depois das 4 execuções (100, 200 e 400 ms);
   - cenário 5: com o produto de estoque 1, rodar 10 vezes, em paralelo, o cancelamento pela operação (`PATCH`) e o pagamento executado como a base (helper como `DisputaEstoqueTestes.ReservarComoABaseAsync`, com gateway fixo de recusa): em todas as rodadas, o estoque termina em 1 e o pedido em `Cancelado` sem pagamento ou em `PagamentoRejeitado` com pagamento `Recusado`; nunca estoque 2.
 
@@ -248,3 +249,9 @@ Setup, Foundational e US1: o pedido reservado é pago, vai para `Processando`, e
 - Pela regra do `CLAUDE.md`, nenhum REQ novo começa antes de o PR deste ser mergeado.
 - Estorno, nova tentativa de cobrança e falhas técnicas simuladas do gateway ficam fora do
   escopo (spec, Assumptions).
+- **Analyze** (2026-10-23): aplicados H1 (cenários com dois Workers publicam
+  `estoque.reservado` direto na troca depois de subir o Worker completo), M1 (identificador
+  obrigatório na aprovação), M2 (o falso cria o pedido pela fábrica, sem cópias), M3
+  (`CenarioPagamento` espera os dois consumidores), L1 (frase da US4, cenário 5) e L2
+  (conflito com PATCH para `Processando`). L3 mantido: a demonstração do CI cobre a taxa
+  padrão.

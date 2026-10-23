@@ -184,7 +184,8 @@ pagamento saiu.
    para a DLQ com o motivo.
 5. **Given** o cancelamento pela API e o pagamento do worker acontecendo ao mesmo tempo
    para o mesmo pedido, **When** os dois terminam, **Then** o resultado é um destes, nunca
-   estoque devolvido duas vezes nem pedido cancelado com pagamento aprovado sem registro:
+   estoque devolvido duas vezes nem pagamento gravado para pedido cancelado antes da
+   cobrança:
    - o cancelamento vem antes: o estoque volta pelo cancelamento, e o worker ignora o
      pedido (cenário 1);
    - o pagamento vem antes: o pedido fica `Processando` (aprovado) ou `PagamentoRejeitado`
