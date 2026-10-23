@@ -17,7 +17,8 @@ constituição do projeto fica em [`.specify/memory/constitution.md`](.specify/m
 | REQ-05 — Criação, consulta e status de pedidos ([spec](specs/005-criacao-pedidos/spec.md)) | Criação com idempotência por `X-Idempotency-Key`, consulta e mudança de status de pedidos, conforme o contrato v1 |
 | REQ-06 — Mensageria, publicação de eventos e DLQ ([spec](specs/006-mensageria/spec.md)) | Contratos de eventos v1 com schema, `pedido.criado` publicado por outbox, processo `PedidoFulfillment.Worker` e base de consumo com novas tentativas, DLQ e descarte de duplicados |
 | REQ-07 — CI e ambiente de demonstração ([spec](specs/007-ci-demo/spec.md)) | Verificação `build-testes` em todo PR (build, testes com Docker obrigatório, cobertura, demonstração) e perfil `demo` que sobe a API com um comando |
-| Issues #8 a #11 | Pendentes; ver [Próximos passos](#próximos-passos) |
+| REQ-08 — Reserva de estoque assíncrona ([spec](specs/008-estoque/spec.md)) | Consumidor `estoque` no Worker: reserva tudo ou nada com concorrência otimista e publica `estoque.reservado`; sem estoque, cancela o pedido e publica `estoque.insuficiente`. O cancelamento pela API devolve o estoque reservado |
+| Issues #9 a #11 | Pendentes; ver [Próximos passos](#próximos-passos) |
 
 ## Demonstração rápida
 
@@ -53,17 +54,16 @@ catálogo inicial (`CAT-001` a `CAT-010`).
 Issues abertas que formam o escopo restante, na ordem sugerida de implementação. Cada uma
 segue o fluxo SDD (`/speckit-specify` → `/speckit-clarify` → `/speckit-plan` →
 `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`), em uma branch
-`feature/req-XX-...`. A numeração de requisito a partir do REQ-08 é definida quando cada
+`feature/req-XX-...`. A numeração de requisito a partir do REQ-09 é definida quando cada
 especificação começa.
 
 | Ordem | Requisito | Issue | Escopo | Depende de |
 |-------|-----------|-------|--------|------------|
-| 1 | a numerar | [#8](https://github.com/LucasFrenhan/Order-Management-System/issues/8) — Worker de estoque e concorrência otimista | Consome `pedido.criado`, reserva estoque tratando `ConflitoConcorrenciaException`; sem estoque, cancela o pedido e publica o evento de falta de estoque | REQ-06 |
-| 2 | a numerar | [#9](https://github.com/LucasFrenhan/Order-Management-System/issues/9) — Worker de pagamento assíncrono | Consome `EstoqueReservado`, simula o gateway (90% aprova); aprovado → `Processando`; recusado → `PagamentoRejeitado` e compensação do estoque | estoque |
-| 3 | a numerar | [#10](https://github.com/LucasFrenhan/Order-Management-System/issues/10) — Worker de fulfillment e logística | Consome `PagamentoAprovado`, cria a `OrdemEntrega`, muda o pedido para `ProntoParaEnvio` e publica o evento de despacho | pagamento |
-| 4 | a numerar | [#11](https://github.com/LucasFrenhan/Order-Management-System/issues/11) — Rastreio e histórico na consulta | A consulta com dono validado pelo token já existe (REQ-05). Faltam o histórico de status na resposta do `GET /api/v1/pedidos/{id}` e o `PATCH /api/v1/pedidos/{id}/rastreio` (Admin e OperadorLogistica) para registrar o rastreio e despachar | fulfillment |
+| 1 | a numerar | [#9](https://github.com/LucasFrenhan/Order-Management-System/issues/9) — Worker de pagamento assíncrono | Consome `estoque.reservado`, simula o gateway (90% aprova); aprovado → `Processando`; recusado → `PagamentoRejeitado` e compensação do estoque, reaproveitando `Pedido.DevolverEstoque` e a marca `EstoqueReservado` (REQ-08) | REQ-08 |
+| 2 | a numerar | [#10](https://github.com/LucasFrenhan/Order-Management-System/issues/10) — Worker de fulfillment e logística | Consome `PagamentoAprovado`, cria a `OrdemEntrega`, muda o pedido para `ProntoParaEnvio` e publica o evento de despacho | pagamento |
+| 3 | a numerar | [#11](https://github.com/LucasFrenhan/Order-Management-System/issues/11) — Rastreio e histórico na consulta | A consulta com dono validado pelo token já existe (REQ-05). Faltam o histórico de status na resposta do `GET /api/v1/pedidos/{id}` e o `PATCH /api/v1/pedidos/{id}/rastreio` (Admin e OperadorLogistica) para registrar o rastreio e despachar | fulfillment |
 
-O que os REQ-04 a REQ-06 já deixaram pronto para esses requisitos:
+O que os REQ-04 a REQ-08 já deixaram pronto para esses requisitos:
 
 - **Armazenamento**: produtos, pedidos com itens e histórico de status, pagamentos e ordens
   de entrega, com as restrições no banco.
@@ -78,6 +78,9 @@ O que os REQ-04 a REQ-06 já deixaram pronto para esses requisitos:
   se registra no Worker com `AdicionarConsumidor`; fila, novas tentativas, DLQ e
   duplicados ficam com a base. Para publicar, grava um `EventoSaida` (outbox). Guia em
   [topologia e consumo](specs/006-mensageria/contracts/topologia-e-consumo.md).
+- **Estoque** (REQ-08): `Pedido.ReservarEstoque` e `Pedido.DevolverEstoque`, com a marca
+  `EstoqueReservado`; o consumidor `ReservaEstoque` é o exemplo de worker de negócio
+  ([consumidor de estoque](specs/008-estoque/contracts/consumidor-estoque.md)).
 
 Decisões e pontos já conhecidos:
 
@@ -99,7 +102,7 @@ Decisões e pontos já conhecidos:
 - SDK do .NET 10 (`winget install Microsoft.DotNet.SDK.10`)
 - Docker com Compose v2, para o [ambiente local](#ambiente-local) (`winget install Docker.DockerDesktop`)
 
-Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md), [domínio e persistência](specs/004-dominio-persistencia/quickstart.md), [pedidos](specs/005-criacao-pedidos/quickstart.md), [mensageria](specs/006-mensageria/quickstart.md) e [CI e demonstração](specs/007-ci-demo/quickstart.md).
+Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md), [domínio e persistência](specs/004-dominio-persistencia/quickstart.md), [pedidos](specs/005-criacao-pedidos/quickstart.md), [mensageria](specs/006-mensageria/quickstart.md), [CI e demonstração](specs/007-ci-demo/quickstart.md) e [estoque](specs/008-estoque/quickstart.md).
 
 ## Ambiente local
 
@@ -213,6 +216,13 @@ Os eventos de domínio trafegam pelo RabbitMQ ([spec](specs/006-mensageria/spec.
   vezes, com espera crescente e sem bloquear a fila, e depois vai para a DLQ com o motivo
   nos cabeçalhos. Mensagem fora do contrato vai direto para a DLQ. Duplicados são
   descartados por consumidor.
+- **Estoque** (REQ-08, [consumidor de estoque](specs/008-estoque/contracts/consumidor-estoque.md)):
+  o consumidor `estoque` (fila `oms.estoque`) recebe `pedido.criado` e reserva o estoque
+  de todos os itens de uma vez, publicando `estoque.reservado`; se algum item falta, nada é
+  abatido, o pedido é cancelado e sai `estoque.insuficiente`
+  ([schema](specs/008-estoque/contracts/eventos/)). Conflitos de concorrência no mesmo
+  produto são reavaliados com o estoque atual. Cancelar pela API um pedido com estoque
+  reservado devolve o estoque na mesma gravação.
 
 Para rodar localmente, com o [ambiente local](#ambiente-local) no ar e a API já iniciada
 (é ela que aplica as migrations):
@@ -278,7 +288,8 @@ src/
                                      Entregas/
   PedidoFulfillment.Application/     DTOs de contrato, contratos de eventos, serviços de
                                      autenticação e de pedidos (portas de persistência,
-                                     idempotência, outbox), IManipuladorEvento, Resultado,
+                                     idempotência, outbox), consumidor de estoque (Estoque/),
+                                     IManipuladorEvento, Resultado,
                                      ConflitoConcorrenciaException
   PedidoFulfillment.Infrastructure/  banco (EF Core + Identity, Persistencia/Configuracoes com o
                                      mapeamento do domínio, armazenamento de pedidos, número do
@@ -287,13 +298,13 @@ src/
                                      do outbox, base de consumo), configuração e saúde
   PedidoFulfillment.API/             Minimal APIs (só roteamento), segurança (validação e
                                      emissão de JWT), erros, OpenAPI; Dockerfile da demonstração
-  PedidoFulfillment.Worker/          processo dos consumidores e do despachante do outbox
+  PedidoFulfillment.Worker/          processo dos consumidores (estoque) e do despachante do outbox
                                      (só /health e /health/pronto); Dockerfile
 tests/
-  PedidoFulfillment.Testes.Unitarios/   DTOs, configurações, regras de autenticação, de pedidos
-                                        e de mensageria, e entidades do domínio
+  PedidoFulfillment.Testes.Unitarios/   DTOs, configurações, regras de autenticação, de pedidos,
+                                        de estoque e de mensageria, e entidades do domínio
   PedidoFulfillment.Testes.Integracao/  contrato, segurança, erros, serialização, configuração,
-                                        saúde, autenticação, persistência, pedidos e mensageria
+                                        saúde, autenticação, persistência, pedidos, mensageria e estoque
                                         com SQL Server e RabbitMQ reais (Testcontainers),
                                         schemas de eventos e arquitetura
 specs/                               especificações SDD (spec, plano, tarefas, contrato)

@@ -224,14 +224,14 @@ sequência. A US5 mexe no `ServicoPedidos` e pode correr em paralelo com as US2 
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T027 [P] Atualizar `README.md`:
+- [X] T027 [P] Atualizar `README.md`:
   - **Estado atual**: linha do REQ-08;
   - **Próximos passos**: tirar a #8; na #9, citar que a compensação reaproveita `Pedido.DevolverEstoque` e a marca `EstoqueReservado`;
   - **Mensageria**: a fila `oms.estoque` e os eventos `estoque.reservado` e `estoque.insuficiente`;
   - **Roteiros de validação**: o quickstart do REQ-08.
-- [ ] T028 [P] Em `specs/006-mensageria/contracts/topologia-e-consumo.md`, na seção "Para escrever um worker", citar o consumidor de estoque como exemplo (`specs/008-estoque/contracts/consumidor-estoque.md`), sem mudar o contrato.
-- [ ] T029 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados).
-- [ ] T030 Executar o quickstart (§1 a §7) e registrar em Notes. Conferir nos logs da API e do Worker os EventIds 6001 (reserva), 6002 (cancelamento sem estoque) e 6005 (devolução), que não têm asserção nos testes (achado L3).
+- [X] T028 [P] Em `specs/006-mensageria/contracts/topologia-e-consumo.md`, na seção "Para escrever um worker", citar o consumidor de estoque como exemplo (`specs/008-estoque/contracts/consumidor-estoque.md`), sem mudar o contrato.
+- [X] T029 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados).
+- [X] T030 Executar o quickstart (§1 a §7) e registrar em Notes. Conferir nos logs da API e do Worker os EventIds 6001 (reserva), 6002 (cancelamento sem estoque) e 6005 (devolução), que não têm asserção nos testes (achado L3).
 - [ ] T031 Fazer push e abrir o PR com `Closes #8`. Acompanhar o CI (`build-testes`, com os dois jobs) até ficar verde e registrar os tempos em Notes.
 
 ---
@@ -280,6 +280,26 @@ broker.
 - A devolução na recusa do pagamento é da issue #9, que reaproveita `DevolverEstoque`.
 - **T001** (2026-10-22): linha de base com 485 testes verdes (262 unitários e 223 de
   integração), nenhum ignorado.
+- **T029** (2026-10-22): nenhum segredo novo no diff, zero avisos, `dotnet format` passa e
+  534 testes verdes (292 unitários e 242 de integração), nenhum ignorado.
+- **T030**, quickstart no ambiente local de desenvolvimento (2026-10-22):
+  - **§1**: coberto pela T029.
+  - **§2**: a API aplicou `ReservaEstoque`; com o Worker no ar, existem `oms.estoque`,
+    `oms.estoque.dlq` e as três filas de espera.
+  - **§3**: pedido de 2 `CAT-001` reservado (estoque 50 → 48), continua `Pendente`, e
+    `estoque.reservado` chegou à fila de teste; log 6001 conferido.
+  - **§4**: com o Worker parado, dois pedidos de 1 `CAT-008` receberam 201. Com o Worker de
+    volta, um ficou reservado, o outro `Cancelado` com `estoque.insuficiente`, e o estoque
+    terminou em 0; log 6002 conferido.
+  - **§5**: o cancelamento do pedido do §3 pelo Cliente respondeu 200, o estoque voltou a
+    50 e o log 6005 apareceu na API. O pedido do §4 cancelado por falta de estoque recebeu
+    403 ao tentar cancelar de novo (status final), sem mexer no estoque.
+  - **§6**: pedido cancelado com o Worker parado; ao subir, log 6003 (status `Cancelado`),
+    nenhum evento de estoque, estoque intacto e DLQ vazia.
+  - **§7**: num projeto Compose isolado, os 4 serviços ficaram saudáveis em 42 s, com build,
+    e o pedido criado na demonstração foi reservado em cerca de 2 s.
+  - O ambiente local recebeu a migration e pedidos de teste; API e Worker locais parados, e
+    a fila de teste removida.
 - Desvios registrados na implementação:
   - **T006**: a configuração não usa `HasDefaultValue(false)`. A migration gera
     `defaultValue: false` para a coluna nova de qualquer jeito, e sem a configuração o EF

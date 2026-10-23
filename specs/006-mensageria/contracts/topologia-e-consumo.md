@@ -66,3 +66,8 @@ consumidor deve ser idempotente; a base de consumo descarta duplicados por consu
 3. Para publicar um evento, gravar um `EventoSaida` no mesmo escopo (outbox). Nunca
    publicar direto no broker.
 4. Registrar no `ProgramaWorker.cs` do Worker com `AdicionarConsumidor<TManipulador, TDados>()`.
+
+Exemplo: o consumidor de estoque do REQ-08 (`ReservaEstoque`, em
+`src/PedidoFulfillment.Application/Estoque/`), descrito em
+[consumidor de estoque](../../008-estoque/contracts/consumidor-estoque.md). Ele também mostra
+como reavaliar um conflito de concorrência dentro da transação da base.
