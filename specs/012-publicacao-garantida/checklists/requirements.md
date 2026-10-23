@@ -34,7 +34,8 @@
 - Validação em 2026-10-23, uma iteração, 16/16. Termos como "fila", "DLQ", "outbox",
   "broker", "rota" e "concorrência otimista" seguem o vocabulário das specs do REQ-06 ao
   REQ-11 e descrevem comportamento observável.
-- Decisões tomadas como padrão, candidatas ao `/speckit-clarify`:
+- Decisões tomadas como padrão (o clarify de 2026-10-23 confirmou a reconciliação automática e
+  a reavaliação sem limite do pedido que falha):
   - só os tipos com consumidor interno exigem rota; os demais seguem publicados sem fila;
   - reconciliação periódica e automática no processo de workers (não um comando manual),
     com ciclo de 5 min, limite de 10 min parado e lote de 100;

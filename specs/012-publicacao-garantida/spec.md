@@ -38,6 +38,17 @@ Este requisito fecha esse caminho em duas frentes:
   recuperação parte do estado do pedido, não dos eventos antigos do outbox; republicá-los
   foi rejeitado no REQ-10.
 
+## Clarifications
+
+### Session 2026-10-23
+
+- Q: A reconciliação roda sozinha, periodicamente, no processo de workers, ou só quando
+  alguém dispara? → A: Automática, a cada ciclo no processo de workers, com o primeiro
+  ciclo logo após a subida; sem disparo manual.
+- Q: Se a regra da etapa falhar sempre para o mesmo pedido, a reconciliação tenta a cada
+  ciclo sem limite ou desiste depois de algumas tentativas? → A: Tenta a cada ciclo, sem
+  limite, com a falha registrada em log a cada vez; nada novo é gravado no pedido.
+
 ## User Scenarios & Testing *(mandatory)*
 
 Os "usuários" deste requisito são o Cliente, cujo pedido não pode ficar parado sem
@@ -160,8 +171,8 @@ contagens.
   mesmo tempo): a reconciliação usa a mesma concorrência otimista e as mesmas reavaliações
   do consumidor. Se o pedido deixou de estar parado, termina sem gravar.
 - **Falha da regra para um pedido** (por exemplo, o gateway de pagamento falha): o pedido é
-  pulado no ciclo, com a falha em log, e volta a ser avaliado no ciclo seguinte. Os demais
-  pedidos do ciclo continuam.
+  pulado no ciclo, com a falha em log, e volta a ser avaliado no ciclo seguinte, sem limite
+  de ciclos e sem gravar nada no pedido. Os demais pedidos do ciclo continuam.
 - **Pedido cuja mensagem foi para a DLQ** (por exemplo, falhas repetidas no consumidor): o
   pedido continua parado pelo estado e é reavaliado pela reconciliação, que aplica a mesma
   regra. O reprocessamento da mensagem na DLQ continua manual e fora do escopo.
@@ -203,7 +214,8 @@ contagens.
 
 **Reconciliação**
 
-- **FR-007**: O processo de workers MUST rodar uma reconciliação periódica que procura
+- **FR-007**: O processo de workers MUST rodar, sozinho e sem disparo manual, uma
+  reconciliação periódica, com o primeiro ciclo logo após a subida, que procura
   pedidos parados nas etapas de estoque, pagamento e entrega (tabela da US2), com a última
   atualização mais antiga que um limite configurável.
 - **FR-008**: Para cada pedido parado, a reconciliação MUST aplicar a mesma regra do
@@ -215,7 +227,10 @@ contagens.
 - **FR-010**: A reconciliação MUST NOT republicar eventos antigos do outbox nem depender
   deles.
 - **FR-011**: Cada ciclo MUST tratar no máximo um lote configurável de pedidos, dos mais
-  antigos para os mais novos. A falha de um pedido MUST NOT interromper os demais.
+  antigos para os mais novos. A falha de um pedido MUST NOT interromper os demais, e o
+  pedido que falhou MUST ser reavaliado no ciclo seguinte, sem limite de ciclos e sem
+  gravar nada no pedido. Pedidos que falham sempre MUST NOT impedir, ciclo após ciclo, que
+  os demais pedidos parados sejam tratados, mesmo que ocupem o lote inteiro.
 - **FR-012**: O intervalo dos ciclos, o limite de tempo parado e o tamanho do lote MUST ser
   configuráveis, com valores padrão (Assumptions) e validação na partida, como as demais
   opções de mensageria.
