@@ -232,7 +232,7 @@ sequência. A US5 mexe no `ServicoPedidos` e pode correr em paralelo com as US2 
 - [X] T028 [P] Em `specs/006-mensageria/contracts/topologia-e-consumo.md`, na seção "Para escrever um worker", citar o consumidor de estoque como exemplo (`specs/008-estoque/contracts/consumidor-estoque.md`), sem mudar o contrato.
 - [X] T029 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados).
 - [X] T030 Executar o quickstart (§1 a §7) e registrar em Notes. Conferir nos logs da API e do Worker os EventIds 6001 (reserva), 6002 (cancelamento sem estoque) e 6005 (devolução), que não têm asserção nos testes (achado L3).
-- [ ] T031 Fazer push e abrir o PR com `Closes #8`. Acompanhar o CI (`build-testes`, com os dois jobs) até ficar verde e registrar os tempos em Notes.
+- [X] T031 Fazer push e abrir o PR com `Closes #8`. Acompanhar o CI (`build-testes`, com os dois jobs) até ficar verde e registrar os tempos em Notes.
 
 ---
 
@@ -300,6 +300,10 @@ broker.
     e o pedido criado na demonstração foi reservado em cerca de 2 s.
   - O ambiente local recebeu a migration e pedidos de teste; API e Worker locais parados, e
     a fila de teste removida.
+- **T031** (2026-10-23): PR #22 com `Closes #8`. O CI (`build-testes`, execução
+  39876083118) ficou verde em ~3m46s: "Build e testes" em 3m46s (534 testes, 292 unitários
+  e 242 de integração, nenhum ignorado, cobertura de linhas de 96,4%) e "Demonstração" em
+  2m09s, com a prontidão da API e do Worker conferida.
 - Desvios registrados na implementação:
   - **T006**: a configuração não usa `HasDefaultValue(false)`. A migration gera
     `defaultValue: false` para a coluna nova de qualquer jeito, e sem a configuração o EF
