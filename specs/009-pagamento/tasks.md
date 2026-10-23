@@ -157,8 +157,8 @@ a US2.
 
 A proporção (SC-002) e o validador já são cobertos na fundação (T003, T004).
 
-- [ ] T017 [P] [US3] Em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/WorkerTestes.cs`, acrescentar ao theory `Configuracao_invalida_impede_o_Worker_de_subir_sem_mostrar_valores` o caso `GatewayPagamento:TaxaAprovacaoPercentual` = `150`, usando a cadeia de `FalhaPartida`, e conferir que a mensagem não contém `150`.
-- [ ] T018 [P] [US3] Conferir que a demonstração usa a taxa padrão: `docker-compose.yml` não sobrescreve `GatewayPagamento`, e o `appsettings.json` do Worker traz 90 (T012). Sem teste novo; registrar em Notes.
+- [X] T017 [P] [US3] Em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/WorkerTestes.cs`, acrescentar ao theory `Configuracao_invalida_impede_o_Worker_de_subir_sem_mostrar_valores` o caso `GatewayPagamento:TaxaAprovacaoPercentual` = `150`, usando a cadeia de `FalhaPartida`, e conferir que a mensagem não contém `150`.
+- [X] T018 [P] [US3] Conferir que a demonstração usa a taxa padrão: `docker-compose.yml` não sobrescreve `GatewayPagamento`, e o `appsettings.json` do Worker traz 90 (T012). Sem teste novo; registrar em Notes.
 
 ---
 
@@ -261,3 +261,5 @@ Setup, Foundational e US1: o pedido reservado é pago, vai para `Processando`, e
   pelo tipo `pedido.criado` desde o REQ-08; nada a mudar. `MensageriaTeste.ConsumidorLigadoAsync`
   passou a ser o helper comum de espera do consumidor (estoque e pagamento), e
   `CenarioEstoque.PublicarAsync` recebe o tipo. Suíte: 331 unitários e 244 de integração.
+- **T018** (2026-10-23): o serviço `worker` do `docker-compose.yml` não define
+  `GatewayPagamento`, então a demonstração usa os 90% do `appsettings.json` do Worker.

@@ -46,9 +46,10 @@ public sealed class WorkerTestes(MensageriaTeste mensageria)
     }
 
     [Theory]
-    [InlineData("RabbitMQ:Senha", "", "RabbitMQ:Senha")]
-    [InlineData("Mensageria:TamanhoLote", "0", "Mensageria:TamanhoLote")]
-    public void Configuracao_invalida_impede_o_Worker_de_subir_sem_mostrar_valores(string chave, string valor, string esperado)
+    [InlineData("RabbitMQ:Senha", "", "RabbitMQ:Senha", null)]
+    [InlineData("Mensageria:TamanhoLote", "0", "Mensageria:TamanhoLote", null)]
+    [InlineData("GatewayPagamento:TaxaAprovacaoPercentual", "150", "GatewayPagamento:TaxaAprovacaoPercentual", "150")]
+    public void Configuracao_invalida_impede_o_Worker_de_subir_sem_mostrar_valores(string chave, string valor, string esperado, string? oculto)
     {
         var broker = new Dictionary<string, string?>
         {
@@ -70,5 +71,9 @@ public sealed class WorkerTestes(MensageriaTeste mensageria)
         excecao.Should().NotBeNull();
         var mensagens = string.Join(" | ", worker.FalhaPartida.Cadeia(excecao!).Select(e => e.Message));
         mensagens.Should().Contain(esperado).And.NotContain("usuario-secreto").And.NotContain("senha-secreta");
+        if (oculto is not null)
+        {
+            mensagens.Should().NotContain(oculto, "o valor configurado não aparece no erro (REQ-09, FR-005)");
+        }
     }
 }
