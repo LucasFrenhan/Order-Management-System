@@ -86,3 +86,25 @@ public sealed record PagamentoRecusado
 
     public required string Motivo { get; init; }
 }
+
+/// <summary>
+/// <c>entrega.criada</c>: publicado pelo worker de entrega (issue #10) quando a ordem de entrega do
+/// pedido pago foi criada; o pedido está pronto para separação e despacho (REQ-10, FR-008).
+/// </summary>
+public sealed record EntregaCriada
+{
+    public required Guid PedidoId { get; init; }
+
+    public required string Numero { get; init; }
+
+    public required Guid OrdemEntregaId { get; init; }
+
+    public required IReadOnlyList<ItemEntregaCriada> Itens { get; init; }
+}
+
+public sealed record ItemEntregaCriada
+{
+    public required Guid ProdutoId { get; init; }
+
+    public required int Quantidade { get; init; }
+}

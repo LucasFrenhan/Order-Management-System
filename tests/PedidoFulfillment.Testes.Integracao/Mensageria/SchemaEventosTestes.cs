@@ -8,7 +8,9 @@ namespace PedidoFulfillment.Testes.Integracao.Mensageria;
 
 /// <summary>
 /// Conformidade dos eventos v1 com os schemas publicados em
-/// <c>specs/006-mensageria/contracts/eventos/</c> (REQ-06, FR-003, FR-004; constituição V).
+/// <c>specs/006-mensageria/contracts/eventos/</c> (REQ-06, FR-003, FR-004; constituição V),
+/// <c>specs/008-estoque/contracts/eventos/</c> (REQ-08) e <c>specs/010-fulfillment/contracts/eventos/</c>
+/// (REQ-10, FR-009).
 /// </summary>
 public sealed class SchemaEventosTestes
 {
@@ -58,8 +60,22 @@ public sealed class SchemaEventosTestes
             Valor = 829.70m,
             Motivo = "Cartão recusado"
         }, Instante)) },
-        { TiposEvento.EstoqueInsuficiente, JsonEstoqueInsuficiente() }
+        { TiposEvento.EstoqueInsuficiente, JsonEstoqueInsuficiente() },
+        { TiposEvento.EntregaCriada, JsonEntregaCriada() }
     };
+
+    // REQ-10: ordem de entrega de um pedido com dois itens.
+    private static string JsonEntregaCriada() => SerializacaoEventos.Serializar(EnvelopeEvento.Criar(PedidoId, new EntregaCriada
+    {
+        PedidoId = PedidoId,
+        Numero = "PED-20261023-000042",
+        OrdemEntregaId = Guid.CreateVersion7(),
+        Itens =
+        [
+            new ItemEntregaCriada { ProdutoId = ProdutoId, Quantidade = 2 },
+            new ItemEntregaCriada { ProdutoId = Guid.CreateVersion7(), Quantidade = 1 }
+        ]
+    }, Instante));
 
     // REQ-08: itens em falta, um com estoque menor e outro inativo.
     private static string JsonEstoqueInsuficiente() => SerializacaoEventos.Serializar(EnvelopeEvento.Criar(PedidoId, new EstoqueInsuficiente
@@ -146,6 +162,51 @@ public sealed class SchemaEventosTestes
         }
 
         DeveSerValido(TiposEvento.EstoqueInsuficiente, raiz.ToJsonString()).Should().BeFalse(caso);
+    }
+
+    public static TheoryData<string, string> AlteracoesEntregaCriada() => new()
+    {
+        { "sem ordemEntregaId", "remover:ordemEntregaId" },
+        { "itens vazio", "itens:vazio" },
+        { "quantidade zero", "quantidade:0" },
+        { "número fora do padrão", "numero:PED-1" },
+        { "campo extra em dados", "extra:dados" },
+        { "campo extra no item", "extra:item" },
+        { "tipo trocado", "tipo:pagamento.aprovado" }
+    };
+
+    /// <summary>US2 cenário 2 do REQ-10.</summary>
+    [Theory]
+    [MemberData(nameof(AlteracoesEntregaCriada))]
+    public void Entrega_criada_fora_do_contrato_e_recusada(string caso, string alteracao)
+    {
+        var raiz = JsonNode.Parse(JsonEntregaCriada())!.AsObject();
+        var dados = raiz["dados"]!.AsObject();
+        var item = dados["itens"]![0]!.AsObject();
+        var (campo, valor) = (alteracao.Split(':')[0], alteracao.Split(':')[1]);
+        switch (campo)
+        {
+            case "remover":
+                dados.Remove(valor);
+                break;
+            case "itens":
+                dados["itens"] = new JsonArray();
+                break;
+            case "quantidade":
+                item["quantidade"] = int.Parse(valor, System.Globalization.CultureInfo.InvariantCulture);
+                break;
+            case "numero":
+                dados["numero"] = valor;
+                break;
+            case "extra":
+                (valor == "item" ? item : dados)["extra"] = 1;
+                break;
+            case "tipo":
+                raiz["tipo"] = valor;
+                break;
+        }
+
+        DeveSerValido(TiposEvento.EntregaCriada, raiz.ToJsonString()).Should().BeFalse(caso);
     }
 
     /// <summary>Também usado pelos testes de integração dos consumidores, nas mensagens publicadas (REQ-09).</summary>
