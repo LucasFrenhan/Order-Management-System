@@ -74,7 +74,7 @@ EntregaPedidoResponseDTO:
       format: date-time
 ```
 
-`PedidoResponseDTO` ganha (o `required` atual ganha `historico`):
+`PedidoResponseDTO` ganha, como propriedades opcionais no schema (a v1 só aceita adições opcionais; a API sempre devolve `historico`):
 
 ```yaml
 historico:

@@ -28,4 +28,14 @@ public sealed record PedidoResponseDTO
     public required DateTimeOffset CriadoEm { get; init; }
 
     public required DateTimeOffset AtualizadoEm { get; init; }
+
+    /// <summary>
+    /// Mudanças de status em ordem cronológica (REQ-11, FR-002). Opcional no schema, como pede a
+    /// v1 para campos novos, e sempre preenchida pela API; uma resposta idempotente gravada antes do
+    /// REQ-11 volta com a lista vazia (research R-03).
+    /// </summary>
+    public IReadOnlyList<HistoricoStatusPedidoResponseDTO> Historico { get; init; } = [];
+
+    /// <summary>Ordem de entrega; nula enquanto não existe (REQ-11, FR-004).</summary>
+    public EntregaPedidoResponseDTO? Entrega { get; init; }
 }

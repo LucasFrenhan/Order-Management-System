@@ -10,6 +10,8 @@ info:
     de tipo ou obrigatoriedade exigem /api/v2 (Princípio II).
 
     Todos os erros seguem RFC 7807 (application/problem+json).
+
+    Evoluções compatíveis: REQ-11 acrescentou `historico` e `entrega` à resposta do pedido.
 servers:
   - url: /
 tags:
@@ -359,6 +361,12 @@ components:
         moeda: BRL
         criadoEm: '2026-10-21T15:30:00Z'
         atualizadoEm: '2026-10-21T15:30:00Z'
+        historico:
+          - statusAnterior: null
+            statusNovo: Pendente
+            ocorridoEm: '2026-10-21T15:30:00Z'
+            motivo: null
+        entrega: null
     PedidoCancelado:
       value:
         id: 0f8fad5b-d9cb-469f-a165-70867728950e
@@ -380,6 +388,16 @@ components:
         moeda: BRL
         criadoEm: '2026-10-21T15:30:00Z'
         atualizadoEm: '2026-10-21T16:05:00Z'
+        historico:
+          - statusAnterior: null
+            statusNovo: Pendente
+            ocorridoEm: '2026-10-21T15:30:00Z'
+            motivo: null
+          - statusAnterior: Pendente
+            statusNovo: Cancelado
+            ocorridoEm: '2026-10-21T16:05:00Z'
+            motivo: Cliente desistiu da compra.
+        entrega: null
 
   schemas:
     PerfilUsuario:
@@ -534,6 +552,53 @@ components:
         atualizadoEm:
           type: string
           format: date-time
+        historico:
+          type: array
+          description: |
+            Mudanças de status em ordem cronológica, sem o autor (REQ-11). Sempre presente nas
+            respostas da API; pode vir vazia na repetição idempotente de um pedido criado antes
+            do REQ-11.
+          items:
+            $ref: '#/components/schemas/HistoricoStatusPedidoResponseDTO'
+        entrega:
+          description: Ordem de entrega do pedido; null enquanto ela não existe (REQ-11).
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/EntregaPedidoResponseDTO'
+
+    HistoricoStatusPedidoResponseDTO:
+      type: object
+      required: [statusNovo, ocorridoEm]
+      properties:
+        statusAnterior:
+          description: Null na criação do pedido.
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/StatusPedido'
+        statusNovo:
+          $ref: '#/components/schemas/StatusPedido'
+        ocorridoEm:
+          type: string
+          format: date-time
+        motivo:
+          type: ['null', string]
+
+    EntregaPedidoResponseDTO:
+      type: object
+      required: [criadoEm]
+      description: Transportadora, código de rastreio e data de despacho ficam null até o despacho.
+      properties:
+        transportadora:
+          type: ['null', string]
+        codigoRastreio:
+          type: ['null', string]
+        despachadoEm:
+          type: ['null', string]
+          format: date-time
+        criadoEm:
+          type: string
+          format: date-time
+          description: Instante de criação da ordem de entrega.
 
     AtualizarStatusPedidoRequestDTO:
       type: object

@@ -43,7 +43,7 @@ método do serviço, por isso correm em sequência.
 
 ## Phase 1: Setup
 
-- [ ] T001 Rodar `dotnet build` e `dotnet test` na branch `feature/req-11-rastreio` e registrar em Notes a contagem de testes como linha de base (650 no fim do REQ-10: 383 unitários e 267 de integração; zero ignorados com o Docker no ar).
+- [X] T001 Rodar `dotnet build` e `dotnet test` na branch `feature/req-11-rastreio` e registrar em Notes a contagem de testes como linha de base (650 no fim do REQ-10: 383 unitários e 267 de integração; zero ignorados com o Docker no ar).
 
 ---
 
@@ -51,13 +51,13 @@ método do serviço, por isso correm em sequência.
 
 **⚠️ CRITICAL**: nenhuma história começa antes desta fase.
 
-- [ ] T002 [P] DTOs e código de erro (data-model, R-02, R-03):
+- [X] T002 [P] DTOs e código de erro (data-model, R-02, R-03):
   - `src/PedidoFulfillment.Application/Contratos/Pedidos/HistoricoStatusPedidoResponseDTO.cs`: `sealed record` com `StatusPedido? StatusAnterior`, `required StatusPedido StatusNovo`, `required DateTimeOffset OcorridoEm`, `string? Motivo`;
   - `src/PedidoFulfillment.Application/Contratos/Pedidos/EntregaPedidoResponseDTO.cs`: `string? Transportadora`, `string? CodigoRastreio`, `DateTimeOffset? DespachadoEm`, `required DateTimeOffset CriadoEm`;
   - `src/PedidoFulfillment.Application/Contratos/Pedidos/RegistrarRastreioRequestDTO.cs`: `sealed record ... : IValidatableObject`, como `AtualizarStatusPedidoRequestDTO`, com `Transportadora` (`[Required]`, `[MaxLength(100)]`, para o schema) e `CodigoRastreio` (`[Required]`, `[MaxLength(50)]`); em `Validate`, vazio ou só espaços → "obrigatório" e tamanho depois de `Trim()` acima do limite → erro no campo (R-09, analyze U1);
   - `PedidoResponseDTO`: `[Required] public IReadOnlyList<HistoricoStatusPedidoResponseDTO> Historico { get; init; } = [];` (não `required` em C#, R-03) e `public EntregaPedidoResponseDTO? Entrega { get; init; }`, depois de `AtualizadoEm`;
   - `CodigosErro.PedidoRastreioDuplicado = "PEDIDO_RASTREIO_DUPLICADO"`.
-- [ ] T003 [P] Leitura com o histórico (R-04): em `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoPedidos.cs`, `ObterPedidoAsync` inclui `.Include(p => p.Historico)` e usa `.AsSplitQuery()`; o XML doc de `IArmazenamentoPedidos.ObterPedidoAsync` cita o histórico (REQ-11). Rodar a suíte: tudo verde (o contrato ainda não mudou, então os campos novos ficam fora do documento gerado até a T007; se a conformidade reprovar por causa da T002, a T007 corrige).
+- [X] T003 [P] Leitura com o histórico (R-04): em `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoPedidos.cs`, `ObterPedidoAsync` inclui `.Include(p => p.Historico)` e usa `.AsSplitQuery()`; o XML doc de `IArmazenamentoPedidos.ObterPedidoAsync` cita o histórico (REQ-11). Rodar a suíte: tudo verde (o contrato ainda não mudou, então os campos novos ficam fora do documento gerado até a T007; se a conformidade reprovar por causa da T002, a T007 corrige).
 
 **Checkpoint**: tipos novos e leitura completa do pedido.
 
@@ -71,23 +71,23 @@ método do serviço, por isso correm em sequência.
 
 ### Testes da US1
 
-- [ ] T004 [P] [US1] Em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosConsultaTestes.cs`:
+- [X] T004 [P] [US1] Em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosConsultaTestes.cs`:
   - histórico em ordem de `OcorridoEm` e, no empate, na ordem de criação, com `StatusAnterior` nulo na primeira entrada, `StatusNovo`, `OcorridoEm` e `Motivo` iguais aos do domínio;
   - nenhuma propriedade de autor no JSON serializado da resposta (`JsonSerializer` com `JsonSerializerDefaults.Web`; nenhum nome contendo `autor`);
   - sem ordem: `Entrega` nula; ordem sem despacho: `Transportadora`, `CodigoRastreio` e `DespachadoEm` nulos e `CriadoEm` da ordem; ordem despachada (`RegistrarDespacho`): os três preenchidos;
   - Cliente dono e operação (Admin, OperadorLogistica) recebem a mesma resposta; Cliente de outro pedido continua com `NaoEncontrado`.
-- [ ] T005 [P] [US1] Em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/ConsultaPedidoComBancoTestes.cs`: pedido criado pela API e movido pela operação (`PATCH /status` para `Processando` com motivo e depois `ProntoParaEnvio`); ordem inserida por SQL (`OrdensEntrega`, sem dados de despacho); a consulta como dono traz `historico` com 3 entradas na ordem, `statusAnterior` nulo na primeira, o motivo da operação visível ao Cliente, nenhuma propriedade de autor, e `entrega` com `criadoEm` e os três campos nulos; um pedido sem ordem traz `entrega: null`; Cliente de outro pedido recebe 404.
+- [X] T005 [P] [US1] Em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/ConsultaPedidoComBancoTestes.cs`: pedido criado pela API e movido pela operação (`PATCH /status` para `Processando` com motivo e depois `ProntoParaEnvio`); ordem inserida por SQL (`OrdensEntrega`, sem dados de despacho); a consulta como dono traz `historico` com 3 entradas na ordem, `statusAnterior` nulo na primeira, o motivo da operação visível ao Cliente, nenhuma propriedade de autor, e `entrega` com `criadoEm` e os três campos nulos; um pedido sem ordem traz `entrega: null`; Cliente de outro pedido recebe 404.
 
 ### Implementação da US1
 
-- [ ] T006 [US1] Em `src/PedidoFulfillment.Application/Pedidos/MapeamentoPedido.cs`: `Historico` ordenado por `OcorridoEm` e `Id`, mapeado para `HistoricoStatusPedidoResponseDTO` sem o autor; `Entrega` a partir de `pedido.OrdemEntrega` (ou nula). T004 deve passar.
-- [ ] T007 [US1] Contrato (contracts/rastreio-http.md, R-01, R-02):
+- [X] T006 [US1] Em `src/PedidoFulfillment.Application/Pedidos/MapeamentoPedido.cs`: `Historico` ordenado por `OcorridoEm` e `Id`, mapeado para `HistoricoStatusPedidoResponseDTO` sem o autor; `Entrega` a partir de `pedido.OrdemEntrega` (ou nula). T004 deve passar.
+- [X] T007 [US1] Contrato (contracts/rastreio-http.md, R-01, R-02):
   - em `specs/001-contratos-api/contracts/openapi-v1.yaml`: schemas `HistoricoStatusPedidoResponseDTO` e `EntregaPedidoResponseDTO`; em `PedidoResponseDTO`, `historico` (no `required`) e `entrega` (anulável); os exemplos `PedidoPendente` e `PedidoCancelado` ganham `historico` e `entrega: null`; a descrição do documento cita o REQ-11;
   - a forma de `null` segue o que o gerador produz (comparar com o documento gerado em `/openapi/v1.json` e ajustar o YAML, não o gerador, salvo se um transformador existente já trata o caso);
   - em `tests/PedidoFulfillment.Testes.Integracao/Contrato/ConformidadeOpenApiTestes.cs`, os dois schemas novos na lista de schemas conferidos, se a lista cobrir os de pedido.
 
   T005 e a conformidade devem passar.
-- [ ] T008 [US1] Revisar os testes que comparam a resposta do pedido campo a campo (`CriacaoPedidoComBancoTestes.cs`, `StatusPedidoComBancoTestes.cs`, `IdempotenciaComBancoTestes.cs` e os unitários de `ServicoPedidos*`) e ajustar o que falhar por causa dos campos novos, sem afrouxar as asserções existentes. Acrescentar em `ServicoPedidosIdempotenciaTestes.cs` o caso da resposta gravada sem `historico` nem `entrega` (JSON anterior ao REQ-11): a repetição devolve `Historico` vazio e `Entrega` nula, sem exceção (R-03). Rodar a suíte inteira no checkpoint.
+- [X] T008 [US1] Revisar os testes que comparam a resposta do pedido campo a campo (`CriacaoPedidoComBancoTestes.cs`, `StatusPedidoComBancoTestes.cs`, `IdempotenciaComBancoTestes.cs` e os unitários de `ServicoPedidos*`) e ajustar o que falhar por causa dos campos novos, sem afrouxar as asserções existentes. Acrescentar em `ServicoPedidosIdempotenciaTestes.cs` o caso da resposta gravada sem `historico` nem `entrega` (JSON anterior ao REQ-11): a repetição devolve `Historico` vazio e `Entrega` nula, sem exceção (R-03). Rodar a suíte inteira no checkpoint.
 
 **Checkpoint**: MVP — a consulta mostra histórico e entrega.
 
@@ -237,3 +237,13 @@ Setup, Foundational e US1: a consulta mostra o histórico e a entrega.
   no histórico ficam fora do escopo (spec, Assumptions).
 - Lição do REQ-10: depois de cada push, acompanhar o CI de novo; um teste instável só aparece
   em outra rodada.
+- **T001 (linha de base, 2026-10-23)**: 650 testes, 383 unitários e 267 de integração, zero
+  ignorados, com o Docker no ar.
+- **T002 e T007, desvio**: `historico` ficou **opcional** no schema (sem `[Required]`), e não
+  no `required` do `PedidoResponseDTO`. O próprio contrato diz que a v1 só aceita adições
+  opcionais. A API sempre devolve a lista (vazia, no mínimo), e isso também cobre a resposta
+  idempotente gravada antes do REQ-11 (R-03). Research, data-model e contrato foram ajustados.
+- **T007**: o gerador de OpenAPI escreve objeto anulável como `oneOf: [{type: 'null'}, {$ref}]`
+  e texto anulável como `type: ['null', string]`; o YAML segue essa forma.
+- **T008**: só `SerializacaoPedidoTestes` fixava a lista exata de campos do pedido; ela ganhou
+  `historico` e `entrega`, com o tipo de cada um.

@@ -42,7 +42,7 @@
 
 ## R-03. Resposta idempotente gravada antes do REQ-11
 
-- **Decisão**: no DTO, `Historico` não é `required` em C#: tem `[Required]` e o valor
+- **Decisão**: no DTO, `Historico` não é `required` em C# nem obrigatório no schema (a v1 só aceita adições opcionais), com o valor
   padrão `[]`, como `Moeda` (REQ-05); `Entrega` é anulável. Uma repetição idempotente de um
   pedido criado antes do deploy devolve a resposta gravada, com `historico: []` e
   `entrega: null`.

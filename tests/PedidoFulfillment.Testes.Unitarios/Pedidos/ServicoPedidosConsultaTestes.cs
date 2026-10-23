@@ -1,7 +1,9 @@
+using System.Text.Json;
 using FluentAssertions;
 using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Contratos.Pedidos;
 using PedidoFulfillment.Application.Pedidos;
+using PedidoFulfillment.Domain.Entregas;
 using PedidoFulfillment.Domain.Pedidos;
 using PedidoFulfillment.Domain.Produtos;
 using PedidoFulfillment.Domain.Usuarios;
@@ -10,7 +12,7 @@ using static PedidoFulfillment.Testes.Unitarios.Pedidos.ServicoPedidosCriacaoTes
 
 namespace PedidoFulfillment.Testes.Unitarios.Pedidos;
 
-/// <summary>User Story 3: visibilidade da consulta (FR-014, FR-015).</summary>
+/// <summary>User Story 3: visibilidade da consulta (FR-014, FR-015); histórico e entrega (REQ-11, FR-002 a FR-004).</summary>
 public sealed class ServicoPedidosConsultaTestes
 {
     private static readonly Guid Dono = Guid.CreateVersion7();
@@ -64,5 +66,71 @@ public sealed class ServicoPedidosConsultaTestes
 
         deOutro.Falha!.Tipo.Should().Be(TipoFalha.NaoEncontrado);
         inexistente.Falha.Should().BeEquivalentTo(deOutro.Falha);
+    }
+
+    [Fact]
+    public async Task Historico_vem_em_ordem_cronologica_com_o_motivo()
+    {
+        pedido.MudarStatus(StatusPedido.ProntoParaEnvio, Outro, "Separado.", Agora.AddMinutes(9));
+
+        var historico = (await Obter(pedido.Id, Dono, PerfilUsuario.Cliente)).Valor!.Historico;
+
+        historico.Select(h => (h.StatusAnterior, h.StatusNovo, h.OcorridoEm, h.Motivo)).Should().Equal(
+            ((StatusPedido?)null, StatusPedido.Pendente, Agora, (string?)null),
+            (StatusPedido.Pendente, StatusPedido.Processando, Agora.AddMinutes(5), null),
+            (StatusPedido.Processando, StatusPedido.ProntoParaEnvio, Agora.AddMinutes(9), "Separado."));
+    }
+
+    [Theory]
+    [InlineData(PerfilUsuario.Cliente)]
+    [InlineData(PerfilUsuario.Admin)]
+    [InlineData(PerfilUsuario.OperadorLogistica)]
+    public async Task Resposta_nao_expoe_o_autor_para_nenhum_perfil(PerfilUsuario perfil)
+    {
+        var resposta = (await Obter(pedido.Id, perfil == PerfilUsuario.Cliente ? Dono : Outro, perfil)).Valor!;
+
+        var json = JsonSerializer.Serialize(resposta, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        json.Should().NotContainEquivalentOf("autor").And.NotContain(Outro.ToString());
+    }
+
+    [Fact]
+    public async Task Sem_ordem_a_entrega_vem_nula()
+    {
+        (await Obter(pedido.Id, Dono, PerfilUsuario.Cliente)).Valor!.Entrega.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Ordem_sem_despacho_vem_sem_transportadora_rastreio_e_data()
+    {
+        var ordem = GuardarOrdem(Agora.AddMinutes(7));
+
+        var entrega = (await Obter(pedido.Id, Dono, PerfilUsuario.Cliente)).Valor!.Entrega!;
+
+        entrega.Should().Be(new EntregaPedidoResponseDTO { CriadoEm = ordem.CriadoEm });
+    }
+
+    [Fact]
+    public async Task Ordem_despachada_vem_com_transportadora_rastreio_e_data()
+    {
+        var ordem = GuardarOrdem(Agora.AddMinutes(7));
+        ordem.RegistrarDespacho("Correios", "BR123456789BR", Agora.AddMinutes(30));
+
+        var entrega = (await Obter(pedido.Id, Outro, PerfilUsuario.OperadorLogistica)).Valor!.Entrega!;
+
+        entrega.Should().Be(new EntregaPedidoResponseDTO
+        {
+            Transportadora = "Correios",
+            CodigoRastreio = "BR123456789BR",
+            DespachadoEm = Agora.AddMinutes(30),
+            CriadoEm = Agora.AddMinutes(7)
+        });
+    }
+
+    private OrdemEntrega GuardarOrdem(DateTimeOffset instante)
+    {
+        var ordem = new OrdemEntrega(pedido.Id, instante);
+        typeof(Pedido).GetProperty(nameof(Pedido.OrdemEntrega))!.SetValue(pedido, ordem);
+        return ordem;
     }
 }

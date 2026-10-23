@@ -64,6 +64,26 @@ public sealed class ServicoPedidosIdempotenciaTestes
         logger.Eventos.Should().ContainSingle(e => e.Id.Id == 4002).Which.Propriedades["PedidoId"].Should().Be(original.Id);
     }
 
+    /// <summary>REQ-11, research R-03: o JSON gravado antes do REQ-11 não tem histórico nem entrega.</summary>
+    [Fact]
+    public async Task Resposta_gravada_antes_do_historico_volta_com_historico_vazio_e_sem_entrega()
+    {
+        var chave = Guid.NewGuid();
+        var conteudo = Requisicao((produtoA.Id, 1));
+        var original = RespostaOriginal(Guid.CreateVersion7());
+        var json = System.Text.Json.Nodes.JsonNode.Parse(JsonSerializer.Serialize(original, Opcoes))!.AsObject();
+        json.Remove("historico");
+        json.Remove("entrega");
+        armazenamento.Registros.Add(new RegistroIdempotencia(
+            ClienteId, chave, ImpressaoConteudo.Calcular(conteudo), original.Id, json.ToJsonString(), Agora));
+
+        var resultado = await Servico().CriarAsync(ClienteId, chave, conteudo, CancellationToken.None);
+
+        resultado.Valor!.Id.Should().Be(original.Id);
+        resultado.Valor.Historico.Should().BeEmpty();
+        resultado.Valor.Entrega.Should().BeNull();
+    }
+
     [Fact]
     public async Task Mesma_chave_e_conteudo_diferente_respondem_409_divergente()
     {

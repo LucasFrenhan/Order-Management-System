@@ -16,7 +16,9 @@ public sealed class SerializacaoPedidoTestes(FabricaApi fabrica) : IClassFixture
         var json = JsonSerializer.SerializeToElement(Exemplos.Pedido(), OpcoesJson.DaApi(fabrica));
 
         json.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo(
-            "id", "numero", "clienteId", "status", "itens", "valorTotal", "moeda", "criadoEm", "atualizadoEm");
+            "id", "numero", "clienteId", "status", "itens", "valorTotal", "moeda", "criadoEm", "atualizadoEm", "historico", "entrega");
+        json.GetProperty("historico").ValueKind.Should().Be(JsonValueKind.Array, "REQ-11: sempre presente");
+        json.GetProperty("entrega").ValueKind.Should().Be(JsonValueKind.Null, "REQ-11: sem ordem de entrega");
         json.GetProperty("status").GetString().Should().Be("Pendente");
         json.GetProperty("moeda").GetString().Should().Be("BRL");
         json.GetProperty("criadoEm").GetString().Should().Be("2026-10-21T15:30:00+00:00");

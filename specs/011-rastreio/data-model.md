@@ -41,7 +41,7 @@ na entrada e pelas guardas de `OrdemEntrega`).
 
 | Tipo | Mudança |
 |------|---------|
-| `PedidoResponseDTO` | **+** `Historico` (`[Required]`, padrão `[]`) e `Entrega` (anulável) (R-02, R-03) |
+| `PedidoResponseDTO` | **+** `Historico` (opcional no schema, padrão `[]`, sempre preenchido) e `Entrega` (anulável) (R-02, R-03) |
 | `HistoricoStatusPedidoResponseDTO` | **Novo**: `StatusAnterior?`, `StatusNovo`, `OcorridoEm`, `Motivo?` |
 | `EntregaPedidoResponseDTO` | **Novo**: `Transportadora?`, `CodigoRastreio?`, `DespachadoEm?`, `CriadoEm` |
 | `RegistrarRastreioRequestDTO` | **Novo**: `Transportadora` (1–100), `CodigoRastreio` (1–50) |
