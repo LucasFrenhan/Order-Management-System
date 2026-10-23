@@ -174,20 +174,20 @@ Sem implementação nova: o contrato é da T004 e a publicação, da T009 (US2 c
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T016 [P] Atualizar `README.md` (inclui, em Mensageria, que pedidos pagos antes de a fila `oms.entrega` existir ficam sem ordem, com link para a pendência em `specs/006-mensageria/spec.md`):
+- [X] T016 [P] Atualizar `README.md` (inclui, em Mensageria, que pedidos pagos antes de a fila `oms.entrega` existir ficam sem ordem, com link para a pendência em `specs/006-mensageria/spec.md`):
   - **Estado atual**: linha do REQ-10 (consumidor `entrega`, ordem sem dados de despacho, `ProntoParaEnvio` e `entrega.criada`);
   - **Próximos passos**: tirar a #10; na #11, citar que o despacho parte da ordem criada aqui;
   - **Mensageria**: a fila `oms.entrega` e o evento `entrega.criada`;
   - **Status do pedido**: o fluxo automático termina em `ProntoParaEnvio`;
   - **Roteiros de validação**: o quickstart do REQ-10.
-- [ ] T017 [P] Em `specs/006-mensageria/contracts/topologia-e-consumo.md`, `entrega.criada` no catálogo de eventos (publicado pelo worker de entrega, #10, com link para o schema do 010) e o consumidor de entrega ao lado dos de estoque e pagamento. Em `specs/009-pagamento/quickstart.md`, nota no §3: com o Worker completo, o pedido aprovado segue para `ProntoParaEnvio` (REQ-10).
-- [ ] T021 [P] Desempenho em `tests/PedidoFulfillment.Testes.Integracao/Entregas/DesempenhoEntregaTestes.cs` (`ColecaoMensageria`, Worker completo com `CenarioEntrega.WorkerProntoAsync`; SC-001 e SC-005):
+- [X] T017 [P] Em `specs/006-mensageria/contracts/topologia-e-consumo.md`, `entrega.criada` no catálogo de eventos (publicado pelo worker de entrega, #10, com link para o schema do 010) e o consumidor de entrega ao lado dos de estoque e pagamento. Em `specs/009-pagamento/quickstart.md`, nota no §3: com o Worker completo, o pedido aprovado segue para `ProntoParaEnvio` (REQ-10).
+- [X] T021 [P] Desempenho em `tests/PedidoFulfillment.Testes.Integracao/Entregas/DesempenhoEntregaTestes.cs` (`ColecaoMensageria`, Worker completo com `CenarioEntrega.WorkerProntoAsync`; SC-001 e SC-005):
   - 3 pedidos de aquecimento;
   - 20 pedidos criados pela API, em sequência, com produtos em estoque; para cada um, esperar `ProntoParaEnvio` com a ordem (prazo de 15 s);
   - pelos instantes gravados no banco: do pagamento aprovado à criação da ordem (SC-001) e da criação do pedido à criação da ordem (SC-005);
   - percentil 95 abaixo de 5 s e de 10 s, respectivamente; os valores vão para a saída do teste e para Notes.
-- [ ] T018 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados).
-- [ ] T019 Executar o quickstart (§1 a §6) e registrar em Notes, com os percentis da T021. Conferir nos logs do Worker os EventIds 8001 e 8002.
+- [X] T018 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados).
+- [X] T019 Executar o quickstart (§1 a §6) e registrar em Notes, com os percentis da T021. Conferir nos logs do Worker os EventIds 8001 e 8002.
 - [ ] T020 Fazer push e abrir o PR com `Closes #10`. Acompanhar o CI (`build-testes`, com os dois jobs) até ficar verde e registrar os tempos em Notes.
 
 ---
@@ -241,3 +241,28 @@ Setup, Foundational e US1: o pedido pago ganha a ordem, vai para `ProntoParaEnvi
 - **US2 junto com a fundação**: o teste `Cada_contrato_tem_o_seu_tipo` conta o catálogo e
   reprova assim que `entrega.criada` entra em `TiposEvento` (T004). Os testes da US2 (T011 e
   T012) foram no mesmo commit da fundação, para nenhum commit ficar vermelho.
+- **T021 (2026-10-23, local)**: 20 pedidos medidos, depois de 3 de aquecimento. O p95 do
+  pagamento aprovado ao envio de `entrega.criada` foi de 200 ms (limite de 5 s, SC-001), e o
+  da criação do pedido ao envio, de 383 ms (limite de 10 s, SC-005). Os máximos foram 200 ms
+  e 445 ms.
+- **T018 (2026-10-23)**: varredura de segredos sem achados (só as credenciais de
+  desenvolvimento já documentadas); `dotnet format --verify-no-changes` limpo; suíte local com
+  650 testes (383 unitários e 267 de integração), zero ignorados com o Docker no ar. São 54 a
+  mais que a linha de base.
+- **T019 (2026-10-23, quickstart)**:
+  - §1: suíte verde, como na T018;
+  - §2: API e Worker locais, com a taxa em 100%; `oms.entrega`, `oms.entrega.dlq` e as três
+    filas de espera criadas na partida;
+  - §3: o pedido `PED-20261023-000151` chegou a `ProntoParaEnvio` em cerca de 2,8 s (medidos
+    pelo `GET`, com consulta a cada 300 ms). Ele tem uma ordem sem transportadora, rastreio e
+    data de despacho, e o histórico `Pendente → Processando → ProntoParaEnvio` sem autor, com
+    `Ordem de entrega criada.`. `teste.entrega` recebeu `entrega.criada` com o pedido, o
+    número, a ordem e os itens; log 8001;
+  - §4: o mesmo `pagamento.aprovado` republicado pelo painel foi descartado como duplicado
+    (log 5005); continuam uma ordem, um evento e `ProntoParaEnvio`;
+  - §5: coberto pelos testes de `PedidoIgnoradoNaEntregaTestes`, que conferem o log 8002;
+  - §6: `ConformidadeOpenApi` verde (13 testes).
+
+  Uma primeira republicação saiu sem corpo, por erro no script do roteiro. Ela foi para
+  `oms.entrega.dlq` sem novas tentativas (log 5004, "corpo vazio"), como a base prevê para
+  mensagem fora do contrato. Essa mensagem ficou na DLQ do broker local.
