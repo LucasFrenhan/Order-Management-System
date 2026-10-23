@@ -188,7 +188,7 @@ Sem implementação nova: o contrato é da T004 e a publicação, da T009 (US2 c
   - percentil 95 abaixo de 5 s e de 10 s, respectivamente; os valores vão para a saída do teste e para Notes.
 - [X] T018 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados).
 - [X] T019 Executar o quickstart (§1 a §6) e registrar em Notes, com os percentis da T021. Conferir nos logs do Worker os EventIds 8001 e 8002.
-- [ ] T020 Fazer push e abrir o PR com `Closes #10`. Acompanhar o CI (`build-testes`, com os dois jobs) até ficar verde e registrar os tempos em Notes.
+- [X] T020 Fazer push e abrir o PR com `Closes #10`. Acompanhar o CI (`build-testes`, com os dois jobs) até ficar verde e registrar os tempos em Notes.
 
 ---
 
@@ -266,3 +266,5 @@ Setup, Foundational e US1: o pedido pago ganha a ordem, vai para `ProntoParaEnvi
   Uma primeira republicação saiu sem corpo, por erro no script do roteiro. Ela foi para
   `oms.entrega.dlq` sem novas tentativas (log 5004, "corpo vazio"), como a base prevê para
   mensagem fora do contrato. Essa mensagem ficou na DLQ do broker local.
+- **T020 (2026-10-23)**: PR #24 aberto com `Closes #10`. CI `build-testes` verde: "Build e
+  testes" em 4m18s e "Demonstração" em 1m52s.
