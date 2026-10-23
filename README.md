@@ -88,7 +88,9 @@ Decisões e pontos já conhecidos:
   constituição proíbe frameworks de abstração de mensageria. Retry, DLQ e consumidores são
   implementados sobre o cliente nativo.
 - **Pendências futuras de mensageria**: limpeza do outbox, dos eventos processados e das
-  chaves de idempotência, e reprocessamento da DLQ (hoje manual, pelo painel). Estão
+  chaves de idempotência, reprocessamento da DLQ (hoje manual, pelo painel) e o evento
+  descartado quando é publicado antes de a fila do consumidor existir num broker novo
+  (encontrado no REQ-08). Estão
   anotadas em [pendências futuras](specs/006-mensageria/spec.md#pendências-futuras), para
   virar requisito próprio.
 - **Mudanças de contrato (Princípio II).** A rota `PATCH /api/v1/pedidos/{id}/rastreio` e o
