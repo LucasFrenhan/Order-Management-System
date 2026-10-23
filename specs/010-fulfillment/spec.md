@@ -30,6 +30,14 @@ passado, como `pedido.criado`; por isso o evento se chama "entrega criada". A is
 cita MassTransit, mas a constituição proíbe frameworks de abstração de mensageria; o
 consumidor usa a base do REQ-06, sobre o cliente nativo do broker.
 
+## Clarifications
+
+### Session 2026-10-23
+
+- Q: O que fazer com os pedidos já pagos antes de a fila de fulfillment existir, cujo
+  "pagamento aprovado" não será reconsumido? → A: Fora do escopo; fica como premissa e vai
+  para o REQ futuro de mensageria (evento publicado antes de a fila do consumidor existir).
+
 ## User Scenarios & Testing *(mandatory)*
 
 Os "usuários" deste requisito são a equipe de logística, que precisa saber quais pedidos
@@ -151,6 +159,9 @@ continua `Cancelado` e nenhum "entrega criada" saiu.
   publicado quando o broker voltar (REQ-06). A ordem não é desfeita.
 - "pagamento aprovado" fora do contrato: vai direto para a DLQ, sem tentativa (base do
   REQ-06).
+- Pedido pago antes de a fila de fulfillment existir: o "pagamento aprovado" dele foi
+  descartado pelo broker e não é reconsumido, então o pedido fica em `Processando` sem
+  ordem de entrega. Este requisito não recupera esses pedidos (ver Assumptions).
 
 ## Requirements *(mandatory)*
 
@@ -261,5 +272,10 @@ continua `Cancelado` e nenhum "entrega criada" saiu.
 - O cancelamento da ordem de entrega (por exemplo, quando o pedido pronto para envio é
   cancelado) fica fora do escopo; a ordem continua registrada sem despacho.
 - O número de reavaliações por conflito é decidido no plano, como no REQ-08 e no REQ-09.
+- Pedidos pagos antes de a fila de fulfillment existir não são recuperados por este
+  requisito: não há varredura na partida nem reenvio do "pagamento aprovado". A perda de
+  evento publicado antes de a fila do consumidor existir é tratada num REQ futuro de
+  mensageria. Até lá, a operação pode mover esses pedidos pela API, mas eles continuam sem
+  ordem de entrega.
 - O ambiente local do REQ-02 (banco e broker no ar) é pré-requisito para os testes de
   integração. Sem Docker, eles são ignorados localmente e reprovam no CI (REQ-07).
