@@ -19,10 +19,22 @@ public sealed class ProcessamentoPagamento(
 
     public IReadOnlyCollection<string> Tipos { get; } = [TiposEvento.EstoqueReservado];
 
-    public Task ManipularAsync(EnvelopeEvento<EstoqueReservado> evento, CancellationToken cancellationToken)
+    public async Task ManipularAsync(EnvelopeEvento<EstoqueReservado> evento, CancellationToken cancellationToken)
     {
-        // Esqueleto da fundação; a cobrança entra na US1 (T012).
-        _ = (armazenamento, gateway, relogio, logger);
-        throw new NotImplementedException();
+        var pedidoId = evento.Dados.PedidoId;
+        var pedido = await armazenamento.ObterPedidoAsync(pedidoId, paraAlterar: true, cancellationToken)
+            ?? throw new InvalidOperationException($"O pedido {pedidoId} não existe.");
+        var resultado = await gateway.CobrarAsync(pedido.Id, pedido.ValorTotal, cancellationToken);
+        var agora = relogio.GetUtcNow();
+
+        pedido.AprovarPagamento(resultado.IdentificadorTransacao!, agora);
+        armazenamento.Adicionar(EventoSaida.De(EnvelopeEvento.Criar(pedido.Id, new PagamentoAprovado
+        {
+            PedidoId = pedido.Id,
+            Valor = pedido.Pagamento!.Valor,
+            IdentificadorTransacao = pedido.Pagamento.IdentificadorTransacao!
+        }, agora), agora));
+        await armazenamento.SalvarAsync(cancellationToken);
+        EventosPagamento.PagamentoAprovado(logger, evento.IdEvento, pedido.Id, pedido.Pagamento.Valor, pedido.Pagamento.IdentificadorTransacao!);
     }
 }

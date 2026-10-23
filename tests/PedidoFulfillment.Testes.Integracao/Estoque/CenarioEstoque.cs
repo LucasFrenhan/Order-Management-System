@@ -3,6 +3,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PedidoFulfillment.Application.Contratos.Eventos;
+using PedidoFulfillment.Application.Pagamentos;
 using PedidoFulfillment.Infrastructure.Mensageria;
 using PedidoFulfillment.Testes.Integracao.Infraestrutura;
 using RabbitMQ.Client;
@@ -19,11 +20,23 @@ internal static class CenarioEstoque
 
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;
 
+    /// <summary>
+    /// Worker só com o consumidor de estoque: sem o pagamento (REQ-09), o pedido reservado
+    /// continua <c>Pendente</c>, como estes testes esperam (research R-09 do REQ-09).
+    /// </summary>
     public static FabricaWorker Worker(MensageriaTeste mensageria, string stringConexao, CapturaLogs? logs = null) => new()
     {
         StringConexao = stringConexao,
         ConfiguracoesBroker = mensageria.ConfiguracoesBroker,
-        Servicos = logs is null ? null : servicos => servicos.AddSingleton<ILoggerProvider>(logs)
+        Servicos = servicos =>
+        {
+            var pagamento = servicos.Single(d => d.ImplementationType == typeof(ConsumidorEventos<ProcessamentoPagamento, EstoqueReservado>));
+            servicos.Remove(pagamento);
+            if (logs is not null)
+            {
+                servicos.AddSingleton<ILoggerProvider>(logs);
+            }
+        }
     };
 
     /// <summary>Sobe o Worker e espera o consumidor de estoque ficar ligado à fila.</summary>
@@ -33,20 +46,7 @@ internal static class CenarioEstoque
         await mensageria.LimparFilasConsumidorAsync(FilaEstoque);
         var worker = Worker(mensageria, stringConexao, logs);
         worker.CreateClient().Dispose();
-        await using var conexao = await mensageria.ConectarAsync();
-        (await MensageriaTeste.EsperarAteAsync(async () =>
-        {
-            // Fila ainda inexistente fecha o canal (404): um canal novo por tentativa.
-            await using var canal = await conexao.CreateChannelAsync(cancellationToken: Cancelamento);
-            try
-            {
-                return (await canal.QueueDeclarePassiveAsync(TopologiaMensageria.FilaPrincipal(FilaEstoque), Cancelamento)).ConsumerCount > 0;
-            }
-            catch (RabbitMQ.Client.Exceptions.OperationInterruptedException)
-            {
-                return false;
-            }
-        }, TimeSpan.FromSeconds(10))).Should().BeTrue("o consumidor de estoque precisa estar pronto");
+        (await mensageria.ConsumidorLigadoAsync(FilaEstoque, TimeSpan.FromSeconds(10))).Should().BeTrue("o consumidor de estoque precisa estar pronto");
         return worker;
     }
 
@@ -77,13 +77,13 @@ internal static class CenarioEstoque
             $"SELECT Conteudo FROM EventosSaida WHERE Tipo = '{TiposEvento.PedidoCriado}' AND Conteudo LIKE '%{pedidoId}%'");
 
     /// <summary>Publica direto na troca, como o despachante faria numa reentrega.</summary>
-    public static async Task PublicarAsync(MensageriaTeste mensageria, string corpo, string idEvento)
+    public static async Task PublicarAsync(MensageriaTeste mensageria, string corpo, string idEvento, string tipo = TiposEvento.PedidoCriado)
     {
         await using var conexao = await mensageria.ConectarAsync();
         await using var canal = await conexao.CreateChannelAsync(
             new CreateChannelOptions(publisherConfirmationsEnabled: true, publisherConfirmationTrackingEnabled: true), Cancelamento);
-        var propriedades = new BasicProperties { Persistent = true, MessageId = idEvento, Type = TiposEvento.PedidoCriado };
-        await canal.BasicPublishAsync(TopologiaMensageria.TrocaEventos, TiposEvento.PedidoCriado, false, propriedades, Encoding.UTF8.GetBytes(corpo), Cancelamento);
+        var propriedades = new BasicProperties { Persistent = true, MessageId = idEvento, Type = tipo };
+        await canal.BasicPublishAsync(TopologiaMensageria.TrocaEventos, tipo, false, propriedades, Encoding.UTF8.GetBytes(corpo), Cancelamento);
     }
 
     /// <summary>

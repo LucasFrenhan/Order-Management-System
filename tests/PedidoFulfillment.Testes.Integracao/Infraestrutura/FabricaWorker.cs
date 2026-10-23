@@ -33,6 +33,8 @@ public sealed class FabricaWorker : WebApplicationFactory<ProgramaWorker>
         builder.UseSetting("Mensageria:IntervalosNovaTentativaMs:0", "100");
         builder.UseSetting("Mensageria:IntervalosNovaTentativaMs:1", "200");
         builder.UseSetting("Mensageria:IntervalosNovaTentativaMs:2", "400");
+        // Nenhum teste depende de sorte (REQ-09, R-09): aprova tudo, salvo se o teste configurar outra taxa.
+        builder.UseSetting("GatewayPagamento:TaxaAprovacaoPercentual", "100");
         foreach (var (chave, valor) in ConfiguracoesBroker.Concat(Configuracoes))
         {
             builder.UseSetting(chave, valor);

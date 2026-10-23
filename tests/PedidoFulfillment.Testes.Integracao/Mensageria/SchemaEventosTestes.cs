@@ -148,7 +148,8 @@ public sealed class SchemaEventosTestes
         DeveSerValido(TiposEvento.EstoqueInsuficiente, raiz.ToJsonString()).Should().BeFalse(caso);
     }
 
-    private static bool DeveSerValido(string tipo, string json)
+    /// <summary>Também usado pelos testes de integração dos consumidores, nas mensagens publicadas (REQ-09).</summary>
+    internal static bool DeveSerValido(string tipo, string json)
     {
         using var documento = JsonDocument.Parse(json);
         return Schemas[tipo].Evaluate(documento.RootElement, Opcoes).IsValid;

@@ -104,18 +104,18 @@ a US2.
 
 ### Testes da US1
 
-- [ ] T010 [P] [US1] Testes unitários em `tests/PedidoFulfillment.Testes.Unitarios/Pagamentos/ProcessamentoPagamentoTestes.cs`, com o armazenamento falso e um gateway falso que conta as chamadas e devolve o resultado programado:
+- [X] T010 [P] [US1] Testes unitários em `tests/PedidoFulfillment.Testes.Unitarios/Pagamentos/ProcessamentoPagamentoTestes.cs`, com o armazenamento falso e um gateway falso que conta as chamadas e devolve o resultado programado:
   - `Consumidor` é `pagamento` e `Tipos` é `[estoque.reservado]`;
   - pedido `Pendente` reservado e cobrança aprovada: gateway chamado uma vez com o id e o `ValorTotal`; pagamento `Aprovado`; status `Processando`; nenhum produto lido para alteração; uma chamada a `SalvarAsync`; um `EventoSaida` `pagamento.aprovado` com `idCorrelacao` igual ao pedido, valor e identificador iguais aos do pagamento; log 7001;
   - pedido inexistente: `InvalidOperationException`, gateway não chamado, nada gravado.
-- [ ] T011 [P] [US1] Teste de integração em `tests/PedidoFulfillment.Testes.Integracao/Pagamentos/PagamentoAprovadoTestes.cs` (`ColecaoMensageria`), com o helper novo `tests/PedidoFulfillment.Testes.Integracao/Pagamentos/CenarioPagamento.cs` (Worker com `GatewayPagamento:TaxaAprovacaoPercentual` configurável; `LimparFilasConsumidorAsync` de `estoque` e de `pagamento` e espera dos dois consumidores ligados a `oms.estoque` e `oms.pagamento` antes de criar pedidos, como `CenarioEstoque.WorkerProntoAsync` (achado M3); publicação direta de `estoque.reservado` na troca; consultas de status, pagamento e estoque), API (`CenarioPedidos.Api`) e `FilaTesteAsync("pagamento.*")`:
+- [X] T011 [P] [US1] Teste de integração em `tests/PedidoFulfillment.Testes.Integracao/Pagamentos/PagamentoAprovadoTestes.cs` (`ColecaoMensageria`), com o helper novo `tests/PedidoFulfillment.Testes.Integracao/Pagamentos/CenarioPagamento.cs` (Worker com `GatewayPagamento:TaxaAprovacaoPercentual` configurável; `LimparFilasConsumidorAsync` de `estoque` e de `pagamento` e espera dos dois consumidores ligados a `oms.estoque` e `oms.pagamento` antes de criar pedidos, como `CenarioEstoque.WorkerProntoAsync` (achado M3); publicação direta de `estoque.reservado` na troca; consultas de status, pagamento e estoque), API (`CenarioPedidos.Api`) e `FilaTesteAsync("pagamento.*")`:
   - cenários 1 a 3: o pedido criado pela API termina em `Processando` em até 5 s, com uma linha em `Pagamentos` (`Aprovado`, `Valor = ValorTotal`, `SIM-...`), a entrada `Pagamento aprovado.` no histórico e `pagamento.aprovado` válido pelo schema (`SchemaEventosTestes`) com os mesmos valores;
   - cenário 4: republicar o mesmo `estoque.reservado` (mesmo `idEvento`) direto na troca não cria pagamento nem evento novo.
 
 ### Implementação da US1
 
-- [ ] T012 [US1] Em `ProcessamentoPagamento.ManipularAsync`: ler o pedido com `paraAlterar: true` (inexistente → `InvalidOperationException` com o id), chamar `gateway.CobrarAsync(pedido.Id, pedido.ValorTotal, ...)` e, aprovada, `pedido.AprovarPagamento`, `armazenamento.Adicionar(EventoSaida.De(EnvelopeEvento.Criar(pedido.Id, new PagamentoAprovado { ... }, agora), agora))`, `SalvarAsync` e log 7001. No Worker (`src/PedidoFulfillment.Worker/ProgramaWorker.cs`), `builder.Services.AdicionarGatewayPagamentoSimulado();` e `builder.Services.AdicionarConsumidor<ProcessamentoPagamento, EstoqueReservado>();`, e em `src/PedidoFulfillment.Worker/appsettings.json` a seção `GatewayPagamento` com `TaxaAprovacaoPercentual: 90` e comentário. T010 e T011 devem passar.
-- [ ] T013 [US1] Isolamento e regressão (R-09):
+- [X] T012 [US1] Em `ProcessamentoPagamento.ManipularAsync`: ler o pedido com `paraAlterar: true` (inexistente → `InvalidOperationException` com o id), chamar `gateway.CobrarAsync(pedido.Id, pedido.ValorTotal, ...)` e, aprovada, `pedido.AprovarPagamento`, `armazenamento.Adicionar(EventoSaida.De(EnvelopeEvento.Criar(pedido.Id, new PagamentoAprovado { ... }, agora), agora))`, `SalvarAsync` e log 7001. No Worker (`src/PedidoFulfillment.Worker/ProgramaWorker.cs`), `builder.Services.AdicionarGatewayPagamentoSimulado();` e `builder.Services.AdicionarConsumidor<ProcessamentoPagamento, EstoqueReservado>();`, e em `src/PedidoFulfillment.Worker/appsettings.json` a seção `GatewayPagamento` com `TaxaAprovacaoPercentual: 90` e comentário. T010 e T011 devem passar.
+- [X] T013 [US1] Isolamento e regressão (R-09):
   - `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/FabricaWorker.cs`: `GatewayPagamento:TaxaAprovacaoPercentual = 100` por padrão (sobrescrito por `Configuracoes`);
   - `tests/PedidoFulfillment.Testes.Integracao/Estoque/CenarioEstoque.cs`: o Worker do estoque remove o `IHostedService` `ConsumidorEventos<ProcessamentoPagamento, EstoqueReservado>` pelo `Servicos` (combinando com o registro de logs que já existe), com comentário citando R-09;
   - revisar os testes do REQ-06 que sobem o Worker (`Mensageria/OutboxComBrokerTestes.cs`, `WorkerTestes.cs`, `ConsumoComNovaTentativaTestes.cs`) e restringir ao tipo tratado as asserções sobre `EventosSaida` que passariam a contar `pagamento.*`.
@@ -257,3 +257,7 @@ Setup, Foundational e US1: o pedido reservado é pago, vai para `Processando`, e
   padrão.
 - **T001** (2026-10-23): linha de base com 534 testes verdes (292 unitários e 242 de
   integração), nenhum ignorado.
+- **T013** (2026-10-23): as asserções sobre `EventosSaida` dos testes do REQ-06 já filtram
+  pelo tipo `pedido.criado` desde o REQ-08; nada a mudar. `MensageriaTeste.ConsumidorLigadoAsync`
+  passou a ser o helper comum de espera do consumidor (estoque e pagamento), e
+  `CenarioEstoque.PublicarAsync` recebe o tipo. Suíte: 331 unitários e 244 de integração.
