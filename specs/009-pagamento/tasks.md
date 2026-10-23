@@ -51,7 +51,7 @@ a US2.
 
 ## Phase 1: Setup
 
-- [ ] T001 Rodar `dotnet build` e `dotnet test` na branch `feature/req-09-pagamento` e registrar em Notes a contagem de testes como linha de base (534 no fim do REQ-08: 292 unitários e 242 de integração; zero ignorados com o Docker no ar).
+- [X] T001 Rodar `dotnet build` e `dotnet test` na branch `feature/req-09-pagamento` e registrar em Notes a contagem de testes como linha de base (534 no fim do REQ-08: 292 unitários e 242 de integração; zero ignorados com o Docker no ar).
 
 ---
 
@@ -61,32 +61,32 @@ a US2.
 
 ### Testes da fundação
 
-- [ ] T002 [P] Testes de domínio em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PedidoPagamentoTestes.cs` (data-model, R-03), com pedido reservado pelo `ReservarEstoque` do REQ-08:
+- [X] T002 [P] Testes de domínio em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PedidoPagamentoTestes.cs` (data-model, R-03), com pedido reservado pelo `ReservarEstoque` do REQ-08:
   - `AptoParaPagamento`: verdadeiro com reserva, sem pagamento e em `Pendente`, `Processando` ou `ProntoParaEnvio` (theory); falso sem reserva, com pagamento ou em `Cancelado`, `Despachado` e `PagamentoRejeitado` (theory);
   - `AprovarPagamento` em `Pendente`: `Pagamento` com `Valor = ValorTotal`, `Situacao = Aprovado`, o identificador e `ProcessadoEm`; status `Processando`; histórico com `AutorId` nulo e motivo `Pagamento aprovado.`; `EstoqueReservado` continua verdadeiro e nenhum estoque muda;
   - `AprovarPagamento` em `Processando` e `ProntoParaEnvio` (theory): pagamento aprovado, status e histórico sem mudança;
   - `RecusarPagamento`: `Pagamento` `Recusado` sem identificador; cada produto recebe a quantidade do item, inclusive produto desativado depois da reserva; `EstoqueReservado` falso; status `PagamentoRejeitado` com o motivo no histórico e `AutorId` nulo; vale a partir de `Pendente`, `Processando` e `ProntoParaEnvio` (theory);
   - os dois métodos em pedido não apto (sem reserva, já pago, status final): `InvalidOperationException` sem alterar nada;
   - motivo vazio ou com mais de 500 caracteres na recusa, e identificador vazio ou com mais de 100 na aprovação: exceção de argumento.
-- [ ] T003 [P] Testes do gateway em `tests/PedidoFulfillment.Testes.Unitarios/Pagamentos/GatewayPagamentoSimuladoTestes.cs` (R-02), pelo construtor `internal` com `Random` de semente fixa:
+- [X] T003 [P] Testes do gateway em `tests/PedidoFulfillment.Testes.Unitarios/Pagamentos/GatewayPagamentoSimuladoTestes.cs` (R-02), pelo construtor `internal` com `Random` de semente fixa:
   - taxa padrão (90): 10.000 cobranças com taxa de aprovação entre 88% e 92% (SC-002);
   - taxa 100 e taxa 0: todas aprovadas ou todas recusadas;
   - aprovada: identificador começa com `SIM-`, tem 36 caracteres e não se repete em 1.000 cobranças;
   - recusada: motivo `Pagamento recusado pelo emissor.` e sem identificador.
-- [ ] T004 [P] Testes do validador em `tests/PedidoFulfillment.Testes.Unitarios/Configuracao/OpcoesGatewayPagamentoTestes.cs`, como `OpcoesMensageriaTestes`: padrão 90 válido; 0 e 100 válidos; -1, 100.5 e 150 inválidos, com a mensagem citando `GatewayPagamento:TaxaAprovacaoPercentual` sem o valor.
+- [X] T004 [P] Testes do validador em `tests/PedidoFulfillment.Testes.Unitarios/Configuracao/OpcoesGatewayPagamentoTestes.cs`, como `OpcoesMensageriaTestes`: padrão 90 válido; 0 e 100 válidos; -1, 100.5 e 150 inválidos, com a mensagem citando `GatewayPagamento:TaxaAprovacaoPercentual` sem o valor.
 
 ### Implementação da fundação
 
-- [ ] T005 Em `src/PedidoFulfillment.Domain/Pedidos/Pedido.cs`: `const string MotivoPagamentoAprovado = "Pagamento aprovado."`, `bool AptoParaPagamento` e os métodos `AprovarPagamento(string identificadorTransacao, DateTimeOffset instante)` e `RecusarPagamento(string motivo, IReadOnlyDictionary<Guid, Produto> produtos, DateTimeOffset instante)`, conforme o data-model. Criar o `Pagamento` com `new Pagamento(Id, ValorTotal, instante)` e `RegistrarResultado`; a recusa chama `DevolverEstoque` e `MudarStatus(PagamentoRejeitado, null, motivo, instante)`. Validar com `Guardas.Texto`, antes de qualquer alteração, o motivo da recusa (obrigatório, até 500) e o identificador da aprovação (obrigatório, até 100; `RegistrarResultado` o aceita opcional, achado M1). XML doc citando R-03 e R-04. T002 deve passar.
-- [ ] T006 [P] Porta em `src/PedidoFulfillment.Application/Pagamentos/IGatewayPagamento.cs`: `Task<ResultadoCobranca> CobrarAsync(Guid pedidoId, decimal valor, CancellationToken cancellationToken)` e o `sealed record ResultadoCobranca(bool Aprovado, string? IdentificadorTransacao, string? Motivo)` com as fábricas `Aprovada(string identificadorTransacao)` e `Recusada(string motivo)`.
-- [ ] T007 Gateway simulado (R-02):
+- [X] T005 Em `src/PedidoFulfillment.Domain/Pedidos/Pedido.cs`: `const string MotivoPagamentoAprovado = "Pagamento aprovado."`, `bool AptoParaPagamento` e os métodos `AprovarPagamento(string identificadorTransacao, DateTimeOffset instante)` e `RecusarPagamento(string motivo, IReadOnlyDictionary<Guid, Produto> produtos, DateTimeOffset instante)`, conforme o data-model. Criar o `Pagamento` com `new Pagamento(Id, ValorTotal, instante)` e `RegistrarResultado`; a recusa chama `DevolverEstoque` e `MudarStatus(PagamentoRejeitado, null, motivo, instante)`. Validar com `Guardas.Texto`, antes de qualquer alteração, o motivo da recusa (obrigatório, até 500) e o identificador da aprovação (obrigatório, até 100; `RegistrarResultado` o aceita opcional, achado M1). XML doc citando R-03 e R-04. T002 deve passar.
+- [X] T006 [P] Porta em `src/PedidoFulfillment.Application/Pagamentos/IGatewayPagamento.cs`: `Task<ResultadoCobranca> CobrarAsync(Guid pedidoId, decimal valor, CancellationToken cancellationToken)` e o `sealed record ResultadoCobranca(bool Aprovado, string? IdentificadorTransacao, string? Motivo)` com as fábricas `Aprovada(string identificadorTransacao)` e `Recusada(string motivo)`.
+- [X] T007 Gateway simulado (R-02):
   - `src/PedidoFulfillment.Infrastructure/Configuracao/OpcoesGatewayPagamento.cs`: `OpcoesGatewayPagamento` (`Secao = "GatewayPagamento"`, `double TaxaAprovacaoPercentual = 90`) e `ValidadorOpcoesGatewayPagamento` (0 a 100; mensagem com a chave, sem o valor);
   - `src/PedidoFulfillment.Infrastructure/Pagamentos/GatewayPagamentoSimulado.cs`: `internal sealed`, implementa `IGatewayPagamento`; construtor com `IOptions<OpcoesGatewayPagamento>` usando `Random.Shared` e construtor `internal` que recebe também o `Random`; aprova quando `NextDouble() * 100 < taxa`; identificador `SIM-` + `Guid.CreateVersion7().ToString("N")`; motivo constante `Pagamento recusado pelo emissor.`;
   - `src/PedidoFulfillment.Infrastructure/Pagamentos/ExtensoesPagamento.cs`: `AdicionarGatewayPagamentoSimulado()` registra o validador, `AddOptions<OpcoesGatewayPagamento>().BindConfiguration(...).ValidateOnStart()` e o gateway como singleton.
 
   T003 e T004 devem passar.
-- [ ] T008 Leitura com o pagamento (R-06): em `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoPedidos.cs`, `ObterPedidoAsync` passa a incluir `Pagamento` (`.Include(p => p.Pagamento)`), e o XML doc de `IArmazenamentoPedidos.ObterPedidoAsync` cita o pagamento. O falso de `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/Falsos.cs` não copia pedidos: cada leitura chama a fábrica registrada e devolve uma instância nova (achado M2). O pedido "já pago" dos testes sai da própria fábrica (`AprovarPagamento` dentro dela), e o pagamento criado numa tentativa que perdeu some na releitura; a T019 confere isso. Rodar a suíte: tudo verde.
-- [ ] T009 Esqueleto do consumidor (R-01, R-08):
+- [X] T008 Leitura com o pagamento (R-06): em `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoPedidos.cs`, `ObterPedidoAsync` passa a incluir `Pagamento` (`.Include(p => p.Pagamento)`), e o XML doc de `IArmazenamentoPedidos.ObterPedidoAsync` cita o pagamento. O falso de `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/Falsos.cs` não copia pedidos: cada leitura chama a fábrica registrada e devolve uma instância nova (achado M2). O pedido "já pago" dos testes sai da própria fábrica (`AprovarPagamento` dentro dela), e o pagamento criado numa tentativa que perdeu some na releitura; a T019 confere isso. Rodar a suíte: tudo verde.
+- [X] T009 Esqueleto do consumidor (R-01, R-08):
   - `src/PedidoFulfillment.Application/Pagamentos/EventosPagamento.cs`: `LoggerMessage` 7001 `PagamentoAprovado` (pedido, valor, transação, evento), 7002 `PagamentoRecusado` (pedido, valor, evento), 7003 `PedidoIgnoradoNoPagamento` (status, reservado, já pago, evento) e 7004 `ConflitoNoPagamento` (Warning, reavaliação), só com identificadores e valores;
   - `src/PedidoFulfillment.Application/Pagamentos/ProcessamentoPagamento.cs`: `public sealed class ProcessamentoPagamento(IArmazenamentoPedidos armazenamento, IGatewayPagamento gateway, TimeProvider relogio, ILogger<ProcessamentoPagamento> logger) : IManipuladorEvento<EstoqueReservado>`, com `Consumidor = "pagamento"`, `Tipos = [TiposEvento.EstoqueReservado]` e `ManipularAsync` lançando `NotImplementedException`; XML doc citando `contracts/consumidor-pagamento.md`.
 
@@ -255,3 +255,5 @@ Setup, Foundational e US1: o pedido reservado é pago, vai para `Processando`, e
   (`CenarioPagamento` espera os dois consumidores), L1 (frase da US4, cenário 5) e L2
   (conflito com PATCH para `Processando`). L3 mantido: a demonstração do CI cobre a taxa
   padrão.
+- **T001** (2026-10-23): linha de base com 534 testes verdes (292 unitários e 242 de
+  integração), nenhum ignorado.

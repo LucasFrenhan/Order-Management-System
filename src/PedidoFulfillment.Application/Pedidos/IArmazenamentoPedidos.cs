@@ -17,7 +17,7 @@ public interface IArmazenamentoPedidos
     /// </summary>
     Task<IReadOnlyList<Produto>> ObterProdutosAsync(IReadOnlyCollection<Guid> ids, bool paraAlterar, CancellationToken cancellationToken);
 
-    /// <summary>Pedido com os itens. Com <paramref name="paraAlterar"/>, as alterações nele são gravadas no próximo <see cref="SalvarAsync"/>.</summary>
+    /// <summary>Pedido com os itens e o pagamento (REQ-09). Com <paramref name="paraAlterar"/>, as alterações nele são gravadas no próximo <see cref="SalvarAsync"/>.</summary>
     Task<Pedido?> ObterPedidoAsync(Guid id, bool paraAlterar, CancellationToken cancellationToken);
 
     Task<RegistroIdempotencia?> ObterRegistroIdempotenciaAsync(Guid clienteId, Guid chave, CancellationToken cancellationToken);

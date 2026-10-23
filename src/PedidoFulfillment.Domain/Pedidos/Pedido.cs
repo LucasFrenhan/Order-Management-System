@@ -15,6 +15,9 @@ public sealed class Pedido
     public const int TamanhoNumero = 19;
     public const string MoedaPadrao = "BRL";
 
+    /// <summary>Motivo do histórico na mudança para Processando pelo pagamento aprovado (REQ-09, FR-008).</summary>
+    public const string MotivoPagamentoAprovado = "Pagamento aprovado.";
+
     private readonly List<ItemPedido> itens = [];
     private readonly List<HistoricoStatusPedido> historico = [];
 
@@ -151,6 +154,59 @@ public sealed class Pedido
         EstoqueReservado = false;
         AtualizadoEm = instante;
     }
+
+    /// <summary>
+    /// Pode ser cobrado (REQ-09, FR-002): estoque reservado, sem pagamento e em status não final
+    /// (Pendente, Processando ou ProntoParaEnvio, clarify).
+    /// </summary>
+    public bool AptoParaPagamento =>
+        EstoqueReservado && Pagamento is null
+        && Status is StatusPedido.Pendente or StatusPedido.Processando or StatusPedido.ProntoParaEnvio;
+
+    /// <summary>
+    /// Registra o pagamento aprovado com o valor total e, em Pendente, leva o pedido a Processando,
+    /// sem autor (REQ-09, R-03 e R-04). Pedido já movido pela operação mantém o status (clarify).
+    /// A reserva continua: a mercadoria segue para o envio.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">O pedido não está <see cref="AptoParaPagamento"/>.</exception>
+    public void AprovarPagamento(string identificadorTransacao, DateTimeOffset instante)
+    {
+        // RegistrarResultado aceita o identificador opcional; na aprovação ele é obrigatório (FR-007).
+        var transacao = Guardas.Texto(identificadorTransacao, Pagamento.TamanhoMaximoIdentificadorTransacao);
+        var pagamento = NovoPagamento(instante);
+        pagamento.RegistrarResultado(SituacaoPagamento.Aprovado, transacao, instante);
+        Pagamento = pagamento;
+        if (Status == StatusPedido.Pendente)
+        {
+            MudarStatus(StatusPedido.Processando, null, MotivoPagamentoAprovado, instante);
+        }
+        else
+        {
+            AtualizadoEm = instante;
+        }
+    }
+
+    /// <summary>
+    /// Registra o pagamento recusado, devolve o estoque reservado e leva o pedido a
+    /// PagamentoRejeitado, sem autor, tudo junto (REQ-09, FR-009, clarify).
+    /// </summary>
+    /// <exception cref="InvalidOperationException">O pedido não está <see cref="AptoParaPagamento"/>, ou falta um produto dos itens.</exception>
+    public void RecusarPagamento(string motivo, IReadOnlyDictionary<Guid, Produto> produtos, DateTimeOffset instante)
+    {
+        var motivoAparado = Guardas.Texto(motivo, HistoricoStatusPedido.TamanhoMaximoMotivo);
+        var pagamento = NovoPagamento(instante);
+        ProdutosDosItens(produtos);
+        pagamento.RegistrarResultado(SituacaoPagamento.Recusado, null, instante);
+        DevolverEstoque(produtos, instante);
+        Pagamento = pagamento;
+        MudarStatus(StatusPedido.PagamentoRejeitado, null, motivoAparado, instante);
+    }
+
+    private Pagamento NovoPagamento(DateTimeOffset instante) =>
+        AptoParaPagamento
+            ? new Pagamento(Id, ValorTotal, instante)
+            : throw new InvalidOperationException(
+                $"O pedido {Numero} não pode ser cobrado: status {Status}, estoque reservado: {EstoqueReservado}, já pago: {Pagamento is not null}.");
 
     private List<(ItemPedido Item, Produto Produto)> ProdutosDosItens(IReadOnlyDictionary<Guid, Produto> produtos)
     {
