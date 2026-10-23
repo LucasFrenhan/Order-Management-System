@@ -103,4 +103,39 @@ public sealed class PagamentoEntregaTestes
         new Action(() => ordem.RegistrarDespacho("Transportadora X", new string('c', 51), Instante)).Should().Throw<ArgumentException>();
         ordem.DespachadoEm.Should().BeNull();
     }
+
+    /// <summary>REQ-11, R-05: a correção troca transportadora e código e mantém a data de despacho.</summary>
+    [Fact]
+    public void CorrigirRastreio_mantem_a_data_de_despacho()
+    {
+        var ordem = new OrdemEntrega(PedidoId, Instante);
+        ordem.RegistrarDespacho("Transportadora X", "BR123", Instante.AddHours(1));
+        var correcao = Instante.AddHours(2);
+
+        ordem.CorrigirRastreio(" Transportadora Y ", " BR999 ", correcao);
+
+        (ordem.Transportadora, ordem.CodigoRastreio, ordem.DespachadoEm, ordem.AtualizadoEm)
+            .Should().Be(("Transportadora Y", "BR999", (DateTimeOffset?)Instante.AddHours(1), correcao));
+    }
+
+    [Fact]
+    public void CorrigirRastreio_sem_data_de_despacho_usa_o_instante()
+    {
+        var ordem = new OrdemEntrega(PedidoId, Instante);
+
+        ordem.CorrigirRastreio("Transportadora Y", "BR999", Instante.AddHours(2));
+
+        ordem.DespachadoEm.Should().Be(Instante.AddHours(2));
+    }
+
+    [Fact]
+    public void CorrigirRastreio_recusa_textos_acima_do_limite_sem_alterar()
+    {
+        var ordem = new OrdemEntrega(PedidoId, Instante);
+        ordem.RegistrarDespacho("Transportadora X", "BR123", Instante);
+
+        new Action(() => ordem.CorrigirRastreio(new string('t', 101), "BR999", Instante.AddHours(1))).Should().Throw<ArgumentException>();
+        new Action(() => ordem.CorrigirRastreio("Transportadora Y", new string('c', 51), Instante.AddHours(1))).Should().Throw<ArgumentException>();
+        (ordem.Transportadora, ordem.CodigoRastreio, ordem.AtualizadoEm).Should().Be(("Transportadora X", "BR123", Instante));
+    }
 }

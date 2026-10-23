@@ -47,4 +47,18 @@ public sealed class OrdemEntrega
         Transportadora = novaTransportadora;
         CodigoRastreio = novoCodigo;
     }
+
+    /// <summary>
+    /// Troca transportadora e código de um pedido já despachado, mantendo a data de despacho; sem
+    /// data (despacho feito pela mudança de status), usa o instante (REQ-11, R-05).
+    /// </summary>
+    public void CorrigirRastreio(string transportadora, string codigoRastreio, DateTimeOffset instante)
+    {
+        var novaTransportadora = Guardas.Texto(transportadora, TamanhoMaximoTransportadora);
+        var novoCodigo = Guardas.Texto(codigoRastreio, TamanhoMaximoCodigoRastreio);
+        AtualizadoEm = Guardas.Utc(instante);
+        DespachadoEm ??= instante;
+        Transportadora = novaTransportadora;
+        CodigoRastreio = novoCodigo;
+    }
 }

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Pedidos;
+using PedidoFulfillment.Domain.Entregas;
 using PedidoFulfillment.Domain.Pedidos;
 using PedidoFulfillment.Domain.Produtos;
 
@@ -13,6 +14,12 @@ namespace PedidoFulfillment.Infrastructure.Persistencia;
 /// </summary>
 internal sealed class ArmazenamentoPedidos(ContextoBancoDados contexto) : IArmazenamentoPedidos
 {
+    /// <summary>Índice único de transportadora e código de rastreio (REQ-04; sem caixa desde o REQ-11).</summary>
+    private const string IndiceRastreio = "IX_OrdensEntrega_Transportadora_CodigoRastreio";
+
+    /// <summary>Índice único da ordem por pedido (REQ-04).</summary>
+    private const string IndiceOrdemPorPedido = "IX_OrdensEntrega_PedidoId";
+
     public async Task<IReadOnlyList<Produto>> ObterProdutosAsync(IReadOnlyCollection<Guid> ids, bool paraAlterar, CancellationToken cancellationToken)
     {
         var produtos = paraAlterar ? contexto.Produtos : contexto.Produtos.AsNoTracking();
@@ -22,8 +29,15 @@ internal sealed class ArmazenamentoPedidos(ContextoBancoDados contexto) : IArmaz
     public Task<Pedido?> ObterPedidoAsync(Guid id, bool paraAlterar, CancellationToken cancellationToken)
     {
         var pedidos = paraAlterar ? contexto.Pedidos : contexto.Pedidos.AsNoTracking();
-        return pedidos.Include(p => p.Itens).Include(p => p.Pagamento).Include(p => p.OrdemEntrega).SingleOrDefaultAsync(p => p.Id == id, cancellationToken);
+        return pedidos.Include(p => p.Itens).Include(p => p.Historico).Include(p => p.Pagamento).Include(p => p.OrdemEntrega)
+            .AsSplitQuery()
+            .SingleOrDefaultAsync(p => p.Id == id, cancellationToken);
     }
+
+    // A collation das colunas não diferencia maiúsculas e minúsculas (REQ-11, R-06).
+    public Task<bool> RastreioEmUsoAsync(string transportadora, string codigoRastreio, Guid pedidoId, CancellationToken cancellationToken) =>
+        contexto.OrdensEntrega.AnyAsync(
+            o => o.PedidoId != pedidoId && o.Transportadora == transportadora && o.CodigoRastreio == codigoRastreio, cancellationToken);
 
     public Task<RegistroIdempotencia?> ObterRegistroIdempotenciaAsync(Guid clienteId, Guid chave, CancellationToken cancellationToken) =>
         contexto.ChavesIdempotencia.AsNoTracking().SingleOrDefaultAsync(r => r.ClienteId == clienteId && r.Chave == chave, cancellationToken);
@@ -50,6 +64,18 @@ internal sealed class ArmazenamentoPedidos(ContextoBancoDados contexto) : IArmaz
             || (ErrosBancoDados.EhDeadlock(excecao) && GravandoChaveIdempotencia()))
         {
             throw new ChaveIdempotenciaRegistradaException(excecao);
+        }
+        // Outro pedido gravou o mesmo rastreio entre a conferência e a gravação (REQ-11, R-06).
+        catch (DbUpdateException excecao) when (ErrosBancoDados.EhViolacaoUnicidade(excecao, IndiceRastreio))
+        {
+            throw new RastreioDuplicadoException(excecao);
+        }
+        // Outra operação (o consumidor de entrega ou outro despacho) criou a ordem do mesmo pedido:
+        // quem chamou relê e reavalia, como num conflito de versão (REQ-11, R-07).
+        catch (DbUpdateException excecao) when (ErrosBancoDados.EhViolacaoUnicidade(excecao, IndiceOrdemPorPedido))
+        {
+            var pedido = contexto.ChangeTracker.Entries<OrdemEntrega>().FirstOrDefault(e => e.State == EntityState.Added)?.Entity.PedidoId;
+            throw new ConflitoConcorrenciaException(nameof(OrdemEntrega), pedido?.ToString() ?? "", excecao);
         }
         // Deadlock fora de uma transação aberta (o cancelamento pela API): o SQL Server desfez só
         // esta gravação, e quem chamou relê e tenta de novo. Dentro da transação da base de

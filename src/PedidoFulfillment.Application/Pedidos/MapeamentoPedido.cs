@@ -23,6 +23,24 @@ internal static class MapeamentoPedido
         ValorTotal = pedido.ValorTotal,
         Moeda = pedido.Moeda,
         CriadoEm = pedido.CriadoEm,
-        AtualizadoEm = pedido.AtualizadoEm
+        AtualizadoEm = pedido.AtualizadoEm,
+
+        // Em ordem de ocorrência e, no empate, de gravação; sem o autor (REQ-11, FR-002 e FR-003).
+        Historico = [.. pedido.Historico.OrderBy(h => h.OcorridoEm).ThenBy(h => h.Id).Select(h => new HistoricoStatusPedidoResponseDTO
+        {
+            StatusAnterior = h.StatusAnterior,
+            StatusNovo = h.StatusNovo,
+            OcorridoEm = h.OcorridoEm,
+            Motivo = h.Motivo
+        })],
+        Entrega = pedido.OrdemEntrega is { } ordem
+            ? new EntregaPedidoResponseDTO
+            {
+                Transportadora = ordem.Transportadora,
+                CodigoRastreio = ordem.CodigoRastreio,
+                DespachadoEm = ordem.DespachadoEm,
+                CriadoEm = ordem.CriadoEm
+            }
+            : null
     };
 }

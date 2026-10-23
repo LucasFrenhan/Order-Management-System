@@ -12,4 +12,5 @@ public static class CodigosErro
     public const string ProdutoInexistente = "PRODUTO_INEXISTENTE";
     public const string ProdutoIndisponivel = "PRODUTO_INDISPONIVEL";
     public const string PedidoTransicaoInvalida = "PEDIDO_TRANSICAO_INVALIDA";
+    public const string PedidoRastreioDuplicado = "PEDIDO_RASTREIO_DUPLICADO";
 }

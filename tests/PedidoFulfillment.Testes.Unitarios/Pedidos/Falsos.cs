@@ -51,6 +51,12 @@ public sealed class ArmazenamentoPedidosFalso : IArmazenamentoPedidos
     /// <summary>O que a "outra operação" faz a cada conflito.</summary>
     public Action? AoConflitar { get; set; }
 
+    /// <summary>Rastreios (transportadora, código, pedido) já gravados em ordens (REQ-11); a comparação ignora a caixa.</summary>
+    public List<(string Transportadora, string Codigo, Guid PedidoId)> RastreiosEmUso { get; } = [];
+
+    /// <summary>Na próxima gravação, simula outro pedido que gravou o mesmo rastreio antes (REQ-11).</summary>
+    public bool DuplicadoNaProximaGravacao { get; set; }
+
     /// <summary>Guarda um pedido; a fábrica é chamada a cada leitura.</summary>
     public void GuardarPedido(Guid id, Func<Pedido> fabrica) => pedidos[id] = fabrica;
 
@@ -90,6 +96,11 @@ public sealed class ArmazenamentoPedidosFalso : IArmazenamentoPedidos
         return Task.FromResult(pedido);
     }
 
+    public Task<bool> RastreioEmUsoAsync(string transportadora, string codigoRastreio, Guid pedidoId, CancellationToken cancellationToken) =>
+        Task.FromResult(RastreiosEmUso.Any(r => r.PedidoId != pedidoId
+            && string.Equals(r.Transportadora, transportadora, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(r.Codigo, codigoRastreio, StringComparison.OrdinalIgnoreCase)));
+
     public Task<RegistroIdempotencia?> ObterRegistroIdempotenciaAsync(Guid clienteId, Guid chave, CancellationToken cancellationToken) =>
         Task.FromResult(Registros.SingleOrDefault(r => r.ClienteId == clienteId && r.Chave == chave));
 
@@ -108,6 +119,12 @@ public sealed class ArmazenamentoPedidosFalso : IArmazenamentoPedidos
             }
 
             throw new ChaveIdempotenciaRegistradaException();
+        }
+
+        if (DuplicadoNaProximaGravacao)
+        {
+            DuplicadoNaProximaGravacao = false;
+            throw new RastreioDuplicadoException();
         }
 
         if (ConflitosRestantes > 0)

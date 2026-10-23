@@ -11,8 +11,10 @@ internal sealed class ConfiguracaoOrdemEntrega : IEntityTypeConfiguration<OrdemE
     {
         ordem.ToTable("OrdensEntrega");
         ordem.Property(o => o.Id).ValueGeneratedNever();
-        ordem.Property(o => o.Transportadora).HasMaxLength(OrdemEntrega.TamanhoMaximoTransportadora);
-        ordem.Property(o => o.CodigoRastreio).HasMaxLength(OrdemEntrega.TamanhoMaximoCodigoRastreio);
+        // Collation explícita, como o SKU (REQ-04, R-06): o rastreio é único sem diferenciar maiúsculas
+        // em qualquer servidor (REQ-11, R-06).
+        ordem.Property(o => o.Transportadora).HasMaxLength(OrdemEntrega.TamanhoMaximoTransportadora).UseCollation("SQL_Latin1_General_CP1_CI_AS");
+        ordem.Property(o => o.CodigoRastreio).HasMaxLength(OrdemEntrega.TamanhoMaximoCodigoRastreio).UseCollation("SQL_Latin1_General_CP1_CI_AS");
         // Código único por transportadora; ordens ainda sem código não disputam o índice (FR-013).
         ordem.HasIndex(o => new { o.Transportadora, o.CodigoRastreio }).IsUnique().HasFilter("[CodigoRastreio] IS NOT NULL");
     }

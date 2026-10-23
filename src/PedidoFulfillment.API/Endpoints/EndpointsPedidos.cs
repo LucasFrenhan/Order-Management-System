@@ -60,6 +60,21 @@ public static class EndpointsPedidos
             .Produces<PedidoResponseDTO>()
             .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status404NotFound, StatusCodes.Status409Conflict);
 
+        grupo.MapPatch("/{id}/rastreio", async (
+                Guid id,
+                RegistrarRastreioRequestDTO rastreio,
+                ClaimsPrincipal usuario,
+                IServicoPedidos servico,
+                CancellationToken cancellationToken) =>
+                (await servico.RegistrarRastreioAsync(id, usuario.ObterUsuarioId(), rastreio, cancellationToken))
+                    .ParaResposta(pedido => TypedResults.Ok(pedido)))
+            .WithName("RegistrarRastreioPedido")
+            .WithSummary("Registra a transportadora e o código de rastreio e despacha o pedido (ou corrige o rastreio).")
+            .RequireAuthorization(PoliticasAutorizacao.PoliticaRastreioPedido)
+            .AddEndpointFilter<FiltroValidacao<RegistrarRastreioRequestDTO>>()
+            .Produces<PedidoResponseDTO>()
+            .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status404NotFound, StatusCodes.Status409Conflict);
+
         return app;
     }
 }

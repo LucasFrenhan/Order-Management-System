@@ -21,4 +21,13 @@ internal static partial class EventosPedidos
     [LoggerMessage(EventId = 4003, EventName = "StatusPedidoAlterado", Level = LogLevel.Information,
         Message = "Pedido {PedidoId} passou de {StatusAnterior} para {StatusNovo} ({PapelAutor}).")]
     public static partial void StatusPedidoAlterado(ILogger logger, Guid pedidoId, StatusPedido statusAnterior, StatusPedido statusNovo, string papelAutor);
+
+    /// <summary>Despacho ou correção do rastreio (REQ-11, FR-016); sem transportadora nem código.</summary>
+    [LoggerMessage(EventId = 4004, EventName = "RastreioRegistrado", Level = LogLevel.Information,
+        Message = "Rastreio do pedido {PedidoId} registrado pelo usuário {UsuarioId}: {Resultado}.")]
+    public static partial void RastreioRegistrado(ILogger logger, Guid pedidoId, Guid usuarioId, ResultadoRastreio resultado);
+
+    [LoggerMessage(EventId = 4005, EventName = "RastreioDuplicado", Level = LogLevel.Information,
+        Message = "Rastreio do pedido {PedidoId} recusado para o usuário {UsuarioId}: já usado por outro pedido da mesma transportadora.")]
+    public static partial void RastreioDuplicado(ILogger logger, Guid pedidoId, Guid usuarioId);
 }

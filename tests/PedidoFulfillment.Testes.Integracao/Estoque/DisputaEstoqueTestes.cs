@@ -161,6 +161,9 @@ public sealed class DisputaEstoqueTestes(MensageriaTeste mensageria)
         public Task<Pedido?> ObterPedidoAsync(Guid id, bool paraAlterar, CancellationToken cancellationToken) =>
             interno.ObterPedidoAsync(id, paraAlterar, cancellationToken);
 
+        public Task<bool> RastreioEmUsoAsync(string transportadora, string codigoRastreio, Guid pedidoId, CancellationToken cancellationToken) =>
+            interno.RastreioEmUsoAsync(transportadora, codigoRastreio, pedidoId, cancellationToken);
+
         public Task<RegistroIdempotencia?> ObterRegistroIdempotenciaAsync(Guid clienteId, Guid chave, CancellationToken cancellationToken) =>
             interno.ObterRegistroIdempotenciaAsync(clienteId, chave, cancellationToken);
 

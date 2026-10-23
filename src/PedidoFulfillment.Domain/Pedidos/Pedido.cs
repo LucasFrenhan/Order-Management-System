@@ -21,6 +21,9 @@ public sealed class Pedido
     /// <summary>Motivo do histórico na mudança para ProntoParaEnvio pela ordem de entrega (REQ-10, FR-004).</summary>
     public const string MotivoOrdemEntregaCriada = "Ordem de entrega criada.";
 
+    /// <summary>Motivo do histórico no despacho com rastreio (REQ-11, FR-008).</summary>
+    public const string MotivoPedidoDespachado = "Pedido despachado.";
+
     private readonly List<ItemPedido> itens = [];
     private readonly List<HistoricoStatusPedido> historico = [];
 
@@ -241,6 +244,49 @@ public sealed class Pedido
         }
 
         return ordem;
+    }
+
+    /// <summary>O rastreio pode ser registrado (REQ-11, FR-008 e FR-009): pronto para envio ou já despachado.</summary>
+    public bool PodeRegistrarRastreio => Status is StatusPedido.ProntoParaEnvio or StatusPedido.Despachado;
+
+    /// <summary>
+    /// Registra o rastreio (REQ-11, R-05). Em ProntoParaEnvio, cria a ordem de entrega se faltar,
+    /// grava transportadora, código e data de despacho e leva o pedido a Despachado, com o autor.
+    /// Em Despachado, dados exatamente iguais (depois de aparar) não mudam nada; diferentes,
+    /// inclusive só na caixa, corrigem o rastreio sem mudar status nem histórico, e
+    /// <see cref="AtualizadoEm"/> muda para a versão do pedido mudar (R-07). Os textos são
+    /// validados antes de qualquer mudança.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">O pedido não está <see cref="PodeRegistrarRastreio"/>.</exception>
+    /// <exception cref="ArgumentException">Transportadora ou código vazios ou acima do tamanho.</exception>
+    public ResultadoRastreio RegistrarRastreio(string transportadora, string codigoRastreio, Guid autorId, DateTimeOffset instante)
+    {
+        if (!PodeRegistrarRastreio)
+        {
+            throw new InvalidOperationException($"O pedido {Numero} não pode registrar rastreio: status {Status}.");
+        }
+
+        var transportadoraAparada = Guardas.Texto(transportadora, OrdemEntrega.TamanhoMaximoTransportadora);
+        var codigoAparado = Guardas.Texto(codigoRastreio, OrdemEntrega.TamanhoMaximoCodigoRastreio);
+        if (Status == StatusPedido.Despachado)
+        {
+            if (OrdemEntrega is { } atual
+                && string.Equals(atual.Transportadora, transportadoraAparada, StringComparison.Ordinal)
+                && string.Equals(atual.CodigoRastreio, codigoAparado, StringComparison.Ordinal))
+            {
+                return ResultadoRastreio.SemMudanca;
+            }
+
+            OrdemEntrega ??= new OrdemEntrega(Id, instante);
+            OrdemEntrega.CorrigirRastreio(transportadoraAparada, codigoAparado, instante);
+            AtualizadoEm = instante;
+            return ResultadoRastreio.Corrigido;
+        }
+
+        OrdemEntrega ??= new OrdemEntrega(Id, instante);
+        OrdemEntrega.RegistrarDespacho(transportadoraAparada, codigoAparado, instante);
+        MudarStatus(StatusPedido.Despachado, autorId, MotivoPedidoDespachado, instante);
+        return ResultadoRastreio.Despachado;
     }
 
     private Pagamento NovoPagamento(DateTimeOffset instante) =>
