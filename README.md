@@ -6,6 +6,10 @@ API de gestão de pedidos em .NET 10, desenvolvida com **Specification-Driven De
 (Spec Kit). Toda funcionalidade nasce de uma especificação aprovada em `specs/`, e a
 constituição do projeto fica em [`.specify/memory/constitution.md`](.specify/memory/constitution.md).
 
+Os fluxos de ponta a ponta (autenticação, pedido, estoque, pagamento, entrega, despacho,
+mensageria e reconciliação), com o caminho feliz, os erros tratados e as falhas externas,
+estão em [`docs/fluxos/`](docs/fluxos/README.md).
+
 ## Estado atual
 
 | Requisito | Situação |
