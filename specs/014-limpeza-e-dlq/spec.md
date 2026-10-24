@@ -53,6 +53,18 @@ ela usa as mesmas credenciais do processo de workers, com permissão total no br
   broker**, que só consegue conectar para a prontidão, sem permissão para configurar, ler ou
   publicar; o processo de workers mantém o usuário dele.
 
+### Session 2026-10-24 (clarify)
+
+- Q: O que acontece com uma mensagem da DLQ que já atingiu o limite de reenvios? → A: Fica na
+  DLQ, contada como bloqueada pelo limite em cada pedido que a alcança, e continua contando
+  para o aviso de tamanho da DLQ. Retirá-la é manual, pelo painel do broker (a purga continua
+  fora do escopo).
+- Q: Quem pode consultar os pedidos de reenvio? → A: Só o Admin, como no pedido; Cliente e
+  OperadorLogistica recebem 403 nas duas rotas administrativas.
+- Q: Os padrões de retenção da limpeza estão bons? → A: Sim: eventos enviados por 7 dias,
+  registros de processado por 7 dias (mínimo de 1 dia), chaves de idempotência por 48 h
+  (mínimo de 24 h) e pedidos de reenvio por 90 dias, todos configuráveis.
+
 ## User Scenarios & Testing *(mandatory)*
 
 Os "usuários" deste requisito são quem opera o ambiente, que precisa de tabelas com tamanho
