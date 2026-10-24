@@ -34,6 +34,9 @@ public sealed class OrdemEntrega
 
     public DateTimeOffset? DespachadoEm { get; private set; }
 
+    /// <summary>Preenchido no cancelamento do pedido, só se a ordem não foi despachada (REQ-13, FR-008).</summary>
+    public DateTimeOffset? CanceladaEm { get; private set; }
+
     public DateTimeOffset CriadoEm { get; private set; }
 
     public DateTimeOffset AtualizadoEm { get; private set; }

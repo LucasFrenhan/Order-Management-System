@@ -66,4 +66,15 @@ public sealed class GatewayPagamentoSimuladoTestes
         resultado.Motivo.Should().Be(GatewayPagamentoSimulado.MotivoRecusa).And.Be("Pagamento recusado pelo emissor.");
         resultado.IdentificadorTransacao.Should().BeNull();
     }
+
+    [Fact]
+    public async Task Estorno_simulado_sempre_confirma_com_identificador_SIM_EST()
+    {
+        var resultado = await Gateway(0).EstornarAsync(Guid.CreateVersion7(), "SIM-1", 10m, Cancelamento);
+
+        resultado.Confirmado.Should().BeTrue("REQ-13, R-03: o estorno simulado sempre confirma");
+        resultado.IdentificadorEstorno.Should().StartWith("SIM-EST-").And.HaveLength(40);
+        resultado.IdentificadorEstorno!.Length.Should().BeLessThanOrEqualTo(100);
+        resultado.Motivo.Should().BeNull();
+    }
 }

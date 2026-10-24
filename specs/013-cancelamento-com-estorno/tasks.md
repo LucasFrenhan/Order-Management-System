@@ -48,7 +48,7 @@ entrega) usa o `Pedido.Cancelar` da US1.
 
 ## Phase 1: Setup
 
-- [ ] T001 Rodar `dotnet build` e `OMS_EXIGIR_DOCKER=1 dotnet test` na branch `feature/req-13-cancelamento-com-estorno` e registrar em Notes a contagem de testes como linha de base (unitários, integração e ignorados; zero ignorados com o Docker no ar).
+- [X] T001 Rodar `dotnet build` e `OMS_EXIGIR_DOCKER=1 dotnet test` na branch `feature/req-13-cancelamento-com-estorno` e registrar em Notes a contagem de testes como linha de base (unitários, integração e ignorados; zero ignorados com o Docker no ar).
 
 ---
 
@@ -59,30 +59,30 @@ todas as histórias. Nenhuma regra de cancelamento ainda.
 
 ### Testes da fundação
 
-- [ ] T002 [P] Em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PagamentoEstornoTestes.cs` (R-02, data-model), com um `Pagamento` aprovado (`RegistrarResultado(Aprovado, "SIM-1", t0)`):
+- [X] T002 [P] Em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PagamentoEstornoTestes.cs` (R-02, data-model), com um `Pagamento` aprovado (`RegistrarResultado(Aprovado, "SIM-1", t0)`):
   - `SolicitarEstorno(t1)`: situação `EstornoPendente`, `EstornoSolicitadoEm = t1`, `TentativasEstorno = 0`, `UltimaFalhaEstornoEm` nulo, `AtualizadoEm = t1`; o `IdentificadorTransacao` da cobrança continua;
   - `SolicitarEstorno` fora de `Aprovado` (`Pendente`, `Recusado`, `NaoProcessado`, `EstornoPendente`, `Estornado`): `InvalidOperationException` sem alterar nada;
   - `RegistrarFalhaEstorno(t2)` duas vezes: `TentativasEstorno = 2`, `UltimaFalhaEstornoEm` = a última, situação continua `EstornoPendente`; fora de `EstornoPendente`: `InvalidOperationException`;
   - `ConfirmarEstorno("SIM-EST-1", t3)`: situação `Estornado`, `IdentificadorEstorno` aparado, `EstornadoEm = t3`; identificador vazio ou com mais de 100 caracteres: `ArgumentException`; fora de `EstornoPendente`: `InvalidOperationException`;
   - `RegistrarResultado` continua recusando `EstornoPendente` e `Estornado` (`ArgumentOutOfRangeException`): só as transições acima levam a eles;
   - instantes fora de UTC são recusados como nos demais métodos (`Guardas.Utc`).
-- [ ] T003 [P] Em `tests/PedidoFulfillment.Testes.Unitarios/Pagamentos/GatewayPagamentoSimuladoTestes.cs` (R-03): `EstornarAsync` confirma com identificador começando por `SIM-EST-` e com até 100 caracteres. A idempotência fica para a US4 (T030).
+- [X] T003 [P] Em `tests/PedidoFulfillment.Testes.Unitarios/Pagamentos/GatewayPagamentoSimuladoTestes.cs` (R-03): `EstornarAsync` confirma com identificador começando por `SIM-EST-` e com até 100 caracteres. A idempotência fica para a US4 (T030).
 
 ### Implementação da fundação
 
-- [ ] T004 Em `src/PedidoFulfillment.Domain/Pagamentos/SituacaoPagamento.cs`, acrescentar `EstornoPendente` e `Estornado` depois de `NaoProcessado` (sem renumerar os existentes), com XML doc citando o REQ-13 e que são situações internas. Em `src/PedidoFulfillment.Domain/Pagamentos/Pagamento.cs` (data-model):
+- [X] T004 Em `src/PedidoFulfillment.Domain/Pagamentos/SituacaoPagamento.cs`, acrescentar `EstornoPendente` e `Estornado` depois de `NaoProcessado` (sem renumerar os existentes), com XML doc citando o REQ-13 e que são situações internas. Em `src/PedidoFulfillment.Domain/Pagamentos/Pagamento.cs` (data-model):
   - campos `EstornoSolicitadoEm` (`DateTimeOffset?`), `IdentificadorEstorno` (`string?`, "`nvarchar(100)?` — aparado, até 100", constante `TamanhoMaximoIdentificadorEstorno = 100`), `EstornadoEm` (`DateTimeOffset?`), `TentativasEstorno` (`int`, "padrão 0, `>= 0`") e `UltimaFalhaEstornoEm` (`DateTimeOffset?`), todos com `private set`;
   - `SolicitarEstorno(DateTimeOffset)`, `RegistrarFalhaEstorno(DateTimeOffset)` e `ConfirmarEstorno(string, DateTimeOffset)`, com as validações antes de qualquer mudança e o diagrama do data-model;
   - `RegistrarResultado` mantém a lista de situações aceitas (`Aprovado`, `Recusado`, `NaoProcessado`).
 
   T002 deve passar.
-- [ ] T005 Em `src/PedidoFulfillment.Domain/Entregas/OrdemEntrega.cs`, campo `CanceladaEm` (`DateTimeOffset?`, "Preenchido no cancelamento do pedido; só se `DespachadoEm` é nulo"), sem método ainda (o `Cancelar` entra na US2, T022).
-- [ ] T006 Persistência (R-08):
+- [X] T005 Em `src/PedidoFulfillment.Domain/Entregas/OrdemEntrega.cs`, campo `CanceladaEm` (`DateTimeOffset?`, "Preenchido no cancelamento do pedido; só se `DespachadoEm` é nulo"), sem método ainda (o `Cancelar` entra na US2, T022).
+- [X] T006 Persistência (R-08):
   - `src/PedidoFulfillment.Infrastructure/Persistencia/Configuracoes/ConfiguracaoPagamento.cs`: `IdentificadorEstorno` com `HasMaxLength(Pagamento.TamanhoMaximoIdentificadorEstorno)`; `TentativasEstorno` com padrão 0 e check `CK_Pagamentos_TentativasEstornoNaoNegativas` (`[TentativasEstorno] >= 0`); `CK_Pagamentos_SituacaoValida` passa a incluir as situações novas (vem de `RestricoesEnum.Em<SituacaoPagamento>`); índice `IX_Pagamentos_EstornoPendente` em (`UltimaFalhaEstornoEm`, `EstornoSolicitadoEm`) com `HasFilter("[Situacao] = 'EstornoPendente'")`;
   - `ConfiguracaoOrdemEntrega.cs`: nada além do mapeamento padrão de `CanceladaEm`;
   - migration `EstornoPagamento` em `src/PedidoFulfillment.Infrastructure/Persistencia/Migracoes/` (`dotnet ef migrations add EstornoPagamento`), conferindo que só acrescenta as colunas, recria a check constraint e cria o índice; snapshot atualizado;
   - `tests/PedidoFulfillment.Testes.Integracao/Persistencia/ModeloSincronizadoTestes.cs` e `MigracaoBancoTestes.cs` continuam verdes; em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/PagamentoEntregaTestes.cs`, um caso que grava e relê um pagamento `EstornoPendente` com todos os campos novos e uma ordem com `CanceladaEm`, e outro em que `TentativasEstorno = -1` é recusado pelo banco.
-- [ ] T007 Porta do gateway (R-03, contrato) em `src/PedidoFulfillment.Application/Pagamentos/IGatewayPagamento.cs`:
+- [X] T007 Porta do gateway (R-03, contrato) em `src/PedidoFulfillment.Application/Pagamentos/IGatewayPagamento.cs`:
   - `Task<ResultadoEstorno> EstornarAsync(Guid pedidoId, string identificadorTransacao, decimal valor, CancellationToken cancellationToken)`;
   - `sealed record ResultadoEstorno(bool Confirmado, string? IdentificadorEstorno, string? Motivo)`, com `Confirmado(string)` e `Recusado(string)`, como `ResultadoCobranca`;
   - XML doc: `pedidoId` é a chave de idempotência da cobrança e do estorno; exceção é falha técnica.
@@ -309,3 +309,9 @@ reconciliação e a US4 protege contra cobrança e estorno repetidos num gateway
   C1 (disputa entre reconciliação e API na T016), U1 (ordem da fila de estornos no R-04 e na
   T021), U2 (conflito ao gravar a falha no R-04), U3 (falha da rodada por consulta falsa na
   T015) e C2 (dependência da API sem gateway na T010).
+- **T001 (linha de base, 2026-10-24)**: 800 testes, 482 unitários e 318 de integração, zero
+  ignorados, com o Docker no ar.
+- **Fundação (T002 a T007)**: o teste de persistência do REQ-04 usava `Estornado` como
+  situação inválida; passou a usar `Cancelado`, que continua inválida. Os falsos do gateway
+  nos testes ganharam `EstornarAsync`. Checkpoint: 514 unitários (com os testes de domínio da
+  US1 já escritos) e 321 de integração, todos verdes.

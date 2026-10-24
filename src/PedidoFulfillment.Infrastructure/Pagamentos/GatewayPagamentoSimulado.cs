@@ -30,4 +30,8 @@ internal sealed class GatewayPagamentoSimulado : IGatewayPagamento
         Task.FromResult(aleatorio.NextDouble() * 100 < taxaAprovacao
             ? ResultadoCobranca.Aprovada($"SIM-{Guid.CreateVersion7():N}")
             : ResultadoCobranca.Recusada(MotivoRecusa));
+
+    /// <summary>O estorno simulado sempre confirma (REQ-13, R-03); os testes forçam falhas com gateways falsos.</summary>
+    public Task<ResultadoEstorno> EstornarAsync(Guid pedidoId, string identificadorTransacao, decimal valor, CancellationToken cancellationToken) =>
+        Task.FromResult(ResultadoEstorno.Confirmar($"SIM-EST-{Guid.CreateVersion7():N}"));
 }

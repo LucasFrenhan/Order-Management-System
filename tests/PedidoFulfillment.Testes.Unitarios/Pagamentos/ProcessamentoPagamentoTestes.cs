@@ -316,4 +316,17 @@ public sealed class GatewayPagamentoFalso : IGatewayPagamento
         Chamadas.Add((pedidoId, valor));
         return Task.FromResult(Proximo);
     }
+
+    /// <summary>Resultado do próximo estorno; com <see cref="FalhaEstorno"/> preenchida, lança a exceção.</summary>
+    public ResultadoEstorno ProximoEstorno { get; set; } = ResultadoEstorno.Confirmar("SIM-EST-00000000000000000000000000000001");
+
+    public Exception? FalhaEstorno { get; set; }
+
+    public List<(Guid PedidoId, string IdentificadorTransacao, decimal Valor)> Estornos { get; } = [];
+
+    public Task<ResultadoEstorno> EstornarAsync(Guid pedidoId, string identificadorTransacao, decimal valor, CancellationToken cancellationToken)
+    {
+        Estornos.Add((pedidoId, identificadorTransacao, valor));
+        return FalhaEstorno is { } falha ? Task.FromException<ResultadoEstorno>(falha) : Task.FromResult(ProximoEstorno);
+    }
 }

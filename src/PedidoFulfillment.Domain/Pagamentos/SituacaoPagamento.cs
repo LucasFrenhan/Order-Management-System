@@ -17,5 +17,14 @@ public enum SituacaoPagamento
     /// A cobrança se esgotou na reconciliação sem resposta válida do gateway (REQ-12, FR-012).
     /// Situação interna: não aparece na API nem nos eventos.
     /// </summary>
-    NaoProcessado
+    NaoProcessado,
+
+    /// <summary>
+    /// O pedido foi cancelado com o pagamento aprovado, e o estorno espera o processo de workers
+    /// (REQ-13, R-02). Situação interna: não aparece na API nem nos eventos.
+    /// </summary>
+    EstornoPendente,
+
+    /// <summary>O gateway confirmou o estorno (REQ-13, R-02). Situação interna.</summary>
+    Estornado
 }
