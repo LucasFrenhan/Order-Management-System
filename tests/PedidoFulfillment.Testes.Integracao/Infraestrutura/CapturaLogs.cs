@@ -9,9 +9,9 @@ namespace PedidoFulfillment.Testes.Integracao.Infraestrutura;
 /// </summary>
 public sealed class CapturaLogs : ILoggerProvider
 {
-    private readonly ConcurrentQueue<(string Categoria, EventId Evento, string Texto)> registros = new();
+    private readonly ConcurrentQueue<(string Categoria, EventId Evento, string Texto, LogLevel Nivel)> registros = new();
 
-    public IReadOnlyCollection<(string Categoria, EventId Evento, string Texto)> Registros => registros;
+    public IReadOnlyCollection<(string Categoria, EventId Evento, string Texto, LogLevel Nivel)> Registros => registros;
 
     public IEnumerable<string> Textos => registros.Select(r => r.Texto);
 
@@ -21,7 +21,7 @@ public sealed class CapturaLogs : ILoggerProvider
     {
     }
 
-    private sealed class Logger(string categoria, ConcurrentQueue<(string, EventId, string)> registros) : ILogger
+    private sealed class Logger(string categoria, ConcurrentQueue<(string, EventId, string, LogLevel)> registros) : ILogger
     {
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 
@@ -32,7 +32,7 @@ public sealed class CapturaLogs : ILoggerProvider
             var propriedades = state is IEnumerable<KeyValuePair<string, object?>> pares
                 ? string.Join(" ", pares.Select(p => $"{p.Key}={p.Value}"))
                 : "";
-            registros.Enqueue((categoria, eventId, $"{formatter(state, exception)} {propriedades} {exception}"));
+            registros.Enqueue((categoria, eventId, $"{formatter(state, exception)} {propriedades} {exception}", logLevel));
         }
     }
 }
