@@ -1,6 +1,6 @@
 # Order Management System (OMS)
 
-[![build-testes](https://github.com/LucasFrenhan/Order-Management-System/actions/workflows/build-testes.yml/badge.svg?branch=main)](https://github.com/LucasFrenhan/Order-Management-System/actions/workflows/build-testes.yml)
+[![build-testes](https://github.com/LucasFrenhan/Order-Management-System/actions/workflows/build-testes.yml/badge.svg?event=pull_request)](https://github.com/LucasFrenhan/Order-Management-System/actions/workflows/build-testes.yml)
 
 API de gestão de pedidos em .NET 10, desenvolvida com **Specification-Driven Development**
 (Spec Kit). Toda funcionalidade nasce de uma especificação aprovada em `specs/`, e a
