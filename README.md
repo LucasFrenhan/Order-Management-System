@@ -315,7 +315,8 @@ reprocessamento automáticos estão em
 ## Integração contínua
 
 O workflow [`build-testes`](.github/workflows/build-testes.yml) roda em todo PR para a
-`main` e em todo push nela, com dois jobs em paralelo:
+`main`, e não de novo no merge, porque o código que entra na `main` é o mesmo que o PR já
+verificou. São dois jobs em paralelo:
 
 - **Build e testes**: compila em Release, com avisos como erros, e roda os testes unitários
   e de integração com SQL Server e RabbitMQ reais (Testcontainers). O resumo da execução

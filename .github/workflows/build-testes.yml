@@ -1,11 +1,11 @@
-# Verificação de todo PR e push na main (REQ-07, specs/007-ci-demo): build com avisos como
+# Verificação de todo PR para a main (REQ-07, specs/007-ci-demo): build com avisos como
 # erros, testes unitários e de integração com Docker obrigatório, e a demonstração no ar.
+# Não roda no push da main: o merge leva o mesmo código que o PR já verificou, e rodar de
+# novo só gastaria processamento.
 name: build-testes
 
 on:
   pull_request:
-    branches: [main]
-  push:
     branches: [main]
 
 permissions:
