@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using PedidoFulfillment.Application.Mensageria;
+using PedidoFulfillment.Application.Reconciliacao;
 using PedidoFulfillment.Infrastructure.Configuracao;
 
 namespace PedidoFulfillment.Infrastructure.Mensageria;
@@ -25,7 +26,8 @@ public static class ExtensoesMensageria
     /// <summary>
     /// Registra um consumidor de evento no Worker (REQ-06; issues #8 a #10): o manipulador por
     /// escopo e a base que cuida de fila, novas tentativas, DLQ e duplicados. O descritor põe o
-    /// consumidor na topologia que o despachante declara antes de publicar (REQ-12, R-01).
+    /// consumidor na topologia que o despachante declara antes de publicar (REQ-12, R-01), e a
+    /// regra do manipulador, se for uma etapa do fluxo, fica disponível para a reconciliação (R-04).
     /// </summary>
     public static IServiceCollection AdicionarConsumidor<TManipulador, TDados>(this IServiceCollection services)
         where TManipulador : class, IManipuladorEvento<TDados>
@@ -33,6 +35,11 @@ public static class ExtensoesMensageria
         services.AddScoped<TManipulador>();
         services.AddHostedService<ConsumidorEventos<TManipulador, TDados>>();
         services.AddSingleton<IDescritorConsumidor, DescritorConsumidor<TManipulador, TDados>>();
+        if (typeof(IEtapaFluxoPedido).IsAssignableFrom(typeof(TManipulador)))
+        {
+            services.AddScoped(sp => (IEtapaFluxoPedido)sp.GetRequiredService<TManipulador>());
+        }
+
         return services;
     }
 }

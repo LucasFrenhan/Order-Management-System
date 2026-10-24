@@ -112,13 +112,13 @@ pela T005 (descritor) e depois pela T014 (`IEtapaFluxoPedido`).
 
 ### Testes da US2
 
-- [ ] T007 [P] [US2] Testes de domínio em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PedidoPagamentoNaoProcessadoTestes.cs` (data-model, R-12), com o pedido levado a `AptoParaPagamento` como em `PedidoPagamentoTestes`:
+- [X] T007 [P] [US2] Testes de domínio em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PedidoPagamentoNaoProcessadoTestes.cs` (data-model, R-12), com o pedido levado a `AptoParaPagamento` como em `PedidoPagamentoTestes`:
   - `RegistrarPagamentoNaoProcessado(motivo, produtos, instante)`: pagamento criado com `ValorTotal`, situação `NaoProcessado`, identificador de transação nulo e `ProcessadoEm = instante`; estoque de cada produto devolvido (quantidades conferidas); `EstoqueReservado = false`; status `Cancelado`; histórico com a entrada para `Cancelado`, sem autor, com o motivo aparado (até `TamanhoMaximoMotivo`); `AtualizadoEm = instante`; depois disso `AptoParaPagamento` e `AptoParaOrdemEntrega` falsos;
   - fora de `AptoParaPagamento` (sem reserva, com pagamento, status final) ou com produto ausente no dicionário: `InvalidOperationException` sem alterar nada, como `RecusarPagamento`;
   - em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PagamentoEntregaTestes.cs`: `Pagamento.RegistrarResultado` aceita `NaoProcessado` (sem transação) e continua lançando `ArgumentOutOfRangeException` para `Pendente`.
-- [ ] T008 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Reconciliacao/RegistroFalhasReconciliacaoTestes.cs` (R-06): `RegistrarFalha` devolve 1, 2, 3 para o mesmo pedido e conta pedidos separadamente; `Remover` zera; `Podar(antesDe)` remove só as entradas com `UltimaFalhaEm < antesDe`; `ComFalha` traz as chaves atuais; chamadas concorrentes (`Parallel.For`) não perdem contagem.
-- [ ] T009 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Configuracao/OpcoesReconciliacaoTestes.cs` (R-10), como `OpcoesMensageriaTestes`: padrões (`Habilitada` true, 300, 600, 86 400, 3, 100) válidos; cada faixa nos limites (1 e 86 400; 1 e 604 800; até 2 592 000; 1 e 100; 1 e 1 000) e fora deles; `LimiteEsgotamentoSegundos` igual ou menor que `LimiteParadoSegundos` reprova; várias falhas acumuladas numa só validação.
-- [ ] T010 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Reconciliacao/ServicoReconciliacaoTestes.cs` (data-model, R-06, R-07), com `IEtapaFluxoPedido` falsas por etapa e o armazenamento falso de `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/Falsos.cs` (acrescentar o que faltar para ler produtos e o pedido para alterar):
+- [X] T008 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Reconciliacao/RegistroFalhasReconciliacaoTestes.cs` (R-06): `RegistrarFalha` devolve 1, 2, 3 para o mesmo pedido e conta pedidos separadamente; `Remover` zera; `Podar(antesDe)` remove só as entradas com `UltimaFalhaEm < antesDe`; `ComFalha` traz as chaves atuais; chamadas concorrentes (`Parallel.For`) não perdem contagem.
+- [X] T009 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Configuracao/OpcoesReconciliacaoTestes.cs` (R-10), como `OpcoesMensageriaTestes`: padrões (`Habilitada` true, 300, 600, 86 400, 3, 100) válidos; cada faixa nos limites (1 e 86 400; 1 e 604 800; até 2 592 000; 1 e 100; 1 e 1 000) e fora deles; `LimiteEsgotamentoSegundos` igual ou menor que `LimiteParadoSegundos` reprova; várias falhas acumuladas numa só validação.
+- [X] T010 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Reconciliacao/ServicoReconciliacaoTestes.cs` (data-model, R-06, R-07), com `IEtapaFluxoPedido` falsas por etapa e o armazenamento falso de `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/Falsos.cs` (acrescentar o que faltar para ler produtos e o pedido para alterar):
   - regra devolve `true`: `Recuperado`, entrada removida do registro, `AplicarAsync` chamado com `idOrigem = Guid.Empty`;
   - regra devolve `false`: `NaoMaisParado`, entrada removida;
   - regra lança: `Falhou`, contagem incrementada; o pedido não é gravado;
@@ -129,7 +129,7 @@ pela T005 (descritor) e depois pela T014 (`IEtapaFluxoPedido`).
   - esgotamento e, na releitura, o pedido saiu da etapa (por exemplo, a operação o cancelou ou o estoque foi reservado): `NaoMaisParado`, nada gravado;
   - esgotamento com conflito de concorrência nas 3 tentativas: `Falhou`, entrada mantida;
   - transição para `Cancelado` não permitida por `TransicoesStatusPedido.PermitidaParaOperacao`: `NaoMaisParado`.
-- [ ] T011 [P] [US2] Em `tests/PedidoFulfillment.Testes.Integracao/Reconciliacao/CenarioReconciliacao.cs` e `tests/PedidoFulfillment.Testes.Integracao/Reconciliacao/ReconciliacaoEtapasTestes.cs` (banco e broker reais; `FabricaWorker` com `Reconciliacao:Habilitada=true`, `IntervaloCicloSegundos=1` e `LimiteParadoSegundos=60`; pedido semeado como nos cenários de estoque, pagamento e entrega, sem evento pendente, e `AtualizadoEm` atrasado por SQL):
+- [X] T011 [P] [US2] Em `tests/PedidoFulfillment.Testes.Integracao/Reconciliacao/CenarioReconciliacao.cs` e `tests/PedidoFulfillment.Testes.Integracao/Reconciliacao/ReconciliacaoEtapasTestes.cs` (banco e broker reais; `FabricaWorker` com `Reconciliacao:Habilitada=true`, `IntervaloCicloSegundos=1` e `LimiteParadoSegundos=60`; pedido semeado como nos cenários de estoque, pagamento e entrega, sem evento pendente, e `AtualizadoEm` atrasado por SQL):
   - **entrega** (cenário 1, SC-005): pedido pago em `Processando` sem ordem → `ProntoParaEnvio`, ordem criada, histórico com o motivo do REQ-10 sem autor, `entrega.criada` no outbox válido pelo schema;
   - **estoque** (cenário 2): `Pendente` sem reserva → estoque reservado e `estoque.reservado`; sem estoque → `Cancelado` com `ReservaEstoque.MotivoSemEstoque` e `estoque.insuficiente`;
   - **pagamento** (cenário 3): estoque reservado sem pagamento → aprovado com `pagamento.aprovado` (taxa 100) e recusado com `pagamento.recusado` (taxa 0);
@@ -138,7 +138,7 @@ pela T005 (descritor) e depois pela T014 (`IEtapaFluxoPedido`).
   - **evento original chega depois** (cenário 5): depois da recuperação, publicar o `pagamento.aprovado` original; o consumidor o ignora, sem segunda ordem;
   - **predicados = domínio** (R-05): para cada combinação de status (6), `EstoqueReservado` (2), pagamento (nenhum, `Aprovado`, `Recusado`) e ordem (com e sem), semeada por SQL com `AtualizadoEm` antigo, a etapa devolvida por `IConsultaPedidosParados.ListarAsync` é a esperada pelas propriedades do domínio do pedido carregado (`AptoParaPagamento`, `AptoParaOrdemEntrega`, status não final sem reserva) ou nenhuma; combinações impossíveis para o domínio ficam de fora;
   - **ordem do lote** (FR-011, SC-007): com `TamanhoLote=2` e dois pedidos em `comFalha`, um pedido parado novo vem primeiro em `ListarAsync`.
-- [ ] T012 [P] [US2] Em `tests/PedidoFulfillment.Testes.Integracao/Reconciliacao/EsgotamentoTestes.cs` e `tests/PedidoFulfillment.Testes.Integracao/Reconciliacao/ReconciliacaoConcorrenteTestes.cs` (banco e broker reais):
+- [X] T012 [P] [US2] Em `tests/PedidoFulfillment.Testes.Integracao/Reconciliacao/EsgotamentoTestes.cs` e `tests/PedidoFulfillment.Testes.Integracao/Reconciliacao/ReconciliacaoConcorrenteTestes.cs` (banco e broker reais):
   - **esgotamento do pagamento** (cenário 9): gateway que sempre lança (substituto em `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/ServicosFalsos.cs`), `CiclosFalhaEsgotamento=3`, `LimiteEsgotamentoSegundos=120`, pedido com `AtualizadoEm` de 1 dia atrás; depois de 3 ciclos: pagamento `NaoProcessado` no banco (a check constraint aceita), estoque devolvido, pedido `Cancelado` com o motivo e sem autor, nenhum evento novo no outbox para o pedido;
   - **esgotamento do estoque** (cenário 8): regra de estoque que sempre lança (substituto de `IEtapaFluxoPedido` de estoque) → `Cancelado` com `"Não foi possível reservar o estoque."`, sem evento;
   - **entrega não se esgota** (cenário 11): regra de entrega que sempre lança; depois de 4 ciclos o pedido continua `Processando`;
@@ -150,14 +150,14 @@ pela T005 (descritor) e depois pela T014 (`IEtapaFluxoPedido`).
 
 ### Implementação da US2
 
-- [ ] T013 [P] [US2] Domínio e persistência do pagamento (R-12, data-model):
+- [X] T013 [P] [US2] Domínio e persistência do pagamento (R-12, data-model):
   - `src/PedidoFulfillment.Domain/Pagamentos/SituacaoPagamento.cs`: valor `NaoProcessado` depois de `Recusado`, com XML doc (cobrança esgotada na reconciliação, REQ-12);
   - `src/PedidoFulfillment.Domain/Pagamentos/Pagamento.cs`: `RegistrarResultado` aceita `Aprovado`, `Recusado` e `NaoProcessado`; outro valor continua lançando `ArgumentOutOfRangeException`;
   - `src/PedidoFulfillment.Domain/Pedidos/Pedido.cs`: `void RegistrarPagamentoNaoProcessado(string motivo, IReadOnlyDictionary<Guid, Produto> produtos, DateTimeOffset instante)`, no molde de `RecusarPagamento`: pré-condição `AptoParaPagamento` e todos os produtos presentes, senão `InvalidOperationException` sem alterar nada; cria o `Pagamento` com o `ValorTotal`, registra `NaoProcessado`, `DevolverEstoque`, `MudarStatus(Cancelado, null, motivo, instante)`;
   - migration: `dotnet ef migrations add PagamentoNaoProcessado --project src/PedidoFulfillment.Infrastructure --startup-project src/PedidoFulfillment.API --output-dir Persistencia/Migracoes`; conferir que ela só recria `CK_Pagamentos_SituacaoValida`; acrescentar a migration nova nas listas de `tests/PedidoFulfillment.Testes.Integracao/Persistencia/ModeloSincronizadoTestes.cs` e `MigracaoBancoTestes.cs`.
 
   T007 deve passar.
-- [ ] T014 [US2] Regras dos consumidores como etapas (R-04, FR-017):
+- [X] T014 [US2] Regras dos consumidores como etapas (R-04, FR-017):
   - `src/PedidoFulfillment.Application/Reconciliacao/EtapaFluxoPedido.cs`: `enum EtapaFluxoPedido { Estoque, Pagamento, Entrega }`;
   - `src/PedidoFulfillment.Application/Reconciliacao/IEtapaFluxoPedido.cs`: `EtapaFluxoPedido Etapa { get; }` e `Task<bool> AplicarAsync(Guid idOrigem, Guid pedidoId, CancellationToken ct)`, com XML doc (`true` gravou, `false` não apto, exceção falha);
   - `src/PedidoFulfillment.Application/Estoque/ReservaEstoque.cs`, `src/PedidoFulfillment.Application/Pagamentos/ProcessamentoPagamento.cs` e `src/PedidoFulfillment.Application/Entregas/CriacaoOrdemEntrega.cs`: implementam a interface; o corpo de `ManipularAsync` vira `AplicarAsync` (o identificador do evento nos logs passa a ser `idOrigem`), e `ManipularAsync` só chama `AplicarAsync(evento.IdEvento, evento.Dados.PedidoId, ct)`;
@@ -165,27 +165,27 @@ pela T005 (descritor) e depois pela T014 (`IEtapaFluxoPedido`).
   - acrescentar nos unitários de cada consumidor (`tests/PedidoFulfillment.Testes.Unitarios/Estoque/ReservaEstoqueTestes.cs`, `Pagamentos/ProcessamentoPagamentoTestes.cs`, `Entregas/CriacaoOrdemEntregaTestes.cs`) um caso de `AplicarAsync`: `true` quando grava e `false` quando o pedido não está apto.
 
   Os testes existentes dos três consumidores passam sem mudança de asserção.
-- [ ] T015 [P] [US2] Application da reconciliação (R-05, R-06, R-07, R-11):
+- [X] T015 [P] [US2] Application da reconciliação (R-05, R-06, R-07, R-11):
   - `src/PedidoFulfillment.Application/Reconciliacao/PedidoParado.cs`: `sealed record PedidoParado(Guid PedidoId, EtapaFluxoPedido Etapa, DateTimeOffset AtualizadoEm)`;
   - `src/PedidoFulfillment.Application/Reconciliacao/IConsultaPedidosParados.cs`: `Task<IReadOnlyList<PedidoParado>> ListarAsync(DateTimeOffset paradoAntesDe, int quantidade, IReadOnlyCollection<Guid> comFalha, CancellationToken ct)`, com XML doc da ordem (fora de `comFalha` primeiro, cada grupo por `AtualizadoEm` crescente);
   - `src/PedidoFulfillment.Application/Reconciliacao/RegistroFalhasReconciliacao.cs`: singleton com `ConcurrentDictionary<Guid, (int Falhas, DateTimeOffset UltimaFalhaEm)>`; `int RegistrarFalha(Guid, DateTimeOffset)`, `void Remover(Guid)`, `void Podar(DateTimeOffset antesDe)`, `IReadOnlyCollection<Guid> ComFalha`;
   - `src/PedidoFulfillment.Application/Reconciliacao/EventosReconciliacao.cs`: `LoggerMessage` 9001 `PedidoRecuperado` (Warning: PedidoId, Etapa), 9002 `PedidoEsgotado` (Error: PedidoId, Etapa, Falhas, Motivo), 9003 `FalhaPedidoReconciliacao` (Warning: PedidoId, Etapa, Falhas, Erro), 9004 `ResumoReconciliacao` (dois métodos, Warning e Debug: Estoque, Pagamento, Entrega, Esgotados, Falhas), 9005 `FalhaCicloReconciliacao` (Warning: Erro, Mensagem), 9006 `CicloReconciliacaoIgnorado` (Debug), 9007 `PedidoNaoMaisParado` (Debug: PedidoId, Etapa); só identificadores e contagens (FR-015).
 
   T008 deve passar.
-- [ ] T016 [US2] `src/PedidoFulfillment.Application/Reconciliacao/ServicoReconciliacao.cs` e `ResultadoReconciliacao.cs` (data-model, R-07):
+- [X] T016 [US2] `src/PedidoFulfillment.Application/Reconciliacao/ServicoReconciliacao.cs` e `ResultadoReconciliacao.cs` (data-model, R-07):
   - `enum ResultadoReconciliacao { Recuperado, NaoMaisParado, Falhou, Esgotado }`;
   - constantes `MotivoEstoqueNaoReservado = "Não foi possível reservar o estoque."` e `MotivoPagamentoNaoProcessado = "Não foi possível processar o pagamento."`;
   - `ReconciliarAsync(PedidoParado pedido, DateTimeOffset agora, ParametrosEsgotamento parametros, CancellationToken ct)` (`ParametrosEsgotamento`: `LimiteEsgotamento` e `CiclosFalha`, para o Application não depender das opções do Infrastructure): escolhe a `IEtapaFluxoPedido` da etapa entre as injetadas; `AplicarAsync(Guid.Empty, ...)`; `true` → `Remover`, log 9001, `Recuperado`; `false` → `Remover`, log 9007, `NaoMaisParado`; exceção (exceto `OperationCanceledException` do `ct`) → `RegistrarFalha`, log 9003 e, se as três condições do R-07 valem, esgota;
   - o esgotamento usa o `IArmazenamentoPedidos` do próprio escopo, depois de `DescartarAlteracoes()` (sem `IServiceScopeFactory` no Application, analyze I1), e lê os produtos como o consumidor de pagamento: até 3 tentativas de ler para alterar, conferir a etapa (estoque: status não final e sem reserva, e `TransicoesStatusPedido.PermitidaParaOperacao(status, Cancelado)`; pagamento: `AptoParaPagamento`), aplicar (`MudarStatus` ou `RegistrarPagamentoNaoProcessado`) e salvar sem evento; `ConflitoConcorrenciaException` → descartar e reler; esgotado → `Remover`, log 9002, `Esgotado`; fora da etapa → `Remover`, log 9007, `NaoMaisParado`; 3 conflitos → `Falhou`.
 
   T010 deve passar.
-- [ ] T017 [P] [US2] Opções (R-10): `src/PedidoFulfillment.Infrastructure/Configuracao/OpcoesReconciliacao.cs` com `const string Secao = "Reconciliacao"`, as seis chaves com os padrões e a faixa de cada uma, propriedades `TimeSpan` derivadas, e `ValidadorOpcoesReconciliacao : IValidateOptions<OpcoesReconciliacao>` que acumula as falhas, como `ValidadorOpcoesMensageria`, exigindo `LimiteEsgotamentoSegundos > LimiteParadoSegundos`; em `src/PedidoFulfillment.Worker/appsettings.json`, a seção `Reconciliacao` com os padrões. T009 deve passar.
-- [ ] T018 [US2] Infrastructure da reconciliação (R-05, R-08, R-09). **Primeiro**, em `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/FabricaWorker.cs`, `Reconciliacao:Habilitada=false` por padrão, com um jeito de ligar e ajustar a seção por teste (como a fábrica já faz para a mensageria) e o comentário citando o R-10, para a suíte nunca rodar com a reconciliação ligada sobre pedidos com datas fixas (analyze O1). Depois:
+- [X] T017 [P] [US2] Opções (R-10): `src/PedidoFulfillment.Infrastructure/Configuracao/OpcoesReconciliacao.cs` com `const string Secao = "Reconciliacao"`, as seis chaves com os padrões e a faixa de cada uma, propriedades `TimeSpan` derivadas, e `ValidadorOpcoesReconciliacao : IValidateOptions<OpcoesReconciliacao>` que acumula as falhas, como `ValidadorOpcoesMensageria`, exigindo `LimiteEsgotamentoSegundos > LimiteParadoSegundos`; em `src/PedidoFulfillment.Worker/appsettings.json`, a seção `Reconciliacao` com os padrões. T009 deve passar.
+- [X] T018 [US2] Infrastructure da reconciliação (R-05, R-08, R-09). **Primeiro**, em `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/FabricaWorker.cs`, `Reconciliacao:Habilitada=false` por padrão, com um jeito de ligar e ajustar a seção por teste (como a fábrica já faz para a mensageria) e o comentário citando o R-10, para a suíte nunca rodar com a reconciliação ligada sobre pedidos com datas fixas (analyze O1). Depois:
   - `src/PedidoFulfillment.Infrastructure/Reconciliacao/ConsultaPedidosParados.cs`: `IConsultaPedidosParados` com o `ContextoBancoDados`, `AsNoTracking`; duas consultas (fora e dentro de `comFalha`, a segunda só se sobrar espaço), cada uma ordenada por `AtualizadoEm` e limitada; a etapa por projeção condicional com os predicados do R-05 (estoque: `Status` em `Pendente`, `Processando`, `ProntoParaEnvio` e `!EstoqueReservado`; pagamento: `EstoqueReservado`, `Pagamento == null`, status não final; entrega: `EstoqueReservado`, `Pagamento.Situacao == Aprovado`, `OrdemEntrega == null`, `Processando` ou `ProntoParaEnvio`); conferir o SQL gerado no log de depuração do EF (sem avaliação no cliente);
   - `src/PedidoFulfillment.Infrastructure/Reconciliacao/ReconciliadorPedidos.cs`: `BackgroundService` com `IOptions<OpcoesReconciliacao>`, `TimeProvider`, `IServiceScopeFactory`, `RegistroFalhasReconciliacao` e o logger; se `!Habilitada`, termina sem fazer nada; primeiro ciclo na partida e depois `PeriodicTimer(IntervaloCiclo, timeProvider)`; cada ciclo: abre uma `SqlConnection` própria com a cadeia do banco e chama `sp_getapplock` (`'oms-reconciliacao'`, `Exclusive`, `Session`, timeout 0); retorno negativo → log 9006 e pula; poda o registro com `agora - LimiteEsgotamento`; lista o lote; para cada pedido, um escopo novo e `ServicoReconciliacao.ReconciliarAsync`; conta os resultados por etapa e escreve o 9004 (Warning se houve recuperado ou esgotado, Debug se não); exceção fora do laço → log 9005, sem derrubar o processo; a conexão é fechada no fim do ciclo (libera o lock);
   - `src/PedidoFulfillment.Infrastructure/Reconciliacao/ExtensoesReconciliacao.cs`: `AdicionarReconciliacao()` registra as opções com validação na partida (`ValidateOnStart`), o validador, `RegistroFalhasReconciliacao` (singleton), `IConsultaPedidosParados` e `ServicoReconciliacao` (escopo), `TimeProvider.System` se ainda não registrado e o hosted service;
   - `src/PedidoFulfillment.Worker/ProgramaWorker.cs`: chama `AdicionarReconciliacao()` depois dos consumidores.
-- [ ] T019 [US2] Partida com opção inválida (FR-014, analyze C2): em `tests/PedidoFulfillment.Testes.Integracao/Reconciliacao/ReconciliacaoEtapasTestes.cs`, o Worker com `Reconciliacao:TamanhoLote=0` não sobe (`FalhaPartida`), com a chave na mensagem. Rodar a suíte inteira: T011 e T012 devem passar, e os testes do REQ-06 ao REQ-11 continuam verdes.
+- [X] T019 [US2] Partida com opção inválida (FR-014, analyze C2): em `tests/PedidoFulfillment.Testes.Integracao/Reconciliacao/ReconciliacaoEtapasTestes.cs`, o Worker com `Reconciliacao:TamanhoLote=0` não sobe (`FalhaPartida`), com a chave na mensagem. Rodar a suíte inteira: T011 e T012 devem passar, e os testes do REQ-06 ao REQ-11 continuam verdes.
 
 **Checkpoint**: pedidos parados voltam ao fluxo, e os das etapas de estoque e pagamento se esgotam. Commit `feat(mensageria): reconcilia pedidos parados por evento perdido [REQ-12]`.
 
@@ -199,7 +199,7 @@ pela T005 (descritor) e depois pela T014 (`IEtapaFluxoPedido`).
 
 ### Testes da US3
 
-- [ ] T020 [P] [US3] Em `tests/PedidoFulfillment.Testes.Integracao/Reconciliacao/LogsReconciliacaoTestes.cs`, com `CapturaLogs`:
+- [X] T020 [P] [US3] Em `tests/PedidoFulfillment.Testes.Integracao/Reconciliacao/LogsReconciliacaoTestes.cs`, com `CapturaLogs`:
   - um pedido parado em cada etapa: três 9001 (Warning) com o `PedidoId` e a etapa, e um 9004 (Warning) com `Estoque=1`, `Pagamento=1`, `Entrega=1` (cenários 1 e 2 da US3);
   - ciclo sem pedidos parados: 9004 em Debug, nenhum Warning da faixa 9xxx;
   - esgotamento (reaproveitar o cenário da T012): 9002 (Error) com o `PedidoId`, a etapa e `Falhas=3`; cada falha anterior com 9003 e a contagem (cenário 4);
@@ -208,7 +208,7 @@ pela T005 (descritor) e depois pela T014 (`IEtapaFluxoPedido`).
 
 ### Implementação da US3
 
-- [ ] T022 [US3] Ajustar os campos e níveis dos logs de `EventosReconciliacao` e do 5002 em `DespachanteEventosSaida` ao que T020 e T021 pedirem, sem acrescentar dados pessoais. Rodar a suíte inteira no checkpoint.
+- [X] T022 [US3] Ajustar os campos e níveis dos logs de `EventosReconciliacao` e do 5002 em `DespachanteEventosSaida` ao que T020 e T021 pedirem, sem acrescentar dados pessoais. Rodar a suíte inteira no checkpoint.
 
 **Checkpoint**: a operação vê o que foi recuperado e o que se esgotou. Commit `test(mensageria): confere os logs da reconciliacao e da publicacao sem rota [REQ-12]`.
 
@@ -284,3 +284,16 @@ evita perdas novas; a US2 recupera as antigas.
   (T021 feita junto). O `RabbitMQ.Client` 7.2.2 lançou `PublishReturnException` como previsto
   no R-03. Checkpoint da US1: 734 testes (440 unitários e 294 de integração), todos verdes, sem
   ajuste nos testes existentes.
+- **US2 (2026-10-23)**:
+  - a regra da etapa é o **último** `IEtapaFluxoPedido` registrado (convenção do DI), para os
+    testes de esgotamento substituírem a regra de estoque ou de entrega por uma que sempre falha;
+  - o lock de aplicação é liberado com `sp_releaseapplock` no fim do ciclo: a conexão volta ao
+    pool sem encerrar a sessão, então fechá-la não basta (R-08). O teste do lock ocupado segura o
+    lock numa conexão sem pool;
+  - o resumo 9004 é um método só, com o nível como parâmetro: o gerador de logs não aceita dois
+    métodos com o mesmo nome de evento;
+  - os testes semeiam o pedido parado pelo fluxo real (Worker só de estoque, ou de estoque e
+    pagamento) e "perdem" o evento marcando o outbox como enviado e esvaziando as filas;
+  - `CapturaLogs` passou a guardar o nível do registro (US3).
+- **Checkpoint da US2 e da US3**: 800 testes (482 unitários e 318 de integração), todos verdes;
+  `dotnet format --verify-no-changes` limpo. T022 sem ajuste: os logs já atendiam à T020 e à T021.

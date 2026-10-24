@@ -209,6 +209,22 @@ public sealed class Pedido
     }
 
     /// <summary>
+    /// A cobrança se esgotou na reconciliação (REQ-12, FR-012): registra o pagamento como
+    /// NaoProcessado, devolve o estoque e leva o pedido a Cancelado, sem autor, tudo junto.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">O pedido não está <see cref="AptoParaPagamento"/>, ou falta um produto dos itens.</exception>
+    public void RegistrarPagamentoNaoProcessado(string motivo, IReadOnlyDictionary<Guid, Produto> produtos, DateTimeOffset instante)
+    {
+        var motivoAparado = Guardas.Texto(motivo, HistoricoStatusPedido.TamanhoMaximoMotivo);
+        var pagamento = NovoPagamento(instante);
+        ProdutosDosItens(produtos);
+        pagamento.RegistrarResultado(SituacaoPagamento.NaoProcessado, null, instante);
+        DevolverEstoque(produtos, instante);
+        Pagamento = pagamento;
+        MudarStatus(StatusPedido.Cancelado, null, motivoAparado, instante);
+    }
+
+    /// <summary>
     /// Pode ganhar a ordem de entrega (REQ-10, FR-002, R-02): estoque reservado, pagamento aprovado,
     /// sem ordem e em Processando ou ProntoParaEnvio.
     /// </summary>

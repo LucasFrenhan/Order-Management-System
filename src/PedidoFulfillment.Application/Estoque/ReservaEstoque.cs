@@ -3,6 +3,7 @@ using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Contratos.Eventos;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Pedidos;
+using PedidoFulfillment.Application.Reconciliacao;
 using PedidoFulfillment.Domain.Pedidos;
 
 namespace PedidoFulfillment.Application.Estoque;
@@ -10,10 +11,11 @@ namespace PedidoFulfillment.Application.Estoque;
 /// <summary>
 /// Consumidor de estoque (REQ-08, <c>specs/008-estoque/contracts/consumidor-estoque.md</c>):
 /// reserva o estoque do pedido criado ou, sem estoque, cancela o pedido. Roda dentro da
-/// transação da base de consumo do REQ-06; o resultado sai pelo outbox na mesma gravação.
+/// transação da base de consumo do REQ-06; o resultado sai pelo outbox na mesma gravação. A
+/// reconciliação aplica a mesma regra ao pedido parado sem reserva (REQ-12, R-04).
 /// </summary>
 public sealed class ReservaEstoque(IArmazenamentoPedidos armazenamento, TimeProvider relogio, ILogger<ReservaEstoque> logger)
-    : IManipuladorEvento<PedidoCriado>
+    : IManipuladorEvento<PedidoCriado>, IEtapaFluxoPedido
 {
     /// <summary>Motivo do histórico no cancelamento por falta de estoque (FR-006).</summary>
     public const string MotivoSemEstoque = "Estoque insuficiente.";
@@ -25,24 +27,28 @@ public sealed class ReservaEstoque(IArmazenamentoPedidos armazenamento, TimeProv
 
     public IReadOnlyCollection<string> Tipos { get; } = [TiposEvento.PedidoCriado];
 
+    public EtapaFluxoPedido Etapa => EtapaFluxoPedido.Estoque;
+
+    public Task ManipularAsync(EnvelopeEvento<PedidoCriado> evento, CancellationToken cancellationToken) =>
+        AplicarAsync(evento.IdEvento, evento.Dados.PedidoId, cancellationToken);
+
     /// <summary>
     /// Ler, decidir e gravar, até <see cref="Reavaliacoes"/> vezes em conflito de concorrência
     /// (FR-008). Dentro da transação da base, o savepoint do EF Core desfaz só a tentativa que
     /// perdeu; esgotadas as reavaliações, o conflito vai para as novas tentativas da base (FR-009).
     /// </summary>
-    public async Task ManipularAsync(EnvelopeEvento<PedidoCriado> evento, CancellationToken cancellationToken)
+    public async Task<bool> AplicarAsync(Guid idOrigem, Guid pedidoId, CancellationToken cancellationToken)
     {
         for (var reavaliacao = 1; ; reavaliacao++)
         {
             try
             {
-                await ReservarAsync(evento, cancellationToken);
-                return;
+                return await ReservarAsync(idOrigem, pedidoId, cancellationToken);
             }
             catch (ConflitoConcorrenciaException)
             {
                 armazenamento.DescartarAlteracoes();
-                EventosEstoque.ConflitoNaReserva(logger, evento.IdEvento, evento.Dados.PedidoId, reavaliacao);
+                EventosEstoque.ConflitoNaReserva(logger, idOrigem, pedidoId, reavaliacao);
                 if (reavaliacao == Reavaliacoes)
                 {
                     throw;
@@ -52,16 +58,15 @@ public sealed class ReservaEstoque(IArmazenamentoPedidos armazenamento, TimeProv
     }
 
     /// <summary>Os itens vêm do pedido gravado; o evento só identifica o pedido (FR-003).</summary>
-    private async Task ReservarAsync(EnvelopeEvento<PedidoCriado> evento, CancellationToken cancellationToken)
+    private async Task<bool> ReservarAsync(Guid idOrigem, Guid pedidoId, CancellationToken cancellationToken)
     {
-        var pedidoId = evento.Dados.PedidoId;
         var pedido = await armazenamento.ObterPedidoAsync(pedidoId, paraAlterar: true, cancellationToken)
             ?? throw new InvalidOperationException($"O pedido {pedidoId} não existe.");
         if (EhFinal(pedido.Status) || pedido.EstoqueReservado)
         {
             // Cancelado antes da reserva, já despachado ou reservado por outro evento: nada a fazer (FR-002).
-            EventosEstoque.PedidoIgnoradoNaReserva(logger, evento.IdEvento, pedido.Id, pedido.Status, pedido.EstoqueReservado);
-            return;
+            EventosEstoque.PedidoIgnoradoNaReserva(logger, idOrigem, pedido.Id, pedido.Status, pedido.EstoqueReservado);
+            return false;
         }
 
         var ids = pedido.Itens.Select(i => i.ProdutoId).ToList();
@@ -71,13 +76,14 @@ public sealed class ReservaEstoque(IArmazenamentoPedidos armazenamento, TimeProv
         var faltas = pedido.ReservarEstoque(produtos, agora);
         if (faltas.Count > 0)
         {
-            await CancelarSemEstoqueAsync(evento.IdEvento, pedido, faltas, agora, cancellationToken);
-            return;
+            await CancelarSemEstoqueAsync(idOrigem, pedido, faltas, agora, cancellationToken);
+            return true;
         }
 
         armazenamento.Adicionar(EventoSaida.De(EventoEstoqueReservado(pedido, agora), agora));
         await armazenamento.SalvarAsync(cancellationToken);
-        EventosEstoque.EstoqueReservado(logger, evento.IdEvento, pedido.Id, pedido.Itens.Count);
+        EventosEstoque.EstoqueReservado(logger, idOrigem, pedido.Id, pedido.Itens.Count);
+        return true;
     }
 
     /// <summary>

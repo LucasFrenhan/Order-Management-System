@@ -57,6 +57,29 @@ public sealed class PagamentoEntregaTestes
     }
 
     [Fact]
+    public void RegistrarResultado_aceita_nao_processado_sem_transacao()
+    {
+        var pagamento = new Pagamento(PedidoId, 10m, Instante);
+        var depois = Instante.AddDays(1);
+
+        pagamento.RegistrarResultado(SituacaoPagamento.NaoProcessado, null, depois);
+
+        pagamento.Situacao.Should().Be(SituacaoPagamento.NaoProcessado);
+        pagamento.IdentificadorTransacao.Should().BeNull();
+        pagamento.ProcessadoEm.Should().Be(depois);
+    }
+
+    [Fact]
+    public void RegistrarResultado_continua_recusando_pendente()
+    {
+        var pagamento = new Pagamento(PedidoId, 10m, Instante);
+
+        var registrar = () => pagamento.RegistrarResultado(SituacaoPagamento.Pendente, null, Instante);
+
+        registrar.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
     public void OrdemEntrega_nasce_sem_dados_de_despacho()
     {
         var ordem = new OrdemEntrega(PedidoId, Instante);

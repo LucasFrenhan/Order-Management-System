@@ -3,6 +3,7 @@ using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Contratos.Eventos;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Pedidos;
+using PedidoFulfillment.Application.Reconciliacao;
 using PedidoFulfillment.Domain.Pedidos;
 
 namespace PedidoFulfillment.Application.Pagamentos;
@@ -11,11 +12,12 @@ namespace PedidoFulfillment.Application.Pagamentos;
 /// Consumidor de pagamento (REQ-09, <c>specs/009-pagamento/contracts/consumidor-pagamento.md</c>):
 /// cobra o pedido com estoque reservado e, conforme o gateway, aprova o pagamento ou o recusa
 /// e devolve o estoque. Roda dentro da transação da base de consumo do REQ-06; o resultado sai
-/// pelo outbox na mesma gravação.
+/// pelo outbox na mesma gravação. A reconciliação aplica a mesma regra ao pedido parado sem
+/// cobrança (REQ-12, R-04).
 /// </summary>
 public sealed class ProcessamentoPagamento(
     IArmazenamentoPedidos armazenamento, IGatewayPagamento gateway, TimeProvider relogio, ILogger<ProcessamentoPagamento> logger)
-    : IManipuladorEvento<EstoqueReservado>
+    : IManipuladorEvento<EstoqueReservado>, IEtapaFluxoPedido
 {
     /// <summary>Como <see cref="Estoque.ReservaEstoque"/> (research R-05).</summary>
     private const int Reavaliacoes = 3;
@@ -24,32 +26,37 @@ public sealed class ProcessamentoPagamento(
 
     public IReadOnlyCollection<string> Tipos { get; } = [TiposEvento.EstoqueReservado];
 
+    public EtapaFluxoPedido Etapa => EtapaFluxoPedido.Pagamento;
+
+    public Task ManipularAsync(EnvelopeEvento<EstoqueReservado> evento, CancellationToken cancellationToken) =>
+        AplicarAsync(evento.IdEvento, evento.Dados.PedidoId, cancellationToken);
+
     /// <summary>
     /// Ler, decidir e gravar, até <see cref="Reavaliacoes"/> vezes em conflito de concorrência
     /// (FR-012). O gateway é chamado uma vez só, na primeira leitura em que o pedido está apto, e
     /// o resultado vale para as reavaliações: uma mesma mensagem não sorteia duas vezes (R-05).
     /// Esgotadas as reavaliações, o conflito vai para as novas tentativas da base.
     /// </summary>
-    public async Task ManipularAsync(EnvelopeEvento<EstoqueReservado> evento, CancellationToken cancellationToken)
+    public async Task<bool> AplicarAsync(Guid idOrigem, Guid pedidoId, CancellationToken cancellationToken)
     {
         ResultadoCobranca? resultado = null;
         for (var reavaliacao = 1; ; reavaliacao++)
         {
             try
             {
-                if (await LerAptoAsync(evento, cancellationToken) is not { } pedido)
+                if (await LerAptoAsync(idOrigem, pedidoId, cancellationToken) is not { } pedido)
                 {
-                    return;
+                    return false;
                 }
 
                 resultado ??= await gateway.CobrarAsync(pedido.Id, pedido.ValorTotal, cancellationToken);
-                await AplicarAsync(evento, pedido, resultado, cancellationToken);
-                return;
+                await GravarResultadoAsync(idOrigem, pedido, resultado, cancellationToken);
+                return true;
             }
             catch (ConflitoConcorrenciaException)
             {
                 armazenamento.DescartarAlteracoes();
-                EventosPagamento.ConflitoNoPagamento(logger, evento.IdEvento, evento.Dados.PedidoId, reavaliacao);
+                EventosPagamento.ConflitoNoPagamento(logger, idOrigem, pedidoId, reavaliacao);
                 if (reavaliacao == Reavaliacoes)
                 {
                     throw;
@@ -62,9 +69,8 @@ public sealed class ProcessamentoPagamento(
     /// O pedido atual, se ainda pode ser cobrado; os itens e o valor vêm do pedido gravado, não do
     /// evento (FR-002, FR-006).
     /// </summary>
-    private async Task<Pedido?> LerAptoAsync(EnvelopeEvento<EstoqueReservado> evento, CancellationToken cancellationToken)
+    private async Task<Pedido?> LerAptoAsync(Guid idOrigem, Guid pedidoId, CancellationToken cancellationToken)
     {
-        var pedidoId = evento.Dados.PedidoId;
         var pedido = await armazenamento.ObterPedidoAsync(pedidoId, paraAlterar: true, cancellationToken)
             ?? throw new InvalidOperationException($"O pedido {pedidoId} não existe.");
         if (pedido.AptoParaPagamento)
@@ -73,20 +79,20 @@ public sealed class ProcessamentoPagamento(
         }
 
         // Cancelado antes da cobrança, em status final ou já pago por outro evento: nada a fazer (FR-002).
-        EventosPagamento.PedidoIgnoradoNoPagamento(logger, evento.IdEvento, pedido.Id, pedido.Status, pedido.EstoqueReservado, pedido.Pagamento is not null);
+        EventosPagamento.PedidoIgnoradoNoPagamento(logger, idOrigem, pedido.Id, pedido.Status, pedido.EstoqueReservado, pedido.Pagamento is not null);
         return null;
     }
 
-    private async Task AplicarAsync(EnvelopeEvento<EstoqueReservado> evento, Pedido pedido, ResultadoCobranca resultado, CancellationToken cancellationToken)
+    private async Task GravarResultadoAsync(Guid idOrigem, Pedido pedido, ResultadoCobranca resultado, CancellationToken cancellationToken)
     {
         var agora = relogio.GetUtcNow();
         if (resultado.Aprovado)
         {
-            await AprovarAsync(evento.IdEvento, pedido, resultado.IdentificadorTransacao!, agora, cancellationToken);
+            await AprovarAsync(idOrigem, pedido, resultado.IdentificadorTransacao!, agora, cancellationToken);
         }
         else
         {
-            await RecusarAsync(evento.IdEvento, pedido, resultado.Motivo!, agora, cancellationToken);
+            await RecusarAsync(idOrigem, pedido, resultado.Motivo!, agora, cancellationToken);
         }
     }
 

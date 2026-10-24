@@ -11,5 +11,11 @@ public enum SituacaoPagamento
 {
     Pendente = 1,
     Aprovado,
-    Recusado
+    Recusado,
+
+    /// <summary>
+    /// A cobrança se esgotou na reconciliação sem resposta válida do gateway (REQ-12, FR-012).
+    /// Situação interna: não aparece na API nem nos eventos.
+    /// </summary>
+    NaoProcessado
 }

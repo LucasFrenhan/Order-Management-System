@@ -42,9 +42,9 @@ public sealed class Pagamento
 
     public void RegistrarResultado(SituacaoPagamento situacao, string? identificadorTransacao, DateTimeOffset instante)
     {
-        if (situacao is not (SituacaoPagamento.Aprovado or SituacaoPagamento.Recusado))
+        if (situacao is not (SituacaoPagamento.Aprovado or SituacaoPagamento.Recusado or SituacaoPagamento.NaoProcessado))
         {
-            throw new ArgumentOutOfRangeException(nameof(situacao), situacao, "O resultado deve ser Aprovado ou Recusado.");
+            throw new ArgumentOutOfRangeException(nameof(situacao), situacao, "O resultado deve ser Aprovado, Recusado ou NaoProcessado.");
         }
 
         var transacao = Guardas.TextoOpcional(identificadorTransacao, TamanhoMaximoIdentificadorTransacao);
