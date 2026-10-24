@@ -157,17 +157,71 @@ public sealed class ServicoReconciliacaoTestes
         armazenamento.Gravacoes.Should().Be(0);
     }
 
+    /// <summary>Pago, sem ordem e em Processando: parado na etapa de entrega (REQ-13, US3).</summary>
+    private void PedidoPagoSemOrdem(Action<Pedido>? depois = null) =>
+        armazenamento.GuardarPedido(PedidoId, () =>
+        {
+            var pedido = new Pedido(Guid.CreateVersion7(), "PED-20261021-000001", [(a, 3), (b, 2)], Criacao);
+            typeof(Pedido).GetProperty(nameof(Pedido.Id))!.SetValue(pedido, PedidoId);
+            typeof(Pedido).GetProperty(nameof(Pedido.EstoqueReservado))!.SetValue(pedido, true);
+            pedido.AprovarPagamento("SIM-1", Criacao);
+            depois?.Invoke(pedido);
+            return pedido;
+        });
+
     [Fact]
-    public async Task Entrega_nunca_se_esgota()
+    public async Task Entrega_com_tres_falhas_e_mais_de_24_horas_cancela_com_estorno_pendente_e_estoque_devolvido()
     {
-        PedidoEm(StatusPedido.Processando, reservado: true);
-        FalhasAnteriores(10);
+        // REQ-13, FR-011: a etapa de entrega passou a se esgotar (no REQ-12 ela nunca se esgotava).
+        PedidoPagoSemOrdem();
+        FalhasAnteriores(2);
+
+        var resultado = await Reconciliar(Servico(EtapaFluxoPedido.Entrega, Falha), Parado(EtapaFluxoPedido.Entrega));
+
+        resultado.Should().Be(ResultadoReconciliacao.Esgotado);
+        var pedido = Gravado();
+        pedido.Status.Should().Be(StatusPedido.Cancelado);
+        pedido.Historico.Last().AutorId.Should().BeNull();
+        pedido.Historico.Last().Motivo.Should().Be(ServicoReconciliacao.MotivoOrdemEntregaNaoCriada).And.Be("Não foi possível criar a ordem de entrega.");
+        pedido.Pagamento!.Situacao.Should().Be(SituacaoPagamento.EstornoPendente);
+        pedido.EstoqueReservado.Should().BeFalse();
+        armazenamento.Produtos.Single(p => p.Id == a.Id).QuantidadeEstoque.Should().Be(10);
+        armazenamento.EventosGravados.Should().BeEmpty("não existe evento de cancelamento");
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 9002).Which.Propriedades["Etapa"].Should().Be(EtapaFluxoPedido.Entrega);
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 7005).Which.Propriedades["Origem"]!.ToString().Should().Be("Reconciliacao");
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task Entrega_com_uma_ou_duas_falhas_nao_se_esgota(int falhas)
+    {
+        PedidoPagoSemOrdem();
+        FalhasAnteriores(falhas - 1);
 
         var resultado = await Reconciliar(Servico(EtapaFluxoPedido.Entrega, Falha), Parado(EtapaFluxoPedido.Entrega));
 
         resultado.Should().Be(ResultadoReconciliacao.Falhou);
         armazenamento.Gravacoes.Should().Be(0);
         Gravado().Status.Should().Be(StatusPedido.Processando);
+    }
+
+    [Fact]
+    public async Task Entrega_que_saiu_da_etapa_nao_e_cancelada_nem_estornada()
+    {
+        // A operação despachou o pedido entre a falha e o esgotamento (US3 cenário 5).
+        PedidoPagoSemOrdem(pedido =>
+        {
+            pedido.MudarStatus(StatusPedido.ProntoParaEnvio, Guid.CreateVersion7(), null, Criacao);
+            pedido.RegistrarRastreio("Correios", "BR1", Guid.CreateVersion7(), Criacao);
+        });
+        FalhasAnteriores(2);
+
+        var resultado = await Reconciliar(Servico(EtapaFluxoPedido.Entrega, Falha), Parado(EtapaFluxoPedido.Entrega));
+
+        resultado.Should().Be(ResultadoReconciliacao.NaoMaisParado);
+        armazenamento.Gravacoes.Should().Be(0);
+        Gravado().Pagamento!.Situacao.Should().Be(SituacaoPagamento.Aprovado);
     }
 
     [Fact]

@@ -199,12 +199,12 @@ todas as histórias. Nenhuma regra de cancelamento ainda.
 
 ### Testes da US3
 
-- [ ] T027 [P] [US3] Em `tests/PedidoFulfillment.Testes.Unitarios/Reconciliacao/ServicoReconciliacaoTestes.cs`: a etapa de entrega passa a se esgotar com os mesmos limites (3 falhas e mais de 24 h), chamando `Pedido.Cancelar` sem autor com `MotivoOrdemEntregaNaoCriada`; com 1 ou 2 falhas, não; pedido que saiu da etapa (`AptoParaOrdemEntrega` falso, por exemplo despachado) não é cancelado; os casos de estoque e pagamento continuam como estão. Ajustar o teste do REQ-12 que garantia "entrega nunca se esgota" para o comportamento novo, citando o FR-011 do REQ-13.
-- [ ] T028 [P] [US3] Em `tests/PedidoFulfillment.Testes.Integracao/Reconciliacao/EsgotamentoTestes.cs`, com a regra de entrega substituída por uma que sempre falha (último `IEtapaFluxoPedido` registrado, como no REQ-12): pedido pago sem ordem, com `AtualizadoEm` de 25 h, depois de 3 ciclos fica `Cancelado`, sem autor, com o motivo `Não foi possível criar a ordem de entrega.`, estoque devolvido, pagamento `EstornoPendente`, nenhum evento no outbox; logs 9002 (etapa `Entrega`) e 7005 (origem `Reconciliacao`); com o processador de estornos ligado, o pagamento chega a `Estornado` (US3 cenários 1 e 4). Gateway fora do ar (gateway falso que falha) não impede o cancelamento (cenário 3).
+- [X] T027 [P] [US3] Em `tests/PedidoFulfillment.Testes.Unitarios/Reconciliacao/ServicoReconciliacaoTestes.cs`: a etapa de entrega passa a se esgotar com os mesmos limites (3 falhas e mais de 24 h), chamando `Pedido.Cancelar` sem autor com `MotivoOrdemEntregaNaoCriada`; com 1 ou 2 falhas, não; pedido que saiu da etapa (`AptoParaOrdemEntrega` falso, por exemplo despachado) não é cancelado; os casos de estoque e pagamento continuam como estão. Ajustar o teste do REQ-12 que garantia "entrega nunca se esgota" para o comportamento novo, citando o FR-011 do REQ-13.
+- [X] T028 [P] [US3] Em `tests/PedidoFulfillment.Testes.Integracao/Reconciliacao/EsgotamentoTestes.cs`, com a regra de entrega substituída por uma que sempre falha (último `IEtapaFluxoPedido` registrado, como no REQ-12): pedido pago sem ordem, com `AtualizadoEm` de 25 h, depois de 3 ciclos fica `Cancelado`, sem autor, com o motivo `Não foi possível criar a ordem de entrega.`, estoque devolvido, pagamento `EstornoPendente`, nenhum evento no outbox; logs 9002 (etapa `Entrega`) e 7005 (origem `Reconciliacao`); com o processador de estornos ligado, o pagamento chega a `Estornado` (US3 cenários 1 e 4). Gateway fora do ar (gateway falso que falha) não impede o cancelamento (cenário 3).
 
 ### Implementação da US3
 
-- [ ] T029 [US3] `src/PedidoFulfillment.Application/Reconciliacao/ServicoReconciliacao.cs` (R-06): constante `MotivoOrdemEntregaNaoCriada = "Não foi possível criar a ordem de entrega."`; `esgotavel` inclui `Entrega`; `ContinuaNaEtapa(Entrega) => pedido.AptoParaOrdemEntrega`; `CancelarAsync(Entrega)` lê os produtos para alteração e chama `pedido.Cancelar(null, MotivoOrdemEntregaNaoCriada, produtos, agora)`; depois de gravar, log 7005 (origem `Reconciliacao`). Atualizar o XML doc que dizia que a entrega nunca se esgota. T027 e T028 devem passar.
+- [X] T029 [US3] `src/PedidoFulfillment.Application/Reconciliacao/ServicoReconciliacao.cs` (R-06): constante `MotivoOrdemEntregaNaoCriada = "Não foi possível criar a ordem de entrega."`; `esgotavel` inclui `Entrega`; `ContinuaNaEtapa(Entrega) => pedido.AptoParaOrdemEntrega`; `CancelarAsync(Entrega)` lê os produtos para alteração e chama `pedido.Cancelar(null, MotivoOrdemEntregaNaoCriada, produtos, agora)`; depois de gravar, log 7005 (origem `Reconciliacao`). Atualizar o XML doc que dizia que a entrega nunca se esgota. T027 e T028 devem passar.
 
 **Checkpoint**: commit `feat(reconciliacao): esgota a etapa de entrega com estorno [REQ-13]`.
 
@@ -331,3 +331,9 @@ reconciliação e a US4 protege contra cobrança e estorno repetidos num gateway
   com `canceladaEm` no DTO e no `openapi-v1.yaml`, `ConformidadeOpenApiTestes` continua verde
   sem edição, e a resposta real é conferida em `CancelamentoPedidoPagoTestes` (T024).
   `SerializacaoPedidoTestes` e `ObterPedidoTestes` continuam verdes sem edição.
+- **US3 (2026-10-24)**: os testes do REQ-12 que garantiam "a entrega nunca se esgota"
+  (`ServicoReconciliacaoTestes.Entrega_nunca_se_esgota` e
+  `EsgotamentoTestes.Pedido_pago_cuja_ordem_falha_sempre_nunca_e_cancelado`) foram substituídos
+  pelo comportamento novo (FR-011). O caso "esgotamento × API" da T016 ficou em
+  `EsgotamentoTestes`, que tem os atalhos da reconciliação. Integração da reconciliação: 26 testes
+  verdes.

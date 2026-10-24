@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Logging;
 using PedidoFulfillment.Application.Comum;
+using PedidoFulfillment.Application.Pagamentos;
 using PedidoFulfillment.Application.Pedidos;
+using PedidoFulfillment.Domain.Pagamentos;
 using PedidoFulfillment.Domain.Pedidos;
 
 namespace PedidoFulfillment.Application.Reconciliacao;
@@ -34,6 +36,9 @@ public sealed class ServicoReconciliacao(
     /// <summary>Motivo do histórico no esgotamento da etapa de pagamento (FR-012).</summary>
     public const string MotivoPagamentoNaoProcessado = "Não foi possível processar o pagamento.";
 
+    /// <summary>Motivo do histórico no esgotamento da etapa de entrega (REQ-13, FR-011).</summary>
+    public const string MotivoOrdemEntregaNaoCriada = "Não foi possível criar a ordem de entrega.";
+
     /// <summary>Como os consumidores (R-07).</summary>
     private const int Reavaliacoes = 3;
 
@@ -66,7 +71,8 @@ public sealed class ServicoReconciliacao(
 
     /// <summary>
     /// A falha que completa a contagem é a da tentativa atual: a regra sempre é tentada antes do
-    /// esgotamento. A etapa de entrega nunca se esgota (FR-013).
+    /// esgotamento. Desde o REQ-13 (FR-011), as três etapas se esgotam; a de entrega cancela com
+    /// estorno pendente.
     /// </summary>
     private async Task<ResultadoReconciliacao> TratarFalhaAsync(
         PedidoParado parado, DateTimeOffset agora, ParametrosEsgotamento parametros, Exception excecao, CancellationToken cancellationToken)
@@ -74,8 +80,7 @@ public sealed class ServicoReconciliacao(
         armazenamento.DescartarAlteracoes();
         var falhas = registro.RegistrarFalha(parado.PedidoId, agora);
         EventosReconciliacao.FalhaPedido(logger, parado.PedidoId, parado.Etapa, falhas, Descrever(excecao));
-        var esgotavel = parado.Etapa is EtapaFluxoPedido.Estoque or EtapaFluxoPedido.Pagamento;
-        if (!esgotavel || falhas < parametros.CiclosFalha || parado.AtualizadoEm > agora - parametros.LimiteEsgotamento)
+        if (falhas < parametros.CiclosFalha || parado.AtualizadoEm > agora - parametros.LimiteEsgotamento)
         {
             return ResultadoReconciliacao.Falhou;
         }
@@ -123,6 +128,11 @@ public sealed class ServicoReconciliacao(
                 await armazenamento.SalvarAsync(cancellationToken);
                 registro.Remover(parado.PedidoId);
                 EventosReconciliacao.PedidoEsgotado(logger, parado.PedidoId, parado.Etapa, falhas, motivo);
+                if (pedido.Pagamento?.Situacao == SituacaoPagamento.EstornoPendente)
+                {
+                    EventosPagamento.EstornoSolicitado(logger, pedido.Id, pedido.Pagamento.Valor, OrigemEstorno.Reconciliacao);
+                }
+
                 return ResultadoReconciliacao.Esgotado;
             }
             catch (ConflitoConcorrenciaException) when (reavaliacao < Reavaliacoes)
@@ -137,6 +147,7 @@ public sealed class ServicoReconciliacao(
         EtapaFluxoPedido.Estoque => !pedido.EstoqueReservado
             && TransicoesStatusPedido.PermitidaParaOperacao(pedido.Status, StatusPedido.Cancelado),
         EtapaFluxoPedido.Pagamento => pedido.AptoParaPagamento,
+        EtapaFluxoPedido.Entrega => pedido.AptoParaOrdemEntrega,
         _ => false
     };
 
@@ -150,8 +161,15 @@ public sealed class ServicoReconciliacao(
 
         var ids = pedido.Itens.Select(i => i.ProdutoId).ToList();
         var produtos = (await armazenamento.ObterProdutosAsync(ids, paraAlterar: true, cancellationToken)).ToDictionary(p => p.Id);
-        pedido.RegistrarPagamentoNaoProcessado(MotivoPagamentoNaoProcessado, produtos, agora);
-        return MotivoPagamentoNaoProcessado;
+        if (etapa == EtapaFluxoPedido.Pagamento)
+        {
+            pedido.RegistrarPagamentoNaoProcessado(MotivoPagamentoNaoProcessado, produtos, agora);
+            return MotivoPagamentoNaoProcessado;
+        }
+
+        // Entrega (REQ-13, R-06): o pedido está pago; o cancelamento deixa o estorno pendente.
+        pedido.Cancelar(null, MotivoOrdemEntregaNaoCriada, produtos, agora);
+        return MotivoOrdemEntregaNaoCriada;
     }
 
     private static string Descrever(Exception excecao) => $"{excecao.GetType().Name}: {excecao.Message}";
