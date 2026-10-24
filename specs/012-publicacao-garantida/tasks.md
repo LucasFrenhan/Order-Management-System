@@ -216,14 +216,14 @@ pela T005 (descritor) e depois pela T014 (`IEtapaFluxoPedido`).
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T023 [P] Desempenho do fluxo normal (SC-008): rodar `tests/PedidoFulfillment.Testes.Integracao/Entregas/DesempenhoEntregaTestes.cs` e registrar em Notes o p95 do pedido criado ao `entrega.criada`, comparando com o REQ-10 (meta de 10 s).
-- [ ] T024 [P] Documentação (R-14):
+- [X] T023 [P] Desempenho do fluxo normal (SC-008): rodar `tests/PedidoFulfillment.Testes.Integracao/Entregas/DesempenhoEntregaTestes.cs` e registrar em Notes o p95 do pedido criado ao `entrega.criada`, comparando com o REQ-10 (meta de 10 s).
+- [X] T024 [P] Documentação (R-14):
   - `specs/006-mensageria/spec.md` › Pendências futuras: o item "evento publicado antes de a fila existir" aponta para o REQ-12 (resolvido); limpeza e DLQ continuam pendentes;
   - `specs/010-fulfillment/spec.md` › Assumptions: nota de que o REQ-12 recupera os pedidos pagos sem ordem;
   - `specs/008-estoque/quickstart.md` e `specs/010-fulfillment/quickstart.md`: a nota "só crie pedidos depois de a fila existir" deixa de ser necessária (REQ-12);
   - `README.md`: linha do REQ-12 em **Estado atual**; a seção de configuração `Reconciliacao` com as chaves e os padrões; **Decisões**: filas declaradas pelo despachante, `mandatory` só para tipos com consumidor, reconciliação periódica com esgotamento; **Próximos passos**: o REQ-13 (cancelamento depois do pagamento, com estorno, que resolve a etapa de entrega que falha sempre), a visibilidade dos cancelamentos para outros sistemas, a limpeza e a DLQ (REQ-14) e a #18; **Roteiros de validação**: o quickstart do REQ-12.
-- [ ] T025 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados); registrar a contagem em Notes.
-- [ ] T026 Executar o quickstart (§1 a §4) com a API e o Worker locais e registrar em Notes: broker vazio com `pedido.criado` pendente, fila apagada com o Worker no ar (5002 `SemRota` e fila recriada) e pedido pago sem ordem recuperado (9001, 9004). O §5 é coberto pela T012.
+- [X] T025 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados); registrar a contagem em Notes.
+- [X] T026 Executar o quickstart (§1 a §4) com a API e o Worker locais e registrar em Notes: broker vazio com `pedido.criado` pendente, fila apagada com o Worker no ar (5002 `SemRota` e fila recriada) e pedido pago sem ordem recuperado (9001, 9004). O §5 é coberto pela T012.
 - [ ] T027 Fazer push e abrir o PR com `Closes #26`. Acompanhar o workflow `build-testes` (e os demais do repositório) até ficarem verdes, **inclusive depois de cada push posterior**, e registrar em Notes.
 
 ---
@@ -297,3 +297,29 @@ evita perdas novas; a US2 recupera as antigas.
   - `CapturaLogs` passou a guardar o nível do registro (US3).
 - **Checkpoint da US2 e da US3**: 800 testes (482 unitários e 318 de integração), todos verdes;
   `dotnet format --verify-no-changes` limpo. T022 sem ajuste: os logs já atendiam à T020 e à T021.
+- **T023 (2026-10-23, local)**: `DesempenhoEntregaTestes` com o despachante declarando a
+  topologia e o `mandatory`: p95 do pagamento à entrega de 198 ms e do pedido à entrega de
+  384 ms (máximos de 214 ms e 384 ms). No REQ-10 eram 200 ms e 383 ms: sem diferença (SC-008).
+- **T024**: o `specs/008-estoque/quickstart.md` não tinha a nota "só crie pedidos depois de a
+  fila existir" (ela estava só no quickstart do 010, que foi atualizado). README com a linha
+  do REQ-12, a seção `Reconciliacao`, as decisões e os próximos passos (REQ-13 com o estorno
+  e a etapa de entrega, a visibilidade dos cancelamentos, REQ-14 com limpeza e DLQ, e a #18).
+- **T025 (2026-10-23)**: varredura de segredos sem achados (só as credenciais de
+  desenvolvimento já versionadas e uma senha falsa num teste de partida contra um broker
+  inexistente); `dotnet format --verify-no-changes` limpo; suíte local com 800 testes (482
+  unitários e 318 de integração), zero ignorados com o Docker no ar. Eram 720 na linha de base.
+- **T026 (2026-10-23, quickstart com API e Worker locais, taxa em 100%, ciclo de 10 s e limite
+  parado de 30 s)**:
+  - §2: com o Worker parado, um pedido criado e todas as filas `oms.*` apagadas; ao subir o
+    Worker, as três filas foram criadas e o pedido chegou a `ProntoParaEnvio`;
+  - no primeiro ciclo, a reconciliação recuperou 8 pedidos antigos do banco local, parados
+    desde REQs anteriores (6 no estoque, 1 no pagamento e 1 pago sem ordem): log 9004
+    "recuperados 6 no estoque, 1 no pagamento e 1 na entrega";
+  - §3: com `oms.estoque` apagada e o Worker no ar, o `pedido.criado` falhou com 5002
+    `SemRota` (`UltimoErro = "SemRota: NO_ROUTE"`, tentativa 1); a fila voltou com 1
+    mensagem e 0 consumidores e o evento foi marcado como enviado. Sem consumidor na fila, a
+    reconciliação reservou o estoque (9001, etapa `Estoque`), e o pedido chegou a
+    `ProntoParaEnvio`;
+  - §4: o pedido simulado (ordem apagada, `Processando`, 1 h atrás) foi recuperado no
+    primeiro ciclo (9001, etapa `Entrega`), com uma ordem só; um pedido novo seguiu o fluxo
+    normal. O `sqlcmd` do roteiro precisou de `-I` (índice filtrado), corrigido no quickstart.

@@ -379,8 +379,10 @@ próprio depois:
   - limite de reenvios para não criar ciclo;
   - registro de quem reenviou;
   - alerta quando a DLQ cresce.
-- **Evento publicado antes de a fila do consumidor existir** (encontrado no REQ-08, em
-  2026-10-22, e pedido pelo usuário para tratar depois): num broker vazio, o despachante
+- **Evento publicado antes de a fila do consumidor existir** — **resolvido no
+  [REQ-12](../012-publicacao-garantida/spec.md)** (declaração da topologia pelo despachante,
+  `mandatory` e reconciliação de pedidos parados). Registro original (encontrado no REQ-08,
+  em 2026-10-22, e pedido pelo usuário para tratar depois): num broker vazio, o despachante
   pode publicar um evento pendente antes de o consumidor declarar a fila dele. Como a
   publicação usa `mandatory: false` e a troca não tem fila ligada para aquela chave, a
   mensagem é descartada, embora o outbox a marque como enviada. Em uso normal a fila

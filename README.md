@@ -21,6 +21,7 @@ constituição do projeto fica em [`.specify/memory/constitution.md`](.specify/m
 | REQ-09 — Pagamento assíncrono simulado ([spec](specs/009-pagamento/spec.md)) | Consumidor `pagamento` no Worker: cobra o pedido com estoque reservado num gateway simulado (90% aprova, configurável); aprovado → `Processando` e `pagamento.aprovado`; recusado → `PagamentoRejeitado`, estoque devolvido na mesma gravação e `pagamento.recusado` |
 | REQ-10 — Ordem de entrega assíncrona ([spec](specs/010-fulfillment/spec.md)) | Consumidor `entrega` no Worker: para o pedido pago, cria a ordem de entrega (sem transportadora, rastreio nem data de despacho), muda o pedido para `ProntoParaEnvio` e publica `entrega.criada`; pedido cancelado, despachado ou já com ordem é ignorado |
 | REQ-11 — Rastreio, despacho e histórico na consulta ([spec](specs/011-rastreio/spec.md)) | A resposta do pedido traz o histórico de status (sem o autor) e a entrega; `PATCH /api/v1/pedidos/{id}/rastreio` (Admin e OperadorLogistica) despacha o pedido pronto com transportadora e código de rastreio, ou corrige o rastreio de um despachado; evolução compatível do contrato v1 |
+| REQ-12 — Publicação garantida e reconciliação ([spec](specs/012-publicacao-garantida/spec.md)) | O despachante declara as filas de todos os consumidores antes de publicar e exige rota para os tipos com consumidor (devolvido sem fila, o evento fica pendente); a reconciliação periódica no Worker aplica a regra da etapa aos pedidos parados por evento perdido, inclusive os pagos sem ordem do REQ-10, e cancela os de estoque e pagamento que falham por mais de 24 h |
 
 ## Demonstração rápida
 
@@ -54,17 +55,19 @@ catálogo inicial (`CAT-001` a `CAT-010`).
 ## Próximos passos
 
 Com o REQ-11, as issues de negócio do roteiro original (#1 a #11) estão entregues: o pedido
-vai da criação ao despacho com rastreio. Cada trabalho novo segue o fluxo SDD
-(`/speckit-specify` → `/speckit-clarify` → `/speckit-plan` → `/speckit-tasks` →
-`/speckit-analyze` → `/speckit-implement`), em uma branch `feature/req-XX-...`, com a
-numeração a partir do REQ-12.
+vai da criação ao despacho com rastreio. O REQ-12 fechou a perda silenciosa de eventos. Cada
+trabalho novo segue o fluxo SDD (`/speckit-specify` → `/speckit-clarify` → `/speckit-plan` →
+`/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`), em uma branch
+`feature/req-XX-...`, com a numeração a partir do REQ-13.
 
 | Ordem | Requisito | Origem | Escopo |
 |-------|-----------|--------|--------|
-| 1 | a numerar | [#18](https://github.com/LucasFrenhan/Order-Management-System/issues/18) — SonarQube Cloud | Análise estática de código no CI |
-| 2 | a numerar | [Pendências futuras de mensageria](specs/006-mensageria/spec.md#pendências-futuras) | Evento publicado antes de a fila do consumidor existir (com a recuperação dos pedidos pagos sem ordem), limpeza do outbox e reprocessamento da DLQ |
+| 1 | REQ-13 (a abrir) | Clarify do REQ-09 e do REQ-12 | Cancelamento depois do pagamento: estorno, cancelamento da ordem de entrega e o pedido pago cuja ordem falha sempre na reconciliação (hoje ele segue sendo tentado) |
+| 2 | a decidir | Clarify do REQ-12 | Como outros sistemas ficam sabendo dos cancelamentos (não existe evento de cancelamento; o esgotamento da reconciliação cancela sem evento) |
+| 3 | REQ-14 (a abrir) | [Pendências futuras de mensageria](specs/006-mensageria/spec.md#pendências-futuras) | Limpeza do outbox, dos eventos processados e das chaves de idempotência; reprocessamento da DLQ |
+| 4 | a numerar | [#18](https://github.com/LucasFrenhan/Order-Management-System/issues/18) — SonarQube Cloud | Análise estática de código no CI |
 
-O que os REQ-04 a REQ-11 já deixaram pronto:
+O que os REQ-04 a REQ-12 já deixaram pronto:
 
 - **Armazenamento**: produtos, pedidos com itens e histórico de status, pagamentos e ordens
   de entrega, com as restrições no banco.
@@ -91,19 +94,29 @@ O que os REQ-04 a REQ-11 já deixaram pronto:
 - **Rastreio** (REQ-11): `Pedido.RegistrarRastreio` (despacho, correção ou sem mudança) e
   `OrdemEntrega.CorrigirRastreio`; a política `PoliticaRastreioPedido`; a resposta do pedido
   com `historico` e `entrega` ([contrato do rastreio](specs/011-rastreio/contracts/rastreio-http.md)).
+- **Reconciliação** (REQ-12): os consumidores do fluxo implementam `IEtapaFluxoPedido`, a
+  regra aplicável sem a mensagem; um consumidor novo entra sozinho na topologia declarada
+  pelo despachante ([publicação e reconciliação](specs/012-publicacao-garantida/contracts/publicacao-e-reconciliacao.md)).
 
 Decisões e pontos já conhecidos:
 
 - **Mensageria com RabbitMQ.Client nativo.** As issues #7 a #10 citam MassTransit, mas a
   constituição proíbe frameworks de abstração de mensageria. Retry, DLQ e consumidores são
   implementados sobre o cliente nativo.
+- **Publicação garantida** (REQ-12). A cada canal novo, o despachante declara as filas de
+  todos os consumidores conhecidos, com a mesma função que eles usam. Os tipos com
+  consumidor (`pedido.criado`, `estoque.reservado`, `pagamento.aprovado`) saem com
+  `mandatory`: devolvidos sem fila, ficam pendentes com `UltimoErro = "SemRota: ..."` e a
+  espera crescente, e o canal seguinte recria a fila. Os demais tipos saem como antes.
+- **Reconciliação** (REQ-12). Uma vez por ciclo, só uma instância do Worker (lock de
+  aplicação no SQL Server) procura pedidos parados há mais de 10 min nas etapas de estoque,
+  pagamento e entrega e aplica a regra do consumidor da etapa, com o mesmo evento de saída.
+  Uma falha conta um ciclo, em memória; com 3 ciclos e mais de 24 h parado, o pedido de
+  estoque ou de pagamento é cancelado sem evento (o pagamento fica `NaoProcessado`, situação
+  interna). O pedido pago cuja ordem falha sempre não é cancelado: espera o REQ-13.
 - **Pendências futuras de mensageria**: limpeza do outbox, dos eventos processados e das
-  chaves de idempotência, reprocessamento da DLQ (hoje manual, pelo painel) e o evento
-  descartado quando é publicado antes de a fila do consumidor existir num broker novo
-  (encontrado no REQ-08). Um caso dele: os pedidos pagos antes de a fila `oms.entrega`
-  existir ficam em `Processando` sem ordem de entrega, e o REQ-10 não os recupera. Estão
-  anotadas em [pendências futuras](specs/006-mensageria/spec.md#pendências-futuras), para
-  virar requisito próprio.
+  chaves de idempotência e reprocessamento da DLQ (hoje manual, pelo painel), em
+  [pendências futuras](specs/006-mensageria/spec.md#pendências-futuras).
 - **Mudanças de contrato (Princípio II).** O REQ-11 evoluiu a v1 só com acréscimos: os
   campos `historico` e `entrega` na resposta do pedido e a rota `PATCH .../rastreio`. O
   workflow "Compatibilidade do contrato" (oasdiff) barra mudanças incompatíveis no PR.
@@ -129,7 +142,7 @@ Decisões e pontos já conhecidos:
 - SDK do .NET 10 (`winget install Microsoft.DotNet.SDK.10`)
 - Docker com Compose v2, para o [ambiente local](#ambiente-local) (`winget install Docker.DockerDesktop`)
 
-Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md), [domínio e persistência](specs/004-dominio-persistencia/quickstart.md), [pedidos](specs/005-criacao-pedidos/quickstart.md), [mensageria](specs/006-mensageria/quickstart.md), [CI e demonstração](specs/007-ci-demo/quickstart.md), [estoque](specs/008-estoque/quickstart.md), [pagamento](specs/009-pagamento/quickstart.md), [entrega](specs/010-fulfillment/quickstart.md) e [rastreio](specs/011-rastreio/quickstart.md).
+Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md), [domínio e persistência](specs/004-dominio-persistencia/quickstart.md), [pedidos](specs/005-criacao-pedidos/quickstart.md), [mensageria](specs/006-mensageria/quickstart.md), [CI e demonstração](specs/007-ci-demo/quickstart.md), [estoque](specs/008-estoque/quickstart.md), [pagamento](specs/009-pagamento/quickstart.md), [entrega](specs/010-fulfillment/quickstart.md), [rastreio](specs/011-rastreio/quickstart.md) e [publicação garantida e reconciliação](specs/012-publicacao-garantida/quickstart.md).
 
 ## Ambiente local
 
@@ -264,9 +277,24 @@ Os eventos de domínio trafegam pelo RabbitMQ ([spec](specs/006-mensageria/spec.
   `Processando` para `ProntoParaEnvio` e publica `entrega.criada`
   ([schema](specs/010-fulfillment/contracts/eventos/)), tudo na mesma gravação. Pedido
   cancelado, despachado, sem pagamento aprovado ou já com ordem é ignorado. Pedidos pagos
-  antes de `oms.entrega` existir não ganham ordem (o evento deles foi descartado pelo
-  broker); a recuperação está nas
-  [pendências futuras](specs/006-mensageria/spec.md#pendências-futuras).
+  antes de `oms.entrega` existir ganham a ordem pela reconciliação do REQ-12.
+- **Publicação garantida e reconciliação** (REQ-12, [contrato](specs/012-publicacao-garantida/contracts/publicacao-e-reconciliacao.md)):
+  as filas dos consumidores existem antes da primeira publicação, mesmo num broker novo, e
+  um evento com consumidor nunca é dado como enviado sem chegar a uma fila. Os pedidos
+  parados por evento perdido voltam ao fluxo pela reconciliação, configurada na seção
+  `Reconciliacao` do Worker:
+
+  | Chave | Padrão | Faixa |
+  |---|---|---|
+  | `Habilitada` | `true` | — |
+  | `IntervaloCicloSegundos` | 300 | 1 a 86 400 |
+  | `LimiteParadoSegundos` | 600 | 1 a 604 800 |
+  | `LimiteEsgotamentoSegundos` | 86 400 | maior que `LimiteParadoSegundos`, até 2 592 000 |
+  | `CiclosFalhaEsgotamento` | 3 | 1 a 100 |
+  | `TamanhoLote` | 100 | 1 a 1 000 |
+
+  Fora das faixas, o Worker não sobe. Os logs 9001 a 9007 mostram cada pedido recuperado
+  ou esgotado e o resumo de cada ciclo.
 
 Para rodar localmente, com o [ambiente local](#ambiente-local) no ar e a API já iniciada
 (é ela que aplica as migrations):

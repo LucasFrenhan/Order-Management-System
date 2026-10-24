@@ -48,12 +48,18 @@ Com o Worker no ar, apague `oms.estoque` no painel e crie outro pedido.
 - no log do Worker, `FalhaPublicacao` (5002) com `SemRota` para o `pedido.criado`;
 - `oms.estoque` reaparece logo depois, recriada pelo despachante, e o evento sai na
   tentativa seguinte. Ele fica na fila até o consumidor de estoque voltar a ler; reinicie o
-  Worker para o consumidor se ligar de novo.
+  Worker para o consumidor se ligar de novo;
+- enquanto isso, passado o limite de tempo parado, a reconciliação reserva o estoque do
+  pedido (9001, etapa `Estoque`), e ele segue o fluxo. Quando o consumidor voltar, o
+  `pedido.criado` que ficou na fila é ignorado (pedido já reservado).
+
+`-I` liga o `QUOTED_IDENTIFIER`, exigido pelo índice filtrado de `OrdensEntrega` para apagar
+ou alterar linhas pelo `sqlcmd`.
 
 Para conferir o outbox:
 
 ```powershell
-docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "OmsDev_2026!Local" -d PedidoFulfillment `
+docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd -C -I -S localhost -U sa -P "OmsDev_2026!Local" -d PedidoFulfillment `
   -Q "SELECT TOP 5 Tipo, Tentativas, UltimoErro, EnviadoEm FROM EventosSaida ORDER BY Id DESC"
 ```
 
@@ -70,7 +76,7 @@ Simule o caso do REQ-10: com o Worker parado, pegue um pedido em `ProntoParaEnvi
 ordem dele, volte o status para `Processando` e atrase a última atualização:
 
 ```powershell
-docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "OmsDev_2026!Local" -d PedidoFulfillment `
+docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd -C -I -S localhost -U sa -P "OmsDev_2026!Local" -d PedidoFulfillment `
   -Q "DECLARE @id uniqueidentifier = (SELECT TOP 1 Id FROM Pedidos WHERE Status = 'ProntoParaEnvio' ORDER BY CriadoEm DESC); DELETE FROM OrdensEntrega WHERE PedidoId = @id; UPDATE Pedidos SET Status = 'Processando', AtualizadoEm = DATEADD(hour, -1, SYSUTCDATETIME()) WHERE Id = @id"
 ```
 
