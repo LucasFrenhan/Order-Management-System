@@ -53,7 +53,7 @@ Com o pedido em `ProntoParaEnvio`, numa gravação só:
 
 | Disputa | Resultado | Por quê |
 |---------|-----------|---------|
-| Despacho e cancelamento ao mesmo tempo | Um dos dois vence. Ou o pedido fica `Cancelado` e o despacho responde 409, ou fica `Despachado` e o cancelamento responde 409. Nunca há rastreio num pedido cancelado | Concorrência otimista com releitura |
+| Despacho e cancelamento ao mesmo tempo | Um dos dois vence. Ou o pedido fica `Cancelado`, com a ordem cancelada e o estorno pendente (REQ-13), e o despacho responde 409; ou fica `Despachado` e o cancelamento responde 409, sem estorno. Nunca há rastreio num pedido cancelado | Concorrência otimista com releitura |
 | Dois despachos ao mesmo tempo com códigos diferentes | Os dois respondem 200: o segundo vira uma correção. O histórico tem uma única entrada de despacho | Na releitura, o segundo encontra o pedido já `Despachado` |
 | Despacho e criação da ordem pelo Worker ao mesmo tempo | O índice único de `PedidoId` vira conflito; o despacho relê e grava sobre a ordem do Worker | Uma ordem por pedido |
 

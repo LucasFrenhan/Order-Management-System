@@ -231,19 +231,19 @@ todas as histórias. Nenhuma regra de cancelamento ainda.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T033 [P] Desempenho (SC-007): rodar `tests/PedidoFulfillment.Testes.Integracao/Entregas/DesempenhoEntregaTestes.cs` e registrar em Notes o p95 do pedido criado ao `entrega.criada`, comparando com o REQ-12 (meta de 10 s).
-- [ ] T034 [P] Documentos de fluxo (regra do `CLAUDE.md`), conferindo mensagens, códigos, limites e IDs de log no código e os links relativos:
+- [X] T033 [P] Desempenho (SC-007): rodar `tests/PedidoFulfillment.Testes.Integracao/Entregas/DesempenhoEntregaTestes.cs` e registrar em Notes o p95 do pedido criado ao `entrega.criada`, comparando com o REQ-12 (meta de 10 s).
+- [X] T034 [P] Documentos de fluxo (regra do `CLAUDE.md`), conferindo mensagens, códigos, limites e IDs de log no código e os links relativos:
   - `docs/fluxos/03-consulta-e-mudanca-de-status.md`: cancelamento com estorno pendente e ordem cancelada; `entrega.canceladaEm` no exemplo da consulta; linhas de concorrência "Cancelamento depois do pagamento" e "depois de `ProntoParaEnvio`" com o comportamento novo; logs 7005 e 8004; Limitações sem o item do estorno (#28 no lugar) e com os pedidos antigos sem estorno automático (R-10);
   - `docs/fluxos/05-pagamento.md`: estorno (situações, rodada, nova tentativa, alerta), chave de idempotência por pedido (a pendência da linha "Worker cai depois da decisão" sai, com o #28 no lugar), cobrança aprovada para pedido cancelado (R-07) e a limitação aceita dela; configuração `Estornos`; logs 7005 a 7012; Limitações atualizadas;
   - `docs/fluxos/06-ordem-de-entrega.md`: ordem cancelada; Limitações sem os dois itens do #28;
   - `docs/fluxos/09-reconciliacao.md`: entrega esgotável no diagrama e nas tabelas; Limitações sem o item da entrega;
   - fluxo novo `docs/fluxos/10-estorno.md`, no formato dos demais (caminho feliz, resultados, idempotência e concorrência, falhas externas, configuração, observabilidade, limitações), e uma linha no índice `docs/fluxos/README.md`; o diagrama de estados do pedido no índice não muda (os status são os mesmos), mas a nota de `Cancelado` cita o estorno.
-- [ ] T035 [P] Documentação do projeto:
+- [X] T035 [P] Documentação do projeto:
   - `README.md`: linha do REQ-13 em **Estado atual**; seção de configuração `Estornos`; **Decisões**: estorno assíncrono pelo Worker e chave de idempotência por pedido; **Próximos passos**: #29 (visibilidade dos cancelamentos, agora também dos estornos), #30 (REQ-14) e #18; **Roteiros de validação**: o quickstart do REQ-13;
   - `specs/009-pagamento/spec.md` e `research.md` (R-05): a chave de idempotência pendente aponta para o REQ-13;
   - `specs/012-publicacao-garantida/spec.md` › Assumptions: a pendência da etapa de entrega aponta para o REQ-13.
-- [ ] T036 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados); registrar a contagem em Notes.
-- [ ] T037 Executar o quickstart (§2 e §3) com a API e o Worker locais e registrar em Notes: cancelamento de pedido pago com ordem (200, `canceladaEm`, 7005, 8004 e, em até 1 min, 7006) e estorno com o Worker parado. O §4 é coberto pela T028.
+- [X] T036 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados); registrar a contagem em Notes.
+- [X] T037 Executar o quickstart (§2 e §3) com a API e o Worker locais e registrar em Notes: cancelamento de pedido pago com ordem (200, `canceladaEm`, 7005, 8004 e, em até 1 min, 7006) e estorno com o Worker parado. O §4 é coberto pela T028.
 - [ ] T038 Fazer push e abrir o PR em português (Resumo, Pontos de atenção, Validação) com `Closes #28`, citando em Validação os documentos de fluxo atualizados. Acompanhar o workflow `build-testes` e o `contrato-compatibilidade` até ficarem verdes, **inclusive depois de cada push posterior**, e registrar em Notes.
 
 ---
@@ -341,3 +341,18 @@ reconciliação e a US4 protege contra cobrança e estorno repetidos num gateway
   `ConcurrentDictionary<Guid, Lazy<...>>`. A T031 usa um decorador que "perde" a primeira
   resposta do estorno (Worker que caiu antes de gravar) e, na reconciliação, uma cobrança feita
   antes no mesmo gateway. Checkpoint: 551 unitários e 345 de integração, todos verdes.
+- **T033 (2026-10-24, local)**: p95 do pagamento à entrega de 198 ms e do pedido à entrega de
+  381 ms (máximos de 199 ms e 382 ms). No REQ-12 eram 198 ms e 384 ms: sem diferença (SC-007).
+- **T034**: fluxos 3, 5, 6, 7 e 9 atualizados, fluxo novo `docs/fluxos/10-estorno.md` e linha
+  no índice; o diagrama de estados do pedido não muda (os status são os mesmos), e o índice
+  ganhou a nota do que o `Cancelado` leva junto. Links relativos conferidos por script.
+- **T035**: `README.md` (Estado atual, Próximos passos, configuração `Estornos`, Decisões e
+  roteiros), `specs/009-pagamento` (spec e research) e `specs/012-publicacao-garantida/spec.md`.
+- **T036**: nenhuma credencial no diff; `dotnet format --verify-no-changes` limpo; a suíte
+  inteira rodou no checkpoint da US4, depois da última mudança de código: 551 unitários e 345
+  de integração, zero ignorados (896 no total; 800 na linha de base).
+- **T037 (2026-10-24, local)**: §2: pedido em `ProntoParaEnvio` cancelado pelo operador, 200
+  com `entrega.canceladaEm`; logs 4003, 6005, 7005 e 8004 na API; o Worker confirmou o estorno
+  25 s depois (7006, 7012), com o pagamento `Estornado` e `TentativasEstorno = 0`; o rastreio
+  depois do cancelamento respondeu 409. §3: com o Worker parado, o cancelamento respondeu 200 e
+  o pagamento ficou `EstornoPendente`; ao subir de novo, o Worker estornou na primeira rodada.

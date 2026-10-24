@@ -383,7 +383,8 @@ contagens.
 - **Pendência anotada para o próximo requisito**: o pedido da etapa de entrega que falha
   sempre já está pago; cancelá-lo exige o estorno, que entra no requisito de cancelamento
   depois do pagamento. Até lá, ele segue na reconciliação, e a operação pode despachá-lo
-  pela API.
+  pela API. **Resolvido no REQ-13** (issue #28): a etapa de entrega passou a se esgotar,
+  com estorno pendente (`specs/013-cancelamento-com-estorno`, FR-011).
 - O "tempo parado" é medido pela última atualização do pedido.
 - A reconciliação roda no processo de workers, não na API, e o primeiro ciclo acontece logo
   após a subida.

@@ -202,7 +202,8 @@ pagamento saiu.
 - O processo de workers cai depois de decidir a cobrança, mas antes de gravar: nada fica
   gravado, e a reentrega faz uma nova decisão. Como a simulação não tem efeito externo,
   isso não gera cobrança dupla; um gateway real exigiria chave de idempotência na cobrança
-  (fora do escopo).
+  (fora do escopo). **Resolvido no REQ-13** (issue #28): o pedido é a chave de idempotência
+  da cobrança e do estorno (`specs/013-cancelamento-com-estorno`, research R-03).
 - O processo cai depois de gravar, mas antes de confirmar a mensagem: como o pagamento, a
   mudança de status, a devolução do estoque, o evento de saída e o registro de processado
   são gravados juntos, a reentrega é descartada como duplicada.
