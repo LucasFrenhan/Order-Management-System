@@ -111,7 +111,7 @@ todas as histórias. Nenhuma regra de cancelamento ainda.
   - produto ausente no dicionário com estoque reservado: `InvalidOperationException` sem alterar nada;
   - `AtualizadoEm = instante` em todos os casos que gravam.
 - [ ] T009 [P] [US1] No mesmo arquivo, os métodos de estorno do agregado (data-model): `ConfirmarEstorno(id, instante)` e `RegistrarFalhaEstorno(instante)` delegam ao pagamento e atualizam `AtualizadoEm`; sem pagamento ou fora de `EstornoPendente`: `InvalidOperationException`. `RegistrarCobrancaAposCancelamento(transacao, instante)` (R-07): pedido `Cancelado` sem pagamento ganha pagamento com `ValorTotal`, transação aparada, `Aprovado` e logo `EstornoPendente`; status e histórico não mudam; pedido não cancelado, ou já com pagamento: `InvalidOperationException`.
-- [ ] T010 [P] [US1] Em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosStatusTestes.cs`, com os falsos de `Pedidos/Falsos.cs`: cancelar pedido pago como operação devolve 200, o pedido fica `Cancelado` com o pagamento `EstornoPendente`, o gateway nunca é chamado (o serviço da API nem o recebe) e o log 7005 sai com a origem `Operacao`; Cliente cancelando pedido pago continua 403; conflito seguido de releitura que encontra o pedido pago (a cobrança venceu) pede o estorno na segunda tentativa.
+- [ ] T010 [P] [US1] Em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosStatusTestes.cs`, com os falsos de `Pedidos/Falsos.cs`: cancelar pedido pago como operação devolve 200, o pedido fica `Cancelado` com o pagamento `EstornoPendente`, o gateway nunca é chamado (o serviço da API nem o recebe) e o log 7005 sai com a origem `Operacao`; Cliente cancelando pedido pago continua 403; conflito seguido de releitura que encontra o pedido pago (a cobrança venceu) pede o estorno na segunda tentativa. Em `tests/PedidoFulfillment.Testes.Integracao/Arquitetura/DependenciasCamadasTestes.cs`, um caso que garante que nenhum construtor do `ServicoPedidos` recebe `IGatewayPagamento` e que a API não registra o gateway (SC-006: o cancelamento não depende do gateway).
 - [ ] T011 [P] [US1] Em `tests/PedidoFulfillment.Testes.Unitarios/Pagamentos/ServicoEstornosTestes.cs` (R-04), com armazenamento e gateway falsos e `FakeTimeProvider`:
   - pedido com `EstornoPendente`: chama `EstornarAsync` uma vez, com o `pedidoId`, a transação e o valor da cobrança; confirmado, o pagamento fica `Estornado` e o log 7006 sai;
   - pagamento que já não está `EstornoPendente` (ou pedido inexistente): não chama o gateway e devolve "nada a fazer";
@@ -125,7 +125,7 @@ todas as histórias. Nenhuma regra de cancelamento ainda.
   - operação cancela pedido `Processando` pago: 200 com o mesmo corpo de hoje; no banco, `Cancelado`, estoque dos produtos de volta, pagamento `EstornoPendente`, nenhum evento novo no outbox (US1 cenário 1);
   - pedido `Pendente` sem pagamento: nada de estorno (cenário 4);
   - `PagamentoRejeitado`: 409, nada muda (cenário 5);
-  - Cliente dono cancelando pedido pago: 403 (cenário 7, clarify Q3);
+  - Cliente dono cancelando pedido pago: 403 (cenário 9, clarify Q3);
   - a consulta do pedido cancelado não mostra pagamento nem estorno (clarify Q2).
 - [ ] T015 [P] [US1] Testes de integração em `tests/PedidoFulfillment.Testes.Integracao/Estornos/ProcessamentoEstornosTestes.cs`, com a `FabricaWorker` e `Estornos:Habilitado=true` só aqui:
   - pedido cancelado pago: em até um intervalo curto (`Estornos:IntervaloSegundos=1`), pagamento `Estornado`, com `IdentificadorEstorno` e `EstornadoEm`; logs 7006 e 7012 (cenário 2);
@@ -133,11 +133,12 @@ todas as histórias. Nenhuma regra de cancelamento ainda.
   - Worker fora do ar: o cancelamento pela API funciona e o estorno fica pendente; o Worker sobe e confirma na primeira rodada (Edge Cases);
   - dois Workers ao mesmo tempo: um único `EstornarAsync` para o pedido no gateway falso que conta chamadas, e um único 7006 (FR-005); lock ocupado numa conexão sem pool: o Worker pula a rodada (log 7011), como no REQ-12;
   - os que já falharam vão para o fim do lote: com `TamanhoLote=1`, um pedido que falha sempre e um pendente novo, o novo é confirmado na rodada seguinte;
-  - banco fora (string de conexão inválida no meio): log 7010, sem derrubar o Worker.
+  - falha da rodada inteira: com uma `IConsultaEstornosPendentes` falsa que lança exceção, registrada na `FabricaWorker`, o log 7010 sai e a rodada seguinte roda normalmente, sem derrubar o Worker.
 - [ ] T016 [P] [US1] Testes de integração em `tests/PedidoFulfillment.Testes.Integracao/Estornos/DisputaCancelamentoTestes.cs` (Edge Cases), com sincronização determinística (gateway falso que espera um sinal, como nos testes de disputa do REQ-08):
   - cancelamento × cobrança: cancelamento grava antes → o consumidor não cobra; cobrança grava antes → o cancelamento relê e pede o estorno;
   - cobrança aprovada para pedido cancelado no meio do caminho (R-07): pagamento registrado `EstornoPendente` no pedido `Cancelado`, sem `pagamento.aprovado` no outbox; log 7009;
-  - dois cancelamentos simultâneos do mesmo pedido pago: um 200 e um 409, um único pagamento `EstornoPendente` (US1 cenário 8).
+  - dois cancelamentos simultâneos do mesmo pedido pago: um 200 e um 409, um único pagamento `EstornoPendente` (US1 cenário 8);
+  - esgotamento da entrega pela reconciliação e cancelamento pela API ao mesmo tempo sobre o mesmo pedido (Edge Cases): um dos dois vence, o pedido fica `Cancelado` uma vez, com um único pagamento `EstornoPendente`. Este caso depende da T029 (US3) e entra no checkpoint da US3.
 
 ### Implementação da US1
 
@@ -153,7 +154,7 @@ todas as histórias. Nenhuma regra de cancelamento ainda.
   - `src/PedidoFulfillment.Application/Pagamentos/IConsultaEstornosPendentes.cs`: `Task<IReadOnlyList<Guid>> ListarAsync(int quantidade, CancellationToken)`;
   - `src/PedidoFulfillment.Application/Pagamentos/ServicoEstornos.cs`: decide um pedido (passos 1 a 5 do R-04), com `ParametrosAlertaEstorno(TimeSpan LimiteAlerta, int TentativasAlerta)`; devolve `ResultadoRodadaEstorno` (`Confirmado`, `NadaAFazer`, `Falhou`), para não confundir com o `ResultadoEstorno` do gateway;
   - `src/PedidoFulfillment.Infrastructure/Configuracao/OpcoesEstornos.cs` com `ValidadorOpcoesEstornos` (faixas do R-09, acumulando falhas);
-  - `src/PedidoFulfillment.Infrastructure/Pagamentos/ConsultaEstornosPendentes.cs`: pagamentos `EstornoPendente`, `UltimaFalhaEstornoEm` nulo primeiro, depois por `EstornoSolicitadoEm`, até a quantidade (usa o índice filtrado);
+  - `src/PedidoFulfillment.Infrastructure/Pagamentos/ConsultaEstornosPendentes.cs`: pagamentos `EstornoPendente`, até a quantidade, primeiro os que nunca falharam (`UltimaFalhaEstornoEm` nulo) por `EstornoSolicitadoEm`, depois os que já falharam por `UltimaFalhaEstornoEm` (o tentado há mais tempo primeiro), usando o índice filtrado (R-04);
   - `src/PedidoFulfillment.Infrastructure/Pagamentos/ProcessadorEstornos.cs`: `BackgroundService` com `PeriodicTimer`, primeira rodada na partida, `sp_getapplock 'oms-estornos'` numa conexão própria e `sp_releaseapplock` no fim (como `ReconciliadorPedidos`), um escopo por pedido, resumo 7012 e 7010 na falha da rodada;
   - `src/PedidoFulfillment.Infrastructure/Pagamentos/ExtensoesPagamento.cs`: `AdicionarProcessamentoEstornos()` registra opções validadas na partida, consulta, serviço e hosted service;
   - `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/FabricaWorker.cs`: `Estornos:Habilitado=false` por padrão, antes do registro no Worker;
@@ -303,3 +304,8 @@ reconciliação e a US4 protege contra cobrança e estorno repetidos num gateway
   em outra rodada.
 - **SC-002 e SC-005** decorrem das opções (intervalo da rodada; limite de esgotamento mais 3
   ciclos). Os parâmetros são cobertos pela T013 e o comportamento pela T015 e pela T028.
+- **Analyze (2026-10-24)**: aplicadas as correções I1 (cenário do Cliente renumerado para 9),
+  I2 (FR-003 com limite de alerta próprio), I3 (FR-015: falhas forçadas por gateway falso),
+  C1 (disputa entre reconciliação e API na T016), U1 (ordem da fila de estornos no R-04 e na
+  T021), U2 (conflito ao gravar a falha no R-04), U3 (falha da rodada por consulta falsa na
+  T015) e C2 (dependência da API sem gateway na T010).

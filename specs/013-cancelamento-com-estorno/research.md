@@ -113,9 +113,11 @@ molde do `ReconciliadorPedidos`:
 - uma instância por rodada, com `sp_getapplock 'oms-estornos'` (conexão própria, liberado no
   fim), para o gateway não ser chamado em paralelo para o mesmo pedido;
 - lista até `Estornos:TamanhoLote` (padrão 100) pagamentos `EstornoPendente`, pela consulta
-  nova `IConsultaEstornosPendentes`, ordenados por `UltimaFalhaEstornoEm` nula primeiro e
-  depois por `EstornoSolicitadoEm` (os que nunca falharam vêm antes, como no FR-011 do
-  REQ-12);
+  nova `IConsultaEstornosPendentes`: primeiro os que nunca falharam (`UltimaFalhaEstornoEm`
+  nula), por `EstornoSolicitadoEm`; depois os que já falharam, por `UltimaFalhaEstornoEm`, o
+  tentado há mais tempo primeiro, o que reveza a fila (como no FR-011 do REQ-12). A ordem
+  (`UltimaFalhaEstornoEm`, `EstornoSolicitadoEm`) do índice filtrado atende às duas, porque
+  nulos vêm primeiro no SQL Server;
 - cada pedido num escopo próprio, decidido pelo `ServicoEstornos` (Application):
   1. relê o pedido para alteração; se o pagamento não está mais `EstornoPendente`, nada a
      fazer;
@@ -124,7 +126,9 @@ molde do `ReconciliadorPedidos`:
   4. recusa ou exceção: descarta o que estava rastreado, relê e
      `Pedido.RegistrarFalhaEstorno(agora)`, grava; log de aviso, ou de erro quando
      `agora - EstornoSolicitadoEm > Estornos:LimiteAlertaSegundos` **e**
-     `TentativasEstorno >= Estornos:TentativasAlerta` (padrões 86 400 e 3, FR-003);
+     `TentativasEstorno >= Estornos:TentativasAlerta` (padrões 86 400 e 3, FR-003). Se a
+     gravação da falha der conflito, ela é descartada e a tentativa não é contada (o log 7007
+     sai assim mesmo); a rodada seguinte trata o pedido de novo;
   5. conflito de concorrência ao gravar a confirmação: relê e tenta gravar de novo até 3
      vezes, sem chamar o gateway outra vez (o resultado vale para as reavaliações, como no
      REQ-09). Esgotadas, a próxima rodada chama o gateway de novo, que devolve o mesmo

@@ -104,7 +104,7 @@ o pagamento está "estornado".
 8. **Given** dois cancelamentos do mesmo pedido pago ao mesmo tempo, **When** os dois
    terminam, **Then** o pedido é cancelado uma vez, com um único estorno pendente e um único
    estorno no gateway; o outro recebe a resposta de hoje para um pedido já cancelado (409).
-7. **Given** o Cliente dono de um pedido pago, **When** ele tenta cancelá-lo, **Then** a
+9. **Given** o Cliente dono de um pedido pago, **When** ele tenta cancelá-lo, **Then** a
    resposta continua 403, como hoje: depois do pagamento, cancelar é com a operação.
 
 ---
@@ -259,9 +259,10 @@ transação.
   instante.
 - **FR-003**: Na falha, recusa ou falta de resposta do gateway, o pagamento MUST continuar
   "estorno pendente", e o estorno MUST ser tentado de novo nas rodadas seguintes, sem limite
-  de tentativas. Um estorno pendente há mais que o limite de esgotamento do REQ-12 (padrão
-  24 h) e com pelo menos 3 tentativas falhas MUST gerar um registro de erro a cada nova falha,
-  para a operação agir, sem deixar de ser tentado.
+  de tentativas. Um estorno pendente há mais que um limite de alerta configurável (padrão
+  24 h) e com pelo menos um número configurável de tentativas falhas (padrão 3), os mesmos
+  números do esgotamento do REQ-12, MUST gerar um registro de erro a cada nova falha, para a
+  operação agir, sem deixar de ser tentado.
 - **FR-004**: Cancelar um pedido sem pagamento aprovado (sem pagamento, `Recusado` ou
   `NaoProcessado`) MUST NOT registrar estorno.
 - **FR-005**: O estorno MUST ser feito uma única vez por pedido, mesmo com cancelamentos
@@ -301,9 +302,9 @@ transação.
   cobrança de um pedido (reentrega, nova tentativa ou reconciliação) MUST devolver o mesmo
   resultado e a mesma transação, sem cobrar de novo. O consumidor de pagamento e a
   reconciliação MUST continuar com o comportamento atual.
-- **FR-015**: O gateway simulado MUST honrar as duas chaves e permitir, nos testes, forçar a
-  aprovação, a recusa e a falha do estorno, como já permite na cobrança, sem depender de
-  sorte.
+- **FR-015**: O gateway simulado MUST honrar as duas chaves. Os testes MUST poder forçar a
+  confirmação, a recusa e a falha do estorno sem depender de sorte, trocando o gateway por um
+  falso, como já fazem com a cobrança no REQ-12; o estorno simulado sempre confirma.
 
 **Observabilidade**
 
