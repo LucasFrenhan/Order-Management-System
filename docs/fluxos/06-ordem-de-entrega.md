@@ -2,7 +2,8 @@
 
 **Onde roda**: Worker, consumidor `entrega` (fila `oms.entrega`), ao receber `pagamento.aprovado`.
 **Origem**: REQ-10 ([spec](../../specs/010-fulfillment/spec.md),
-[contrato](../../specs/010-fulfillment/contracts/consumidor-entrega.md)).
+[contrato](../../specs/010-fulfillment/contracts/consumidor-entrega.md)) e REQ-13
+([spec](../../specs/013-cancelamento-com-estorno/spec.md), cancelamento da ordem).
 A base de consumo está no [fluxo 8](08-publicacao-e-consumo-de-eventos.md).
 
 ## Caminho feliz
@@ -40,7 +41,9 @@ Estoque e pagamento nunca mudam neste fluxo.
 
 | Caso | Comportamento |
 |------|---------------|
-| Pedido cancelado pela operação depois de `ProntoParaEnvio` | Permitido; o estoque volta, e a ordem continua registrada, sem despacho (#28) |
+| Pedido cancelado pela operação depois de `ProntoParaEnvio` | Permitido; na mesma gravação, o estoque volta, o estorno fica pendente e a ordem ganha `canceladaEm` (log 8004). Uma ordem cancelada não é despachada: o rastreio de pedido cancelado responde 409 (#28, REQ-13) |
+| Pedido cancelado antes da ordem, com o `pagamento.aprovado` chegando depois | O consumidor o ignora (log 8002): pedido cancelado não ganha ordem |
+| Ordem criada pelo consumidor ao mesmo tempo que o cancelamento | Um dos dois vence. Se a ordem grava antes, o cancelamento relê e cancela a ordem também; se o cancelamento grava antes, a ordem não é criada |
 | Pedido movido pela operação direto para `Despachado` antes da ordem | Status final: o consumidor o ignora. O despacho com rastreio cria a ordem que falta (fluxo 7) |
 | Ordem criada ao mesmo tempo pelo consumidor e pelo despacho | O índice único de `PedidoId` vira conflito de concorrência: um relê o pedido e segue sobre a ordem do outro |
 | Pedido pago antes de a fila `oms.entrega` existir | Antes do REQ-12, ficava em `Processando` sem ordem. Agora a fila é declarada antes de publicar (fluxo 8), e a reconciliação recupera os antigos (fluxo 9) |
@@ -56,10 +59,16 @@ Estoque e pagamento nunca mudam neste fluxo.
 
 ## Observabilidade
 
-Logs 8001 (ordem criada), 8002 (ignorado) e 8003 (conflito).
+Logs 8001 (ordem criada), 8002 (ignorado), 8003 (conflito) e 8004 (ordem cancelada junto com
+o pedido, escrito pela API).
+
+## Pedido cuja ordem falha sempre
+
+Desde o REQ-13 (#28), a reconciliação cancela o pedido pago cuja criação da ordem falha em 3
+ciclos e que está parado há mais de 24 h, com o motivo "Não foi possível criar a ordem de
+entrega.", o estoque devolvido e o estorno pendente (fluxo 9).
 
 ## Limitações
 
-- Pedido pago cuja ordem falha sempre **nunca é cancelado** pela reconciliação: cancelar
-  exigiria estorno (#28). Ele continua sendo tentado, e a operação pode despachá-lo pela API.
-- O cancelamento da ordem de entrega não existe (#28).
+- O cancelamento da ordem não publica evento; a logística externa que leu o `entrega.criada`
+  não fica sabendo (#29).

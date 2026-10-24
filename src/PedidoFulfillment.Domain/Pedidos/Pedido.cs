@@ -225,6 +225,92 @@ public sealed class Pedido
     }
 
     /// <summary>
+    /// Cancela o pedido levando junto o que depende dele, numa gravação (REQ-13, R-01): devolve o
+    /// estoque reservado, pede o estorno do pagamento aprovado e muda o status para Cancelado, com
+    /// o autor (ou sem autor, na reconciliação) e o motivo. O gateway não é chamado aqui: o estorno
+    /// fica pendente para o processo de workers (FR-001). Tudo é validado antes de qualquer mudança.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Status final, ou falta um produto dos itens com estoque reservado.</exception>
+    /// <exception cref="ArgumentException">Motivo acima do tamanho.</exception>
+    public ResultadoCancelamento Cancelar(Guid? autorId, string? motivo, IReadOnlyDictionary<Guid, Produto> produtos, DateTimeOffset instante)
+    {
+        if (!TransicoesStatusPedido.PermitidaParaOperacao(Status, StatusPedido.Cancelado))
+        {
+            throw new InvalidOperationException($"O pedido {Numero} está em {Status} e não pode ser cancelado.");
+        }
+
+        Guardas.TextoOpcional(motivo, HistoricoStatusPedido.TamanhoMaximoMotivo);
+        Guardas.Utc(instante);
+        var devolver = EstoqueReservado;
+        if (devolver)
+        {
+            ProdutosDosItens(produtos);
+        }
+
+        var estornar = Pagamento?.Situacao == SituacaoPagamento.Aprovado;
+        var cancelarOrdem = OrdemEntrega is not null;
+        if (OrdemEntrega is { } ordem && (ordem.DespachadoEm is not null || ordem.CanceladaEm is not null))
+        {
+            throw new InvalidOperationException($"O pedido {Numero} tem a ordem de entrega despachada ou cancelada e não pode ser cancelado.");
+        }
+
+        if (devolver)
+        {
+            DevolverEstoque(produtos, instante);
+        }
+
+        if (estornar)
+        {
+            Pagamento!.SolicitarEstorno(instante);
+        }
+
+        if (cancelarOrdem)
+        {
+            OrdemEntrega!.Cancelar(instante);
+        }
+
+        MudarStatus(StatusPedido.Cancelado, autorId, motivo?.Trim(), instante);
+        return new ResultadoCancelamento(devolver, estornar, cancelarOrdem);
+    }
+
+    /// <summary>
+    /// A cobrança foi aprovada no gateway, mas o pedido foi cancelado antes de ela ser gravada
+    /// (REQ-13, R-07): registra o pagamento aprovado e já pede o estorno, sem mudar o status.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">O pedido não está Cancelado, ou já tem pagamento.</exception>
+    public void RegistrarCobrancaAposCancelamento(string identificadorTransacao, DateTimeOffset instante)
+    {
+        if (Status != StatusPedido.Cancelado || Pagamento is not null)
+        {
+            throw new InvalidOperationException(
+                $"O pedido {Numero} não pode registrar cobrança após o cancelamento: status {Status}, já pago: {Pagamento is not null}.");
+        }
+
+        var transacao = Guardas.Texto(identificadorTransacao, Pagamento.TamanhoMaximoIdentificadorTransacao);
+        var pagamento = new Pagamento(Id, ValorTotal, instante);
+        pagamento.RegistrarResultado(SituacaoPagamento.Aprovado, transacao, instante);
+        pagamento.SolicitarEstorno(instante);
+        Pagamento = pagamento;
+        AtualizadoEm = instante;
+    }
+
+    /// <summary>O gateway confirmou o estorno (REQ-13, FR-002); a versão do pedido muda (R-02).</summary>
+    /// <exception cref="InvalidOperationException">Sem estorno pendente.</exception>
+    public void ConfirmarEstorno(string identificadorEstorno, DateTimeOffset instante)
+    {
+        PagamentoComEstornoPendente().ConfirmarEstorno(identificadorEstorno, instante);
+        AtualizadoEm = instante;
+    }
+
+    /// <summary>Mais uma tentativa de estorno falhou (REQ-13, FR-003); a versão do pedido muda (R-02).</summary>
+    /// <exception cref="InvalidOperationException">Sem estorno pendente.</exception>
+    public void RegistrarFalhaEstorno(DateTimeOffset instante)
+    {
+        PagamentoComEstornoPendente().RegistrarFalhaEstorno(instante);
+        AtualizadoEm = instante;
+    }
+
+    /// <summary>
     /// Pode ganhar a ordem de entrega (REQ-10, FR-002, R-02): estoque reservado, pagamento aprovado,
     /// sem ordem e em Processando ou ProntoParaEnvio.
     /// </summary>
@@ -310,6 +396,11 @@ public sealed class Pedido
             ? new Pagamento(Id, ValorTotal, instante)
             : throw new InvalidOperationException(
                 $"O pedido {Numero} não pode ser cobrado: status {Status}, estoque reservado: {EstoqueReservado}, já pago: {Pagamento is not null}.");
+
+    private Pagamento PagamentoComEstornoPendente() =>
+        Pagamento is { Situacao: SituacaoPagamento.EstornoPendente } pagamento
+            ? pagamento
+            : throw new InvalidOperationException($"O pedido {Numero} não tem estorno pendente.");
 
     private List<(ItemPedido Item, Produto Produto)> ProdutosDosItens(IReadOnlyDictionary<Guid, Produto> produtos)
     {

@@ -39,7 +39,8 @@ internal static class MapeamentoPedido
                 Transportadora = ordem.Transportadora,
                 CodigoRastreio = ordem.CodigoRastreio,
                 DespachadoEm = ordem.DespachadoEm,
-                CriadoEm = ordem.CriadoEm
+                CriadoEm = ordem.CriadoEm,
+                CanceladaEm = ordem.CanceladaEm
             }
             : null
     };

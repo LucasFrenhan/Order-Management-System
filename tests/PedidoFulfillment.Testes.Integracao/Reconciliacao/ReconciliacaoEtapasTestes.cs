@@ -1,8 +1,13 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using PedidoFulfillment.Application.Contratos.Eventos;
+using PedidoFulfillment.Application.Pagamentos;
 using PedidoFulfillment.Application.Reconciliacao;
 using PedidoFulfillment.Domain.Pedidos;
+using PedidoFulfillment.Infrastructure.Configuracao;
+using PedidoFulfillment.Infrastructure.Pagamentos;
 using PedidoFulfillment.Infrastructure.Reconciliacao;
 using PedidoFulfillment.Testes.Integracao.Infraestrutura;
 using PedidoFulfillment.Testes.Integracao.Mensageria;
@@ -131,6 +136,34 @@ public sealed class ReconciliacaoEtapasTestes(MensageriaTeste mensageria)
             (await SituacaoAsync(stringConexao, pedidoId)).Should().Be(situacao);
             (await EventosAsync(stringConexao, pedidoId, evento)).Should().Be(1);
             SchemaEventosTestes.DeveSerValido(evento, await ConteudoAsync(stringConexao, pedidoId, evento)).Should().BeTrue();
+        }
+        finally
+        {
+            await LimparFilasAsync(mensageria);
+        }
+    }
+
+    [Fact]
+    public async Task Cobranca_perdida_e_repetida_pela_reconciliacao_recebe_a_mesma_transacao()
+    {
+        // REQ-13, US4 cenário 4: o consumidor cobrou e não gravou; a reconciliação cobra com a mesma chave.
+        Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
+        var stringConexao = mensageria.NovoBanco();
+        await using var api = Api(stringConexao);
+        var (cliente, _, _) = await ClienteAsync(api);
+        var pedidoId = await ParadoNoPagamentoAsync(mensageria, stringConexao, cliente);
+        await EnvelhecerAsync(stringConexao, pedidoId, UmaHora);
+        var gateway = new GatewayPagamentoSimulado(Options.Create(new OpcoesGatewayPagamento { TaxaAprovacaoPercentual = 100 }));
+        var perdida = await gateway.CobrarAsync(pedidoId, 0m, TestContext.Current.CancellationToken);
+
+        try
+        {
+            await using var worker = WorkerReconciliando(mensageria, stringConexao,
+                servicos: servicos => servicos.AddSingleton<IGatewayPagamento>(gateway));
+            worker.CreateClient().Dispose();
+
+            (await EsperarStatusAsync(stringConexao, pedidoId, "Processando", Prazo)).Should().BeTrue();
+            (await TransacaoAsync(stringConexao, pedidoId)).Should().Be(perdida.IdentificadorTransacao, "sem segunda cobrança");
         }
         finally
         {

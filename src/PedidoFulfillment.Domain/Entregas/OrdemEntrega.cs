@@ -34,9 +34,27 @@ public sealed class OrdemEntrega
 
     public DateTimeOffset? DespachadoEm { get; private set; }
 
+    /// <summary>Preenchido no cancelamento do pedido, só se a ordem não foi despachada (REQ-13, FR-008).</summary>
+    public DateTimeOffset? CanceladaEm { get; private set; }
+
     public DateTimeOffset CriadoEm { get; private set; }
 
     public DateTimeOffset AtualizadoEm { get; private set; }
+
+    /// <summary>Cancela a ordem junto com o pedido (REQ-13, FR-008); uma ordem despachada não é cancelada.</summary>
+    /// <exception cref="InvalidOperationException">A ordem foi despachada ou já está cancelada.</exception>
+    public void Cancelar(DateTimeOffset instante)
+    {
+        Guardas.Utc(instante);
+        if (DespachadoEm is not null || CanceladaEm is not null)
+        {
+            throw new InvalidOperationException(
+                $"A ordem de entrega do pedido {PedidoId} não pode ser cancelada: despachada: {DespachadoEm is not null}, já cancelada: {CanceladaEm is not null}.");
+        }
+
+        CanceladaEm = instante;
+        AtualizadoEm = instante;
+    }
 
     public void RegistrarDespacho(string transportadora, string codigoRastreio, DateTimeOffset instante)
     {

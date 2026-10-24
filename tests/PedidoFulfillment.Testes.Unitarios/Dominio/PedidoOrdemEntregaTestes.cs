@@ -155,6 +155,33 @@ public sealed class PedidoOrdemEntregaTestes
         pedido.OrdemEntrega.Should().BeSameAs(primeira);
     }
 
+    [Fact]
+    public void Cancelar_a_ordem_preenche_o_instante_do_cancelamento()
+    {
+        // REQ-13, R-05.
+        var ordem = PedidoPago().CriarOrdemEntrega(Entrega);
+        var cancelamento = Entrega.AddMinutes(5);
+
+        ordem.Cancelar(cancelamento);
+
+        ordem.CanceladaEm.Should().Be(cancelamento);
+        ordem.AtualizadoEm.Should().Be(cancelamento);
+    }
+
+    [Fact]
+    public void Ordem_despachada_ou_ja_cancelada_nao_pode_ser_cancelada()
+    {
+        var despachada = PedidoPago().CriarOrdemEntrega(Entrega);
+        despachada.RegistrarDespacho("Correios", "BR1", Entrega.AddMinutes(1));
+        var cancelada = PedidoPago().CriarOrdemEntrega(Entrega);
+        cancelada.Cancelar(Entrega.AddMinutes(1));
+
+        ((Action)(() => despachada.Cancelar(Entrega.AddMinutes(2)))).Should().Throw<InvalidOperationException>();
+        ((Action)(() => cancelada.Cancelar(Entrega.AddMinutes(2)))).Should().Throw<InvalidOperationException>();
+        despachada.CanceladaEm.Should().BeNull();
+        cancelada.CanceladaEm.Should().Be(Entrega.AddMinutes(1));
+    }
+
     private static void CriacaoFalhaSemAlterar(Pedido pedido)
     {
         var ordem = pedido.OrdemEntrega;

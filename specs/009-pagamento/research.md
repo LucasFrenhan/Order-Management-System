@@ -99,7 +99,8 @@
   depois de uma falha técnica faz nova cobrança simulada, o que é aceitável só porque a
   simulação não tem efeito externo (Edge Cases).
 - **Alternativas**: chave de idempotência na cobrança. Adiada: só faz sentido com um
-  gateway real.
+  gateway real. **Adotada no REQ-13** (issue #28, research R-03): o pedido é a chave da
+  cobrança e do estorno.
 
 ## R-06. Leitura do pedido com o pagamento e dos produtos só na recusa
 

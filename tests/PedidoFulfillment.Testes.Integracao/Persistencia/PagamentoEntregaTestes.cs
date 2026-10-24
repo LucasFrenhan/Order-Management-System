@@ -38,6 +38,53 @@ public sealed class PagamentoEntregaTestes(BancoDadosTeste banco)
     }
 
     [Fact]
+    public async Task Estorno_do_pagamento_e_gravado_e_lido_com_todos_os_campos()
+    {
+        Assert.SkipUnless(banco.DockerDisponivel, "Docker indisponível");
+        var (stringConexao, pedidoId) = await PedidoGravadoAsync();
+        var pagamento = new Pagamento(pedidoId, 99.90m, DadosPersistencia.Instante);
+        pagamento.RegistrarResultado(SituacaoPagamento.Aprovado, "TX-1", Depois);
+        pagamento.SolicitarEstorno(Depois.AddMinutes(1));
+        pagamento.RegistrarFalhaEstorno(Depois.AddMinutes(2));
+        await GravarAsync(stringConexao, pagamento);
+
+        await using (var contexto = BancoDadosTeste.NovoContexto(stringConexao))
+        {
+            var pendente = (await contexto.Pedidos.Include(p => p.Pagamento).SingleAsync(Cancelamento)).Pagamento!;
+            pendente.Situacao.Should().Be(SituacaoPagamento.EstornoPendente);
+            pendente.EstornoSolicitadoEm.Should().Be(Depois.AddMinutes(1));
+            pendente.TentativasEstorno.Should().Be(1);
+            pendente.UltimaFalhaEstornoEm.Should().Be(Depois.AddMinutes(2));
+            pendente.ConfirmarEstorno("SIM-EST-1", Depois.AddMinutes(3));
+            await contexto.SaveChangesAsync(Cancelamento);
+        }
+
+        await using var leitura = BancoDadosTeste.NovoContexto(stringConexao);
+        var estornado = await leitura.Set<Pagamento>().SingleAsync(Cancelamento);
+        estornado.Situacao.Should().Be(SituacaoPagamento.Estornado);
+        estornado.IdentificadorEstorno.Should().Be("SIM-EST-1");
+        estornado.EstornadoEm.Should().Be(Depois.AddMinutes(3));
+        estornado.IdentificadorTransacao.Should().Be("TX-1");
+        (await BancoDadosTeste.ConsultarAsync<string>(stringConexao, "SELECT Situacao FROM Pagamentos")).Should().Be("Estornado");
+    }
+
+    [Fact]
+    public async Task Pagamento_antigo_ganha_zero_tentativas_e_ordem_aceita_o_instante_do_cancelamento()
+    {
+        Assert.SkipUnless(banco.DockerDisponivel, "Docker indisponível");
+        var (stringConexao, pedidoId) = await PedidoGravadoAsync();
+        await GravarAsync(stringConexao, new Pagamento(pedidoId, 10m, DadosPersistencia.Instante));
+        await GravarAsync(stringConexao, new OrdemEntrega(pedidoId, DadosPersistencia.Instante));
+
+        await BancoDadosTeste.ExecutarAsync(stringConexao, "UPDATE OrdensEntrega SET CanceladaEm = '2026-10-24T12:00:00+00:00'");
+
+        (await BancoDadosTeste.ConsultarAsync<int>(stringConexao, "SELECT TentativasEstorno FROM Pagamentos")).Should().Be(0);
+        await using var leitura = BancoDadosTeste.NovoContexto(stringConexao);
+        (await leitura.OrdensEntrega.SingleAsync(Cancelamento)).CanceladaEm
+            .Should().Be(new DateTimeOffset(2026, 10, 24, 12, 0, 0, TimeSpan.Zero));
+    }
+
+    [Fact]
     public async Task Segundo_pagamento_do_mesmo_pedido_e_recusado()
     {
         Assert.SkipUnless(banco.DockerDisponivel, "Docker indisponível");
@@ -122,8 +169,9 @@ public sealed class PagamentoEntregaTestes(BancoDadosTeste banco)
     }
 
     [Theory]
-    [InlineData("UPDATE Pagamentos SET Situacao = N'Estornado'", "CK_Pagamentos_SituacaoValida")]
+    [InlineData("UPDATE Pagamentos SET Situacao = N'Cancelado'", "CK_Pagamentos_SituacaoValida")]
     [InlineData("UPDATE Pagamentos SET Valor = -1", "CK_Pagamentos_ValorNaoNegativo")]
+    [InlineData("UPDATE Pagamentos SET TentativasEstorno = -1", "CK_Pagamentos_TentativasEstornoNaoNegativas")]
     public async Task Pagamento_invalido_gravado_por_fora_do_dominio_e_recusado(string sql, string restricao)
     {
         Assert.SkipUnless(banco.DockerDisponivel, "Docker indisponível");

@@ -173,5 +173,8 @@ public sealed class PedidoIgnoradoNoPagamentoTestes(MensageriaTeste mensageria)
     private sealed class GatewayFixo(ResultadoCobranca resultado) : IGatewayPagamento
     {
         public Task<ResultadoCobranca> CobrarAsync(Guid pedidoId, decimal valor, CancellationToken cancellationToken) => Task.FromResult(resultado);
+
+        public Task<ResultadoEstorno> EstornarAsync(Guid pedidoId, string identificadorTransacao, decimal valor, CancellationToken cancellationToken) =>
+            Task.FromResult(ResultadoEstorno.Confirmar("SIM-EST-FIXO"));
     }
 }

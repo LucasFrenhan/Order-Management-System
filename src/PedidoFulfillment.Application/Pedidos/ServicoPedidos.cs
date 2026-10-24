@@ -5,8 +5,10 @@ using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Contratos.Erros;
 using PedidoFulfillment.Application.Contratos.Eventos;
 using PedidoFulfillment.Application.Contratos.Pedidos;
+using PedidoFulfillment.Application.Entregas;
 using PedidoFulfillment.Application.Estoque;
 using PedidoFulfillment.Application.Mensageria;
+using PedidoFulfillment.Application.Pagamentos;
 using PedidoFulfillment.Domain.Pedidos;
 using PedidoFulfillment.Domain.Produtos;
 using PedidoFulfillment.Domain.Usuarios;
@@ -108,8 +110,10 @@ public sealed class ServicoPedidos(
     /// <summary>
     /// Aplica a tabela de transições (FR-016, FR-017). Se o pedido mudou desde a leitura, a
     /// mudança é reavaliada sobre o estado atual, até <see cref="TentativasStatus"/> vezes (FR-019).
-    /// O cancelamento de um pedido com estoque reservado devolve o estoque na mesma gravação; a
-    /// releitura depois de um conflito decide a corrida com a reserva do worker (REQ-08, R-05).
+    /// O cancelamento passa por <see cref="Pedido.Cancelar"/>: devolve o estoque reservado (REQ-08)
+    /// e deixa o estorno do pagamento aprovado pendente para o processo de workers, na mesma
+    /// gravação e sem chamar o gateway (REQ-13, R-01). A releitura depois de um conflito decide a
+    /// corrida com o worker (REQ-08, R-05): se a cobrança venceu, o cancelamento pede o estorno.
     /// </summary>
     public async Task<Resultado<PedidoResponseDTO>> AtualizarStatusAsync(
         Guid pedidoId, Guid usuarioId, IReadOnlyCollection<PerfilUsuario> perfis, AtualizarStatusPedidoRequestDTO atualizacao, CancellationToken cancellationToken)
@@ -130,15 +134,23 @@ public sealed class ServicoPedidos(
             }
 
             var agora = relogio.GetUtcNow();
-            var devolver = atualizacao.Status == StatusPedido.Cancelado && pedido.EstoqueReservado;
-            if (devolver)
+            ResultadoCancelamento? cancelamento = null;
+            if (atualizacao.Status == StatusPedido.Cancelado)
             {
-                var ids = pedido.Itens.Select(i => i.ProdutoId).ToList();
-                var produtos = (await armazenamento.ObterProdutosAsync(ids, paraAlterar: true, cancellationToken)).ToDictionary(p => p.Id);
-                pedido.DevolverEstoque(produtos, agora);
+                var produtos = new Dictionary<Guid, Produto>();
+                if (pedido.EstoqueReservado)
+                {
+                    var ids = pedido.Itens.Select(i => i.ProdutoId).ToList();
+                    produtos = (await armazenamento.ObterProdutosAsync(ids, paraAlterar: true, cancellationToken)).ToDictionary(p => p.Id);
+                }
+
+                cancelamento = pedido.Cancelar(usuarioId, atualizacao.Motivo, produtos, agora);
+            }
+            else
+            {
+                pedido.MudarStatus(atualizacao.Status, usuarioId, atualizacao.Motivo?.Trim(), agora);
             }
 
-            pedido.MudarStatus(atualizacao.Status, usuarioId, atualizacao.Motivo?.Trim(), agora);
             try
             {
                 await armazenamento.SalvarAsync(cancellationToken);
@@ -149,9 +161,19 @@ public sealed class ServicoPedidos(
                 continue;
             }
 
-            if (devolver)
+            if (cancelamento?.EstoqueDevolvido == true)
             {
                 EventosEstoque.EstoqueDevolvido(logger, pedido.Id, pedido.Itens.Count);
+            }
+
+            if (cancelamento?.OrdemCancelada == true)
+            {
+                EventosEntrega.OrdemEntregaCancelada(logger, pedido.Id);
+            }
+
+            if (cancelamento?.EstornoSolicitado == true)
+            {
+                EventosPagamento.EstornoSolicitado(logger, pedido.Id, pedido.Pagamento!.Valor, OrigemEstorno.Operacao);
             }
 
             EventosPedidos.StatusPedidoAlterado(logger, pedido.Id, anterior, pedido.Status, operacao ? "Operacao" : "Cliente");

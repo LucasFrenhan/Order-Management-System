@@ -9,13 +9,14 @@ verdade: estes documentos as consolidam por fluxo, de ponta a ponta.
 |---|-------|-----------|------|
 | 1 | [Autenticação](01-autenticacao.md) | API | 01, 03 |
 | 2 | [Criação de pedido](02-criacao-de-pedido.md) | API | 01, 04, 05 |
-| 3 | [Consulta e mudança de status](03-consulta-e-mudanca-de-status.md) | API | 05, 08, 11 |
+| 3 | [Consulta e mudança de status](03-consulta-e-mudanca-de-status.md) | API | 05, 08, 11, 13 |
 | 4 | [Reserva de estoque](04-reserva-de-estoque.md) | Worker | 08 |
-| 5 | [Pagamento](05-pagamento.md) | Worker | 09 |
-| 6 | [Ordem de entrega](06-ordem-de-entrega.md) | Worker | 10 |
+| 5 | [Pagamento](05-pagamento.md) | Worker | 09, 13 |
+| 6 | [Ordem de entrega](06-ordem-de-entrega.md) | Worker | 10, 13 |
 | 7 | [Despacho e rastreio](07-despacho-e-rastreio.md) | API | 11 |
 | 8 | [Publicação de eventos e consumo](08-publicacao-e-consumo-de-eventos.md) | Worker | 06, 12 |
-| 9 | [Reconciliação de pedidos parados](09-reconciliacao.md) | Worker | 12 |
+| 9 | [Reconciliação de pedidos parados](09-reconciliacao.md) | Worker | 12, 13 |
+| 10 | [Estorno](10-estorno.md) | Worker | 13 |
 
 ## O pedido de ponta a ponta
 
@@ -44,7 +45,7 @@ sequenceDiagram
 
 O fluxo automático vai da criação até `ProntoParaEnvio`. O despacho é sempre feito pela
 operação. A reconciliação (fluxo 9) cobre os pedidos que param no meio porque um evento se
-perdeu.
+perdeu. Quando um pedido pago é cancelado, o estorno (fluxo 10) devolve o valor ao Cliente.
 
 ## Estados do pedido
 
@@ -71,8 +72,11 @@ stateDiagram-v2
 - **O pagamento é cobrado em qualquer status não final** com estoque reservado e sem
   pagamento. Por isso, um pedido que a operação moveu para `Processando` ou `ProntoParaEnvio`
   antes da cobrança ainda pode ir para `PagamentoRejeitado` (REQ-09, clarify).
-- **Esgotamento**: cancelamento feito pela reconciliação quando a regra da etapa de estoque
-  ou de pagamento falha por mais de 24 h (fluxo 9).
+- **Esgotamento**: cancelamento feito pela reconciliação quando a regra da etapa de estoque,
+  de pagamento ou de entrega falha por mais de 24 h (fluxo 9).
+- **`Cancelado` leva junto** o estoque reservado (devolvido), o pagamento aprovado (estorno
+  pendente, fluxo 10) e a ordem de entrega sem despacho (cancelada), na mesma gravação
+  (REQ-13).
 
 ## Convenções de erro da API
 
@@ -98,6 +102,6 @@ SQL, dados de conexão ou senhas.
 | SQL Server (Worker) | O Worker sobe; o despacho, o consumo e a reconciliação falham por ciclo e são tentados de novo | Despacho e reconciliação tentam no próximo ciclo; a mensagem consumida vai para as novas tentativas e, no fim, para a DLQ |
 | RabbitMQ (API) | Não afeta: a API não fala com o broker | Não afeta: os eventos ficam pendentes no outbox |
 | RabbitMQ (Worker) | O Worker sobe; a prontidão (`/health/pronto`) mostra o broker indisponível; consumidores e despachante se conectam quando ele voltar | Os eventos ficam pendentes no outbox, com espera crescente até 10 s entre tentativas |
-| Gateway de pagamento | — | A cobrança falha: novas tentativas, DLQ e, se o pedido continuar parado, a reconciliação |
+| Gateway de pagamento | — | A cobrança falha: novas tentativas, DLQ e, se o pedido continuar parado, a reconciliação. O estorno fica pendente e é tentado a cada rodada; o cancelamento não depende do gateway |
 
 Cada documento detalha a sua parte.

@@ -87,8 +87,77 @@ public sealed class EsgotamentoTestes(MensageriaTeste mensageria)
     }
 
     [Fact]
-    public async Task Pedido_pago_cuja_ordem_falha_sempre_nunca_e_cancelado()
+    public async Task Pedido_pago_cuja_ordem_falha_sempre_se_esgota_com_estorno_e_estoque_devolvido()
     {
+        // REQ-13, US3 cenários 1 e 4 (no REQ-12, este pedido nunca era cancelado).
+        Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
+        var stringConexao = mensageria.NovoBanco();
+        await using var api = Api(stringConexao);
+        var (cliente, _, _) = await ClienteAsync(api);
+        var pedidoId = await ParadoNaEntregaAsync(mensageria, stringConexao, cliente);
+        await EnvelhecerAsync(stringConexao, pedidoId, UmDia);
+        var eventosAntes = await BancoDadosTeste.ConsultarAsync<int>(stringConexao, "SELECT COUNT(*) FROM EventosSaida");
+        using var logs = new CapturaLogs();
+        var configuracoes = new Dictionary<string, string?>(Esgotamento) { ["Estornos:Habilitado"] = "true", ["Estornos:IntervaloSegundos"] = "1" };
+
+        try
+        {
+            await using var worker = WorkerReconciliando(mensageria, stringConexao, logs, configuracoes, RegraQueFalha(EtapaFluxoPedido.Entrega));
+            worker.CreateClient().Dispose();
+
+            (await EsperarStatusAsync(stringConexao, pedidoId, "Cancelado", Prazo)).Should().BeTrue("REQ-13, FR-011");
+            (await UltimoMotivoSemAutorAsync(stringConexao, pedidoId)).Should().Be("Não foi possível criar a ordem de entrega.");
+            (await ReservadoAsync(stringConexao, pedidoId)).Should().BeFalse();
+            (await EstoqueAsync(stringConexao, Cat001)).Should().Be(50);
+            (await BancoDadosTeste.ConsultarAsync<int>(stringConexao, "SELECT COUNT(*) FROM EventosSaida")).Should().Be(eventosAntes, "não existe evento de cancelamento");
+            logs.Registros.Should().ContainSingle(r => r.Evento.Id == 9002).Which.Texto.Should().Contain("Entrega");
+            logs.Registros.Should().ContainSingle(r => r.Evento.Id == 7005).Which.Texto.Should().Contain("Reconciliacao");
+            (await MensageriaTeste.EsperarAteAsync(async () => await SituacaoAsync(stringConexao, pedidoId) == "Estornado", Prazo))
+                .Should().BeTrue("o processador de estornos estorna o pedido cancelado pela reconciliação");
+        }
+        finally
+        {
+            await LimparFilasAsync(mensageria);
+        }
+    }
+
+    [Fact]
+    public async Task Esgotamento_da_entrega_com_o_gateway_fora_do_ar_cancela_e_deixa_o_estorno_pendente()
+    {
+        // US3 cenário 3: o cancelamento não depende do gateway.
+        Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
+        var stringConexao = mensageria.NovoBanco();
+        await using var api = Api(stringConexao);
+        var (cliente, _, _) = await ClienteAsync(api);
+        var pedidoId = await ParadoNaEntregaAsync(mensageria, stringConexao, cliente);
+        await EnvelhecerAsync(stringConexao, pedidoId, UmDia);
+        var configuracoes = new Dictionary<string, string?>(Esgotamento) { ["Estornos:Habilitado"] = "true", ["Estornos:IntervaloSegundos"] = "1" };
+
+        try
+        {
+            await using var worker = WorkerReconciliando(mensageria, stringConexao, configuracoes: configuracoes, servicos: servicos =>
+            {
+                RegraQueFalha(EtapaFluxoPedido.Entrega)(servicos);
+                servicos.AddSingleton<IGatewayPagamento, GatewayQueFalha>();
+            });
+            worker.CreateClient().Dispose();
+
+            (await EsperarStatusAsync(stringConexao, pedidoId, "Cancelado", Prazo)).Should().BeTrue();
+            (await MensageriaTeste.EsperarAteAsync(
+                async () => await BancoDadosTeste.ConsultarAsync<int>(stringConexao, $"SELECT TentativasEstorno FROM Pagamentos WHERE PedidoId = '{pedidoId}'") >= 1, Prazo))
+                .Should().BeTrue();
+            (await SituacaoAsync(stringConexao, pedidoId)).Should().Be("EstornoPendente");
+        }
+        finally
+        {
+            await LimparFilasAsync(mensageria);
+        }
+    }
+
+    [Fact]
+    public async Task Esgotamento_da_entrega_e_cancelamento_pela_API_ao_mesmo_tempo_cancelam_uma_vez()
+    {
+        // Edge Cases do REQ-13 (C1 do analyze): um dos dois vence; um único estorno pendente.
         Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
         var stringConexao = mensageria.NovoBanco();
         await using var api = Api(stringConexao);
@@ -101,11 +170,16 @@ public sealed class EsgotamentoTestes(MensageriaTeste mensageria)
         {
             await using var worker = WorkerReconciliando(mensageria, stringConexao, logs, Esgotamento, RegraQueFalha(EtapaFluxoPedido.Entrega));
             worker.CreateClient().Dispose();
+            (await EsperarLogsAsync(logs, 9003, quantidade: 2)).Should().BeTrue();
 
-            (await EsperarLogsAsync(logs, 9003, quantidade: 5)).Should().BeTrue();
-            (await StatusAsync(stringConexao, pedidoId)).Should().Be("Processando", "FR-013");
-            (await SituacaoAsync(stringConexao, pedidoId)).Should().Be("Aprovado");
-            logs.Registros.Should().NotContain(r => r.Evento.Id == 9002);
+            var resposta = await MudarStatusAsync(await OperadorAsync(api), pedidoId, "Cancelado", "Cancelado na corrida.");
+
+            resposta.StatusCode.Should().BeOneOf(System.Net.HttpStatusCode.OK, System.Net.HttpStatusCode.Conflict);
+            (await EsperarStatusAsync(stringConexao, pedidoId, "Cancelado", Prazo)).Should().BeTrue();
+            (await EsperarLogsAsync(logs, 9004, quantidade: logs.Registros.Count(r => r.Evento.Id == 9004) + 2)).Should().BeTrue("mais ciclos depois do cancelamento");
+            (await SituacaoAsync(stringConexao, pedidoId)).Should().Be("EstornoPendente");
+            (await BancoDadosTeste.ConsultarAsync<int>(stringConexao,
+                $"SELECT COUNT(*) FROM HistoricosStatusPedido WHERE PedidoId = '{pedidoId}' AND StatusNovo = 'Cancelado'")).Should().Be(1);
         }
         finally
         {
@@ -179,6 +253,9 @@ public sealed class EsgotamentoTestes(MensageriaTeste mensageria)
     private sealed class GatewayQueFalha : IGatewayPagamento
     {
         public Task<ResultadoCobranca> CobrarAsync(Guid pedidoId, decimal valor, CancellationToken cancellationToken) =>
+            throw new TimeoutException("Gateway de pagamento sem resposta.");
+
+        public Task<ResultadoEstorno> EstornarAsync(Guid pedidoId, string identificadorTransacao, decimal valor, CancellationToken cancellationToken) =>
             throw new TimeoutException("Gateway de pagamento sem resposta.");
     }
 }

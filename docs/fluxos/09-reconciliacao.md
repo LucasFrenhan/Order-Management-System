@@ -3,7 +3,8 @@
 **Onde roda**: Worker, serviço `ReconciliadorPedidos`, periódico e automático.
 **Origem**: REQ-12 ([spec](../../specs/012-publicacao-garantida/spec.md),
 [contrato](../../specs/012-publicacao-garantida/contracts/publicacao-e-reconciliacao.md),
-[research](../../specs/012-publicacao-garantida/research.md)).
+[research](../../specs/012-publicacao-garantida/research.md)) e REQ-13
+([spec](../../specs/013-cancelamento-com-estorno/spec.md), esgotamento da etapa de entrega).
 
 ## Para que serve
 
@@ -28,8 +29,8 @@ flowchart TD
     E -- gravou --> F[Recuperado, log 9001]
     E -- não estava mais apto --> G[Nada muda, log 9007]
     E -- falhou --> H[Conta 1 ciclo, log 9003]
-    H --> I{3 ciclos e mais de 24 h, etapa estoque ou pagamento?}
-    I -- sim --> J[Esgotado: cancela sem evento, log 9002]
+    H --> I{3 ciclos e mais de 24 h?}
+    I -- sim --> J[Esgotado: cancela sem evento, log 9002; na entrega, estorno pendente]
     I -- não --> K[Tenta no próximo ciclo, no fim da fila]
     F & G & J & K --> L[Resumo do ciclo, log 9004]
 ```
@@ -60,7 +61,7 @@ warn: ReconciliadorPedidos[9004] Reconciliação: recuperados 0 no estoque, 0 no
 | Recusa do gateway | **Não** é falha: é o resultado normal (`PagamentoRejeitado`) | — |
 | Estoque: 3 ciclos com falha e parado há mais de 24 h | `Cancelado`, sem autor, "Não foi possível reservar o estoque.", sem evento | Um pedido não fica parado para sempre |
 | Pagamento: 3 ciclos com falha e parado há mais de 24 h | Pagamento `NaoProcessado`, estoque devolvido e `Cancelado`, sem autor, "Não foi possível processar o pagamento.", sem evento | Libera o estoque preso |
-| Entrega: qualquer número de falhas | **Nunca é cancelado**; segue sendo tentado, no fim da fila | O pedido está pago; cancelar exige estorno (#28) |
+| Entrega: 3 ciclos com falha e parado há mais de 24 h | Estoque devolvido, pagamento `EstornoPendente` e `Cancelado`, sem autor, "Não foi possível criar a ordem de entrega.", sem evento; o Worker estorna depois (fluxo 10), logs 9002 e 7005 (origem `Reconciliacao`) | O pedido está pago: cancelar exige o estorno, que o REQ-13 trouxe (#28) |
 | Mais de 24 h, mas só 1 ou 2 ciclos com falha | Não é cancelado | Uma falha isolada num pedido antigo não basta |
 | Pedido saiu da etapa entre a falha e o esgotamento | Não é cancelado | O esgotamento relê o pedido e confere a etapa antes de cancelar |
 
@@ -77,6 +78,7 @@ cancelado sem uma última tentativa.
 | Ciclos repetidos sobre o mesmo pedido | Um efeito só | A regra relê e decide pelo domínio |
 | Lote cheio de pedidos que falham sempre | Os pedidos que já falharam vão para o fim do lote; um pedido parado novo é tratado no ciclo seguinte | Evita que falhas permanentes travem a fila |
 | Worker reiniciado | A contagem de falhas recomeça | Fica em memória: o esgotamento é só adiado, nunca antecipado |
+| Esgotamento da entrega e cancelamento pela API ao mesmo tempo | Um dos dois vence; o pedido é cancelado uma vez, com um único estorno pendente | Concorrência otimista; o esgotamento relê o pedido e confere a etapa antes de cancelar |
 
 ## Falhas externas
 
@@ -84,7 +86,7 @@ cancelado sem uma última tentativa.
 |-------|---------------|
 | Banco fora do ar | O ciclo termina com o log 9005 e é tentado no próximo intervalo, sem derrubar o Worker |
 | Broker fora do ar | Não afeta: a reconciliação só grava no banco. Os eventos de saída esperam no outbox |
-| Gateway fora do ar | Falha do pedido; contagem e esgotamento como acima |
+| Gateway fora do ar | Falha do pedido na etapa de pagamento; contagem e esgotamento como acima. O esgotamento da entrega não chama o gateway: o pedido é cancelado e só o estorno espera |
 
 ## Configuração (seção `Reconciliacao`, validada na partida)
 
@@ -118,5 +120,4 @@ se perdeu: vale investigar a causa (DLQ, broker, consumidor parado).
 ## Limitações
 
 - O cancelamento por esgotamento não publica evento (#29).
-- O pedido pago cuja ordem falha sempre continua sendo tentado até o #28.
-- A situação `NaoProcessado` é interna: não aparece na API.
+- As situações `NaoProcessado`, `EstornoPendente` e `Estornado` são internas: não aparecem na API.

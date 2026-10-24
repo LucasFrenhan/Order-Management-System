@@ -217,6 +217,9 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                     b.Property<DateTimeOffset>("AtualizadoEm")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<DateTimeOffset?>("CanceladaEm")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<string>("CodigoRastreio")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)")
@@ -259,6 +262,16 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                     b.Property<DateTimeOffset>("CriadoEm")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<DateTimeOffset?>("EstornadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("EstornoSolicitadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("IdentificadorEstorno")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<string>("IdentificadorTransacao")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -274,6 +287,12 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<int>("TentativasEstorno")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("UltimaFalhaEstornoEm")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<decimal>("Valor")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -283,9 +302,15 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                     b.HasIndex("PedidoId")
                         .IsUnique();
 
+                    b.HasIndex("UltimaFalhaEstornoEm", "EstornoSolicitadoEm")
+                        .HasDatabaseName("IX_Pagamentos_EstornoPendente")
+                        .HasFilter("[Situacao] = N'EstornoPendente'");
+
                     b.ToTable("Pagamentos", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Pagamentos_SituacaoValida", "[Situacao] IN (N'Pendente', N'Aprovado', N'Recusado', N'NaoProcessado')");
+                            t.HasCheckConstraint("CK_Pagamentos_SituacaoValida", "[Situacao] IN (N'Pendente', N'Aprovado', N'Recusado', N'NaoProcessado', N'EstornoPendente', N'Estornado')");
+
+                            t.HasCheckConstraint("CK_Pagamentos_TentativasEstornoNaoNegativas", "[TentativasEstorno] >= 0");
 
                             t.HasCheckConstraint("CK_Pagamentos_ValorNaoNegativo", "[Valor] >= 0");
                         });
