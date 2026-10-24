@@ -218,12 +218,12 @@ todas as histórias. Nenhuma regra de cancelamento ainda.
 
 ### Testes da US4
 
-- [ ] T030 [P] [US4] Em `tests/PedidoFulfillment.Testes.Unitarios/Pagamentos/GatewayPagamentoSimuladoTestes.cs`: com `Random` de semente e taxa 50, a segunda `CobrarAsync` do mesmo pedido devolve o mesmo resultado (aprovação com a mesma transação, ou a mesma recusa), e pedidos diferentes sorteiam separadamente; `EstornarAsync` repetido devolve o mesmo identificador de estorno; chamadas concorrentes para o mesmo pedido (`Task.WhenAll`) devolvem um único resultado (US4 cenários 1 e 2).
-- [ ] T031 [P] [US4] Teste de integração em `tests/PedidoFulfillment.Testes.Integracao/Estornos/ProcessamentoEstornosTestes.cs` (US4 cenário 3), com um armazenamento que falha na gravação da primeira confirmação: o gateway simulado confirma, a gravação falha, a rodada seguinte recebe o mesmo `IdentificadorEstorno` e o pagamento fica `Estornado` uma vez. Em `tests/PedidoFulfillment.Testes.Integracao/Reconciliacao/ReconciliacaoEtapasTestes.cs` (cenário 4): o consumidor cobra e "perde" a gravação; a reconciliação cobra o mesmo pedido e recebe a mesma transação.
+- [X] T030 [P] [US4] Em `tests/PedidoFulfillment.Testes.Unitarios/Pagamentos/GatewayPagamentoSimuladoTestes.cs`: com `Random` de semente e taxa 50, a segunda `CobrarAsync` do mesmo pedido devolve o mesmo resultado (aprovação com a mesma transação, ou a mesma recusa), e pedidos diferentes sorteiam separadamente; `EstornarAsync` repetido devolve o mesmo identificador de estorno; chamadas concorrentes para o mesmo pedido (`Task.WhenAll`) devolvem um único resultado (US4 cenários 1 e 2).
+- [X] T031 [P] [US4] Teste de integração em `tests/PedidoFulfillment.Testes.Integracao/Estornos/ProcessamentoEstornosTestes.cs` (US4 cenário 3), com um armazenamento que falha na gravação da primeira confirmação: o gateway simulado confirma, a gravação falha, a rodada seguinte recebe o mesmo `IdentificadorEstorno` e o pagamento fica `Estornado` uma vez. Em `tests/PedidoFulfillment.Testes.Integracao/Reconciliacao/ReconciliacaoEtapasTestes.cs` (cenário 4): o consumidor cobra e "perde" a gravação; a reconciliação cobra o mesmo pedido e recebe a mesma transação.
 
 ### Implementação da US4
 
-- [ ] T032 [US4] `src/PedidoFulfillment.Infrastructure/Pagamentos/GatewayPagamentoSimulado.cs` (R-03): dois `ConcurrentDictionary<Guid, ...>` (`GetOrAdd` com `Lazy` para concorrência), um para a cobrança e um para o estorno, por `pedidoId`; XML doc com a limitação da memória perdida no reinício (spec, Assumptions). T030 e T031 devem passar.
+- [X] T032 [US4] `src/PedidoFulfillment.Infrastructure/Pagamentos/GatewayPagamentoSimulado.cs` (R-03): dois `ConcurrentDictionary<Guid, ...>` (`GetOrAdd` com `Lazy` para concorrência), um para a cobrança e um para o estorno, por `pedidoId`; XML doc com a limitação da memória perdida no reinício (spec, Assumptions). T030 e T031 devem passar.
 
 **Checkpoint**: commit `feat(pagamentos): torna a cobranca e o estorno idempotentes por pedido no gateway [REQ-13]`.
 
@@ -337,3 +337,7 @@ reconciliação e a US4 protege contra cobrança e estorno repetidos num gateway
   pelo comportamento novo (FR-011). O caso "esgotamento × API" da T016 ficou em
   `EsgotamentoTestes`, que tem os atalhos da reconciliação. Integração da reconciliação: 26 testes
   verdes.
+- **US4 (2026-10-24)**: o gateway simulado guarda os resultados por pedido em
+  `ConcurrentDictionary<Guid, Lazy<...>>`. A T031 usa um decorador que "perde" a primeira
+  resposta do estorno (Worker que caiu antes de gravar) e, na reconciliação, uma cobrança feita
+  antes no mesmo gateway. Checkpoint: 551 unitários e 345 de integração, todos verdes.

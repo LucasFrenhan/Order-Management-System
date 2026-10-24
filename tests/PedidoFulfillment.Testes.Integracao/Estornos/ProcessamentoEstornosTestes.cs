@@ -1,7 +1,9 @@
 using FluentAssertions;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using PedidoFulfillment.Application.Pagamentos;
+using PedidoFulfillment.Infrastructure.Configuracao;
 using PedidoFulfillment.Infrastructure.Pagamentos;
 using PedidoFulfillment.Testes.Integracao.Infraestrutura;
 using static PedidoFulfillment.Testes.Integracao.Estornos.CenarioEstorno;
@@ -198,6 +200,44 @@ public sealed class ProcessamentoEstornosTestes(MensageriaTeste mensageria)
 
         (await EsperarLogsAsync(logs, 7010, quantidade: 2)).Should().BeTrue("a falha não derruba o Worker, e a próxima rodada tenta de novo");
         logs.Registros.First(r => r.Evento.Id == 7010).Texto.Should().Contain("InvalidOperationException");
+    }
+
+    [Fact]
+    public async Task Estorno_confirmado_e_perdido_antes_da_gravacao_recebe_o_mesmo_estorno_na_rodada_seguinte()
+    {
+        // REQ-13, US4 cenário 3: o gateway simulado é idempotente por pedido.
+        Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
+        var (stringConexao, pedidoId) = await CanceladoPagoAsync();
+        var gateway = new GatewayQuePerdeAPrimeiraResposta(new GatewayPagamentoSimulado(Options.Create(new OpcoesGatewayPagamento())));
+
+        await using var worker = WorkerEstornando(mensageria, stringConexao, servicos: Com(gateway));
+        worker.CreateClient().Dispose();
+
+        (await EsperarSituacaoAsync(stringConexao, pedidoId, "Estornado")).Should().BeTrue();
+        gateway.PrimeiraResposta.Should().NotBeNull();
+        (await BancoDadosTeste.ConsultarAsync<string>(stringConexao, $"SELECT IdentificadorEstorno FROM Pagamentos WHERE PedidoId = '{pedidoId}'"))
+            .Should().Be(gateway.PrimeiraResposta!.IdentificadorEstorno, "a segunda chamada devolve o mesmo estorno");
+    }
+
+    /// <summary>Repassa ao gateway real, mas "perde" a primeira resposta do estorno, como um Worker que caiu antes de gravar.</summary>
+    private sealed class GatewayQuePerdeAPrimeiraResposta(IGatewayPagamento interno) : IGatewayPagamento
+    {
+        public ResultadoEstorno? PrimeiraResposta { get; private set; }
+
+        public Task<ResultadoCobranca> CobrarAsync(Guid pedidoId, decimal valor, CancellationToken cancellationToken) =>
+            interno.CobrarAsync(pedidoId, valor, cancellationToken);
+
+        public async Task<ResultadoEstorno> EstornarAsync(Guid pedidoId, string identificadorTransacao, decimal valor, CancellationToken cancellationToken)
+        {
+            var resposta = await interno.EstornarAsync(pedidoId, identificadorTransacao, valor, cancellationToken);
+            if (PrimeiraResposta is null)
+            {
+                PrimeiraResposta = resposta;
+                throw new IOException("Conexão perdida depois da confirmação do gateway.");
+            }
+
+            return resposta;
+        }
     }
 
     private sealed class ConsultaQueFalha : IConsultaEstornosPendentes

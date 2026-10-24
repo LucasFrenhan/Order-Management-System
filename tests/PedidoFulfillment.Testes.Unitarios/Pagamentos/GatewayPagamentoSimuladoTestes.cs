@@ -68,6 +68,54 @@ public sealed class GatewayPagamentoSimuladoTestes
     }
 
     [Fact]
+    public async Task A_mesma_cobranca_repetida_devolve_o_mesmo_resultado_sem_novo_sorteio()
+    {
+        // REQ-13, FR-014: o pedido é a chave de idempotência da cobrança.
+        var gateway = Gateway(50);
+        var pedidos = Enumerable.Range(0, 200).Select(_ => Guid.CreateVersion7()).ToList();
+        var primeiras = new List<Application.Pagamentos.ResultadoCobranca>();
+        foreach (var pedidoId in pedidos)
+        {
+            primeiras.Add(await gateway.CobrarAsync(pedidoId, 10m, Cancelamento));
+        }
+
+        for (var i = 0; i < pedidos.Count; i++)
+        {
+            (await gateway.CobrarAsync(pedidos[i], 10m, Cancelamento)).Should().Be(primeiras[i]);
+        }
+
+        primeiras.Should().Contain(r => r.Aprovado).And.Contain(r => !r.Aprovado, "pedidos diferentes sorteiam separadamente");
+    }
+
+    [Fact]
+    public async Task O_mesmo_estorno_repetido_devolve_o_mesmo_identificador()
+    {
+        // REQ-13, FR-013.
+        var gateway = Gateway();
+        var pedidoId = Guid.CreateVersion7();
+
+        var primeiro = await gateway.EstornarAsync(pedidoId, "SIM-1", 10m, Cancelamento);
+        var segundo = await gateway.EstornarAsync(pedidoId, "SIM-1", 10m, Cancelamento);
+        var outroPedido = await gateway.EstornarAsync(Guid.CreateVersion7(), "SIM-2", 10m, Cancelamento);
+
+        segundo.Should().Be(primeiro);
+        outroPedido.IdentificadorEstorno.Should().NotBe(primeiro.IdentificadorEstorno);
+    }
+
+    [Fact]
+    public async Task Chamadas_simultaneas_para_o_mesmo_pedido_devolvem_um_unico_resultado()
+    {
+        var gateway = new GatewayPagamentoSimulado(Options.Create(new OpcoesGatewayPagamento { TaxaAprovacaoPercentual = 100 }));
+        var pedidoId = Guid.CreateVersion7();
+
+        var cobrancas = await Task.WhenAll(Enumerable.Range(0, 50).Select(_ => Task.Run(() => gateway.CobrarAsync(pedidoId, 10m, Cancelamento), Cancelamento)));
+        var estornos = await Task.WhenAll(Enumerable.Range(0, 50).Select(_ => Task.Run(() => gateway.EstornarAsync(pedidoId, "SIM-1", 10m, Cancelamento), Cancelamento)));
+
+        cobrancas.Select(c => c.IdentificadorTransacao).Distinct().Should().ContainSingle();
+        estornos.Select(e => e.IdentificadorEstorno).Distinct().Should().ContainSingle();
+    }
+
+    [Fact]
     public async Task Estorno_simulado_sempre_confirma_com_identificador_SIM_EST()
     {
         var resultado = await Gateway(0).EstornarAsync(Guid.CreateVersion7(), "SIM-1", 10m, Cancelamento);
