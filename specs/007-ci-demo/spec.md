@@ -209,7 +209,10 @@ serviços e falha se a prontidão da API não responder 200.
 **Verificação de build e testes**
 
 - **FR-001**: Uma verificação chamada `build-testes` MUST rodar em todo PR para a branch
-  principal e em todo push nela.
+  principal e em todo push nela. **Revisto em 2026-10-24**: a verificação roda só nos PRs
+  para a branch principal; o push na `main` (o merge) deixou de disparar, porque leva o mesmo
+  código que o PR já verificou e só repetia o processamento. O cenário 2 da User Story 1 deixa
+  de valer.
 - **FR-002**: A verificação MUST restaurar dependências, compilar a solução em modo de
   release tratando avisos como erros, como já define a configuração do projeto, e rodar
   os dois projetos de teste. Qualquer falha MUST deixar o resultado vermelho.

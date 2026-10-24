@@ -6,7 +6,8 @@
 
 - **Decisão**: um arquivo, `.github/workflows/build-testes.yml`, com `name: build-testes`:
   - **Gatilhos**: `pull_request` (para `main`) e `push` (em `main`), sem filtro de
-    caminhos.
+    caminhos. Revisto em 2026-10-24: só `pull_request`; o `push` na `main` saiu para não
+    repetir no merge a verificação já feita no PR (spec, FR-001).
   - **`permissions: contents: read`** no topo (FR-010).
   - **`concurrency`**: `group: build-testes-${{ github.ref }}`, com
     `cancel-in-progress: true` (FR-005).
