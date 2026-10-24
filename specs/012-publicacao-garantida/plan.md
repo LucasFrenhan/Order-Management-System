@@ -148,7 +148,8 @@ tests/
         ├── CenarioReconciliacao.cs
         ├── ReconciliacaoEtapasTestes.cs                        # três etapas, recente intocado, predicados = domínio
         ├── EsgotamentoTestes.cs                                # gateway que sempre falha
-        └── ReconciliacaoConcorrenteTestes.cs                   # dois Workers, um efeito
+        ├── ReconciliacaoConcorrenteTestes.cs                   # dois Workers, um efeito; lock ocupado
+        └── LogsReconciliacaoTestes.cs                          # logs 9001-9007 (US3)
 ```
 
 **Structure Decision**: nenhum projeto novo. A decisão por pedido fica no Application
@@ -167,4 +168,4 @@ fica no Infrastructure. O Worker só registra.
 | Lote tomado por pedidos que falham sempre | Os pedidos com falha anterior vão para o fim do lote (R-05); teste do SC-007 |
 | Gateway chamado duas vezes por instâncias concorrentes | `sp_getapplock` por ciclo (R-08). A disputa com o consumidor continua possível, mas é protegida pela concorrência otimista; a idempotência da cobrança num gateway real segue pendente (spec, Assumptions) |
 | Volume de pedidos não finais cresce, e a consulta fica lenta | Usa `IX_Pedidos_Status`; lote limitado. Índice composto só se a medição pedir |
-| Esgotamento cancela um pedido que acabou de avançar | Releitura e conferência da etapa no escopo do esgotamento, com concorrência otimista e reavaliações (R-07) |
+| Esgotamento cancela um pedido que acabou de avançar | `DescartarAlteracoes`, releitura e conferência da etapa antes de cancelar, com concorrência otimista e reavaliações (R-07) |

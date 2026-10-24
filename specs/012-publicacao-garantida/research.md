@@ -160,8 +160,10 @@ acontece no mesmo ciclo se valerem as três condições:
 A falha que completa a contagem é a da tentativa atual. A regra é sempre tentada antes do
 esgotamento: um pedido que voltaria a funcionar nunca é cancelado sem uma última tentativa.
 
-O esgotamento roda num escopo novo, no padrão "ler, decidir, gravar" com até 3 reavaliações
-em conflito:
+O esgotamento roda no mesmo escopo do pedido, depois de `DescartarAlteracoes()` no
+armazenamento (o padrão dos consumidores), para limpar o que a regra deixou rastreado. Segue
+o padrão "ler, decidir, gravar", com até 3 reavaliações em conflito. Assim o Application não
+precisa criar escopo nem depender do host (analyze I1):
 - relê o pedido para alterar e confere se continua parado na mesma etapa (estoque:
   status não final e sem reserva; pagamento: `AptoParaPagamento`). Se não continua, só
   remove a entrada e registra em log;

@@ -89,7 +89,10 @@ Não é persistido; um reinício do Worker zera a contagem.
 
 ### ServicoReconciliacao (novo)
 
-`ReconciliarAsync(PedidoParado, agora, opções, ct) → ResultadoReconciliacao`:
+`ReconciliarAsync(PedidoParado, agora, ParametrosEsgotamento, ct) → ResultadoReconciliacao`,
+com `ParametrosEsgotamento(LimiteEsgotamento, CiclosFalha)`, para o Application não depender
+das opções do Infrastructure. O esgotamento usa o mesmo armazenamento do escopo, depois de
+`DescartarAlteracoes()` (research R-07):
 
 | Resultado | Quando |
 |---|---|
@@ -132,7 +135,7 @@ parado (AtualizadoEm < agora - 10 min) ──regra ok─────────
    ├─regra devolve false──────────────────────────────────────▶ intocado (não estava mais apto)
    │
    └─regra falha──▶ falhas += 1
-                      ├─ falhas >= 3 e AtualizadoEm < agora - 24 h e etapa estoque ─▶ Cancelado ("Não foi possível reservar o estoque.")
-                      ├─ falhas >= 3 e AtualizadoEm < agora - 24 h e etapa pagamento ▶ Pagamento NaoProcessado + estoque devolvido + Cancelado
+                      ├─ falhas >= 3 e AtualizadoEm <= agora - 24 h e etapa estoque ▶ Cancelado ("Não foi possível reservar o estoque.")
+                      ├─ falhas >= 3 e AtualizadoEm <= agora - 24 h e etapa pagamento Pagamento NaoProcessado + estoque devolvido + Cancelado
                       └─ senão (inclusive a etapa de entrega) ────────────────────────▶ tenta de novo no próximo ciclo, no fim da fila
 ```

@@ -62,7 +62,8 @@ Este requisito fecha esse caminho em duas frentes:
     há cancelamento neste REQ. O pedido segue na reconciliação, no fim da fila, e o
     tratamento fica para o próximo requisito (cancelamento depois do pagamento, com
     estorno).
-  Em cada ciclo, os pedidos sem falha recente vêm antes dos que falharam no ciclo anterior.
+  Em cada ciclo, os pedidos sem falha recente vêm antes dos que já falharam em ciclos
+  anteriores.
   A visibilidade desses cancelamentos para outros sistemas (não existe evento de
   cancelamento) fica anotada como pendência.
 
@@ -164,7 +165,7 @@ de workers e conferir que, no ciclo seguinte, o pedido ganha a ordem, vai para
 11. **Given** um pedido pago sem ordem de entrega cuja criação da ordem falha sempre,
     **When** passam 24 h e 3 ciclos com falha, **Then** ele não é cancelado: segue na
     reconciliação, com a falha em log.
-12. **Given** um lote cheio de pedidos que falharam no ciclo anterior e um pedido parado
+12. **Given** um lote cheio de pedidos que já falharam em ciclos anteriores e um pedido parado
     novo, **When** o ciclo seguinte roda, **Then** o pedido novo é tratado nesse ciclo.
 
 ---
@@ -277,8 +278,9 @@ contagens.
   deles.
 - **FR-011**: Cada ciclo MUST tratar no máximo um lote configurável de pedidos. A falha de
   um pedido MUST NOT interromper os demais, e o pedido que falhou MUST ser reavaliado nos
-  ciclos seguintes sem gravar nada nele até se esgotar (FR-012). Os pedidos que falharam
-  no ciclo anterior MUST vir depois dos demais na escolha do lote; entre pedidos do mesmo
+  ciclos seguintes sem gravar nada nele até se esgotar (FR-012). Os pedidos que já falharam
+  em ciclos anteriores, sem efeito gravado desde então, MUST vir depois dos demais na
+  escolha do lote; entre pedidos do mesmo
   grupo, os mais antigos vêm primeiro. Assim, pedidos que falham sempre MUST NOT impedir
   que os demais pedidos parados sejam tratados.
 - **FR-012**: Um pedido das etapas de estoque ou de pagamento MUST se esgotar quando está
@@ -328,9 +330,10 @@ contagens.
   tempo o pedido está parado.
 - **Pagamento** (REQ-04, REQ-09): ganha a situação "não foi possível processar", ao lado de
   pendente, aprovado e recusado, para a cobrança que se esgotou sem resposta válida do
-  gateway. Não tem identificador de transação, e o motivo fica registrado.
-- **Contagem de falhas da reconciliação**: por pedido, quantos ciclos seguidos a regra
-  falhou e se falhou no ciclo anterior. Fica só na memória do processo de workers.
+  gateway. Não tem identificador de transação, e o motivo fica no histórico do pedido.
+- **Contagem de falhas da reconciliação**: por pedido, em quantos ciclos a regra falhou
+  desde o último efeito gravado e quando foi a última falha. Fica só na memória do processo
+  de workers.
 
 ## Success Criteria *(mandatory)*
 
