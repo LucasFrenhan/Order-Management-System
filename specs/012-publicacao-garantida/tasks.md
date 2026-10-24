@@ -224,7 +224,7 @@ pela T005 (descritor) e depois pela T014 (`IEtapaFluxoPedido`).
   - `README.md`: linha do REQ-12 em **Estado atual**; a seção de configuração `Reconciliacao` com as chaves e os padrões; **Decisões**: filas declaradas pelo despachante, `mandatory` só para tipos com consumidor, reconciliação periódica com esgotamento; **Próximos passos**: o REQ-13 (cancelamento depois do pagamento, com estorno, que resolve a etapa de entrega que falha sempre), a visibilidade dos cancelamentos para outros sistemas, a limpeza e a DLQ (REQ-14) e a #18; **Roteiros de validação**: o quickstart do REQ-12.
 - [X] T025 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados); registrar a contagem em Notes.
 - [X] T026 Executar o quickstart (§1 a §4) com a API e o Worker locais e registrar em Notes: broker vazio com `pedido.criado` pendente, fila apagada com o Worker no ar (5002 `SemRota` e fila recriada) e pedido pago sem ordem recuperado (9001, 9004). O §5 é coberto pela T012.
-- [ ] T027 Fazer push e abrir o PR com `Closes #26`. Acompanhar o workflow `build-testes` (e os demais do repositório) até ficarem verdes, **inclusive depois de cada push posterior**, e registrar em Notes.
+- [X] T027 Fazer push e abrir o PR com `Closes #26`. Acompanhar o workflow `build-testes` (e os demais do repositório) até ficarem verdes, **inclusive depois de cada push posterior**, e registrar em Notes.
 
 ---
 
@@ -323,3 +323,6 @@ evita perdas novas; a US2 recupera as antigas.
   - §4: o pedido simulado (ordem apagada, `Processando`, 1 h atrás) foi recuperado no
     primeiro ciclo (9001, etapa `Entrega`), com uma ordem só; um pedido novo seguiu o fluxo
     normal. O `sqlcmd` do roteiro precisou de `-I` (índice filtrado), corrigido no quickstart.
+- **T027 (2026-10-23)**: PR #27 aberto com `Closes #26`. No commit `d161b9e`, todos verdes:
+  "Build e testes" em 5m4s e "Demonstração" em 1m43s. "Compatibilidade do contrato" não roda,
+  porque o OpenAPI não mudou. O CI foi acompanhado de novo depois do push deste registro.
