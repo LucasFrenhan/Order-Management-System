@@ -17,19 +17,22 @@ public static class ExtensoesMensageria
         services.AddSingleton<IValidateOptions<OpcoesMensageria>, ValidadorOpcoesMensageria>();
         services.AddOptions<OpcoesMensageria>().BindConfiguration(OpcoesMensageria.Secao).ValidateOnStart();
         services.TryAddSingleton<ConexaoRabbitMQ>();
+        services.TryAddSingleton<TopologiaConhecida>();
         services.AddHostedService<DespachanteEventosSaida>();
         return services;
     }
 
     /// <summary>
     /// Registra um consumidor de evento no Worker (REQ-06; issues #8 a #10): o manipulador por
-    /// escopo e a base que cuida de fila, novas tentativas, DLQ e duplicados.
+    /// escopo e a base que cuida de fila, novas tentativas, DLQ e duplicados. O descritor põe o
+    /// consumidor na topologia que o despachante declara antes de publicar (REQ-12, R-01).
     /// </summary>
     public static IServiceCollection AdicionarConsumidor<TManipulador, TDados>(this IServiceCollection services)
         where TManipulador : class, IManipuladorEvento<TDados>
     {
         services.AddScoped<TManipulador>();
         services.AddHostedService<ConsumidorEventos<TManipulador, TDados>>();
+        services.AddSingleton<IDescritorConsumidor, DescritorConsumidor<TManipulador, TDados>>();
         return services;
     }
 }

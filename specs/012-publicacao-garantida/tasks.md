@@ -48,7 +48,7 @@ US3 confere os logs que a US1 e a US2 escrevem.
 
 ## Phase 1: Setup
 
-- [ ] T001 Rodar `dotnet build` e `OMS_EXIGIR_DOCKER=1 dotnet test` na branch `feature/req-12-publicacao-garantida` e registrar em Notes a contagem de testes como linha de base (720 no fim do REQ-11: 430 unitários e 290 de integração; zero ignorados com o Docker no ar).
+- [X] T001 Rodar `dotnet build` e `OMS_EXIGIR_DOCKER=1 dotnet test` na branch `feature/req-12-publicacao-garantida` e registrar em Notes a contagem de testes como linha de base (720 no fim do REQ-11: 430 unitários e 290 de integração; zero ignorados com o Docker no ar).
 
 ---
 
@@ -68,12 +68,12 @@ pela T005 (descritor) e depois pela T014 (`IEtapaFluxoPedido`).
 
 ### Testes da US1
 
-- [ ] T002 [P] [US1] Em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/TopologiaConhecidaTestes.cs` (R-01, data-model), com descritores falsos:
+- [X] T002 [P] [US1] Em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/TopologiaConhecidaTestes.cs` (R-01, data-model), com descritores falsos:
   - com os três consumidores atuais (`estoque` ← `pedido.criado`, `pagamento` ← `estoque.reservado`, `entrega` ← `pagamento.aprovado`): `ExigeRota` verdadeiro para os três tipos e falso para `estoque.insuficiente`, `pagamento.recusado` e `entrega.criada` (theory);
   - sem descritores: nenhum tipo exige rota e `Consumidores` vazio;
   - um consumidor novo com um tipo novo passa a exigir rota só por estar na lista (FR-003);
   - `Consumidores` mantém nome e tipos de cada descritor.
-- [ ] T003 [P] [US1] Em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/PublicacaoSemFilaTestes.cs` (FR-018, SC-001), com banco e broker reais e a `FabricaWorker`:
+- [X] T003 [P] [US1] Em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/PublicacaoSemFilaTestes.cs` (FR-018, SC-001), com banco e broker reais e a `FabricaWorker`:
   - **broker sem filas**: apagar as filas `oms.*` (principal, espera e DLQ) dos três consumidores; gravar um pedido com `pedido.criado` pendente no outbox (como `CenarioEstoque`); remover os três consumidores com `RemoverConsumidor` para que só o despachante declare a topologia; subir o Worker; esperar o evento marcado como enviado e conferir que `oms.estoque`, `oms.pagamento` e `oms.entrega` existem com as ligações do contrato e que a mensagem está em `oms.estoque` (contagem 1);
   - **Worker completo num broker sem filas**: com os consumidores registrados, o pedido chega a `ProntoParaEnvio` (estoque, pagamento e entrega), sem `PRECONDITION_FAILED` em nenhum canal (FR-002);
   - **fila apagada com o Worker no ar** (cenários 3 e 4 da US1): com o Worker no ar e os consumidores removidos, apagar `oms.estoque` e gravar outro `pedido.criado`; esperar o evento com `Tentativas >= 1`, `UltimoErro` começando por `SemRota:` e `EnviadoEm` nulo; depois esperar o evento enviado e a fila `oms.estoque` recriada pelo despachante, com a mensagem nela;
@@ -84,14 +84,14 @@ pela T005 (descritor) e depois pela T014 (`IEtapaFluxoPedido`).
 
 ### Implementação da US1
 
-- [ ] T004 [P] [US1] Em `src/PedidoFulfillment.Infrastructure/Mensageria/DescritorConsumidor.cs` e `src/PedidoFulfillment.Infrastructure/Mensageria/TopologiaConhecida.cs` (R-01):
+- [X] T004 [P] [US1] Em `src/PedidoFulfillment.Infrastructure/Mensageria/DescritorConsumidor.cs` e `src/PedidoFulfillment.Infrastructure/Mensageria/TopologiaConhecida.cs` (R-01):
   - `interface IDescritorConsumidor { string Consumidor { get; } IReadOnlyCollection<string> Tipos { get; } }`;
   - `sealed class DescritorConsumidor<TManipulador, TDados> : IDescritorConsumidor`, que recebe o `IServiceScopeFactory`, abre um escopo uma vez (lazy), resolve o `TManipulador` e lê `Consumidor` e `Tipos`, como `ConsumidorEventos` faz na partida;
   - `sealed class TopologiaConhecida`, montada a partir de `IEnumerable<IDescritorConsumidor>`: `IReadOnlyList<(string Consumidor, IReadOnlyCollection<string> Tipos)> Consumidores` e `bool ExigeRota(string tipo)` (comparação ordinal).
 
   T002 deve passar.
-- [ ] T005 [US1] Em `src/PedidoFulfillment.Infrastructure/Mensageria/ExtensoesMensageria.cs`, `AdicionarConsumidor<TManipulador, TDados>` registra também `services.AddSingleton<IDescritorConsumidor, DescritorConsumidor<TManipulador, TDados>>()`; `TopologiaConhecida` registrada como singleton. `RemoverConsumidor` dos testes continua removendo só o hosted service (R-01, conferir em `CenarioEstoque` e na `FabricaWorker`).
-- [ ] T006 [US1] Em `src/PedidoFulfillment.Infrastructure/Mensageria/DespachanteEventosSaida.cs` (R-02, R-03):
+- [X] T005 [US1] Em `src/PedidoFulfillment.Infrastructure/Mensageria/ExtensoesMensageria.cs`, `AdicionarConsumidor<TManipulador, TDados>` registra também `services.AddSingleton<IDescritorConsumidor, DescritorConsumidor<TManipulador, TDados>>()`; `TopologiaConhecida` registrada como singleton. `RemoverConsumidor` dos testes continua removendo só o hosted service (R-01, conferir em `CenarioEstoque` e na `FabricaWorker`).
+- [X] T006 [US1] Em `src/PedidoFulfillment.Infrastructure/Mensageria/DespachanteEventosSaida.cs` (R-02, R-03):
   - recebe a `TopologiaConhecida`;
   - `ObterCanalAsync`, depois de `DeclararTrocaAsync`, chama `TopologiaMensageria.DeclararConsumidorAsync(canal, consumidor, tipos, opcoes.Intervalos, ct)` para cada consumidor conhecido, antes de devolver o canal;
   - `BasicPublishAsync` com `mandatory: topologia.ExigeRota(evento.Tipo)`;
@@ -204,7 +204,7 @@ pela T005 (descritor) e depois pela T014 (`IEtapaFluxoPedido`).
   - ciclo sem pedidos parados: 9004 em Debug, nenhum Warning da faixa 9xxx;
   - esgotamento (reaproveitar o cenário da T012): 9002 (Error) com o `PedidoId`, a etapa e `Falhas=3`; cada falha anterior com 9003 e a contagem (cenário 4);
   - nenhuma mensagem da faixa 9xxx contém e-mail, nome do cliente, endereço ou valores do pedido semeado.
-- [ ] T021 [P] [US3] Em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/PublicacaoSemFilaTestes.cs`, no cenário da fila apagada: o log 5002 traz o identificador e o tipo do evento e o motivo `SemRota` (cenário 3 da US3).
+- [X] T021 [P] [US3] Em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/PublicacaoSemFilaTestes.cs`, no cenário da fila apagada: o log 5002 traz o identificador e o tipo do evento e o motivo `SemRota` (cenário 3 da US3).
 
 ### Implementação da US3
 
@@ -278,3 +278,9 @@ evita perdas novas; a US2 recupera as antigas.
   Application), C1 (falha isolada e lote cheio de falhas na T012), C2 (partida com opção
   inválida na T019), O1 (`FabricaWorker` no início da T018), T1, I2, I3, I4 e P1 (spec,
   research, data-model e plan).
+- **T001 (linha de base, 2026-10-23)**: 720 testes, 430 unitários e 290 de integração, zero
+  ignorados, com o Docker no ar.
+- **T003 e T021**: o teste da fila apagada já confere o log 5002 com o tipo e o motivo `SemRota`
+  (T021 feita junto). O `RabbitMQ.Client` 7.2.2 lançou `PublishReturnException` como previsto
+  no R-03. Checkpoint da US1: 734 testes (440 unitários e 294 de integração), todos verdes, sem
+  ajuste nos testes existentes.
