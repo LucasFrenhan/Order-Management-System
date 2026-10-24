@@ -43,6 +43,19 @@ passa a se esgotar como as etapas de estoque e de pagamento.
   A chave é o pedido: a mesma cobrança repetida devolve o mesmo resultado e a mesma transação,
   sem nova cobrança. O estorno usa a mesma ideia.
 
+### Session 2026-10-24 (clarify)
+
+- Q: Quando o gateway aprova uma cobrança, mas o pedido foi cancelado antes de o pagamento ser
+  gravado, o que acontece? → A: O pagamento é registrado no pedido cancelado, com a transação
+  da cobrança e o estorno pendente; o processo de workers estorna como nos demais casos
+  (FR-006). Uma recusa nesse caso continua descartada.
+- Q: A consulta do pedido mostra a situação do estorno? → A: Não. As situações "estorno
+  pendente" e "estornado" ficam internas, como `NaoProcessado`; a operação acompanha pelos
+  logs (FR-016), e a visibilidade para outros sistemas segue na issue #29 (FR-018).
+- Q: Quem pode cancelar um pedido já pago, agora que o cancelamento gera estorno? → A: Não
+  muda: Admin e OperadorLogistica cancelam em `Processando` e `ProntoParaEnvio`; o Cliente só
+  em `Pendente` (403 depois, como hoje). O autor fica no histórico.
+
 ## User Scenarios & Testing *(mandatory)*
 
 Os "usuários" deste requisito são o Cliente, que não pode ficar cobrado por um pedido que não
