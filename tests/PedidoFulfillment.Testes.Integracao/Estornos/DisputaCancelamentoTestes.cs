@@ -91,6 +91,59 @@ public sealed class DisputaCancelamentoTestes(MensageriaTeste mensageria)
             $"SELECT COUNT(*) FROM HistoricosStatusPedido WHERE PedidoId = '{pedidoId}' AND StatusNovo = 'Cancelado'")).Should().Be(1);
     }
 
+    [Fact]
+    public async Task Cancelamento_e_despacho_ao_mesmo_tempo_nunca_deixam_rastreio_em_pedido_cancelado()
+    {
+        Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
+        var stringConexao = mensageria.NovoBanco();
+        await using var api = Api(stringConexao);
+        var (cliente, _, _) = await ClienteAsync(api);
+        var pedidoId = await PedidoProntoParaEnvioAsync(mensageria, stringConexao, cliente);
+        var operador = await OperadorAsync(api);
+        var admin = await AdminAsync(api);
+
+        var respostas = await Task.WhenAll(
+            MudarStatusAsync(operador, pedidoId, "Cancelado", "Cancelado na corrida."),
+            RegistrarRastreioAsync(admin, pedidoId, "Correios", "BR123456789BR"));
+
+        respostas.Select(r => r.StatusCode).Should().BeEquivalentTo([HttpStatusCode.OK, HttpStatusCode.Conflict]);
+        var status = await StatusAsync(stringConexao, pedidoId);
+        var canceladas = await BancoDadosTeste.ConsultarAsync<int>(stringConexao,
+            $"SELECT COUNT(*) FROM OrdensEntrega WHERE PedidoId = '{pedidoId}' AND CanceladaEm IS NOT NULL");
+        var despachadas = await BancoDadosTeste.ConsultarAsync<int>(stringConexao,
+            $"SELECT COUNT(*) FROM OrdensEntrega WHERE PedidoId = '{pedidoId}' AND DespachadoEm IS NOT NULL");
+        if (status == "Cancelado")
+        {
+            (canceladas, despachadas).Should().Be((1, 0));
+            (await SituacaoAsync(stringConexao, pedidoId)).Should().Be("EstornoPendente");
+        }
+        else
+        {
+            status.Should().Be("Despachado");
+            (canceladas, despachadas).Should().Be((0, 1));
+            (await SituacaoAsync(stringConexao, pedidoId)).Should().Be("Aprovado");
+        }
+    }
+
+    [Fact]
+    public async Task Pedido_cancelado_antes_da_ordem_nao_ganha_ordem_quando_o_pagamento_aprovado_chega()
+    {
+        // US2 cenário 5: o consumidor de entrega ignora o pedido cancelado, como hoje.
+        Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
+        var stringConexao = mensageria.NovoBanco();
+        await using var api = Api(stringConexao);
+        var (cliente, _, _) = await ClienteAsync(api);
+        var pedidoId = await PedidoPagoAsync(mensageria, stringConexao, cliente);
+        await CancelarComoOperacaoAsync(await OperadorAsync(api), pedidoId);
+        var logs = new CapturaLogs();
+        await using var worker = await Entregas.CenarioEntrega.WorkerProntoAsync(mensageria, stringConexao, logs);
+
+        await Entregas.CenarioEntrega.PublicarPagamentoAprovadoAsync(mensageria, pedidoId);
+
+        (await EsperarLogAsync(logs, 8002, Prazo)).Should().BeTrue("o pedido cancelado é ignorado na entrega");
+        (await Entregas.CenarioEntrega.OrdensAsync(stringConexao, pedidoId)).Should().Be(0);
+    }
+
     /// <summary>Worker de estoque e pagamento com o gateway dado, sem a entrega.</summary>
     private async Task<FabricaWorker> WorkerDePagamentoAsync(string stringConexao, IGatewayPagamento gateway, CapturaLogs logs)
     {

@@ -174,18 +174,18 @@ todas as histórias. Nenhuma regra de cancelamento ainda.
 
 ### Testes da US2
 
-- [ ] T022 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PedidoOrdemEntregaTestes.cs` e `PedidoCancelamentoTestes.cs`: `OrdemEntrega.Cancelar(instante)` preenche `CanceladaEm` e `AtualizadoEm`; com `DespachadoEm` preenchido ou já cancelada: `InvalidOperationException`; `Pedido.Cancelar` em `ProntoParaEnvio` com ordem cancela a ordem (`ResultadoCancelamento.OrdemCancelada`), junto com o estorno e o estoque; sem ordem, `OrdemCancelada` falso.
-- [ ] T023 [P] [US2] Testes de integração em `tests/PedidoFulfillment.Testes.Integracao/Estornos/CancelamentoPedidoPagoTestes.cs` (US2), com o pedido levado a `ProntoParaEnvio` pelo fluxo real (Worker completo):
+- [X] T022 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PedidoOrdemEntregaTestes.cs` e `PedidoCancelamentoTestes.cs`: `OrdemEntrega.Cancelar(instante)` preenche `CanceladaEm` e `AtualizadoEm`; com `DespachadoEm` preenchido ou já cancelada: `InvalidOperationException`; `Pedido.Cancelar` em `ProntoParaEnvio` com ordem cancela a ordem (`ResultadoCancelamento.OrdemCancelada`), junto com o estorno e o estoque; sem ordem, `OrdemCancelada` falso.
+- [X] T023 [P] [US2] Testes de integração em `tests/PedidoFulfillment.Testes.Integracao/Estornos/CancelamentoPedidoPagoTestes.cs` (US2), com o pedido levado a `ProntoParaEnvio` pelo fluxo real (Worker completo):
   - cancelar: 200 com `entrega.canceladaEm` preenchido e transportadora, código e despacho nulos; no banco, a ordem com `CanceladaEm` e o pagamento `EstornoPendente`; log 8004 (cenários 1 e 2);
   - rastreio depois do cancelamento: 409 `PEDIDO_TRANSICAO_INVALIDA`, ordem sem mudança (cenário 3);
   - pedido `Despachado`: 409 "O pedido está em Despachado e não pode passar para Cancelado.", nada estornado (cenário 4);
   - em `DisputaCancelamentoTestes.cs`: cancelamento × despacho (um vence; nunca rastreio em pedido cancelado nem ordem cancelada despachada) e cancelamento × criação da ordem pelo consumidor (se a ordem é criada antes, o cancelamento a cancela; se o cancelamento vence, nenhuma ordem é criada).
-- [ ] T024 [P] [US2] Contrato: em `specs/001-contratos-api/contracts/openapi-v1.yaml`, `EntregaPedidoResponseDTO.canceladaEm` com `type: ['null', string]`, `format: date-time` e a descrição do contrato do REQ-13, fora de `required`. `tests/PedidoFulfillment.Testes.Integracao/Contrato/ConformidadeOpenApiTestes.cs` passa a cobrir um pedido cancelado com ordem (resposta real com `canceladaEm` conferida contra o schema).
+- [X] T024 [P] [US2] Contrato: em `specs/001-contratos-api/contracts/openapi-v1.yaml`, `EntregaPedidoResponseDTO.canceladaEm` com `type: ['null', string]`, `format: date-time` e a descrição do contrato do REQ-13, fora de `required`. `tests/PedidoFulfillment.Testes.Integracao/Contrato/ConformidadeOpenApiTestes.cs` passa a cobrir um pedido cancelado com ordem (resposta real com `canceladaEm` conferida contra o schema).
 
 ### Implementação da US2
 
-- [ ] T025 [US2] `src/PedidoFulfillment.Domain/Entregas/OrdemEntrega.cs`: `Cancelar(DateTimeOffset)`. `src/PedidoFulfillment.Domain/Pedidos/Pedido.cs`: passo 4 do R-01 em `Cancelar` (validação de ordem despachada antes de qualquer mudança). T022 deve passar.
-- [ ] T026 [US2] `src/PedidoFulfillment.Application/Contratos/Pedidos/EntregaPedidoResponseDTO.cs`: `public DateTimeOffset? CanceladaEm { get; init; }`, com XML doc; `src/PedidoFulfillment.Application/Pedidos/MapeamentoPedido.cs`: mapear `CanceladaEm`; `src/PedidoFulfillment.Application/Entregas/EventosEntrega.cs`: log 8004 `OrdemEntregaCancelada` (Information; pedido), chamado pelo `ServicoPedidos` (e pela reconciliação na US3) quando `ResultadoCancelamento.OrdemCancelada`. T023 e T024 devem passar; `SerializacaoPedidoTestes` e `ObterPedidoTestes` continuam verdes.
+- [X] T025 [US2] `src/PedidoFulfillment.Domain/Entregas/OrdemEntrega.cs`: `Cancelar(DateTimeOffset)`. `src/PedidoFulfillment.Domain/Pedidos/Pedido.cs`: passo 4 do R-01 em `Cancelar` (validação de ordem despachada antes de qualquer mudança). T022 deve passar.
+- [X] T026 [US2] `src/PedidoFulfillment.Application/Contratos/Pedidos/EntregaPedidoResponseDTO.cs`: `public DateTimeOffset? CanceladaEm { get; init; }`, com XML doc; `src/PedidoFulfillment.Application/Pedidos/MapeamentoPedido.cs`: mapear `CanceladaEm`; `src/PedidoFulfillment.Application/Entregas/EventosEntrega.cs`: log 8004 `OrdemEntregaCancelada` (Information; pedido), chamado pelo `ServicoPedidos` (e pela reconciliação na US3) quando `ResultadoCancelamento.OrdemCancelada`. T023 e T024 devem passar; `SerializacaoPedidoTestes` e `ObterPedidoTestes` continuam verdes.
 
 **Checkpoint**: commit `feat(entregas): cancela a ordem de entrega junto com o pedido [REQ-13]`.
 
@@ -327,3 +327,7 @@ reconciliação e a US4 protege contra cobrança e estorno repetidos num gateway
     cancelado sem pagamento com cobrança aprovada em mãos registra o estorno pendente (R-07);
   - o caso "esgotamento × API" da T016 depende da US3 e entra no checkpoint dela (T028);
   - checkpoint: 540 unitários e 336 de integração, todos verdes; `dotnet format` limpo.
+- **US2 (2026-10-24)**: a conformidade do OpenAPI compara o documento gerado com o contrato;
+  com `canceladaEm` no DTO e no `openapi-v1.yaml`, `ConformidadeOpenApiTestes` continua verde
+  sem edição, e a resposta real é conferida em `CancelamentoPedidoPagoTestes` (T024).
+  `SerializacaoPedidoTestes` e `ObterPedidoTestes` continuam verdes sem edição.

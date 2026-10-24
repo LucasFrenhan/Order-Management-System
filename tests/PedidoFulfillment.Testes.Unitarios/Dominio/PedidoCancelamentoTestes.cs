@@ -98,6 +98,49 @@ public sealed class PedidoCancelamentoTestes
     }
 
     [Fact]
+    public void Pronto_para_envio_com_ordem_cancela_a_ordem_junto_com_o_estorno_e_o_estoque()
+    {
+        // REQ-13, US2 e FR-008.
+        var pedido = PedidoPago();
+        var ordem = pedido.CriarOrdemEntrega(Cobranca.AddMinutes(1));
+
+        var resultado = pedido.Cancelar(Operador, Motivo, Produtos, Cancelamento);
+
+        resultado.Should().Be(new ResultadoCancelamento(true, true, true));
+        ordem.CanceladaEm.Should().Be(Cancelamento);
+        ordem.AtualizadoEm.Should().Be(Cancelamento);
+        ordem.DespachadoEm.Should().BeNull();
+        pedido.Status.Should().Be(StatusPedido.Cancelado);
+        pedido.Pagamento!.Situacao.Should().Be(SituacaoPagamento.EstornoPendente);
+        a.QuantidadeEstoque.Should().Be(10);
+    }
+
+    [Fact]
+    public void Ordem_despachada_impede_o_cancelamento_sem_alterar_nada()
+    {
+        // Só por fora do fluxo (status mexido à mão): o pedido despachado já é recusado pelo status.
+        var pedido = PedidoPago();
+        pedido.CriarOrdemEntrega(Cobranca.AddMinutes(1)).RegistrarDespacho("Correios", "BR1", Cobranca.AddMinutes(2));
+
+        var cancelar = () => pedido.Cancelar(Operador, Motivo, Produtos, Cancelamento);
+
+        cancelar.Should().Throw<InvalidOperationException>();
+        pedido.Status.Should().Be(StatusPedido.ProntoParaEnvio);
+        pedido.EstoqueReservado.Should().BeTrue();
+        pedido.Pagamento!.Situacao.Should().Be(SituacaoPagamento.Aprovado);
+        pedido.OrdemEntrega!.CanceladaEm.Should().BeNull();
+    }
+
+    [Fact]
+    public void Sem_ordem_o_resultado_nao_marca_ordem_cancelada()
+    {
+        var pedido = PedidoPago();
+
+        pedido.Cancelar(Operador, Motivo, Produtos, Cancelamento).OrdemCancelada.Should().BeFalse();
+        pedido.OrdemEntrega.Should().BeNull();
+    }
+
+    [Fact]
     public void Sem_autor_grava_o_historico_sem_autor()
     {
         var pedido = PedidoPago();

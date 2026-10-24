@@ -21,4 +21,8 @@ internal static partial class EventosEntrega
     [LoggerMessage(EventId = 8003, EventName = "ConflitoNaEntrega", Level = LogLevel.Warning,
         Message = "Conflito de concorrência na entrega do pedido {PedidoId} (reavaliação {Reavaliacao}), evento {IdEvento}.")]
     public static partial void ConflitoNaEntrega(ILogger logger, Guid idEvento, Guid pedidoId, int reavaliacao);
+
+    [LoggerMessage(EventId = 8004, EventName = "OrdemEntregaCancelada", Level = LogLevel.Information,
+        Message = "Ordem de entrega do pedido {PedidoId} cancelada junto com o pedido.")]
+    public static partial void OrdemEntregaCancelada(ILogger logger, Guid pedidoId);
 }

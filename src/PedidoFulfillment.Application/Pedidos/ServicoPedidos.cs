@@ -5,6 +5,7 @@ using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Contratos.Erros;
 using PedidoFulfillment.Application.Contratos.Eventos;
 using PedidoFulfillment.Application.Contratos.Pedidos;
+using PedidoFulfillment.Application.Entregas;
 using PedidoFulfillment.Application.Estoque;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Pagamentos;
@@ -163,6 +164,11 @@ public sealed class ServicoPedidos(
             if (cancelamento?.EstoqueDevolvido == true)
             {
                 EventosEstoque.EstoqueDevolvido(logger, pedido.Id, pedido.Itens.Count);
+            }
+
+            if (cancelamento?.OrdemCancelada == true)
+            {
+                EventosEntrega.OrdemEntregaCancelada(logger, pedido.Id);
             }
 
             if (cancelamento?.EstornoSolicitado == true)

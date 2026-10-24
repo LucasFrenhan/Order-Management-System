@@ -13,4 +13,7 @@ public sealed record EntregaPedidoResponseDTO
     public DateTimeOffset? DespachadoEm { get; init; }
 
     public required DateTimeOffset CriadoEm { get; init; }
+
+    /// <summary>Instante do cancelamento da ordem, junto com o pedido; nulo se não cancelada (REQ-13, FR-009).</summary>
+    public DateTimeOffset? CanceladaEm { get; init; }
 }

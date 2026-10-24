@@ -248,6 +248,12 @@ public sealed class Pedido
         }
 
         var estornar = Pagamento?.Situacao == SituacaoPagamento.Aprovado;
+        var cancelarOrdem = OrdemEntrega is not null;
+        if (OrdemEntrega is { } ordem && (ordem.DespachadoEm is not null || ordem.CanceladaEm is not null))
+        {
+            throw new InvalidOperationException($"O pedido {Numero} tem a ordem de entrega despachada ou cancelada e não pode ser cancelado.");
+        }
+
         if (devolver)
         {
             DevolverEstoque(produtos, instante);
@@ -258,8 +264,13 @@ public sealed class Pedido
             Pagamento!.SolicitarEstorno(instante);
         }
 
+        if (cancelarOrdem)
+        {
+            OrdemEntrega!.Cancelar(instante);
+        }
+
         MudarStatus(StatusPedido.Cancelado, autorId, motivo?.Trim(), instante);
-        return new ResultadoCancelamento(devolver, estornar, false);
+        return new ResultadoCancelamento(devolver, estornar, cancelarOrdem);
     }
 
     /// <summary>

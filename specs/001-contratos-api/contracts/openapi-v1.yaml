@@ -664,6 +664,10 @@ components:
           type: string
           format: date-time
           description: Instante de criação da ordem de entrega.
+        canceladaEm:
+          type: ['null', string]
+          format: date-time
+          description: Instante do cancelamento da ordem, junto com o pedido; null se não cancelada (REQ-13).
 
     AtualizarStatusPedidoRequestDTO:
       type: object

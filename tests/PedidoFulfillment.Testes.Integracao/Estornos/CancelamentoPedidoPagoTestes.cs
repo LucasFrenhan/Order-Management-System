@@ -44,6 +44,75 @@ public sealed class CancelamentoPedidoPagoTestes(MensageriaTeste mensageria)
     }
 
     [Fact]
+    public async Task Cancelar_pedido_pronto_para_envio_cancela_a_ordem_de_entrega()
+    {
+        // US2 cenários 1 e 2.
+        Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
+        var stringConexao = mensageria.NovoBanco();
+        var logs = new CapturaLogs();
+        await using var api = Api(stringConexao, logs);
+        var (cliente, _, _) = await ClienteAsync(api);
+        var pedidoId = await PedidoProntoParaEnvioAsync(mensageria, stringConexao, cliente);
+
+        var resposta = await MudarStatusAsync(await OperadorAsync(api), pedidoId, "Cancelado", "Cliente desistiu antes do envio.");
+
+        resposta.StatusCode.Should().Be(HttpStatusCode.OK);
+        var entrega = (await CorpoAsync(resposta)).GetProperty("entrega");
+        entrega.GetProperty("canceladaEm").ValueKind.Should().Be(JsonValueKind.String);
+        entrega.GetProperty("transportadora").ValueKind.Should().Be(JsonValueKind.Null);
+        entrega.GetProperty("codigoRastreio").ValueKind.Should().Be(JsonValueKind.Null);
+        entrega.GetProperty("despachadoEm").ValueKind.Should().Be(JsonValueKind.Null);
+        (await BancoDadosTeste.ConsultarAsync<int>(stringConexao,
+            $"SELECT COUNT(*) FROM OrdensEntrega WHERE PedidoId = '{pedidoId}' AND CanceladaEm IS NOT NULL")).Should().Be(1);
+        (await SituacaoAsync(stringConexao, pedidoId)).Should().Be("EstornoPendente");
+        logs.Registros.Should().ContainSingle(r => r.Evento.Id == 8004);
+        logs.Registros.Should().ContainSingle(r => r.Evento.Id == 7005);
+
+        var consulta = await cliente.GetFromJsonAsync<JsonElement>($"/api/v1/pedidos/{pedidoId}", Cancelamento);
+        consulta.GetProperty("entrega").GetProperty("canceladaEm").GetDateTimeOffset()
+            .Should().Be(entrega.GetProperty("canceladaEm").GetDateTimeOffset());
+    }
+
+    [Fact]
+    public async Task Rastreio_de_pedido_cancelado_com_ordem_cancelada_responde_409()
+    {
+        // US2 cenário 3.
+        Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
+        var stringConexao = mensageria.NovoBanco();
+        await using var api = Api(stringConexao);
+        var (cliente, _, _) = await ClienteAsync(api);
+        var pedidoId = await PedidoProntoParaEnvioAsync(mensageria, stringConexao, cliente);
+        var operador = await OperadorAsync(api);
+        await CancelarComoOperacaoAsync(operador, pedidoId);
+
+        var resposta = await RegistrarRastreioAsync(operador, pedidoId, "Correios", "BR123456789BR");
+
+        resposta.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await CodigoAsync(resposta)).Should().Be("PEDIDO_TRANSICAO_INVALIDA");
+        (await BancoDadosTeste.ConsultarAsync<int>(stringConexao,
+            $"SELECT COUNT(*) FROM OrdensEntrega WHERE PedidoId = '{pedidoId}' AND Transportadora IS NULL AND DespachadoEm IS NULL")).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Pedido_despachado_continua_sem_poder_ser_cancelado_e_nada_e_estornado()
+    {
+        // US2 cenário 4.
+        Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
+        var stringConexao = mensageria.NovoBanco();
+        await using var api = Api(stringConexao);
+        var (cliente, _, _) = await ClienteAsync(api);
+        var pedidoId = await PedidoProntoParaEnvioAsync(mensageria, stringConexao, cliente);
+        var operador = await OperadorAsync(api);
+        (await RegistrarRastreioAsync(operador, pedidoId, "Correios", "BR123456789BR")).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var resposta = await MudarStatusAsync(operador, pedidoId, "Cancelado", "Tarde demais.");
+
+        resposta.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await CorpoAsync(resposta)).GetProperty("detail").GetString().Should().Be("O pedido está em Despachado e não pode passar para Cancelado.");
+        (await SituacaoAsync(stringConexao, pedidoId)).Should().Be("Aprovado");
+    }
+
+    [Fact]
     public async Task Pedido_pendente_sem_pagamento_e_cancelado_sem_estorno()
     {
         Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
