@@ -37,3 +37,22 @@ exemplo, empilhar a branch sobre outra ainda não mergeada).
   (constituição).
 - Antes de abrir o PR, rode `dotnet build`, `dotnet test` e
   `dotnet format --verify-no-changes`. O workflow `build-testes` precisa ficar verde.
+
+## Regra: manter os documentos de fluxo em dia
+
+`docs/fluxos/` descreve cada fluxo de ponta a ponta: caminho feliz, erros tratados (com
+resposta, exemplo e motivo), concorrência, falhas externas, logs e limitações. As specs
+continuam sendo a fonte da verdade, e os documentos de fluxo as consolidam.
+
+- Todo REQ que muda o comportamento de um fluxo (rota, resposta, mensagem ou código de
+  erro, transição de status, evento, regra de consumidor, configuração, log ou limitação)
+  MUST atualizar o documento desse fluxo **no mesmo PR**, na fase de Polish. Um fluxo novo
+  ganha um documento novo, no mesmo formato, e uma linha no índice
+  (`docs/fluxos/README.md`).
+- Mudanças no ciclo de vida do pedido também atualizam o diagrama de estados do índice.
+- As mensagens, os códigos, os limites e os IDs de log citados devem ser conferidos no
+  código, e os links relativos não podem ficar quebrados.
+- O `tasks.md` de cada REQ inclui uma tarefa de Polish para isso, e o PR cita os documentos
+  atualizados em Validação. Se o REQ não muda nenhum fluxo, o PR diz isso.
+- Uma limitação resolvida sai da seção "Limitações" do documento, e a issue que a
+  resolveu fica no lugar da pendência.
