@@ -39,3 +39,7 @@
   chaves, com mínimos de 1 dia e 24 h), limpeza por hora em lotes de 1 000, limite de 3
   reenvios, até 1 000 mensagens por reenvio, aviso acima de 10 mensagens a cada 5 min, purga
   da DLQ fora do escopo.
+- Revisão de 2026-10-24, pedida pelo usuário depois da análise dos impactos de a API falar
+  com o broker: o reenvio passou a ser assíncrono (a rota de Admin registra o pedido, o
+  processo de workers executa, uma rota consulta o resultado) e a API ganhou um usuário
+  próprio no broker, só para a prontidão (US4, FR-017 a FR-019). Revalidado: 16/16.
