@@ -35,7 +35,9 @@ public sealed class ProcessamentoPagamento(
     /// Ler, decidir e gravar, até <see cref="Reavaliacoes"/> vezes em conflito de concorrência
     /// (FR-012). O gateway é chamado uma vez só, na primeira leitura em que o pedido está apto, e
     /// o resultado vale para as reavaliações: uma mesma mensagem não sorteia duas vezes (R-05).
-    /// Esgotadas as reavaliações, o conflito vai para as novas tentativas da base.
+    /// Esgotadas as reavaliações, o conflito vai para as novas tentativas da base. Se a cobrança
+    /// foi aprovada e a releitura encontra o pedido cancelado sem pagamento, o pagamento é
+    /// registrado com o estorno pendente, para o Cliente não ficar cobrado sem registro (REQ-13, R-07).
     /// </summary>
     public async Task<bool> AplicarAsync(Guid idOrigem, Guid pedidoId, CancellationToken cancellationToken)
     {
@@ -44,7 +46,15 @@ public sealed class ProcessamentoPagamento(
         {
             try
             {
-                if (await LerAptoAsync(idOrigem, pedidoId, cancellationToken) is not { } pedido)
+                var pedido = await armazenamento.ObterPedidoAsync(pedidoId, paraAlterar: true, cancellationToken)
+                    ?? throw new InvalidOperationException($"O pedido {pedidoId} não existe.");
+                if (resultado is { Aprovado: true } aprovado && pedido is { Status: StatusPedido.Cancelado, Pagamento: null })
+                {
+                    await RegistrarCobrancaAposCancelamentoAsync(pedido, aprovado.IdentificadorTransacao!, cancellationToken);
+                    return true;
+                }
+
+                if (!Apto(idOrigem, pedido))
                 {
                     return false;
                 }
@@ -66,21 +76,28 @@ public sealed class ProcessamentoPagamento(
     }
 
     /// <summary>
-    /// O pedido atual, se ainda pode ser cobrado; os itens e o valor vêm do pedido gravado, não do
+    /// Se o pedido lido ainda pode ser cobrado; os itens e o valor vêm do pedido gravado, não do
     /// evento (FR-002, FR-006).
     /// </summary>
-    private async Task<Pedido?> LerAptoAsync(Guid idOrigem, Guid pedidoId, CancellationToken cancellationToken)
+    private bool Apto(Guid idOrigem, Pedido pedido)
     {
-        var pedido = await armazenamento.ObterPedidoAsync(pedidoId, paraAlterar: true, cancellationToken)
-            ?? throw new InvalidOperationException($"O pedido {pedidoId} não existe.");
         if (pedido.AptoParaPagamento)
         {
-            return pedido;
+            return true;
         }
 
         // Cancelado antes da cobrança, em status final ou já pago por outro evento: nada a fazer (FR-002).
         EventosPagamento.PedidoIgnoradoNoPagamento(logger, idOrigem, pedido.Id, pedido.Status, pedido.EstoqueReservado, pedido.Pagamento is not null);
-        return null;
+        return false;
+    }
+
+    /// <summary>Pagamento com estorno pendente, sem evento de saída: o pedido está cancelado (R-07).</summary>
+    private async Task RegistrarCobrancaAposCancelamentoAsync(Pedido pedido, string identificadorTransacao, CancellationToken cancellationToken)
+    {
+        pedido.RegistrarCobrancaAposCancelamento(identificadorTransacao, relogio.GetUtcNow());
+        await armazenamento.SalvarAsync(cancellationToken);
+        EventosPagamento.CobrancaAprovadaParaPedidoCancelado(logger, pedido.Id, pedido.Pagamento!.Valor);
+        EventosPagamento.EstornoSolicitado(logger, pedido.Id, pedido.Pagamento.Valor, OrigemEstorno.CobrancaAposCancelamento);
     }
 
     private async Task GravarResultadoAsync(Guid idOrigem, Pedido pedido, ResultadoCobranca resultado, CancellationToken cancellationToken)

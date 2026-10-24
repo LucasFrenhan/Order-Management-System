@@ -247,4 +247,83 @@ public sealed class ServicoPedidosStatusTestes
         armazenamento.LeiturasProdutosParaAlterar.Should().Be(2);
         EstoqueGravado().Should().Be(11);
     }
+
+    /// <summary>Reservado, pago e em Processando, como o consumidor de pagamento deixa (REQ-09).</summary>
+    private Pedido MontarPago()
+    {
+        var pedido = Montar(StatusPedido.Pendente, reservado: true);
+        pedido.AprovarPagamento("SIM-1", Agora);
+        return pedido;
+    }
+
+    [Fact]
+    public async Task Operacao_cancela_pedido_pago_com_estorno_pendente_sem_chamar_o_gateway()
+    {
+        armazenamento.Produtos.Add(produto);
+        armazenamento.GuardarPedido(PedidoId, MontarPago);
+
+        var resultado = await Mudar(Operador, StatusPedido.Cancelado, "Cliente desistiu", PerfilUsuario.OperadorLogistica);
+
+        resultado.Valor!.Status.Should().Be(StatusPedido.Cancelado);
+        var gravado = Gravado();
+        gravado.Pagamento!.Situacao.Should().Be(Domain.Pagamentos.SituacaoPagamento.EstornoPendente);
+        gravado.Pagamento.EstornoSolicitadoEm.Should().Be(Agora.AddHours(1));
+        gravado.EstoqueReservado.Should().BeFalse();
+        EstoqueGravado().Should().Be(11);
+        armazenamento.EventosGravados.Should().BeEmpty("REQ-13, FR-017: nenhum evento novo");
+        var estorno = logger.Eventos.Should().ContainSingle(e => e.Id.Id == 7005).Subject;
+        estorno.Propriedades["Origem"]!.ToString().Should().Be("Operacao");
+        estorno.Propriedades["PedidoId"].Should().Be(PedidoId);
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 6005);
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 4003);
+    }
+
+    [Fact]
+    public async Task Cliente_continua_sem_poder_cancelar_pedido_pago()
+    {
+        armazenamento.GuardarPedido(PedidoId, MontarPago);
+
+        var resultado = await Mudar(Dono, StatusPedido.Cancelado, "Desisti", PerfilUsuario.Cliente);
+
+        resultado.Falha!.Tipo.Should().Be(TipoFalha.SemPermissao);
+        Gravado().Pagamento!.Situacao.Should().Be(Domain.Pagamentos.SituacaoPagamento.Aprovado);
+        logger.Eventos.Should().NotContain(e => e.Id.Id == 7005);
+    }
+
+    [Fact]
+    public async Task Conflito_com_a_cobranca_rele_o_pedido_pago_e_pede_o_estorno()
+    {
+        armazenamento.Produtos.Add(produto);
+        PedidoEm(StatusPedido.Pendente, reservado: true);
+        armazenamento.ConflitosRestantes = 1;
+        armazenamento.AoConflitar = () => armazenamento.GuardarPedido(PedidoId, MontarPago);
+
+        var resultado = await Mudar(Operador, StatusPedido.Cancelado, "Cliente desistiu", PerfilUsuario.Admin);
+
+        resultado.Valor!.Status.Should().Be(StatusPedido.Cancelado);
+        Gravado().Pagamento!.Situacao.Should().Be(Domain.Pagamentos.SituacaoPagamento.EstornoPendente);
+        Gravado().Historico.Last().StatusAnterior.Should().Be(StatusPedido.Processando);
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 7005);
+    }
+
+    [Fact]
+    public async Task Cancelar_pedido_sem_pagamento_nao_pede_estorno()
+    {
+        armazenamento.Produtos.Add(produto);
+        PedidoEm(StatusPedido.Processando, reservado: true);
+
+        (await Mudar(Operador, StatusPedido.Cancelado, "Sem pagamento", PerfilUsuario.Admin)).Valor!.Status.Should().Be(StatusPedido.Cancelado);
+
+        Gravado().Pagamento.Should().BeNull();
+        logger.Eventos.Should().NotContain(e => e.Id.Id == 7005);
+    }
+
+    [Fact]
+    public void O_servico_de_pedidos_nao_depende_do_gateway_de_pagamento()
+    {
+        // SC-006: o cancelamento não depende do gateway; o estorno é do processo de workers.
+        typeof(ServicoPedidos).GetConstructors()
+            .SelectMany(c => c.GetParameters())
+            .Should().NotContain(p => p.ParameterType == typeof(Application.Pagamentos.IGatewayPagamento));
+    }
 }

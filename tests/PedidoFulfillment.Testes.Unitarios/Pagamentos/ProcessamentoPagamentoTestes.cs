@@ -260,6 +260,41 @@ public sealed class ProcessamentoPagamentoTestes
     }
 
     [Fact]
+    public async Task Cobranca_aprovada_para_pedido_cancelado_no_meio_do_caminho_fica_com_estorno_pendente()
+    {
+        // REQ-13, R-07: o Cliente foi cobrado; o pagamento é registrado e o estorno fica pendente.
+        PedidoEm();
+        armazenamento.ConflitosRestantes = 1;
+        armazenamento.AoConflitar = () => PedidoEm(StatusPedido.Cancelado, reservado: false);
+
+        var gravou = await Consumidor().AplicarAsync(Guid.CreateVersion7(), PedidoId, CancellationToken.None);
+
+        gravou.Should().BeTrue();
+        gateway.Chamadas.Should().ContainSingle();
+        armazenamento.Gravacoes.Should().Be(1);
+        armazenamento.EventosGravados.Should().BeEmpty("o pedido está cancelado: pagamento.aprovado não sai");
+        var gravado = (await armazenamento.ObterPedidoAsync(PedidoId, false, CancellationToken.None))!;
+        gravado.Status.Should().Be(StatusPedido.Cancelado);
+        gravado.Pagamento!.Situacao.Should().Be(SituacaoPagamento.EstornoPendente);
+        gravado.Pagamento.IdentificadorTransacao.Should().Be("SIM-00000000000000000000000000000001");
+        (Estoque(a), Estoque(b)).Should().Be((7, 3));
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 7009);
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 7005).Which.Propriedades["Origem"]!.ToString().Should().Be("CobrancaAposCancelamento");
+    }
+
+    [Fact]
+    public async Task Pedido_cancelado_antes_da_primeira_leitura_continua_sem_cobranca()
+    {
+        PedidoEm(StatusPedido.Cancelado, reservado: false);
+
+        var gravou = await Consumidor().AplicarAsync(Guid.CreateVersion7(), PedidoId, CancellationToken.None);
+
+        gravou.Should().BeFalse();
+        gateway.Chamadas.Should().BeEmpty();
+        armazenamento.Gravacoes.Should().Be(0);
+    }
+
+    [Fact]
     public async Task Conflito_com_o_pedido_movido_para_processando_aprova_sem_mudar_o_status()
     {
         PedidoEm();

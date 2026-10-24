@@ -38,6 +38,8 @@ public sealed class FabricaWorker : WebApplicationFactory<ProgramaWorker>
         // Muitos testes semeiam pedidos com datas fixas, que a reconciliação veria como parados
         // (REQ-12, R-10): desligada, salvo nos testes dela, que a ligam em Configuracoes.
         builder.UseSetting("Reconciliacao:Habilitada", "false");
+        // O mesmo para o processador de estornos (REQ-13, R-09): só os testes dele o ligam.
+        builder.UseSetting("Estornos:Habilitado", "false");
         foreach (var (chave, valor) in ConfiguracoesBroker.Concat(Configuracoes))
         {
             builder.UseSetting(chave, valor);
