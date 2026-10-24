@@ -62,9 +62,9 @@ trabalho novo segue o fluxo SDD (`/speckit-specify` → `/speckit-clarify` → `
 
 | Ordem | Requisito | Origem | Escopo |
 |-------|-----------|--------|--------|
-| 1 | REQ-13 (a abrir) | Clarify do REQ-09 e do REQ-12 | Cancelamento depois do pagamento: estorno, cancelamento da ordem de entrega e o pedido pago cuja ordem falha sempre na reconciliação (hoje ele segue sendo tentado) |
-| 2 | a decidir | Clarify do REQ-12 | Como outros sistemas ficam sabendo dos cancelamentos (não existe evento de cancelamento; o esgotamento da reconciliação cancela sem evento) |
-| 3 | REQ-14 (a abrir) | [Pendências futuras de mensageria](specs/006-mensageria/spec.md#pendências-futuras) | Limpeza do outbox, dos eventos processados e das chaves de idempotência; reprocessamento da DLQ |
+| 1 | REQ-13 | [#28](https://github.com/LucasFrenhan/Order-Management-System/issues/28) — clarify do REQ-09 e do REQ-12 | Cancelamento depois do pagamento: estorno, cancelamento da ordem de entrega e o pedido pago cuja ordem falha sempre na reconciliação (hoje ele segue sendo tentado) |
+| 2 | a numerar (decisão em aberto) | [#29](https://github.com/LucasFrenhan/Order-Management-System/issues/29) — clarify do REQ-12 | Como outros sistemas ficam sabendo dos cancelamentos (não existe evento de cancelamento; o esgotamento da reconciliação cancela sem evento) |
+| 3 | REQ-14 | [#30](https://github.com/LucasFrenhan/Order-Management-System/issues/30) — [pendências futuras de mensageria](specs/006-mensageria/spec.md#pendências-futuras) | Limpeza do outbox, dos eventos processados e das chaves de idempotência; reprocessamento da DLQ |
 | 4 | a numerar | [#18](https://github.com/LucasFrenhan/Order-Management-System/issues/18) — SonarQube Cloud | Análise estática de código no CI |
 
 O que os REQ-04 a REQ-12 já deixaram pronto:
