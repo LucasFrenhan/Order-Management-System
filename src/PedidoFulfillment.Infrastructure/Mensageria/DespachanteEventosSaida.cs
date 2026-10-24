@@ -8,6 +8,7 @@ using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Infrastructure.Configuracao;
 using PedidoFulfillment.Infrastructure.Persistencia;
 using RabbitMQ.Client;
+using RabbitMQ.Client.Exceptions;
 
 namespace PedidoFulfillment.Infrastructure.Mensageria;
 
@@ -16,16 +17,22 @@ namespace PedidoFulfillment.Infrastructure.Mensageria;
 /// confirmação do broker, e só então os marca como enviados. Falha registra espera crescente e
 /// encerra o lote, para não publicar um evento posterior antes do que falhou (FR-006, FR-007).
 /// Entrega pelo menos uma vez: cair entre a confirmação e o commit republica o evento (FR-008).
+/// REQ-12: cada canal novo declara antes as filas dos consumidores conhecidos (R-02), e os tipos
+/// com consumidor saem com <c>mandatory</c>; devolvidos sem rota, ficam pendentes (R-03).
 /// </summary>
 internal sealed partial class DespachanteEventosSaida(
     IServiceScopeFactory escopos,
     ConexaoRabbitMQ conexao,
+    TopologiaConhecida topologia,
     IOptions<OpcoesMensageria> opcoes,
     TimeProvider relogio,
     ILogger<DespachanteEventosSaida> logger) : BackgroundService
 {
     // Com o broker sem responder, a confirmação nunca chega: o prazo devolve a falha ao laço.
     private static readonly TimeSpan PrazoPublicacao = TimeSpan.FromSeconds(5);
+
+    /// <summary>Motivo da falha de publicação devolvida pelo broker sem fila (REQ-12, FR-015).</summary>
+    internal const string MotivoSemRota = "SemRota";
 
     private IChannel? canal;
 
@@ -112,20 +119,33 @@ internal sealed partial class DespachanteEventosSaida(
             };
 
             // Com confirmações rastreadas, só retorna depois do ack; nack ou falha de canal lançam.
-            // mandatory: false — sem fila ligada, a mensagem é descartada sem erro (edge case da spec).
+            // Tipo com consumidor exige rota: devolvido sem fila, lança PublishReturnException (R-03).
+            // Sem consumidor interno, sem fila ligada a mensagem é descartada sem erro (FR-005).
             await canalPublicacao.BasicPublishAsync(
-                TopologiaMensageria.TrocaEventos, evento.Tipo, mandatory: false, propriedades, Encoding.UTF8.GetBytes(evento.Conteudo), prazo.Token);
+                TopologiaMensageria.TrocaEventos, evento.Tipo, mandatory: topologia.ExigeRota(evento.Tipo), propriedades,
+                Encoding.UTF8.GetBytes(evento.Conteudo), prazo.Token);
             evento.MarcarEnviado(relogio.GetUtcNow());
             EventoPublicado(logger, evento.IdEvento, evento.Tipo);
             return true;
         }
+        catch (PublishReturnException devolvido)
+        {
+            // Sem fila ligada: pendente, com espera crescente. O canal novo declara a topologia de
+            // novo, o que recria a fila apagada antes da próxima tentativa (R-03).
+            return await RegistrarFalhaAsync(evento, MotivoSemRota, $"{MotivoSemRota}: {devolvido.ReplyText}");
+        }
         catch (Exception excecao) when (excecao is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            evento.RegistrarFalha($"{excecao.GetType().Name}: {excecao.Message}", relogio.GetUtcNow());
-            FalhaPublicacao(logger, evento.IdEvento, evento.Tipo, evento.Tentativas, excecao.GetType().Name);
-            await DescartarCanalAsync();
-            return false;
+            return await RegistrarFalhaAsync(evento, excecao.GetType().Name, $"{excecao.GetType().Name}: {excecao.Message}");
         }
+    }
+
+    private async Task<bool> RegistrarFalhaAsync(EventoSaida evento, string motivo, string erro)
+    {
+        evento.RegistrarFalha(erro, relogio.GetUtcNow());
+        FalhaPublicacao(logger, evento.IdEvento, evento.Tipo, evento.Tentativas, motivo);
+        await DescartarCanalAsync();
+        return false;
     }
 
     private async Task DeclararTopologiaAsync(CancellationToken cancellationToken)
@@ -157,6 +177,12 @@ internal sealed partial class DespachanteEventosSaida(
             new CreateChannelOptions(publisherConfirmationsEnabled: true, publisherConfirmationTrackingEnabled: true),
             cancellationToken);
         await TopologiaMensageria.DeclararTrocaAsync(canal, cancellationToken);
+        foreach (var (consumidor, tipos) in topologia.Consumidores)
+        {
+            // Mesma função e mesmas opções do consumidor: argumentos idênticos (FR-002).
+            await TopologiaMensageria.DeclararConsumidorAsync(canal, consumidor, tipos, opcoes.Value.Intervalos, cancellationToken);
+        }
+
         return canal;
     }
 

@@ -73,6 +73,19 @@ public sealed class ProcessamentoPagamentoTestes
 
     private Task Manipular(Guid? pedidoId = null) => Consumidor().ManipularAsync(Evento(pedidoId ?? PedidoId), CancellationToken.None);
 
+    [Fact]
+    public async Task AplicarAsync_devolve_verdadeiro_quando_grava_e_falso_quando_o_pedido_nao_esta_apto()
+    {
+        // A regra que a reconciliação reaproveita (REQ-12, R-04), sem a mensagem.
+        PedidoEm();
+        (await Consumidor().AplicarAsync(Guid.Empty, PedidoId, CancellationToken.None)).Should().BeTrue();
+        armazenamento.Gravacoes.Should().Be(1);
+
+        PedidoEm(StatusPedido.Processando, pago: true);
+        (await Consumidor().AplicarAsync(Guid.Empty, PedidoId, CancellationToken.None)).Should().BeFalse();
+        armazenamento.Gravacoes.Should().Be(1);
+    }
+
     private Pedido Gravado() => armazenamento.ObterPedidoAsync(PedidoId, false, CancellationToken.None).Result!;
 
     private int Estoque(Produto produto) => armazenamento.Produtos.Single(p => p.Id == produto.Id).QuantidadeEstoque;

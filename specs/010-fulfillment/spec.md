@@ -276,6 +276,7 @@ continua `Cancelado` e nenhum "entrega criada" saiu.
   requisito: não há varredura na partida nem reenvio do "pagamento aprovado". A perda de
   evento publicado antes de a fila do consumidor existir é tratada num REQ futuro de
   mensageria. Até lá, a operação pode mover esses pedidos pela API, mas eles continuam sem
-  ordem de entrega.
+  ordem de entrega. **Atualização**: o [REQ-12](../012-publicacao-garantida/spec.md)
+  recupera esses pedidos pela reconciliação, que cria a ordem que falta.
 - O ambiente local do REQ-02 (banco e broker no ar) é pré-requisito para os testes de
   integração. Sem Docker, eles são ignorados localmente e reprovam no CI (REQ-07).

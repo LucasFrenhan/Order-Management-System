@@ -35,6 +35,9 @@ public sealed class FabricaWorker : WebApplicationFactory<ProgramaWorker>
         builder.UseSetting("Mensageria:IntervalosNovaTentativaMs:2", "400");
         // Nenhum teste depende de sorte (REQ-09, R-09): aprova tudo, salvo se o teste configurar outra taxa.
         builder.UseSetting("GatewayPagamento:TaxaAprovacaoPercentual", "100");
+        // Muitos testes semeiam pedidos com datas fixas, que a reconciliação veria como parados
+        // (REQ-12, R-10): desligada, salvo nos testes dela, que a ligam em Configuracoes.
+        builder.UseSetting("Reconciliacao:Habilitada", "false");
         foreach (var (chave, valor) in ConfiguracoesBroker.Concat(Configuracoes))
         {
             builder.UseSetting(chave, valor);

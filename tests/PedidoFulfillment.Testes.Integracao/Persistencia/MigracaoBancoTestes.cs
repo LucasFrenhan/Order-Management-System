@@ -87,7 +87,7 @@ public sealed class MigracaoBancoTestes(BancoDadosTeste banco)
         (await BancoDadosTeste.ConsultarAsync<int>(stringConexao, ContarTabelasNegocio)).Should().Be(6);
         (await BancoDadosTeste.ConsultarAsync<string>(stringConexao,
             "SELECT STRING_AGG(SUBSTRING(MigrationId, 16, 100), ',') WITHIN GROUP (ORDER BY MigrationId) FROM __EFMigrationsHistory"))
-            .Should().Be("InicialIdentidade,EntidadesNegocio,ChavesIdempotencia,MensageriaOutbox,ReservaEstoque,RastreioSemCaixa");
+            .Should().Be("InicialIdentidade,EntidadesNegocio,ChavesIdempotencia,MensageriaOutbox,ReservaEstoque,RastreioSemCaixa,PagamentoNaoProcessado");
     }
 
     [Fact]

@@ -285,7 +285,7 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
 
                     b.ToTable("Pagamentos", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Pagamentos_SituacaoValida", "[Situacao] IN (N'Pendente', N'Aprovado', N'Recusado')");
+                            t.HasCheckConstraint("CK_Pagamentos_SituacaoValida", "[Situacao] IN (N'Pendente', N'Aprovado', N'Recusado', N'NaoProcessado')");
 
                             t.HasCheckConstraint("CK_Pagamentos_ValorNaoNegativo", "[Valor] >= 0");
                         });

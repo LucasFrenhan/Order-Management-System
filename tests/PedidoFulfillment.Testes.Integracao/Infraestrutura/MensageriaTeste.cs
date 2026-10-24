@@ -109,6 +109,43 @@ public sealed class MensageriaTeste : IAsyncLifetime
         }
     }
 
+    /// <summary>
+    /// Apaga as filas do consumidor (principal, espera de 100, 200 e 400 ms e DLQ), como num
+    /// broker recriado (REQ-12). Fila inexistente é ignorada.
+    /// </summary>
+    public async Task ApagarFilasConsumidorAsync(string consumidor, bool soPrincipal = false)
+    {
+        await using var conexao = await ConectarAsync();
+        string[] filas = soPrincipal
+            ? [TopologiaMensageria.FilaPrincipal(consumidor)]
+            :
+            [
+                TopologiaMensageria.FilaPrincipal(consumidor),
+                .. new[] { 100, 200, 400 }.Select(ms => TopologiaMensageria.FilaEspera(consumidor, ms)),
+                TopologiaMensageria.FilaMortas(consumidor)
+            ];
+        foreach (var fila in filas)
+        {
+            await using var canal = await conexao.CreateChannelAsync(cancellationToken: TestContext.Current.CancellationToken);
+            await canal.QueueDeleteAsync(fila, ifUnused: false, ifEmpty: false, cancellationToken: TestContext.Current.CancellationToken);
+        }
+    }
+
+    /// <summary>Quantas mensagens a fila tem, ou nulo se ela não existe (REQ-12).</summary>
+    public async Task<uint?> MensagensNaFilaAsync(string fila)
+    {
+        await using var conexao = await ConectarAsync();
+        await using var canal = await conexao.CreateChannelAsync(cancellationToken: TestContext.Current.CancellationToken);
+        try
+        {
+            return (await canal.QueueDeclarePassiveAsync(fila, TestContext.Current.CancellationToken)).MessageCount;
+        }
+        catch (RabbitMQ.Client.Exceptions.OperationInterruptedException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>Espera a fila principal do consumidor existir e ter consumidor ligado, até o prazo.</summary>
     public async Task<bool> ConsumidorLigadoAsync(string consumidor, TimeSpan prazo)
     {
