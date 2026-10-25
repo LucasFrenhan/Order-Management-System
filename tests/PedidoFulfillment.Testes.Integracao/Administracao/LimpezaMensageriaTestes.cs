@@ -211,12 +211,19 @@ public sealed class LimpezaMensageriaTestes(MensageriaTeste mensageria)
 
             logs.Registros.Should().Contain(r => r.Evento.Id == 5015 && r.Texto.Contains("limpeza", StringComparison.Ordinal));
             (await ContarAsync(stringConexao, "EventosProcessados", $"IdEvento = '{antigo}'")).Should().Be(1);
+
+            // Libera explicitamente: fechar a conexão encerra a sessão de forma assíncrona no
+            // servidor, e a rodada seguinte poderia ainda encontrar o lock ocupado.
+            await using var liberar = new SqlCommand("EXEC sp_releaseapplock @Resource = @recurso, @LockOwner = 'Session';", conexao);
+            liberar.Parameters.AddWithValue("@recurso", LimpezaMensageria.RecursoLock);
+            await liberar.ExecuteNonQueryAsync(Cancelamento);
         }
 
         await limpeza.ExecutarRodadaAsync(Opcoes(), Cancelamento);
         await limpeza.ExecutarRodadaAsync(Opcoes(), Cancelamento);
 
         (await ContarAsync(stringConexao, "EventosProcessados", $"IdEvento = '{antigo}'")).Should().Be(0);
+        logs.Registros.Count(r => r.Evento.Id == 5015).Should().Be(1, "só a rodada com o lock ocupado é pulada");
         var resumos = logs.Registros.Where(r => r.Evento.Id == 5013).ToList();
         resumos.Should().HaveCount(2);
         resumos[0].Nivel.Should().Be(LogLevel.Information);

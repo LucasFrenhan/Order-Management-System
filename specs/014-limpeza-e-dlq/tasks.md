@@ -328,3 +328,9 @@ troca o painel do broker por um reenvio controlado; a US3 avisa; a US4 reduz o a
   de o servidor criar o cookie. Conferido com `docker compose -p omsteste --profile demo up -d
   --wait --build` em volumes novos (os quatro serviços saudáveis). "Build e testes" e
   "breaking-changes" já estavam verdes.
+- **T028, CI (2026-10-25, segundo push)**: "Demonstração" ficou verde, mas "Build e testes"
+  falhou em `Com_o_lock_ocupado_a_rodada_e_pulada_e_sem_nada_a_apagar_o_resumo_e_debug` (1 de
+  375): o teste soltava o lock fechando a conexão sem pool, e o SQL Server encerra a sessão de
+  forma assíncrona; a rodada seguinte ainda pegava o lock ocupado e era pulada. A rotina não
+  muda (ela solta com `sp_releaseapplock`, síncrono); o teste agora solta da mesma forma e
+  confere que só uma rodada foi pulada. 5 de 5 execuções locais verdes.
