@@ -17,5 +17,9 @@ internal sealed class ConfiguracaoEventoSaida : IEntityTypeConfiguration<EventoS
         evento.HasIndex(e => new { e.ProximaTentativaEm, e.Id })
             .HasDatabaseName("IX_EventosSaida_Pendentes")
             .HasFilter("[EnviadoEm] IS NULL");
+        // Limpeza dos enviados antigos (REQ-14, R-01): nunca toca nos pendentes do índice acima.
+        evento.HasIndex(e => e.EnviadoEm)
+            .HasDatabaseName("IX_EventosSaida_Enviados")
+            .HasFilter("[EnviadoEm] IS NOT NULL");
     }
 }

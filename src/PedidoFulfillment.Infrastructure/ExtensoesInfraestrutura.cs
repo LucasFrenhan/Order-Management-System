@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using PedidoFulfillment.Application.Autenticacao;
+using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Infrastructure.Configuracao;
 using PedidoFulfillment.Infrastructure.Identidade;
@@ -71,6 +72,7 @@ public static class ExtensoesInfraestrutura
         services.AddScoped<IGestorIdentidade, GestorIdentidade>();
         services.AddScoped<IArmazenamentoPedidos, ArmazenamentoPedidos>();
         services.AddScoped<IGeradorNumeroPedido, GeradorNumeroPedido>();
+        services.AddScoped<IArmazenamentoReenvios, ArmazenamentoReenvios>();
 
         services.AddOptions<OpcoesBanco>().BindConfiguration(OpcoesBanco.Secao);
         // Data de criação do catálogo inicial (REQ-04); a API também registra, sem duplicar.

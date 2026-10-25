@@ -20,6 +20,8 @@ tags:
     description: Registro e login de usuários.
   - name: Pedidos
     description: Criação, consulta e atualização de status de pedidos.
+  - name: Administracao
+    description: Operação da mensageria, só para Admin (REQ-14).
 
 paths:
   /api/v1/auth/register:
@@ -306,6 +308,94 @@ paths:
                 instance: /api/v1/pedidos/0f8fad5b-d9cb-469f-a165-70867728950e/rastreio
                 traceId: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00
                 codigo: PEDIDO_RASTREIO_DUPLICADO
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /api/v1/admin/dlq/{consumidor}/reenvios:
+    post:
+      tags: [Administracao]
+      operationId: RegistrarReenvioDlq
+      summary: Pede o reenvio das mensagens da DLQ de um consumidor; o processo de workers o executa.
+      description: |
+        Perfil autorizado: **Admin**. Cliente e OperadorLogistica: 403 (REQ-14).
+
+        A rota só registra o pedido, com o Admin autenticado como autor, e responde 202; ela
+        não fala com o broker. O processo de workers executa os pedidos pendentes, um de cada
+        vez, e grava o resultado, consultado em `GET /api/v1/admin/dlq/reenvios/{id}`. Todos os
+        campos do filtro são opcionais; corpo `{}` seleciona todas as mensagens que o limite de
+        reenvios permitir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: consumidor
+          in: path
+          required: true
+          description: Consumidor dono da DLQ (estoque, pagamento ou entrega).
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrarReenvioDlqRequestDTO'
+            example:
+              tipoEvento: pedido.criado
+              trechoMotivo: Timeout
+      responses:
+        '202':
+          description: Pedido de reenvio registrado, pendente de execução.
+          headers:
+            Location:
+              description: URL da consulta do pedido de reenvio.
+              schema:
+                type: string
+                format: uri-reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PedidoReenvioDlqResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /api/v1/admin/dlq/reenvios/{id}:
+    get:
+      tags: [Administracao]
+      operationId: ObterReenvioDlq
+      summary: Consulta um pedido de reenvio da DLQ, com a situação e as contagens.
+      description: |
+        Perfil autorizado: **Admin**. Cliente e OperadorLogistica: 403 (REQ-14).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador do pedido de reenvio.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Pedido de reenvio encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PedidoReenvioDlqResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '404':
+          $ref: '#/components/responses/ErroNaoEncontrado'
         '500':
           $ref: '#/components/responses/ErroInterno'
 
@@ -691,6 +781,71 @@ components:
         codigoRastreio:
           type: string
           maxLength: 50
+
+    SituacaoReenvioDlq:
+      type: string
+      enum: [Pendente, EmExecucao, Concluido, Falhou]
+
+    RegistrarReenvioDlqRequestDTO:
+      type: object
+      description: Filtro do reenvio (REQ-14). Campos opcionais e combináveis; os textos são medidos depois de aparar.
+      properties:
+        tipoEvento:
+          type: ['null', string]
+        falhouDe:
+          type: ['null', string]
+          format: date-time
+        falhouAte:
+          type: ['null', string]
+          format: date-time
+          description: Igual ou posterior a falhouDe.
+        trechoMotivo:
+          type: ['null', string]
+
+    PedidoReenvioDlqResponseDTO:
+      type: object
+      required: [id, consumidor, situacao, autorId, registradoEm, reenviadas, bloqueadasPeloLimite, foraDoFiltro]
+      properties:
+        id:
+          type: string
+          format: uuid
+        consumidor:
+          type: string
+        situacao:
+          $ref: '#/components/schemas/SituacaoReenvioDlq'
+        autorId:
+          type: string
+          format: uuid
+        tipoEvento:
+          type: ['null', string]
+        falhouDe:
+          type: ['null', string]
+          format: date-time
+        falhouAte:
+          type: ['null', string]
+          format: date-time
+        trechoMotivo:
+          type: ['null', string]
+        registradoEm:
+          type: string
+          format: date-time
+        iniciadoEm:
+          type: ['null', string]
+          format: date-time
+        concluidoEm:
+          type: ['null', string]
+          format: date-time
+        reenviadas:
+          type: integer
+          format: int32
+        bloqueadasPeloLimite:
+          type: integer
+          format: int32
+        foraDoFiltro:
+          type: integer
+          format: int32
+        motivoFalha:
+          type: ['null', string]
 
     ProblemDetails:
       type: object

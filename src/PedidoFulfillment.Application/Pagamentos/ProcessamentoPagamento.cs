@@ -22,7 +22,7 @@ public sealed class ProcessamentoPagamento(
     /// <summary>Como <see cref="Estoque.ReservaEstoque"/> (research R-05).</summary>
     private const int Reavaliacoes = 3;
 
-    public string Consumidor => "pagamento";
+    public string Consumidor => ConsumidoresConhecidos.Pagamento;
 
     public IReadOnlyCollection<string> Tipos { get; } = [TiposEvento.EstoqueReservado];
 

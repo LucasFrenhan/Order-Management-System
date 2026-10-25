@@ -29,6 +29,7 @@ public sealed class ProgramaWorker
         builder.Services.AdicionarProcessamentoEstornos();
         builder.Services.AdicionarConsumidor<CriacaoOrdemEntrega, PagamentoAprovado>();
         builder.Services.AdicionarReconciliacao();
+        builder.Services.AdicionarLimpezaEReenvio();
 
         var app = builder.Build();
         app.MapearEndpointsSaude();

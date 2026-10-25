@@ -23,7 +23,7 @@ public sealed class ReservaEstoque(IArmazenamentoPedidos armazenamento, TimeProv
     /// <summary>Como <c>TentativasStatus</c> do <see cref="ServicoPedidos"/> (research R-03).</summary>
     private const int Reavaliacoes = 3;
 
-    public string Consumidor => "estoque";
+    public string Consumidor => ConsumidoresConhecidos.Estoque;
 
     public IReadOnlyCollection<string> Tipos { get; } = [TiposEvento.PedidoCriado];
 

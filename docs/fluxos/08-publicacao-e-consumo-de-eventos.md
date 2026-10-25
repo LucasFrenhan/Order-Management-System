@@ -5,7 +5,8 @@ a cada consumidor.
 **Origem**: REQ-06 ([spec](../../specs/006-mensageria/spec.md),
 [topologia e consumo](../../specs/006-mensageria/contracts/topologia-e-consumo.md),
 [schemas](../../specs/006-mensageria/contracts/eventos/)) e REQ-12 ([spec](../../specs/012-publicacao-garantida/spec.md),
-[contrato](../../specs/012-publicacao-garantida/contracts/publicacao-e-reconciliacao.md)).
+[contrato](../../specs/012-publicacao-garantida/contracts/publicacao-e-reconciliacao.md)) e REQ-14
+([spec](../../specs/014-limpeza-e-dlq/spec.md), mensagem reenviada da DLQ).
 
 ## Eventos
 
@@ -88,6 +89,21 @@ Exemplo: o banco cai enquanto o consumidor de estoque processa um `pedido.criado
 é tentado de novo após 1 s, 2 s e 4 s. Se o banco ainda não voltou, a mensagem vai para
 `oms.estoque.dlq`, e o pedido fica `Pendente` sem reserva até a reconciliação (fluxo 9).
 
+### Mensagem reenviada da DLQ (REQ-14)
+
+Um Admin pede o reenvio pela API, e o Worker devolve a mensagem para `oms.C` (fluxo 11). Ela
+chega como uma entrega nova:
+
+| Cabeçalho | Na cópia reenviada |
+|-----------|--------------------|
+| `x-tentativas`, `x-ultimo-erro` | Removidos: as tentativas recomeçam do zero |
+| `x-reenvios` | Anterior + 1; a base de consumo o copia ao mandar para a espera e para a DLQ |
+| `x-reenviado-em`, `x-pedido-reenvio` | Instante e identificador do pedido de reenvio |
+| `x-motivo`, `x-falhou-em` | Mantidos até a próxima falha, que os sobrescreve |
+
+O `MessageId` e o envelope não mudam, então um evento já processado é descartado como
+duplicado (5005), sem efeito repetido.
+
 ## Falhas externas
 
 | Falha | Comportamento |
@@ -109,9 +125,12 @@ Exemplo: o banco cai enquanto o consumidor de estoque processa um `pedido.criado
 | `IntervalosNovaTentativaMs` | 1000, 2000, 4000 |
 | `PrefetchConsumidor` | 10 |
 
+## Limpeza e reenvio (REQ-14)
+
+Os eventos enviados e os registros de processados são apagados pela limpeza depois de 7 dias,
+e a DLQ é reenviada pelo pedido de um Admin, sem o painel do broker (#30). Os detalhes estão
+no [fluxo 11](11-limpeza-e-reenvio-da-dlq.md).
+
 ## Limitações
 
-- A DLQ é inspecionada e reenviada à mão, pelo painel do RabbitMQ (#30). Uma mensagem
-  reenviada volta como evento novo para as tentativas, e o descarte de duplicados evita
-  efeito repetido.
-- Os eventos enviados e os registros de processados não são apagados (#30).
+- A purga da DLQ (apagar mensagens sem reenviar) continua manual, pelo painel do RabbitMQ.

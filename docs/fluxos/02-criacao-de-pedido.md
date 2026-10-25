@@ -44,7 +44,8 @@ O Worker publica o evento depois (fluxo 8), e a reserva acontece no fluxo 4.
 
 ## Idempotência
 
-A chave vale por par (Cliente, chave) por pelo menos 24 h. O conteúdo é comparado por uma
+A chave vale por par (Cliente, chave) por pelo menos 24 h e é apagada pela limpeza do Worker
+depois de 48 h, configurável, nunca antes de 24 h ([fluxo 11](11-limpeza-e-reenvio-da-dlq.md), #30). O conteúdo é comparado por uma
 impressão dos itens ordenados por produto: os mesmos pares (produto, quantidade) em outra
 ordem são o mesmo conteúdo.
 
@@ -91,7 +92,3 @@ Para ver o estado atual, o Cliente consulta o `Location` (fluxo 3).
 ## Observabilidade
 
 Logs 4001 (pedido criado, com id, número, itens e total) e 4002 (repetição idempotente).
-
-## Limitações
-
-- A chave de idempotência não é apagada depois de 24 h; a limpeza está na issue #30.

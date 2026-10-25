@@ -165,6 +165,10 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
 
                     b.HasKey("Id");
 
+                    b.HasIndex("EnviadoEm")
+                        .HasDatabaseName("IX_EventosSaida_Enviados")
+                        .HasFilter("[EnviadoEm] IS NOT NULL");
+
                     b.HasIndex("IdEvento")
                         .IsUnique();
 
@@ -173,6 +177,73 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                         .HasFilter("[EnviadoEm] IS NULL");
 
                     b.ToTable("EventosSaida", (string)null);
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Application.Mensageria.PedidoReenvioDlq", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AutorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("BloqueadasPeloLimite")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("ConcluidoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Consumidor")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset?>("FalhouAte")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("FalhouDe")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("ForaDoFiltro")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("IniciadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("MotivoFalha")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("Reenviadas")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("RegistradoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Situacao")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("TipoEvento")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("TrechoMotivo")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Situacao", "RegistradoEm")
+                        .HasDatabaseName("IX_PedidosReenvioDlq_Situacao_RegistradoEm");
+
+                    b.ToTable("PedidosReenvioDlq", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PedidosReenvioDlq_ContagensNaoNegativas", "[Reenviadas] >= 0 AND [BloqueadasPeloLimite] >= 0 AND [ForaDoFiltro] >= 0");
+
+                            t.HasCheckConstraint("CK_PedidosReenvioDlq_SituacaoValida", "[Situacao] IN (N'Pendente', N'EmExecucao', N'Concluido', N'Falhou')");
+                        });
                 });
 
             modelBuilder.Entity("PedidoFulfillment.Application.Pedidos.RegistroIdempotencia", b =>
@@ -623,6 +694,9 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
 
                     b.HasKey("Consumidor", "IdEvento")
                         .HasName("PK_EventosProcessados");
+
+                    b.HasIndex("ProcessadoEm")
+                        .HasDatabaseName("IX_EventosProcessados_ProcessadoEm");
 
                     b.ToTable("EventosProcessados", (string)null);
                 });
