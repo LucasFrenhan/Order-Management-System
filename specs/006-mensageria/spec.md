@@ -365,14 +365,18 @@ e conferir que a API continua criando pedidos normalmente.
 Pedidas pelo usuário em 2026-10-22, para estudar a melhor abordagem e virar um requisito
 próprio depois:
 
-- **Limpeza de dados de mensageria e idempotência**: eventos enviados do outbox, registros
+- **Limpeza de dados de mensageria e idempotência** — **resolvido no
+  [REQ-14](../014-limpeza-e-dlq/spec.md)** (limpeza periódica no Worker, em lotes, com
+  retenção por tipo). Registro original: eventos enviados do outbox, registros
   de eventos processados por consumidor e chaves de idempotência do REQ-05 (essas, só
   depois de 24 h). A decidir:
   - retenção de cada tipo;
   - onde roda, por exemplo um job periódico no processo de workers;
   - como evitar disputa entre instâncias;
   - métricas do que foi apagado.
-- **Reprocessamento da DLQ**: hoje é manual, pelo painel do broker. A decidir:
+- **Reprocessamento da DLQ** — **resolvido no [REQ-14](../014-limpeza-e-dlq/spec.md)**
+  (pedido do Admin pela API, executado pelo Worker, com filtro, limite de reenvios e aviso de
+  tamanho). Registro original: hoje é manual, pelo painel do broker. A decidir:
   - como reenviar mensagens da DLQ para a fila original (comando, rota administrativa
     protegida ou job);
   - filtros por tipo, período ou motivo;

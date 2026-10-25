@@ -27,6 +27,7 @@ estão em [`docs/fluxos/`](docs/fluxos/README.md).
 | REQ-11 — Rastreio, despacho e histórico na consulta ([spec](specs/011-rastreio/spec.md)) | A resposta do pedido traz o histórico de status (sem o autor) e a entrega; `PATCH /api/v1/pedidos/{id}/rastreio` (Admin e OperadorLogistica) despacha o pedido pronto com transportadora e código de rastreio, ou corrige o rastreio de um despachado; evolução compatível do contrato v1 |
 | REQ-12 — Publicação garantida e reconciliação ([spec](specs/012-publicacao-garantida/spec.md)) | O despachante declara as filas de todos os consumidores antes de publicar e exige rota para os tipos com consumidor (devolvido sem fila, o evento fica pendente); a reconciliação periódica no Worker aplica a regra da etapa aos pedidos parados por evento perdido, inclusive os pagos sem ordem do REQ-10, e cancela os de estoque e pagamento que falham por mais de 24 h |
 | REQ-13 — Cancelamento depois do pagamento, com estorno ([spec](specs/013-cancelamento-com-estorno/spec.md)) | Cancelar um pedido pago deixa o estorno pendente na mesma gravação (com o estoque devolvido e a ordem de entrega sem despacho cancelada, `entrega.canceladaEm` na consulta); o Worker estorna no gateway e tenta de novo sem desistir; a reconciliação passa a esgotar a etapa de entrega; cobrança e estorno idempotentes por pedido |
+| REQ-14 — Limpeza de mensageria e reenvio da DLQ ([spec](specs/014-limpeza-e-dlq/spec.md)) | O Worker apaga, em lotes, os eventos enviados, os processados, as chaves de idempotência e os pedidos de reenvio antigos; o Admin pede pela API o reenvio da DLQ de um consumidor, com filtro e limite de 3 reenvios, e o Worker o executa sem perder nem embaralhar mensagens; aviso no log quando a DLQ passa de 10 mensagens; a API passa a usar um usuário próprio no broker, sem permissões |
 
 ## Demonstração rápida
 
@@ -61,18 +62,18 @@ catálogo inicial (`CAT-001` a `CAT-010`).
 
 Com o REQ-11, as issues de negócio do roteiro original (#1 a #11) estão entregues: o pedido
 vai da criação ao despacho com rastreio. O REQ-12 fechou a perda silenciosa de eventos, e o
-REQ-13 garante que o Cliente nunca fica cobrado por um pedido cancelado. Cada trabalho novo
-segue o fluxo SDD (`/speckit-specify` → `/speckit-clarify` → `/speckit-plan` →
-`/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`), em uma branch
-`feature/req-XX-...`, com a numeração a partir do REQ-14.
+REQ-13 garante que o Cliente nunca fica cobrado por um pedido cancelado. O REQ-14 limpou os
+dados de mensageria que cresciam sem limite e trocou o painel do broker por um reenvio da DLQ
+controlado. Cada trabalho novo segue o fluxo SDD (`/speckit-specify` → `/speckit-clarify` →
+`/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`), em uma
+branch `feature/req-XX-...`, com a numeração a partir do REQ-15.
 
 | Ordem | Requisito | Origem | Escopo |
 |-------|-----------|--------|--------|
 | 1 | a numerar (decisão em aberto) | [#29](https://github.com/LucasFrenhan/Order-Management-System/issues/29) — clarify do REQ-12 e do REQ-13 | Como outros sistemas ficam sabendo dos cancelamentos e dos estornos (não existe evento de cancelamento nem de estorno; o esgotamento da reconciliação cancela sem evento) |
-| 2 | REQ-14 | [#30](https://github.com/LucasFrenhan/Order-Management-System/issues/30) — [pendências futuras de mensageria](specs/006-mensageria/spec.md#pendências-futuras) | Limpeza do outbox, dos eventos processados e das chaves de idempotência; reprocessamento da DLQ |
-| 3 | a numerar | [#18](https://github.com/LucasFrenhan/Order-Management-System/issues/18) — SonarQube Cloud | Análise estática de código no CI |
+| 2 | a numerar | [#18](https://github.com/LucasFrenhan/Order-Management-System/issues/18) — SonarQube Cloud | Análise estática de código no CI |
 
-O que os REQ-04 a REQ-13 já deixaram pronto:
+O que os REQ-04 a REQ-14 já deixaram pronto:
 
 - **Armazenamento**: produtos, pedidos com itens e histórico de status, pagamentos e ordens
   de entrega, com as restrições no banco.
@@ -105,6 +106,9 @@ O que os REQ-04 a REQ-13 já deixaram pronto:
 - **Cancelamento e estorno** (REQ-13): `Pedido.Cancelar` é o único caminho de cancelamento
   (estoque, estorno pendente e ordem juntos); `IGatewayPagamento.EstornarAsync` e o
   `ServicoEstornos` ([estorno e cancelamento](specs/013-cancelamento-com-estorno/contracts/estorno-e-cancelamento.md)).
+- **Administração da mensageria** (REQ-14): a política `PoliticaAdministracao` (só Admin), o
+  `PedidoReenvioDlq` e a lista `ConsumidoresConhecidos`, que um consumidor novo precisa ganhar
+  ([limpeza e reenvio](specs/014-limpeza-e-dlq/contracts/limpeza-e-reenvio.md)).
 
 Decisões e pontos já conhecidos:
 
@@ -132,9 +136,14 @@ Decisões e pontos já conhecidos:
 - **Idempotência no gateway** (REQ-13). O pedido é a chave da cobrança e do estorno: a mesma
   chamada repetida devolve o mesmo resultado. O simulado guarda as chaves em memória; um
   gateway real as guarda do lado dele.
-- **Pendências futuras de mensageria**: limpeza do outbox, dos eventos processados e das
-  chaves de idempotência e reprocessamento da DLQ (hoje manual, pelo painel), em
-  [pendências futuras](specs/006-mensageria/spec.md#pendências-futuras).
+- **Limpeza e reenvio da DLQ** (REQ-14). O Worker apaga, em lotes e com uma instância por
+  rodada, os eventos enviados e os processados com mais de 7 dias, as chaves de idempotência
+  com mais de 48 h (nunca antes de 24 h) e os pedidos de reenvio finais com mais de 90 dias.
+  O reenvio da DLQ é pedido pela API, só pelo Admin, e executado pelo Worker: as mensagens
+  selecionadas voltam à fila original com as tentativas zeradas, as outras ficam na posição
+  original, e cada mensagem é reenviada no máximo 3 vezes. A API não fala com o broker além da
+  prontidão, e com o usuário próprio `oms-api`, sem permissões
+  ([fluxo 11](docs/fluxos/11-limpeza-e-reenvio-da-dlq.md)).
 - **Mudanças de contrato (Princípio II).** O REQ-11 evoluiu a v1 só com acréscimos: os
   campos `historico` e `entrega` na resposta do pedido e a rota `PATCH .../rastreio`. O
   workflow "Compatibilidade do contrato" (oasdiff) barra mudanças incompatíveis no PR.
@@ -157,7 +166,7 @@ Decisões e pontos já conhecidos:
 - SDK do .NET 10 (`winget install Microsoft.DotNet.SDK.10`)
 - Docker com Compose v2, para o [ambiente local](#ambiente-local) (`winget install Docker.DockerDesktop`)
 
-Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md), [domínio e persistência](specs/004-dominio-persistencia/quickstart.md), [pedidos](specs/005-criacao-pedidos/quickstart.md), [mensageria](specs/006-mensageria/quickstart.md), [CI e demonstração](specs/007-ci-demo/quickstart.md), [estoque](specs/008-estoque/quickstart.md), [pagamento](specs/009-pagamento/quickstart.md), [entrega](specs/010-fulfillment/quickstart.md), [rastreio](specs/011-rastreio/quickstart.md), [publicação garantida e reconciliação](specs/012-publicacao-garantida/quickstart.md) e [cancelamento com estorno](specs/013-cancelamento-com-estorno/quickstart.md).
+Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md), [domínio e persistência](specs/004-dominio-persistencia/quickstart.md), [pedidos](specs/005-criacao-pedidos/quickstart.md), [mensageria](specs/006-mensageria/quickstart.md), [CI e demonstração](specs/007-ci-demo/quickstart.md), [estoque](specs/008-estoque/quickstart.md), [pagamento](specs/009-pagamento/quickstart.md), [entrega](specs/010-fulfillment/quickstart.md), [rastreio](specs/011-rastreio/quickstart.md), [publicação garantida e reconciliação](specs/012-publicacao-garantida/quickstart.md) , [cancelamento com estorno](specs/013-cancelamento-com-estorno/quickstart.md) e [limpeza e reenvio da DLQ](specs/014-limpeza-e-dlq/quickstart.md).
 
 ## Ambiente local
 
@@ -175,10 +184,15 @@ docker compose down -v        # para e apaga os dados locais (recomeçar do zero
 | Dependência | Endereço local | Credenciais de desenvolvimento |
 |-------------|----------------|--------------------------------|
 | SQL Server | `localhost,1433` | usuário `sa`, senha `OmsDev_2026!Local` |
-| RabbitMQ (AMQP) | `localhost:5672` | usuário `oms`, senha `oms-dev-local` |
+| RabbitMQ (AMQP), Worker | `localhost:5672` | usuário `oms`, senha `oms-dev-local` |
+| RabbitMQ (AMQP), API | `localhost:5672` | usuário `oms-api`, senha `oms-api-dev-local`; só conecta para a prontidão (REQ-14) |
 | Painel do RabbitMQ | <http://localhost:15672> | usuário `oms`, senha `oms-dev-local` |
 
-Essas credenciais valem **só para os contêineres locais** e não são segredos reais.
+Essas credenciais valem **só para os contêineres locais** e não são segredos reais. O broker
+sobe pelo script `docker/rabbitmq/iniciar.sh`, que cria o usuário `oms-api` com permissões
+`^$` (não configura, não lê e não publica em nada) a cada subida; um ambiente local antigo
+ganha o usuário sem apagar o volume. Para conferir:
+`docker compose exec rabbitmq rabbitmqctl list_permissions -p /`.
 
 **Porta ocupada ou outra credencial**: copie `.env.example` para `.env` (ignorado pelo Git)
 e troque as variáveis `OMS_*`, sem editar arquivos versionados. Ao rodar a API, sobrescreva
@@ -324,6 +338,12 @@ Os eventos de domínio trafegam pelo RabbitMQ ([spec](specs/006-mensageria/spec.
 
   Fora das faixas, o Worker não sobe. Os logs 7005 a 7012 mostram cada estorno pedido,
   confirmado ou com falha e o resumo de cada rodada.
+- **Limpeza e reenvio da DLQ** (REQ-14, [contrato](specs/014-limpeza-e-dlq/contracts/limpeza-e-reenvio.md),
+  [fluxo](docs/fluxos/11-limpeza-e-reenvio-da-dlq.md)): seções `Limpeza` (a cada 1 h, em lotes de
+  1 000; enviados e processados por 7 dias, chaves por 48 h, pedidos de reenvio por 90 dias)
+  e `ReenvioDlq` (pedidos executados a cada 1 min, até 3 reenvios e 1 000 mensagens por
+  pedido; aviso acima de 10 mensagens na DLQ, a cada 5 min). As faixas estão no fluxo 11; fora
+  delas, o Worker não sobe. Os logs 5009 a 5015 mostram cada limpeza, reenvio e aviso.
 
 Para rodar localmente, com o [ambiente local](#ambiente-local) no ar e a API já iniciada
 (é ela que aplica as migrations):
@@ -333,9 +353,9 @@ dotnet run --project src/PedidoFulfillment.Worker --launch-profile http   # http
 ```
 
 No [painel do RabbitMQ](http://localhost:15672), a troca `oms.eventos` e as filas aparecem
-assim que o Worker sobe. A DLQ é inspecionada e reenviada à mão pelo painel; a limpeza e o
-reprocessamento automáticos estão em
-[pendências futuras](specs/006-mensageria/spec.md#pendências-futuras).
+assim que o Worker sobe. A DLQ é reenviada pelo pedido de um Admin
+(`POST /api/v1/admin/dlq/{consumidor}/reenvios`, executado pelo Worker) e só a purga continua
+pelo painel ([fluxo 11](docs/fluxos/11-limpeza-e-reenvio-da-dlq.md)).
 
 ## Integração contínua
 

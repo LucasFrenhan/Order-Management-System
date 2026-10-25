@@ -11,8 +11,8 @@ REQ-03 ([spec](../../specs/003-autenticacao-identity/spec.md),
 | Perfil | Como surge | O que pode |
 |--------|------------|------------|
 | `Cliente` | Registro pela API | Criar pedidos, consultar os próprios e cancelar o próprio pedido enquanto ele está `Pendente` |
-| `Admin` | Usuário inicial, por configuração | Consultar e operar qualquer pedido, inclusive o despacho |
-| `OperadorLogistica` | Usuário inicial, por configuração | O mesmo que o Admin nas rotas de pedido |
+| `Admin` | Usuário inicial, por configuração | Consultar e operar qualquer pedido, inclusive o despacho; pedir e consultar o reenvio da DLQ (fluxo 11) |
+| `OperadorLogistica` | Usuário inicial, por configuração | O mesmo que o Admin nas rotas de pedido; sem acesso às rotas administrativas (403) |
 
 Não existe rota para promover um usuário. Os usuários iniciais de desenvolvimento são
 `admin@oms.local` / `AdminDev2026` e `operador@oms.local` / `OperadorDev2026`.

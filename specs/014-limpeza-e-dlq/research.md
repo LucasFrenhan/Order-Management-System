@@ -92,7 +92,11 @@ token; o histórico fica no banco; a concorrência entre instâncias se resolve 
 **Decisão**: num canal com confirmações de publicação (`publisherConfirmationTrackingEnabled`):
 
 1. lê até `ReenvioDlq:MensagensPorPedido` (padrão 1 000) mensagens da cabeça de
-   `oms.C.dlq` com `BasicGetAsync(autoAck: false)`, guardando as entregas sem ack;
+   `oms.C.dlq` com `BasicGetAsync(autoAck: false)`, guardando as entregas sem ack; lê no máximo
+   as que estavam na DLQ no início (`MessageCount` do `QueueDeclarePassive`), e devolve sem
+   contar uma mensagem que já traz o `x-pedido-reenvio` deste pedido: uma reenviada que falha
+   de novo volta ao fim da DLQ durante a execução e não pode ser reenviada outra vez pelo mesmo
+   pedido (achado do quickstart, 2026-10-25);
 2. para cada uma, decide pelo `FiltroReenvio` (Application, R-05):
    - fora do filtro: conta e guarda para devolver;
    - atende ao filtro, mas `x-reenvios >= ReenvioDlq:MaximoReenvios`: conta como bloqueada e

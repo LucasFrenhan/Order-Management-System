@@ -33,23 +33,24 @@ da API (`http://localhost:5230/health/pronto`) continua mostrando o broker saud�
 ## 3. Local: reenvio da DLQ (US2)
 
 Com a API e o Worker locais (como no quickstart do REQ-13), ponha uma mensagem na DLQ de
-`estoque`, por exemplo publicando pelo painel em `oms.estoque` um corpo fora do contrato (vai
-direto para `oms.estoque.dlq`). Como Admin:
+`estoque`, por exemplo publicando pelo painel em `oms.estoque` o corpo `{}` (vai direto para
+`oms.estoque.dlq`, com o motivo "Envelope sem tipo."). Como Admin:
 
 ```http
 POST /api/v1/admin/dlq/estoque/reenvios
 Authorization: Bearer <token do admin>
 Content-Type: application/json
 
-{ "trechoMotivo": "contrato" }
+{ "trechoMotivo": "sem tipo" }
 ```
 
 **Esperado**:
 - 202 com o pedido `Pendente` e o `Location`; log 4006 na API;
 - em até 1 minuto, no Worker, log 5009 com as contagens; o `GET` do `Location` mostra
   `Concluido`;
-- a mensagem volta à DLQ (o corpo continua fora do contrato) com `x-reenvios = 1`; depois de
-  3 pedidos, ela passa a ser contada como bloqueada pelo limite.
+- a mensagem volta à DLQ (o corpo continua fora do contrato) com `x-reenvios = 1`, e o pedido
+  conta 1 reenviada, mesmo que ela volte durante a execução; depois de 3 pedidos, ela passa a
+  ser contada como bloqueada pelo limite.
 
 Com o OperadorLogistica, as duas rotas respondem 403.
 

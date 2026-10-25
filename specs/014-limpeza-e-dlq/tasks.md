@@ -183,15 +183,15 @@ topologia existente.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T023 [P] Desempenho (SC-003): rodar `DesempenhoEntregaTestes` com a limpeza ligada (intervalo curto e dados elegíveis semeados) e registrar em Notes o p95, comparando com o REQ-13 (381 ms do pedido à entrega).
-- [ ] T024 [P] Documentos de fluxo (regra do `CLAUDE.md`), conferindo mensagens, códigos, limites e IDs de log no código e os links relativos:
+- [X] T023 [P] Desempenho (SC-003): rodar `DesempenhoEntregaTestes` com a limpeza ligada (intervalo curto e dados elegíveis semeados) e registrar em Notes o p95, comparando com o REQ-13 (381 ms do pedido à entrega).
+- [X] T024 [P] Documentos de fluxo (regra do `CLAUDE.md`), conferindo mensagens, códigos, limites e IDs de log no código e os links relativos:
   - `docs/fluxos/08-publicacao-e-consumo-de-eventos.md`: as duas limitações do #30 saem (com o #30 no lugar); cabeçalhos de reenvio; o reenvio volta como entrega nova;
   - fluxo novo `docs/fluxos/11-limpeza-e-reenvio-da-dlq.md` (caminho feliz, rotas de Admin com erros tratados, execução no Worker, ordem e ausência de perda, limite, aviso, configuração, logs, limitações) e a linha no índice `docs/fluxos/README.md`;
   - `docs/fluxos/README.md`: a tabela de falhas externas com a API usando o usuário `oms-api` e a linha "RabbitMQ (API)" atualizada; a prontidão continua mostrando o broker;
   - `docs/fluxos/01-autenticacao.md`: o perfil Admin com as rotas administrativas, se a tabela de perfis citar as rotas.
-- [ ] T025 [P] Documentação do projeto: `README.md` (Estado atual com o REQ-14; Próximos passos com #29 e #18; configuração `Limpeza` e `ReenvioDlq`; a seção Mensageria sem "a DLQ é reenviada à mão"; ambiente local com os dois usuários do broker e como conferir; roteiros com o quickstart do REQ-14); `specs/006-mensageria/spec.md` › Pendências futuras: limpeza e DLQ apontam para o REQ-14 (resolvido).
-- [ ] T026 Varredura de segredos (só credenciais de desenvolvimento novas, já documentadas), `dotnet format --verify-no-changes` e a suíte local inteira (zero ignorados); registrar a contagem em Notes.
-- [ ] T027 Executar o quickstart (§2 a §4) com a API e o Worker locais e registrar em Notes.
+- [X] T025 [P] Documentação do projeto: `README.md` (Estado atual com o REQ-14; Próximos passos com #29 e #18; configuração `Limpeza` e `ReenvioDlq`; a seção Mensageria sem "a DLQ é reenviada à mão"; ambiente local com os dois usuários do broker e como conferir; roteiros com o quickstart do REQ-14); `specs/006-mensageria/spec.md` › Pendências futuras: limpeza e DLQ apontam para o REQ-14 (resolvido).
+- [X] T026 Varredura de segredos (só credenciais de desenvolvimento novas, já documentadas), `dotnet format --verify-no-changes` e a suíte local inteira (zero ignorados); registrar a contagem em Notes.
+- [X] T027 Executar o quickstart (§2 a §4) com a API e o Worker locais e registrar em Notes.
 - [ ] T028 Fazer push e abrir o PR em português (Resumo, Pontos de atenção, Validação) com `Closes #30`, citando os documentos de fluxo atualizados e a mudança de credenciais do broker. Acompanhar o `build-testes` e o `contrato-compatibilidade` até ficarem verdes, inclusive depois de cada push posterior, e registrar em Notes.
 
 ---
@@ -290,3 +290,34 @@ troca o painel do broker por um reenvio controlado; a US3 avisa; a US4 reduz o a
   - o `SaudeComDependenciasTestes` tem um contêiner próprio e continua com o usuário de
     administrador; a prontidão com o usuário da API é coberta pelo `PermissoesBrokerApiTestes`;
   - checkpoint: 607 unitários e 375 de integração, todos verdes.
+- **T023 (2026-10-25, local)**: p95 do pagamento à entrega de 199 ms e do pedido à entrega de
+  382 ms (máximos de 200 ms e 383 ms); no REQ-13 eram 198 ms e 381 ms (SC-003). O teste roda
+  com a limpeza desligada, como toda a `FabricaWorker`; a limpeza trabalha em lotes curtos de
+  hora em hora, fora do caminho do fluxo, e não foi medida junto.
+- **T024**: fluxos 1, 2 (a limitação das chaves saiu, com o #30 no lugar), 8 (as duas
+  limitações do #30 saíram) e o índice atualizados; fluxo novo
+  `docs/fluxos/11-limpeza-e-reenvio-da-dlq.md` com a linha no índice. Links conferidos.
+- **T025**: `README.md` (Estado atual, Próximos passos a partir do REQ-15, Decisões,
+  configuração, Mensageria, Ambiente local com os dois usuários e roteiros) e
+  `specs/006-mensageria/spec.md` (pendências de limpeza e DLQ resolvidas no REQ-14).
+- **T026**: nenhuma credencial nova além das de desenvolvimento documentadas
+  (`oms-api-dev-local`, `oms-api-teste-mensageria`); `dotnet format` limpo; suíte inteira com
+  607 unitários e 375 de integração, zero ignorados (982 no total; 896 na linha de base). Numa
+  rodada, `ConsumoComNovaTentativaTestes.Mensagem_fora_do_contrato_vai_direto_para_a_DLQ`
+  (REQ-06, consumidor `verificacao`, que o REQ-14 não toca) falhou uma vez; passou sozinho, em
+  duas rodadas da mensageria e em duas suítes inteiras seguintes. Fica anotado como possível
+  instabilidade sob carga.
+- **T027 (2026-10-25, local)**:
+  - §2: o broker do volume antigo ganhou `oms-api` (`^$ ^$ ^$`); a prontidão da API, com ele,
+    saudável;
+  - §3: OperadorLogistica 403; Admin 202 com `Location`, log 4006; o Worker concluiu em até
+    1 min (5009). **Achado**: uma mensagem com o corpo fora do contrato, reenviada, voltava à
+    DLQ durante a própria execução e o mesmo pedido a reenviava até o limite (3 reenviadas
+    num pedido). Corrigido em `944b60a`: o pedido lê só as mensagens que já estavam na DLQ e
+    devolve as que trazem o identificador dele; repetido, o pedido contou 1 reenviada e 1
+    bloqueada, e a mensagem voltou com `x-reenvios = 1`. O teste da T014 passou a conferir a
+    contagem. O quickstart também citava o motivo errado ("contrato"); o motivo gravado é
+    "Envelope sem tipo.";
+  - §4: a primeira rodada da limpeza apagou 73 eventos enviados antigos do banco local
+    (retenção de 1 h); com 12 mensagens na DLQ, o 5011 apareceu em 10 s;
+  - as mensagens de teste foram retiradas da DLQ local, e os contêineres, parados.
