@@ -40,6 +40,10 @@ public sealed class FabricaWorker : WebApplicationFactory<ProgramaWorker>
         builder.UseSetting("Reconciliacao:Habilitada", "false");
         // O mesmo para o processador de estornos (REQ-13, R-09): só os testes dele o ligam.
         builder.UseSetting("Estornos:Habilitado", "false");
+        // Limpeza, reenvio e aviso da DLQ (REQ-14, R-10): só os testes deles os ligam.
+        builder.UseSetting("Limpeza:Habilitada", "false");
+        builder.UseSetting("ReenvioDlq:Habilitado", "false");
+        builder.UseSetting("ReenvioDlq:AvisoHabilitado", "false");
         foreach (var (chave, valor) in ConfiguracoesBroker.Concat(Configuracoes))
         {
             builder.UseSetting(chave, valor);

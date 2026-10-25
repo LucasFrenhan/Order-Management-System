@@ -27,6 +27,6 @@ public sealed class ModeloSincronizadoTestes
         using var contexto = NovoContexto();
 
         contexto.Database.GetMigrations().Select(m => m[(m.IndexOf('_') + 1)..])
-            .Should().Equal("InicialIdentidade", "EntidadesNegocio", "ChavesIdempotencia", "MensageriaOutbox", "ReservaEstoque", "RastreioSemCaixa", "PagamentoNaoProcessado", "EstornoPagamento");
+            .Should().Equal("InicialIdentidade", "EntidadesNegocio", "ChavesIdempotencia", "MensageriaOutbox", "ReservaEstoque", "RastreioSemCaixa", "PagamentoNaoProcessado", "EstornoPagamento", "LimpezaEReenvioDlq");
     }
 }

@@ -22,7 +22,7 @@ public sealed class CriacaoOrdemEntrega(IArmazenamentoPedidos armazenamento, Tim
     /// <summary>Como <see cref="Pagamentos.ProcessamentoPagamento"/> (research R-04).</summary>
     private const int Reavaliacoes = 3;
 
-    public string Consumidor => "entrega";
+    public string Consumidor => ConsumidoresConhecidos.Entrega;
 
     public IReadOnlyCollection<string> Tipos { get; } = [TiposEvento.PagamentoAprovado];
 

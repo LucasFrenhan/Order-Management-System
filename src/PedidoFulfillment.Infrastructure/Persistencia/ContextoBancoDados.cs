@@ -50,6 +50,8 @@ public sealed class ContextoBancoDados(DbContextOptions<ContextoBancoDados> opti
 
     internal DbSet<EventoProcessado> EventosProcessados => Set<EventoProcessado>();
 
+    public DbSet<PedidoReenvioDlq> PedidosReenvioDlq => Set<PedidoReenvioDlq>();
+
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         try

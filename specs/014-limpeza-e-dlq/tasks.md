@@ -45,7 +45,7 @@ topologia existente.
 
 ## Phase 1: Setup
 
-- [ ] T001 Rodar `dotnet build` e `OMS_EXIGIR_DOCKER=1 dotnet test` na branch `feature/req-14-limpeza-e-dlq` e registrar em Notes a contagem de testes como linha de base (896 no fim do REQ-13: 551 unitários e 345 de integração).
+- [X] T001 Rodar `dotnet build` e `OMS_EXIGIR_DOCKER=1 dotnet test` na branch `feature/req-14-limpeza-e-dlq` e registrar em Notes a contagem de testes como linha de base (896 no fim do REQ-13: 551 unitários e 345 de integração).
 
 ---
 
@@ -53,20 +53,20 @@ topologia existente.
 
 ### Testes da fundação
 
-- [ ] T002 [P] Em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/PedidoReenvioDlqTestes.cs` (data-model): `Registrar` cria `Pendente` com id v7, autor, consumidor, filtro aparado e `RegistradoEm`; recusa autor vazio, consumidor fora de `ConsumidoresConhecidos.Nomes`, `FalhouAte < FalhouDe`, tipo com mais de 100 e trecho com mais de 200 caracteres (`ArgumentException`); `Iniciar` (`Pendente` ou `EmExecucao` → `EmExecucao`, `IniciadoEm`), `Concluir` (`EmExecucao` → `Concluido`, contagens, `ConcluidoEm`) e `Falhar` (`EmExecucao` → `Falhou`, contagens parciais, motivo aparado até 500); transições fora do ciclo lançam `InvalidOperationException` sem alterar nada; contagens negativas recusadas.
-- [ ] T003 [P] Em `tests/PedidoFulfillment.Testes.Unitarios/Configuracao/OpcoesLimpezaTestes.cs` e `OpcoesReenvioDlqTestes.cs` (R-10), como `OpcoesEstornosTestes`: padrões válidos; cada faixa nos limites e fora deles, com a mensagem citando a chave (por exemplo, "Limpeza:RetencaoChavesHoras deve estar entre 24 e 8760."); falhas acumuladas.
-- [ ] T004 [P] Em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/ConsumidoresConhecidosTestes.cs` (novo): os nomes dos `IDescritorConsumidor` registrados no Worker são exatamente `ConsumidoresConhecidos.Nomes` (R-03).
+- [X] T002 [P] Em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/PedidoReenvioDlqTestes.cs` (data-model): `Registrar` cria `Pendente` com id v7, autor, consumidor, filtro aparado e `RegistradoEm`; recusa autor vazio, consumidor fora de `ConsumidoresConhecidos.Nomes`, `FalhouAte < FalhouDe`, tipo com mais de 100 e trecho com mais de 200 caracteres (`ArgumentException`); `Iniciar` (`Pendente` ou `EmExecucao` → `EmExecucao`, `IniciadoEm`), `Concluir` (`EmExecucao` → `Concluido`, contagens, `ConcluidoEm`) e `Falhar` (`EmExecucao` → `Falhou`, contagens parciais, motivo aparado até 500); transições fora do ciclo lançam `InvalidOperationException` sem alterar nada; contagens negativas recusadas.
+- [X] T003 [P] Em `tests/PedidoFulfillment.Testes.Unitarios/Configuracao/OpcoesLimpezaTestes.cs` e `OpcoesReenvioDlqTestes.cs` (R-10), como `OpcoesEstornosTestes`: padrões válidos; cada faixa nos limites e fora deles, com a mensagem citando a chave (por exemplo, "Limpeza:RetencaoChavesHoras deve estar entre 24 e 8760."); falhas acumuladas.
+- [X] T004 [P] Em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/ConsumidoresConhecidosTestes.cs` (novo): os nomes dos `IDescritorConsumidor` registrados no Worker são exatamente `ConsumidoresConhecidos.Nomes` (R-03).
 
 ### Implementação da fundação
 
-- [ ] T005 Application (R-03, data-model):
+- [X] T005 Application (R-03, data-model):
   - `src/PedidoFulfillment.Application/Mensageria/ConsumidoresConhecidos.cs`: `public static class ConsumidoresConhecidos { public static readonly IReadOnlyList<string> Nomes = ["estoque", "pagamento", "entrega"]; }`, com os consumidores (`ReservaEstoque`, `ProcessamentoPagamento`, `CriacaoOrdemEntrega`) passando a ler o nome dali;
   - `src/PedidoFulfillment.Application/Mensageria/PedidoReenvioDlq.cs`: entidade e `enum SituacaoReenvioDlq { Pendente = 1, EmExecucao, Concluido, Falhou }`, com os métodos do data-model ("`Consumidor` `nvarchar(100)`", "`TipoEvento` `nvarchar(100)?`", "`TrechoMotivo` `nvarchar(200)?`", "`MotivoFalha` `nvarchar(500)?`", contagens "`>= 0`");
   - `src/PedidoFulfillment.Application/Mensageria/FiltroReenvio.cs`: `sealed record FiltroReenvio(string? TipoEvento, DateTimeOffset? FalhouDe, DateTimeOffset? FalhouAte, string? TrechoMotivo)` (o `Atende` entra na US2, T016).
 
   T002 deve passar.
-- [ ] T006 Persistência (R-07): `src/PedidoFulfillment.Infrastructure/Persistencia/Configuracoes/ConfiguracaoPedidoReenvioDlq.cs` (tabela `PedidosReenvioDlq`, tamanhos, check da situação com `RestricoesEnum`, checks das contagens, índice `IX_PedidosReenvioDlq_Situacao_RegistradoEm`); `DbSet` no `ContextoBancoDados`; índices `IX_EventosSaida_Enviados` (filtrado `[EnviadoEm] IS NOT NULL`), `IX_EventosProcessados_ProcessadoEm` e `IX_RegistrosIdempotencia_CriadoEm` nas configurações existentes; migration `LimpezaEReenvioDlq` (`dotnet ef migrations add LimpezaEReenvioDlq --project src/PedidoFulfillment.Infrastructure --startup-project src/PedidoFulfillment.API --output-dir Persistencia/Migracoes`), conferindo que só cria a tabela e os índices; a migration nova nas listas de `ModeloSincronizadoTestes.cs` e `MigracaoBancoTestes.cs`; em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/PedidoReenvioDlqPersistenciaTestes.cs` (novo), gravar e reler um pedido em cada situação e conferir que uma situação inválida gravada por fora é recusada pela check constraint.
-- [ ] T007 Opções e logs (R-10, R-11): `src/PedidoFulfillment.Infrastructure/Configuracao/OpcoesLimpeza.cs` e `OpcoesReenvioDlq.cs` com validadores; `src/PedidoFulfillment.Infrastructure/Mensageria/EventosLimpezaReenvio.cs` com os logs 5009 a 5015; `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/FabricaWorker.cs` com `Limpeza:Habilitada=false`, `ReenvioDlq:Habilitado=false` e `ReenvioDlq:AvisoHabilitado=false` por padrão; seções `Limpeza` e `ReenvioDlq` em `src/PedidoFulfillment.Worker/appsettings.json`, com comentário como as demais. T003 e T004 devem passar.
+- [X] T006 Persistência (R-07): `src/PedidoFulfillment.Infrastructure/Persistencia/Configuracoes/ConfiguracaoPedidoReenvioDlq.cs` (tabela `PedidosReenvioDlq`, tamanhos, check da situação com `RestricoesEnum`, checks das contagens, índice `IX_PedidosReenvioDlq_Situacao_RegistradoEm`); `DbSet` no `ContextoBancoDados`; índices `IX_EventosSaida_Enviados` (filtrado `[EnviadoEm] IS NOT NULL`), `IX_EventosProcessados_ProcessadoEm` e `IX_RegistrosIdempotencia_CriadoEm` nas configurações existentes; migration `LimpezaEReenvioDlq` (`dotnet ef migrations add LimpezaEReenvioDlq --project src/PedidoFulfillment.Infrastructure --startup-project src/PedidoFulfillment.API --output-dir Persistencia/Migracoes`), conferindo que só cria a tabela e os índices; a migration nova nas listas de `ModeloSincronizadoTestes.cs` e `MigracaoBancoTestes.cs`; em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/PedidoReenvioDlqPersistenciaTestes.cs` (novo), gravar e reler um pedido em cada situação e conferir que uma situação inválida gravada por fora é recusada pela check constraint.
+- [X] T007 Opções e logs (R-10, R-11): `src/PedidoFulfillment.Infrastructure/Configuracao/OpcoesLimpeza.cs` e `OpcoesReenvioDlq.cs` com validadores; `src/PedidoFulfillment.Infrastructure/Mensageria/EventosLimpezaReenvio.cs` com os logs 5009 a 5015; `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/FabricaWorker.cs` com `Limpeza:Habilitada=false`, `ReenvioDlq:Habilitado=false` e `ReenvioDlq:AvisoHabilitado=false` por padrão; seções `Limpeza` e `ReenvioDlq` em `src/PedidoFulfillment.Worker/appsettings.json`, com comentário como as demais. T003 e T004 devem passar.
 
 **Checkpoint**: suíte inteira verde. Commit `feat(mensageria): modela o pedido de reenvio, as opções e os indices da limpeza [REQ-14]`.
 
@@ -80,7 +80,7 @@ topologia existente.
 
 ### Testes da US1
 
-- [ ] T008 [P] [US1] Em `tests/PedidoFulfillment.Testes.Integracao/Administracao/LimpezaMensageriaTestes.cs`, chamando a rodada diretamente (`ExecutarRodadaAsync`, `internal`, como no `ReconciliadorPedidos`) com `FakeTimeProvider` ou datas gravadas por SQL:
+- [X] T008 [P] [US1] Em `tests/PedidoFulfillment.Testes.Integracao/Administracao/LimpezaMensageriaTestes.cs`, chamando a rodada diretamente (`ExecutarRodadaAsync`, `internal`, como no `ReconciliadorPedidos`) com `FakeTimeProvider` ou datas gravadas por SQL:
   - eventos enviados com 8 dias e com 6 dias: só o de 8 some; evento pendente com 30 dias fica (US1 cenários 1 e 2);
   - processados com 8 e 6 dias: só o de 8 some (cenário 3);
   - chaves com 49 h e 23 h: só a de 49 h some, e o `POST /api/v1/pedidos` com a chave de 23 h devolve o mesmo pedido (cenário 4);
@@ -92,7 +92,7 @@ topologia existente.
 
 ### Implementação da US1
 
-- [ ] T009 [US1] `src/PedidoFulfillment.Infrastructure/Mensageria/LimpezaMensageria.cs` (R-01): `BackgroundService` com `PeriodicTimer`, primeira rodada na partida, `sp_getapplock 'oms-limpeza'` e `sp_releaseapplock`; para cada alvo, até `LotesPorRodada` comandos `ExecuteDeleteAsync` com `OrderBy` da data e `Take(TamanhoLote)`, cada um no seu escopo; condição de cada alvo como no R-01; resumo 5013, falha 5014, lock ocupado 5015. Registro em `AdicionarLimpezaEReenvio()` (`src/PedidoFulfillment.Infrastructure/Mensageria/ExtensoesMensageria.cs`) e chamada no `src/PedidoFulfillment.Worker/ProgramaWorker.cs`. T008 deve passar.
+- [X] T009 [US1] `src/PedidoFulfillment.Infrastructure/Mensageria/LimpezaMensageria.cs` (R-01): `BackgroundService` com `PeriodicTimer`, primeira rodada na partida, `sp_getapplock 'oms-limpeza'` e `sp_releaseapplock`; para cada alvo, até `LotesPorRodada` comandos `ExecuteDeleteAsync` com `OrderBy` da data e `Take(TamanhoLote)`, cada um no seu escopo; condição de cada alvo como no R-01; resumo 5013, falha 5014, lock ocupado 5015. Registro em `AdicionarLimpezaEReenvio()` (`src/PedidoFulfillment.Infrastructure/Mensageria/ExtensoesMensageria.cs`) e chamada no `src/PedidoFulfillment.Worker/ProgramaWorker.cs`. T008 deve passar.
 
 **Checkpoint**: MVP — as tabelas param de crescer. Commit `feat(mensageria): limpa eventos enviados, processados e chaves de idempotencia antigos [REQ-14]`.
 
@@ -248,3 +248,17 @@ troca o painel do broker por um reenvio controlado; a US3 avisa; a US4 reduz o a
   T014), U1 (R-04 vale para filas clássicas), C1 (limpeza dos pedidos de reenvio no FR-002),
   A1 (arquivo da T004), D1 (chave própria `ReenvioDlq:AvisoHabilitado`) e C2 (a T013 mede que
   o `POST` não espera o broker).
+- **T001 (linha de base, 2026-10-24)**: 896 testes, 551 unitários e 345 de integração, zero
+  ignorados.
+- **Fundação e US1 (2026-10-24)**:
+  - a tabela de chaves do REQ-05 se chama `ChavesIdempotencia` (não `RegistrosIdempotencia`)
+    e já tinha o índice em `CriadoEm`, preparado no REQ-05 para esta limpeza; a migration
+    criou só a tabela nova e os outros dois índices;
+  - o lock de aplicação dos serviços novos ficou num utilitário, `LockAplicacao`; os serviços
+    do REQ-12 e do REQ-13 continuam com as cópias deles;
+  - a limpeza para de pedir lotes de um alvo quando um lote vem incompleto;
+  - os testes da limpeza chamam a rodada direto, com os dados datados em relação ao instante
+    atual; a falha da rodada é provocada renomeando a tabela de processados;
+  - fundação e US1 entraram num só commit, porque o registro das opções e o da limpeza ficam
+    na mesma extensão (`AdicionarLimpezaEReenvio`);
+  - checkpoint: 579 unitários e 354 de integração, todos verdes; `dotnet format` limpo.
