@@ -44,8 +44,9 @@ services:
       - oms-rabbitmq:/var/lib/rabbitmq
       - ./docker/rabbitmq/iniciar.sh:/etc/oms/iniciar.sh:ro
     healthcheck:
-      # Saudável só depois de o usuário da API ter acesso ao vhost: a API conecta com ele.
-      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_port_connectivity && rabbitmqctl -q list_user_permissions $${OMS_RABBITMQ_API_USUARIO} | grep -q '^/'"]
+      # Saudável só depois de o usuário da API ter acesso ao vhost (a API conecta com ele); nada
+      # roda antes de o servidor criar o cookie do Erlang, como no script.
+      test: ["CMD-SHELL", "[ -s /var/lib/rabbitmq/.erlang.cookie ] && rabbitmq-diagnostics -q check_port_connectivity && rabbitmqctl -q list_user_permissions $${OMS_RABBITMQ_API_USUARIO} | grep -q '^/'"]
       interval: 10s
       retries: 12
       start_period: 20s

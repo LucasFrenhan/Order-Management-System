@@ -321,3 +321,10 @@ troca o painel do broker por um reenvio controlado; a US3 avisa; a US4 reduz o a
   - §4: a primeira rodada da limpeza apagou 73 eventos enviados antigos do banco local
     (retenção de 1 h); com 12 mensagens na DLQ, o 5011 apareceu em 10 s;
   - as mensagens de teste foram retiradas da DLQ local, e os contêineres, parados.
+- **T028, CI (2026-10-25)**: o primeiro push deixou o job "Demonstração" vermelho: num volume
+  novo, o `rabbitmq-diagnostics` do script, como root, criava o cookie do Erlang antes do
+  servidor, que então não conseguia lê-lo (`eacces`) e parava. Localmente não aparecia porque o
+  volume já tinha o cookie. Corrigido: o script e o healthcheck só chamam as ferramentas depois
+  de o servidor criar o cookie. Conferido com `docker compose -p omsteste --profile demo up -d
+  --wait --build` em volumes novos (os quatro serviços saudáveis). "Build e testes" e
+  "breaking-changes" já estavam verdes.

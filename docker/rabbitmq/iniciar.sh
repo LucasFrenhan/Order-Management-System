@@ -12,6 +12,17 @@ docker-entrypoint.sh rabbitmq-server &
 servidor=$!
 trap 'kill -TERM "$servidor" 2>/dev/null; wait "$servidor"' TERM INT
 
+# Num volume novo, quem cria o cookie do Erlang precisa ser o servidor (usuário rabbitmq): se
+# uma ferramenta de linha de comando, como root, o criar antes, o servidor não consegue lê-lo
+# (eacces) e para. Por isso nenhuma ferramenta roda antes de o cookie existir.
+until [ -s /var/lib/rabbitmq/.erlang.cookie ]; do
+  if ! kill -0 "$servidor" 2>/dev/null; then
+    echo "O RabbitMQ parou antes de criar o cookie." >&2
+    exit 1
+  fi
+  sleep 1
+done
+
 # O ping responde antes de a aplicação "rabbit" terminar de subir; await_startup espera por ela.
 until rabbitmq-diagnostics -q ping >/dev/null 2>&1; do
   if ! kill -0 "$servidor" 2>/dev/null; then
