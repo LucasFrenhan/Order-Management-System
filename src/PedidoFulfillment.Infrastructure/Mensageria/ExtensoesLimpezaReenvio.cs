@@ -21,6 +21,7 @@ public static class ExtensoesLimpezaReenvio
         services.AddHostedService<LimpezaMensageria>();
         services.AddSingleton<ReenvioDlq>();
         services.AddHostedService<ExecutorReenviosDlq>();
+        services.AddHostedService<MonitorDlq>();
         return services;
     }
 }

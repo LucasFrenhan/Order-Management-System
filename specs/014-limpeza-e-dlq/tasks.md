@@ -146,11 +146,11 @@ topologia existente.
 
 ### Testes da US3
 
-- [ ] T019 [P] [US3] Em `tests/PedidoFulfillment.Testes.Integracao/Administracao/MonitorDlqTestes.cs`, com o Worker e `ReenvioDlq:AvisoIntervaloSegundos=10` (o mínimo) ou chamando a verificação direto: acima do limite, 5011 com o consumidor, a quantidade e o limite; no limite ou abaixo, nenhum 5011; DLQ inexistente conta como zero; broker com a porta fechada gera 5012, sem derrubar o Worker (US3 cenários 1 a 3).
+- [X] T019 [P] [US3] Em `tests/PedidoFulfillment.Testes.Integracao/Administracao/MonitorDlqTestes.cs`, com o Worker e `ReenvioDlq:AvisoIntervaloSegundos=10` (o mínimo) ou chamando a verificação direto: acima do limite, 5011 com o consumidor, a quantidade e o limite; no limite ou abaixo, nenhum 5011; DLQ inexistente conta como zero; broker com a porta fechada gera 5012, sem derrubar o Worker (US3 cenários 1 a 3).
 
 ### Implementação da US3
 
-- [ ] T020 [US3] `src/PedidoFulfillment.Infrastructure/Mensageria/MonitorDlq.cs` (R-08): `BackgroundService` que, a cada `AvisoIntervaloSegundos`, faz `QueueDeclarePassiveAsync` de `oms.C.dlq` para cada `ConsumidoresConhecidos.Nomes`, com o 404 do broker tratado como zero; logs 5011 e 5012; registrado em `AdicionarLimpezaEReenvio()` e ligado por `ReenvioDlq:AvisoHabilitado` (chave própria, padrão `true`, desligada na `FabricaWorker` como as demais). T019 deve passar.
+- [X] T020 [US3] `src/PedidoFulfillment.Infrastructure/Mensageria/MonitorDlq.cs` (R-08): `BackgroundService` que, a cada `AvisoIntervaloSegundos`, faz `QueueDeclarePassiveAsync` de `oms.C.dlq` para cada `ConsumidoresConhecidos.Nomes`, com o 404 do broker tratado como zero; logs 5011 e 5012; registrado em `AdicionarLimpezaEReenvio()` e ligado por `ReenvioDlq:AvisoHabilitado` (chave própria, padrão `true`, desligada na `FabricaWorker` como as demais). T019 deve passar.
 
 **Checkpoint**: commit `feat(mensageria): avisa quando a DLQ passa do limite [REQ-14]`.
 
