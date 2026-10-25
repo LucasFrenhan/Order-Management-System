@@ -106,16 +106,16 @@ topologia existente.
 
 ### Testes da US2
 
-- [ ] T010 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/FiltroReenvioTestes.cs` (R-05): cada campo sozinho e combinados; tipo por igualdade ordinal; período inclusivo nas pontas; motivo sem diferenciar maiúsculas; mensagem sem `x-falhou-em` não atende a filtro de período, e sem `x-motivo` não atende a filtro de motivo; filtro vazio atende a tudo.
-- [ ] T011 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/CabecalhosReenvioTestes.cs` (R-06): leitura de `x-reenvios` (ausente = 0; valor em `int`, `long` ou bytes de texto, como o RabbitMQ entrega), `x-motivo` e `x-falhou-em` (bytes UTF-8); montagem da cópia sem `x-tentativas` e `x-ultimo-erro`, com `x-reenvios` + 1, `x-reenviado-em` e `x-pedido-reenvio`, mantendo os demais.
-- [ ] T012 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/ServicoReenvioDlqTestes.cs`, com um armazenamento falso: registro válido grava `Pendente` com o autor e devolve o DTO; consumidor desconhecido, período invertido e campos longos devolvem `Falha` de validação com o campo, sem gravar; consulta inexistente devolve não encontrado; log 4006.
-- [ ] T013 [P] [US2] Em `tests/PedidoFulfillment.Testes.Integracao/Administracao/RotasReenvioDlqTestes.cs`, com a `FabricaApi` e banco real:
+- [X] T010 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/FiltroReenvioTestes.cs` (R-05): cada campo sozinho e combinados; tipo por igualdade ordinal; período inclusivo nas pontas; motivo sem diferenciar maiúsculas; mensagem sem `x-falhou-em` não atende a filtro de período, e sem `x-motivo` não atende a filtro de motivo; filtro vazio atende a tudo.
+- [X] T011 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/CabecalhosReenvioTestes.cs` (R-06): leitura de `x-reenvios` (ausente = 0; valor em `int`, `long` ou bytes de texto, como o RabbitMQ entrega), `x-motivo` e `x-falhou-em` (bytes UTF-8); montagem da cópia sem `x-tentativas` e `x-ultimo-erro`, com `x-reenvios` + 1, `x-reenviado-em` e `x-pedido-reenvio`, mantendo os demais.
+- [X] T012 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/ServicoReenvioDlqTestes.cs`, com um armazenamento falso: registro válido grava `Pendente` com o autor e devolve o DTO; consumidor desconhecido, período invertido e campos longos devolvem `Falha` de validação com o campo, sem gravar; consulta inexistente devolve não encontrado; log 4006.
+- [X] T013 [P] [US2] Em `tests/PedidoFulfillment.Testes.Integracao/Administracao/RotasReenvioDlqTestes.cs`, com a `FabricaApi` e banco real:
   - `POST /api/v1/admin/dlq/estoque/reenvios` como Admin: 202, `Location`, corpo `Pendente` com `autorId` = `sub` do token; linha no banco (US2 cenário 1);
   - `GET` do `Location`: 200 com o mesmo pedido (cenário 3); id inexistente: 404 "Pedido de reenvio não encontrado." (cenário 12); id que não é UUID: 400;
   - sem token: 401; Cliente e OperadorLogistica: 403, nas duas rotas (cenário 9, clarify);
   - consumidor `desconhecido`: 400 com o campo `consumidor`; `falhouAte` antes de `falhouDe`: 400 com o campo `falhouAte` (cenário 10);
   - com a configuração do broker apontando para uma porta fechada, o `POST` continua 202, em menos de 1 s, sem esperar o tempo limite de conexão do broker (cenário 11, FR-008, SC-007).
-- [ ] T014 [P] [US2] Em `tests/PedidoFulfillment.Testes.Integracao/Administracao/ExecucaoReenvioDlqTestes.cs`, com o Worker (`ReenvioDlq:Habilitado=true`, intervalo de 1 s, sem os consumidores, salvo onde indicado) e mensagens postas direto em `oms.estoque.dlq` com os cabeçalhos do REQ-06:
+- [X] T014 [P] [US2] Em `tests/PedidoFulfillment.Testes.Integracao/Administracao/ExecucaoReenvioDlqTestes.cs`, com o Worker (`ReenvioDlq:Habilitado=true`, intervalo de 1 s, sem os consumidores, salvo onde indicado) e mensagens postas direto em `oms.estoque.dlq` com os cabeçalhos do REQ-06:
   - filtro por tipo: só as do tipo saem para `oms.estoque`, com `x-reenvios = 1`, `x-pedido-reenvio` e sem `x-tentativas`; as demais continuam na DLQ **na mesma ordem** (conferida pelo `MessageId`); pedido `Concluido` com `Reenviadas`, `ForaDoFiltro` e `BloqueadasPeloLimite` (cenários 2, 4 e 6);
   - filtro por período e por trecho do motivo;
   - mensagem com `x-reenvios = 3`: fica na DLQ, contada como bloqueada (cenário 5, clarify Q1);
@@ -126,13 +126,13 @@ topologia existente.
   - broker fora do ar antes da execução (porta fechada na configuração do Worker): o pedido continua `Pendente`, com o log 5010, e é concluído quando o broker volta (cenário 11);
   - broker derrubado no meio (canal fechado pelo teste): pedido `Falhou` com contagens parciais, e a soma das mensagens na DLQ e na fila principal é a mesma de antes (nenhuma perdida) (FR-014);
   - log 5009 com o autor e as contagens.
-- [ ] T015 [P] [US2] Contrato: as duas rotas, `RegistrarReenvioDlqRequestDTO` e `PedidoReenvioDlqResponseDTO` em `specs/001-contratos-api/contracts/openapi-v1.yaml`, com a tag "Administração", 202, 400, 401, 403 e 404; `tests/PedidoFulfillment.Testes.Integracao/Contrato/ConformidadeOpenApiTestes.cs` ganha as duas operações na lista `Operacoes`, e `tests/PedidoFulfillment.Testes.Integracao/Seguranca/AutorizacaoEndpointsTestes.cs` passa a cobri-las.
+- [X] T015 [P] [US2] Contrato: as duas rotas, `RegistrarReenvioDlqRequestDTO` e `PedidoReenvioDlqResponseDTO` em `specs/001-contratos-api/contracts/openapi-v1.yaml`, com a tag "Administração", 202, 400, 401, 403 e 404; `tests/PedidoFulfillment.Testes.Integracao/Contrato/ConformidadeOpenApiTestes.cs` ganha as duas operações na lista `Operacoes`, e `tests/PedidoFulfillment.Testes.Integracao/Seguranca/AutorizacaoEndpointsTestes.cs` passa a cobri-las.
 
 ### Implementação da US2
 
-- [ ] T016 [US2] Application: `FiltroReenvio.Atende` (R-05); `src/PedidoFulfillment.Application/Contratos/Administracao/` com `RegistrarReenvioDlqRequestDTO` e `PedidoReenvioDlqResponseDTO` (e a validação de anotações, como os DTOs de pedido); `IArmazenamentoReenvios` (`Adicionar`, `ObterAsync`, `SalvarAsync`); `IServicoReenvioDlq` e `ServicoReenvioDlq` (registro e consulta, com o autor recebido do endpoint); `EventosReenvio` com o 4006. T010 e T012 devem passar.
-- [ ] T017 [US2] Infrastructure (R-04, R-06): `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoReenvios.cs` (registrado em `AdicionarInfraestrutura`, usado pela API e pelo Worker); `CabecalhosReenvio.cs`; `ReenvioDlq.cs` (execução de um pedido: `BasicGetAsync` sem ack até `MensagensPorPedido`, filtro, limite, publicação em `oms.C` com confirmação e `mandatory`, ack depois da confirmação, `BasicNackAsync(requeue: true)` das guardadas no fim, em ordem); `ExecutorReenviosDlq.cs` (`BackgroundService`, `sp_getapplock 'oms-reenvio-dlq'`, primeiro `EmExecucao`, depois `Pendente` por `RegistradoEm`, `Iniciar`/`Concluir`/`Falhar`, logs 5009, 5010 e 5015), registrado em `AdicionarLimpezaEReenvio()`. T011 e T014 devem passar.
-- [ ] T018 [US2] API: `PoliticaAdministracao` (só `Admin`) em `src/PedidoFulfillment.API/Seguranca/PoliticasAutorizacao.cs`; `src/PedidoFulfillment.API/Endpoints/EndpointsAdministracao.cs` com o grupo `/api/v1/admin/dlq`, as duas rotas, a tag e os metadados de OpenAPI como em `EndpointsPedidos`; registro do serviço e dos endpoints no `Program.cs`. O endpoint só lê o `sub` do token e chama o serviço. T013 e T015 devem passar.
+- [X] T016 [US2] Application: `FiltroReenvio.Atende` (R-05); `src/PedidoFulfillment.Application/Contratos/Administracao/` com `RegistrarReenvioDlqRequestDTO` e `PedidoReenvioDlqResponseDTO` (e a validação de anotações, como os DTOs de pedido); `IArmazenamentoReenvios` (`Adicionar`, `ObterAsync`, `SalvarAsync`); `IServicoReenvioDlq` e `ServicoReenvioDlq` (registro e consulta, com o autor recebido do endpoint); `EventosReenvio` com o 4006. T010 e T012 devem passar.
+- [X] T017 [US2] Infrastructure (R-04, R-06): `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoReenvios.cs` (registrado em `AdicionarInfraestrutura`, usado pela API e pelo Worker); `CabecalhosReenvio.cs`; `ReenvioDlq.cs` (execução de um pedido: `BasicGetAsync` sem ack até `MensagensPorPedido`, filtro, limite, publicação em `oms.C` com confirmação e `mandatory`, ack depois da confirmação, `BasicNackAsync(requeue: true)` das guardadas no fim, em ordem); `ExecutorReenviosDlq.cs` (`BackgroundService`, `sp_getapplock 'oms-reenvio-dlq'`, primeiro `EmExecucao`, depois `Pendente` por `RegistradoEm`, `Iniciar`/`Concluir`/`Falhar`, logs 5009, 5010 e 5015), registrado em `AdicionarLimpezaEReenvio()`. T011 e T014 devem passar.
+- [X] T018 [US2] API: `PoliticaAdministracao` (só `Admin`) em `src/PedidoFulfillment.API/Seguranca/PoliticasAutorizacao.cs`; `src/PedidoFulfillment.API/Endpoints/EndpointsAdministracao.cs` com o grupo `/api/v1/admin/dlq`, as duas rotas, a tag e os metadados de OpenAPI como em `EndpointsPedidos`; registro do serviço e dos endpoints no `Program.cs`. O endpoint só lê o `sub` do token e chama o serviço. T013 e T015 devem passar.
 
 **Checkpoint**: commit `feat(mensageria): reenvia a DLQ por pedido do Admin executado pelo Worker [REQ-14]`.
 
@@ -262,3 +262,16 @@ troca o painel do broker por um reenvio controlado; a US3 avisa; a US4 reduz o a
   - fundação e US1 entraram num só commit, porque o registro das opções e o da limpeza ficam
     na mesma extensão (`AdicionarLimpezaEReenvio`);
   - checkpoint: 579 unitários e 354 de integração, todos verdes; `dotnet format` limpo.
+- **US2 (2026-10-24)**:
+  - **T014, ordem da DLQ (R-04)**: confirmada. Com 6 mensagens e um pedido que examina só as
+    3 primeiras, a devolvida voltou antes das não lidas (`m2, m4, m5, m6`), em 4 execuções
+    seguidas. A estratégia do `BasicNack(requeue)` vale, para filas clássicas;
+  - o despachante do REQ-12 declara a topologia dos consumidores na partida; o teste da falha
+    no meio apaga a fila de destino depois de o despachante recriá-la;
+  - a `FabricaApi` já aponta o broker para uma porta fechada por padrão, então todos os testes
+    das rotas provam que elas não dependem do broker; o `POST` responde em menos de 1 s;
+  - a varredura de `AutorizacaoEndpointsTestes` cobre as rotas novas sem edição; a tag do
+    OpenAPI ficou `Administracao`, sem acento, como `Autenticacao`;
+  - consumidor desconhecido responde 400 com `detail` (validado no serviço); os campos do
+    filtro, 400 com `erros` (validados no DTO);
+  - checkpoint: 607 unitários e 369 de integração, todos verdes.

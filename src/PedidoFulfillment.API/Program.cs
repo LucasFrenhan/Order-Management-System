@@ -6,6 +6,7 @@ using PedidoFulfillment.API.Erros;
 using PedidoFulfillment.API.OpenApi;
 using PedidoFulfillment.API.Seguranca;
 using PedidoFulfillment.Application.Autenticacao;
+using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Infrastructure;
 using PedidoFulfillment.Infrastructure.Saude;
@@ -40,6 +41,7 @@ builder.Services.TryAddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IEmissorToken, EmissorTokenJwt>();
 builder.Services.AddScoped<IServicoAutenticacao, ServicoAutenticacao>();
 builder.Services.AddScoped<IServicoPedidos, ServicoPedidos>();
+builder.Services.AddScoped<IServicoReenvioDlq, ServicoReenvioDlq>();
 
 var app = builder.Build();
 
@@ -55,6 +57,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testes"))
 
 app.MapearEndpointsAutenticacao();
 app.MapearEndpointsPedidos();
+app.MapearEndpointsAdministracao();
 // Saúde existe em todos os ambientes (REQ-02); pública e fora do OpenAPI.
 app.MapearEndpointsSaude();
 

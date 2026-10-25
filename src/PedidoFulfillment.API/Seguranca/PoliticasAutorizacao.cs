@@ -16,6 +16,9 @@ public static class PoliticasAutorizacao
     /// <summary>Despacho e correção do rastreio: só a operação (REQ-11, R-08).</summary>
     public const string PoliticaRastreioPedido = nameof(PoliticaRastreioPedido);
 
+    /// <summary>Rotas administrativas da mensageria (REQ-14): só o Admin.</summary>
+    public const string PoliticaAdministracao = nameof(PoliticaAdministracao);
+
     private static readonly string[] TodosOsPerfis = Enum.GetNames<PerfilUsuario>();
 
     public static IServiceCollection AdicionarPoliticasAutorizacao(this IServiceCollection services)
@@ -26,6 +29,7 @@ public static class PoliticasAutorizacao
             .AddPolicy(PoliticaAtualizacaoStatusPedido, p => p.RequireAuthenticatedUser().RequireRole(TodosOsPerfis))
             .AddPolicy(PoliticaRastreioPedido, p => p.RequireAuthenticatedUser()
                 .RequireRole(nameof(PerfilUsuario.Admin), nameof(PerfilUsuario.OperadorLogistica)))
+            .AddPolicy(PoliticaAdministracao, p => p.RequireAuthenticatedUser().RequireRole(nameof(PerfilUsuario.Admin)))
             // FR-007a: qualquer endereço sem política explícita exige autenticação,
             // inclusive os inexistentes (401 sem token, 404 com token).
             .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());

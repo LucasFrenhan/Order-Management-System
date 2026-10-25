@@ -19,6 +19,8 @@ public static class ExtensoesLimpezaReenvio
         services.AddOptions<OpcoesReenvioDlq>().BindConfiguration(OpcoesReenvioDlq.Secao).ValidateOnStart();
         services.TryAddSingleton(TimeProvider.System);
         services.AddHostedService<LimpezaMensageria>();
+        services.AddSingleton<ReenvioDlq>();
+        services.AddHostedService<ExecutorReenviosDlq>();
         return services;
     }
 }
