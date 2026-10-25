@@ -125,6 +125,9 @@ public sealed class ExecucaoReenvioDlqTestes(MensageriaTeste mensageria)
         var voltou = (await EsvaziarAsync(mensageria, Dlq)).Should().ContainSingle().Subject;
         voltou.MessageId.Should().Be(id);
         CabecalhosReenvio.ReenviosFeitos(voltou.Cabecalhos).Should().Be(1);
+        // A mensagem volta à DLQ durante a própria execução: o mesmo pedido não a reenvia de novo
+        // (achado do quickstart: antes da correção, ela era reenviada até o limite).
+        (await LerAsync(stringConexao, pedido.Id)).DeveTerSido(reenviadas: 1, bloqueadas: 0, foraDoFiltro: 0);
     }
 
     [Fact]

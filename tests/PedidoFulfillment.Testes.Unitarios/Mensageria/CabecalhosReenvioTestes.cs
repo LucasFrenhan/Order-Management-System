@@ -66,6 +66,8 @@ public sealed class CabecalhosReenvioTestes
         copia[CabecalhosReenvio.ReenviadoEm].Should().Be(T0.AddMinutes(5).ToString("O"));
         copia[CabecalhosReenvio.PedidoReenvio].Should().Be(pedido.ToString());
         copia.Should().ContainKeys("x-motivo", "x-falhou-em", "x-outro");
+        CabecalhosReenvio.PedidoReenvioId(new Dictionary<string, object?> { [CabecalhosReenvio.PedidoReenvio] = Bytes(pedido.ToString()) }).Should().Be(pedido);
+        CabecalhosReenvio.PedidoReenvioId(originais).Should().BeNull();
         originais.Should().ContainKey("x-tentativas", "os originais não são alterados");
     }
 }

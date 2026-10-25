@@ -39,12 +39,15 @@ internal sealed class ReenvioDlq(ConexaoRabbitMQ conexao, IOptions<OpcoesReenvio
         int reenviadas = 0, bloqueadas = 0, foraDoFiltro = 0;
         try
         {
-            if (!await FilaExisteAsync(dlq, cancellationToken))
+            // Só as mensagens que já estavam na DLQ: uma reenviada que falha de novo volta para o fim
+            // da fila durante a execução e não pode ser reenviada outra vez pelo mesmo pedido.
+            if (await ContarAsync(dlq, cancellationToken) is not { } naDlq)
             {
                 return new ContagensReenvio(0, 0, 0);
             }
 
-            for (var lidas = 0; lidas < configuracao.MensagensPorPedido; lidas++)
+            var limite = (int)Math.Min(naDlq, (uint)configuracao.MensagensPorPedido);
+            for (var lidas = 0; lidas < limite; lidas++)
             {
                 if (await canal.BasicGetAsync(dlq, autoAck: false, cancellationToken) is not { } mensagem)
                 {
@@ -53,6 +56,13 @@ internal sealed class ReenvioDlq(ConexaoRabbitMQ conexao, IOptions<OpcoesReenvio
 
                 var propriedades = mensagem.BasicProperties;
                 var cabecalhos = propriedades.Headers;
+                if (CabecalhosReenvio.PedidoReenvioId(cabecalhos) == pedido.Id)
+                {
+                    // Já reenviada por este pedido e de volta: fica para um próximo pedido.
+                    devolver.Add(mensagem.DeliveryTag);
+                    continue;
+                }
+
                 if (!filtro.Atende(propriedades.Type, CabecalhosReenvio.FalhouEm(cabecalhos), CabecalhosReenvio.Motivo(cabecalhos)))
                 {
                     foraDoFiltro++;
@@ -95,19 +105,18 @@ internal sealed class ReenvioDlq(ConexaoRabbitMQ conexao, IOptions<OpcoesReenvio
         }
     }
 
-    /// <summary>Fila inexistente fecha o canal (404): confere num canal próprio.</summary>
-    private async Task<bool> FilaExisteAsync(string fila, CancellationToken cancellationToken)
+    /// <summary>Mensagens na fila agora, ou nulo se ela não existe (o 404 fecha o canal: confere num canal próprio).</summary>
+    private async Task<uint?> ContarAsync(string fila, CancellationToken cancellationToken)
     {
         var conexaoAberta = await conexao.ObterAsync(cancellationToken);
         await using var verificacao = await conexaoAberta.CreateChannelAsync(cancellationToken: cancellationToken);
         try
         {
-            await verificacao.QueueDeclarePassiveAsync(fila, cancellationToken);
-            return true;
+            return (await verificacao.QueueDeclarePassiveAsync(fila, cancellationToken)).MessageCount;
         }
         catch (RabbitMQ.Client.Exceptions.OperationInterruptedException excecao) when (excecao.ShutdownReason?.ReplyCode == 404)
         {
-            return false;
+            return null;
         }
     }
 }

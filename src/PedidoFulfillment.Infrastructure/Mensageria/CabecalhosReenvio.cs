@@ -33,6 +33,10 @@ internal static class CabecalhosReenvio
 
     public static string? Motivo(IDictionary<string, object?>? cabecalhos) => Texto(cabecalhos, PoliticaNovaTentativa.CabecalhoMotivo);
 
+    /// <summary>O pedido de reenvio que mandou a mensagem de volta da última vez, se houver.</summary>
+    public static Guid? PedidoReenvioId(IDictionary<string, object?>? cabecalhos) =>
+        Guid.TryParse(Texto(cabecalhos, PedidoReenvio), out var id) ? id : null;
+
     /// <summary>O instante em que a mensagem foi para a DLQ (ISO 8601, gravado pelo REQ-06), se houver.</summary>
     public static DateTimeOffset? FalhouEm(IDictionary<string, object?>? cabecalhos) =>
         Texto(cabecalhos, PoliticaNovaTentativa.CabecalhoFalhouEm) is { } texto
