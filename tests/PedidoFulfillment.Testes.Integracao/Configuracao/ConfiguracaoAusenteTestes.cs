@@ -48,7 +48,7 @@ public sealed class ConfiguracaoAusenteTestes
 
         rabbit.Servidor.Should().Be("localhost");
         rabbit.Porta.Should().Be(5672);
-        rabbit.Usuario.Should().Be("oms");
+        rabbit.Usuario.Should().Be("oms-api", "a API usa o usuário próprio do broker, sem permissões (REQ-14, FR-017)");
         sql.StringConexao.Should().Contain("Server=localhost,1433").And.Contain("Database=PedidoFulfillment");
     }
 

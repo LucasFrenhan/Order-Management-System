@@ -22,6 +22,11 @@ public sealed class MensageriaTeste : IAsyncLifetime
     private const string UsuarioRabbitMQ = "oms";
     private const string SenhaRabbitMQ = "oms-teste-mensageria";
 
+    /// <summary>Usuário da API no broker, sem permissões: só conecta para a prontidão (REQ-14, R-09).</summary>
+    public const string UsuarioRabbitMQApi = "oms-api";
+
+    public const string SenhaRabbitMQApi = "oms-api-teste-mensageria";
+
     private MsSqlContainer? sqlServer;
     private RabbitMqContainer? rabbitMQ;
 
@@ -48,6 +53,21 @@ public sealed class MensageriaTeste : IAsyncLifetime
     };
 
     /// <summary>Simula o broker fora do ar sem trocar a porta mapeada.</summary>
+    /// <summary>Credenciais da API no broker (REQ-14, R-09), no formato da seção RabbitMQ.</summary>
+    public IReadOnlyDictionary<string, string?> ConfiguracoesBrokerApi => new Dictionary<string, string?>(ConfiguracoesBroker)
+    {
+        ["RabbitMQ:Usuario"] = UsuarioRabbitMQApi,
+        ["RabbitMQ:Senha"] = SenhaRabbitMQApi
+    };
+
+    public Task<IConnection> ConectarComoApiAsync() => new ConnectionFactory
+    {
+        HostName = rabbitMQ!.Hostname,
+        Port = rabbitMQ.GetMappedPublicPort(5672),
+        UserName = UsuarioRabbitMQApi,
+        Password = SenhaRabbitMQApi
+    }.CreateConnectionAsync(TestContext.Current.CancellationToken);
+
     public Task PausarBrokerAsync() => rabbitMQ!.PauseAsync(TestContext.Current.CancellationToken);
 
     public Task RetomarBrokerAsync() => rabbitMQ!.UnpauseAsync(TestContext.Current.CancellationToken);
@@ -192,6 +212,7 @@ public sealed class MensageriaTeste : IAsyncLifetime
                 .WithPassword(SenhaRabbitMQ)
                 .Build();
             await Task.WhenAll(sqlServer.StartAsync(), rabbitMQ.StartAsync());
+            await CriarUsuarioApiAsync();
             DockerDisponivel = true;
         }
         catch (DockerUnavailableException excecao)
@@ -203,6 +224,23 @@ public sealed class MensageriaTeste : IAsyncLifetime
             }
 
             DockerDisponivel = false;
+        }
+    }
+
+    /// <summary>Como o script do compose (docker/rabbitmq/iniciar.sh): o usuário da API pode conectar, e nada mais.</summary>
+    private async Task CriarUsuarioApiAsync()
+    {
+        foreach (string[] comando in new[]
+        {
+            new[] { "rabbitmqctl", "add_user", UsuarioRabbitMQApi, SenhaRabbitMQApi },
+            new[] { "rabbitmqctl", "set_permissions", "-p", "/", UsuarioRabbitMQApi, "^$", "^$", "^$" }
+        })
+        {
+            var resultado = await rabbitMQ!.ExecAsync(comando);
+            if (resultado.ExitCode != 0)
+            {
+                throw new InvalidOperationException($"Falha ao criar o usuário da API no broker: {resultado.Stderr}");
+            }
         }
     }
 

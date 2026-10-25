@@ -164,11 +164,11 @@ topologia existente.
 
 ### Testes da US4
 
-- [ ] T021 [P] [US4] Em `tests/PedidoFulfillment.Testes.Integracao/Administracao/PermissoesBrokerApiTestes.cs`, com o contêiner do `MensageriaTeste`: com as credenciais da API, a conexão abre; `ExchangeDeclareAsync`, `QueueDeclareAsync`, `BasicPublishAsync` em `oms.eventos` e `BasicGetAsync` em `oms.estoque` lançam `OperationInterruptedException` com `ACCESS_REFUSED` (403) (US4 cenário 2, SC-008); a prontidão da `FabricaApi` com essas credenciais é `Healthy` (cenário 3); com senha errada, a prontidão mostra o broker `Unhealthy`, sem a senha no corpo, e `POST /api/v1/pedidos` continua 201 (cenário 4). Em `tests/PedidoFulfillment.Testes.Integracao/Arquitetura/DependenciasCamadasTestes.cs`, a API não registra `ConexaoRabbitMQ`, `DespachanteEventosSaida`, consumidores nem os serviços do REQ-14 (FR-019).
+- [X] T021 [P] [US4] Em `tests/PedidoFulfillment.Testes.Integracao/Administracao/PermissoesBrokerApiTestes.cs`, com o contêiner do `MensageriaTeste`: com as credenciais da API, a conexão abre; `ExchangeDeclareAsync`, `QueueDeclareAsync`, `BasicPublishAsync` em `oms.eventos` e `BasicGetAsync` em `oms.estoque` lançam `OperationInterruptedException` com `ACCESS_REFUSED` (403) (US4 cenário 2, SC-008); a prontidão da `FabricaApi` com essas credenciais é `Healthy` (cenário 3); com senha errada, a prontidão mostra o broker `Unhealthy`, sem a senha no corpo, e `POST /api/v1/pedidos` continua 201 (cenário 4). Em `tests/PedidoFulfillment.Testes.Integracao/Arquitetura/DependenciasCamadasTestes.cs`, a API não registra `ConexaoRabbitMQ`, `DespachanteEventosSaida`, consumidores nem os serviços do REQ-14 (FR-019).
 
 ### Implementação da US4
 
-- [ ] T022 [US4] Broker (R-09):
+- [X] T022 [US4] Broker (R-09):
   - `docker/rabbitmq/iniciar.sh` (LF; `set -euo pipefail`): sobe `rabbitmq-server` em segundo plano, espera `rabbitmq-diagnostics -q ping`, cria `OMS_RABBITMQ_API_USUARIO` se não existir (ou troca a senha se existir), aplica `set_permissions -p / <usuário> "^$" "^$" "^$"` e espera o servidor (`wait`), repassando o sinal de parada;
   - `docker-compose.yml`: o serviço `rabbitmq` monta o script (somente leitura) e o usa como `command`, com as variáveis da API; o serviço `api` (perfil `demo`) passa a usar `RabbitMQ__Usuario: ${OMS_RABBITMQ_API_USUARIO:-oms-api}` e `RabbitMQ__Senha: ${OMS_RABBITMQ_API_SENHA:-oms-api-dev-local}`; o `worker` continua com `OMS_RABBITMQ_USUARIO`;
   - `.env.example`: `OMS_RABBITMQ_API_USUARIO` e `OMS_RABBITMQ_API_SENHA`, com o comentário de que são só de desenvolvimento;
@@ -275,3 +275,18 @@ troca o painel do broker por um reenvio controlado; a US3 avisa; a US4 reduz o a
   - consumidor desconhecido responde 400 com `detail` (validado no serviço); os campos do
     filtro, 400 com `erros` (validados no DTO);
   - checkpoint: 607 unitários e 369 de integração, todos verdes.
+- **US4 (2026-10-24)**:
+  - o `ping` do RabbitMQ responde antes de a aplicação subir; o script espera com
+    `rabbitmqctl await_startup` antes de criar o usuário;
+  - a prontidão do broker no compose só fica saudável depois de o usuário da API ter acesso ao
+    vhost (`list_user_permissions`), para a API não conectar antes dele existir;
+  - conferido localmente: `docker compose up -d --wait` sobre o volume antigo cria `oms-api`
+    com `^$ ^$ ^$`; reiniciar o broker é idempotente; `docker compose --profile demo up -d
+    --wait --build` sobe a API e o Worker saudáveis, com a API usando `oms-api`;
+  - a publicação recusada só aparece na chamada com confirmações: o teste usa um canal com
+    confirmações rastreadas;
+  - `ConfiguracaoAusenteTestes` conferia o usuário `oms` no `appsettings.Development.json` da
+    API; passou a conferir `oms-api`, porque a troca é o objetivo da US4;
+  - o `SaudeComDependenciasTestes` tem um contêiner próprio e continua com o usuário de
+    administrador; a prontidão com o usuário da API é coberta pelo `PermissoesBrokerApiTestes`;
+  - checkpoint: 607 unitários e 375 de integração, todos verdes.

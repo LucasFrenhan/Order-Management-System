@@ -33,13 +33,19 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${OMS_RABBITMQ_USUARIO:-oms}
       RABBITMQ_DEFAULT_PASS: ${OMS_RABBITMQ_SENHA:-oms-dev-local}
+      # Usuário próprio da API, sem permissões (REQ-14, research R-09); criado pelo script.
+      OMS_RABBITMQ_API_USUARIO: ${OMS_RABBITMQ_API_USUARIO:-oms-api}
+      OMS_RABBITMQ_API_SENHA: ${OMS_RABBITMQ_API_SENHA:-oms-api-dev-local}
+    command: ["bash", "/etc/oms/iniciar.sh"]
     ports:
       - "${OMS_RABBITMQ_PORTA:-5672}:5672"
       - "${OMS_RABBITMQ_PORTA_PAINEL:-15672}:15672"
     volumes:
       - oms-rabbitmq:/var/lib/rabbitmq
+      - ./docker/rabbitmq/iniciar.sh:/etc/oms/iniciar.sh:ro
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      # Saudável só depois de o usuário da API ter acesso ao vhost: a API conecta com ele.
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_port_connectivity && rabbitmqctl -q list_user_permissions $${OMS_RABBITMQ_API_USUARIO} | grep -q '^/'"]
       interval: 10s
       retries: 12
       start_period: 20s
@@ -61,8 +67,9 @@ services:
       ConnectionStrings__SqlServer: Server=sqlserver,1433;Database=PedidoFulfillment;User Id=sa;Password=${OMS_SQL_SENHA:-OmsDev_2026!Local};Encrypt=True;TrustServerCertificate=True
       RabbitMQ__Servidor: rabbitmq
       RabbitMQ__Porta: "5672"
-      RabbitMQ__Usuario: ${OMS_RABBITMQ_USUARIO:-oms}
-      RabbitMQ__Senha: ${OMS_RABBITMQ_SENHA:-oms-dev-local}
+      # A API só confere a prontidão do broker, com um usuário sem permissões (REQ-14).
+      RabbitMQ__Usuario: ${OMS_RABBITMQ_API_USUARIO:-oms-api}
+      RabbitMQ__Senha: ${OMS_RABBITMQ_API_SENHA:-oms-api-dev-local}
     ports:
       - "${OMS_API_PORTA:-5230}:8080"
     healthcheck:
