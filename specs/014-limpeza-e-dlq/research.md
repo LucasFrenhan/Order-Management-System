@@ -78,9 +78,11 @@ No Worker, o serviço em segundo plano `ExecutorReenviosDlq` (Infrastructure):
 - roda a cada `ReenvioDlq:IntervaloSegundos` (padrão 60), com `sp_getapplock 'oms-reenvio-dlq'`;
 - com o lock, pega primeiro os pedidos `EmExecucao` (de uma execução que caiu, porque só quem
   tem o lock executa) e depois os `Pendente`, por `RegistradoEm`, um de cada vez (FR-010);
-- marca `EmExecucao` com `IniciadoEm`, executa (R-04) e grava `Concluido` com as contagens, ou
-  `Falhou` com o motivo e as contagens parciais (broker caiu no meio). Um pedido `Falhou` não é
-  retomado; o Admin pede outro.
+- abre o canal com o broker **antes** de marcar o pedido; se o broker não responder, o pedido
+  continua `Pendente` (log 5010) e é tentado na rodada seguinte (spec, US2 cenário 11);
+- com o canal aberto, marca `EmExecucao` com `IniciadoEm`, executa (R-04) e grava `Concluido`
+  com as contagens, ou `Falhou` com o motivo e as contagens parciais (broker caiu no meio).
+  Um pedido `Falhou` não é retomado; o Admin pede outro.
 
 **Por quê**: preserva a fronteira (só o Worker usa o broker) e o princípio IV; o autor vem do
 token; o histórico fica no banco; a concorrência entre instâncias se resolve pelo lock.
@@ -100,6 +102,11 @@ token; o histórico fica no banco; a concorrência entre instâncias se resolve 
 3. no fim, devolve as guardadas com `BasicNack(requeue: true)`, em ordem; o RabbitMQ as recoloca
    na posição original, então a ordem das que ficam na DLQ não muda;
 4. se o canal cai no meio, o broker devolve sozinho todas as entregas sem ack para a DLQ.
+
+**Filas clássicas**: a recolocação na posição original vale para filas clássicas, que é como
+o REQ-06 declara as DLQs (sem `x-queue-type`). Numa fila quorum, uma mensagem devolvida vai
+para o fim, e esta estratégia precisaria mudar; uma migração futura para quorum exige rever o
+R-04. O teste de ordem da T014 prova o comportamento.
 
 **Garantias** (FR-014, SC-004): uma mensagem só sai da DLQ (ack) depois de confirmada na fila
 original, então nunca se perde. O único caso de cópia dupla é a queda exata entre a
@@ -174,7 +181,9 @@ serviço próprio, `MonitorDlq`, a cada `ReenvioDlq:AvisoIntervaloSegundos` (pad
 - fila inexistente (broker recriado): conta como zero;
 - broker fora: log 5012 (Warning) e tenta no próximo intervalo.
 
-Não precisa de lock: ler o tamanho é idempotente, e duas instâncias só repetem o aviso.
+Não precisa de lock: ler o tamanho é idempotente, e duas instâncias só repetem o aviso. O
+aviso tem chave própria, `ReenvioDlq:AvisoHabilitado` (padrão `true`), para desligar o reenvio
+não desligar o aviso junto.
 
 ## R-09 Usuário próprio da API no broker
 
@@ -234,6 +243,7 @@ registra nenhum serviço de mensageria do Worker (`ConexaoRabbitMQ`, despachante
 | `MensagensPorPedido` | 1 000 | 1 a 10 000 |
 | `AvisoLimite` | 10 | 1 a 1 000 000 |
 | `AvisoIntervaloSegundos` | 300 | 10 a 86 400 |
+| `AvisoHabilitado` | `true` | — |
 
 A `FabricaWorker` dos testes desliga `Limpeza:Habilitada` e `ReenvioDlq:Habilitado` por padrão,
 como já faz com a reconciliação e os estornos.

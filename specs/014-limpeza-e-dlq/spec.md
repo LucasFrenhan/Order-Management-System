@@ -260,7 +260,9 @@ declarar uma fila é recusado pelo broker.
 - **FR-001**: O processo de workers MUST rodar, sozinho e sem disparo manual, uma limpeza
   periódica, com intervalo configurável.
 - **FR-002**: A limpeza MUST apagar os eventos de saída **enviados** há mais que a retenção
-  configurada para eles, e MUST NOT apagar nenhum evento pendente.
+  configurada para eles, e MUST NOT apagar nenhum evento pendente. A limpeza MUST apagar
+  também os pedidos de reenvio já concluídos ou com falha mais antigos que a retenção deles
+  (padrão 90 dias), e MUST NOT apagar um pedido pendente ou em execução.
 - **FR-003**: A limpeza MUST apagar os registros de eventos processados mais antigos que a
   retenção configurada para eles. A retenção padrão MUST ficar bem acima da janela de
   reentrega, e a configuração MUST recusar valores abaixo de um mínimo que a cubra.
@@ -302,8 +304,11 @@ declarar uma fila é recusado pelo broker.
 - **FR-013**: A mensagem reenviada MUST voltar como uma entrega nova, com as tentativas do
   REQ-06 recomeçando do zero, e manter o identificador do evento, para o descarte de
   duplicados continuar valendo.
-- **FR-014**: O reenvio MUST NOT perder nem duplicar mensagens: cada mensagem selecionada
-  sai da DLQ só depois de estar na fila original, e as não selecionadas continuam na DLQ.
+- **FR-014**: O reenvio MUST NOT perder mensagens nem repetir efeitos: cada mensagem
+  selecionada sai da DLQ só depois de estar na fila original, e as não selecionadas continuam
+  na DLQ. Uma cópia que sobre na DLQ por uma queda exata entre as duas coisas carrega o mesmo
+  identificador do evento e é descartada pelo consumidor como duplicada (o "pelo menos uma
+  vez" do REQ-06).
 - **FR-015**: Cada execução MUST gravar no pedido as contagens (reenviadas, bloqueadas pelo
   limite e fora do filtro) e registrar em log o identificador do pedido, o autor, o
   consumidor, o filtro e as contagens. A mensagem reenviada MUST levar também o identificador
@@ -372,8 +377,8 @@ declarar uma fila é recusado pelo broker.
   nenhum registro de processado dentro da retenção é apagado, em 100% das execuções.
 - **SC-003**: A limpeza não aumenta o tempo do fluxo normal (do pedido criado ao "entrega
   criada") além da meta do REQ-10 (95% em até 10 segundos no ambiente de demonstração).
-- **SC-004**: Em 100% dos reenvios, cada mensagem selecionada chega à fila original uma única
-  vez, e nenhuma mensagem some da DLQ sem chegar à fila original.
+- **SC-004**: Em 100% dos reenvios, nenhuma mensagem some da DLQ sem chegar à fila original, e
+  nenhuma mensagem reenviada produz efeito repetido no consumidor.
 - **SC-005**: Nenhuma mensagem é reenviada mais vezes que o limite configurado.
 - **SC-006**: Uma DLQ acima do limite gera aviso em até um intervalo de verificação.
 - **SC-007**: Com o processo de workers e o broker no ar, um pedido de reenvio começa a ser

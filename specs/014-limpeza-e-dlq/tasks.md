@@ -55,7 +55,7 @@ topologia existente.
 
 - [ ] T002 [P] Em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/PedidoReenvioDlqTestes.cs` (data-model): `Registrar` cria `Pendente` com id v7, autor, consumidor, filtro aparado e `RegistradoEm`; recusa autor vazio, consumidor fora de `ConsumidoresConhecidos.Nomes`, `FalhouAte < FalhouDe`, tipo com mais de 100 e trecho com mais de 200 caracteres (`ArgumentException`); `Iniciar` (`Pendente` ou `EmExecucao` → `EmExecucao`, `IniciadoEm`), `Concluir` (`EmExecucao` → `Concluido`, contagens, `ConcluidoEm`) e `Falhar` (`EmExecucao` → `Falhou`, contagens parciais, motivo aparado até 500); transições fora do ciclo lançam `InvalidOperationException` sem alterar nada; contagens negativas recusadas.
 - [ ] T003 [P] Em `tests/PedidoFulfillment.Testes.Unitarios/Configuracao/OpcoesLimpezaTestes.cs` e `OpcoesReenvioDlqTestes.cs` (R-10), como `OpcoesEstornosTestes`: padrões válidos; cada faixa nos limites e fora deles, com a mensagem citando a chave (por exemplo, "Limpeza:RetencaoChavesHoras deve estar entre 24 e 8760."); falhas acumuladas.
-- [ ] T004 [P] Em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/WorkerTestes.cs` (ou arquivo novo `ConsumidoresConhecidosTestes.cs` na mesma pasta): os nomes dos `IDescritorConsumidor` registrados no Worker são exatamente `ConsumidoresConhecidos.Nomes` (R-03).
+- [ ] T004 [P] Em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/ConsumidoresConhecidosTestes.cs` (novo): os nomes dos `IDescritorConsumidor` registrados no Worker são exatamente `ConsumidoresConhecidos.Nomes` (R-03).
 
 ### Implementação da fundação
 
@@ -66,7 +66,7 @@ topologia existente.
 
   T002 deve passar.
 - [ ] T006 Persistência (R-07): `src/PedidoFulfillment.Infrastructure/Persistencia/Configuracoes/ConfiguracaoPedidoReenvioDlq.cs` (tabela `PedidosReenvioDlq`, tamanhos, check da situação com `RestricoesEnum`, checks das contagens, índice `IX_PedidosReenvioDlq_Situacao_RegistradoEm`); `DbSet` no `ContextoBancoDados`; índices `IX_EventosSaida_Enviados` (filtrado `[EnviadoEm] IS NOT NULL`), `IX_EventosProcessados_ProcessadoEm` e `IX_RegistrosIdempotencia_CriadoEm` nas configurações existentes; migration `LimpezaEReenvioDlq` (`dotnet ef migrations add LimpezaEReenvioDlq --project src/PedidoFulfillment.Infrastructure --startup-project src/PedidoFulfillment.API --output-dir Persistencia/Migracoes`), conferindo que só cria a tabela e os índices; a migration nova nas listas de `ModeloSincronizadoTestes.cs` e `MigracaoBancoTestes.cs`; em `tests/PedidoFulfillment.Testes.Integracao/Persistencia/PedidoReenvioDlqPersistenciaTestes.cs` (novo), gravar e reler um pedido em cada situação e conferir que uma situação inválida gravada por fora é recusada pela check constraint.
-- [ ] T007 Opções e logs (R-10, R-11): `src/PedidoFulfillment.Infrastructure/Configuracao/OpcoesLimpeza.cs` e `OpcoesReenvioDlq.cs` com validadores; `src/PedidoFulfillment.Infrastructure/Mensageria/EventosLimpezaReenvio.cs` com os logs 5009 a 5015; `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/FabricaWorker.cs` com `Limpeza:Habilitada=false` e `ReenvioDlq:Habilitado=false` por padrão; seções `Limpeza` e `ReenvioDlq` em `src/PedidoFulfillment.Worker/appsettings.json`, com comentário como as demais. T003 e T004 devem passar.
+- [ ] T007 Opções e logs (R-10, R-11): `src/PedidoFulfillment.Infrastructure/Configuracao/OpcoesLimpeza.cs` e `OpcoesReenvioDlq.cs` com validadores; `src/PedidoFulfillment.Infrastructure/Mensageria/EventosLimpezaReenvio.cs` com os logs 5009 a 5015; `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/FabricaWorker.cs` com `Limpeza:Habilitada=false`, `ReenvioDlq:Habilitado=false` e `ReenvioDlq:AvisoHabilitado=false` por padrão; seções `Limpeza` e `ReenvioDlq` em `src/PedidoFulfillment.Worker/appsettings.json`, com comentário como as demais. T003 e T004 devem passar.
 
 **Checkpoint**: suíte inteira verde. Commit `feat(mensageria): modela o pedido de reenvio, as opções e os indices da limpeza [REQ-14]`.
 
@@ -114,7 +114,7 @@ topologia existente.
   - `GET` do `Location`: 200 com o mesmo pedido (cenário 3); id inexistente: 404 "Pedido de reenvio não encontrado." (cenário 12); id que não é UUID: 400;
   - sem token: 401; Cliente e OperadorLogistica: 403, nas duas rotas (cenário 9, clarify);
   - consumidor `desconhecido`: 400 com o campo `consumidor`; `falhouAte` antes de `falhouDe`: 400 com o campo `falhouAte` (cenário 10);
-  - com a configuração do broker apontando para uma porta fechada, o `POST` continua 202 (cenário 11, FR-008).
+  - com a configuração do broker apontando para uma porta fechada, o `POST` continua 202, em menos de 1 s, sem esperar o tempo limite de conexão do broker (cenário 11, FR-008, SC-007).
 - [ ] T014 [P] [US2] Em `tests/PedidoFulfillment.Testes.Integracao/Administracao/ExecucaoReenvioDlqTestes.cs`, com o Worker (`ReenvioDlq:Habilitado=true`, intervalo de 1 s, sem os consumidores, salvo onde indicado) e mensagens postas direto em `oms.estoque.dlq` com os cabeçalhos do REQ-06:
   - filtro por tipo: só as do tipo saem para `oms.estoque`, com `x-reenvios = 1`, `x-pedido-reenvio` e sem `x-tentativas`; as demais continuam na DLQ **na mesma ordem** (conferida pelo `MessageId`); pedido `Concluido` com `Reenviadas`, `ForaDoFiltro` e `BloqueadasPeloLimite` (cenários 2, 4 e 6);
   - filtro por período e por trecho do motivo;
@@ -123,6 +123,7 @@ topologia existente.
   - mensagem que falha de novo volta à DLQ com `x-reenvios = 1` (cenário 8);
   - dois pedidos para o mesmo consumidor são executados na ordem de registro; duas instâncias do Worker: um só executa por rodada (5015 no outro);
   - pedido `EmExecucao` gravado antes da subida (Worker que caiu) é retomado e concluído;
+  - broker fora do ar antes da execução (porta fechada na configuração do Worker): o pedido continua `Pendente`, com o log 5010, e é concluído quando o broker volta (cenário 11);
   - broker derrubado no meio (canal fechado pelo teste): pedido `Falhou` com contagens parciais, e a soma das mensagens na DLQ e na fila principal é a mesma de antes (nenhuma perdida) (FR-014);
   - log 5009 com o autor e as contagens.
 - [ ] T015 [P] [US2] Contrato: as duas rotas, `RegistrarReenvioDlqRequestDTO` e `PedidoReenvioDlqResponseDTO` em `specs/001-contratos-api/contracts/openapi-v1.yaml`, com a tag "Administração", 202, 400, 401, 403 e 404; `tests/PedidoFulfillment.Testes.Integracao/Contrato/ConformidadeOpenApiTestes.cs` ganha as duas operações na lista `Operacoes`, e `tests/PedidoFulfillment.Testes.Integracao/Seguranca/AutorizacaoEndpointsTestes.cs` passa a cobri-las.
@@ -149,7 +150,7 @@ topologia existente.
 
 ### Implementação da US3
 
-- [ ] T020 [US3] `src/PedidoFulfillment.Infrastructure/Mensageria/MonitorDlq.cs` (R-08): `BackgroundService` que, a cada `AvisoIntervaloSegundos`, faz `QueueDeclarePassiveAsync` de `oms.C.dlq` para cada `ConsumidoresConhecidos.Nomes`, com o 404 do broker tratado como zero; logs 5011 e 5012; registrado em `AdicionarLimpezaEReenvio()` e ligado por `ReenvioDlq:Habilitado`. T019 deve passar.
+- [ ] T020 [US3] `src/PedidoFulfillment.Infrastructure/Mensageria/MonitorDlq.cs` (R-08): `BackgroundService` que, a cada `AvisoIntervaloSegundos`, faz `QueueDeclarePassiveAsync` de `oms.C.dlq` para cada `ConsumidoresConhecidos.Nomes`, com o 404 do broker tratado como zero; logs 5011 e 5012; registrado em `AdicionarLimpezaEReenvio()` e ligado por `ReenvioDlq:AvisoHabilitado` (chave própria, padrão `true`, desligada na `FabricaWorker` como as demais). T019 deve passar.
 
 **Checkpoint**: commit `feat(mensageria): avisa quando a DLQ passa do limite [REQ-14]`.
 
@@ -241,3 +242,9 @@ troca o painel do broker por um reenvio controlado; a US3 avisa; a US4 reduz o a
 - O R-04 depende de o RabbitMQ recolocar na posição original as mensagens devolvidas com
   `BasicNack(requeue: true)`; o teste da ordem na T014 prova isso. Se não se confirmar,
   rever a estratégia antes de seguir (registrar em Notes).
+- **Analyze (2026-10-24)**: aplicadas as correções I1 (FR-014 e SC-004: nenhuma perda e nenhum
+  efeito repetido, com a cópia de uma queda exata descartada como duplicada), I2 (canal aberto
+  antes de marcar o pedido; broker fora no início deixa o pedido `Pendente`; caso novo na
+  T014), U1 (R-04 vale para filas clássicas), C1 (limpeza dos pedidos de reenvio no FR-002),
+  A1 (arquivo da T004), D1 (chave própria `ReenvioDlq:AvisoHabilitado`) e C2 (a T013 mede que
+  o `POST` não espera o broker).
