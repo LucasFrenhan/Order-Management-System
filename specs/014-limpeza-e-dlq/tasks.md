@@ -192,7 +192,7 @@ topologia existente.
 - [X] T025 [P] Documentação do projeto: `README.md` (Estado atual com o REQ-14; Próximos passos com #29 e #18; configuração `Limpeza` e `ReenvioDlq`; a seção Mensageria sem "a DLQ é reenviada à mão"; ambiente local com os dois usuários do broker e como conferir; roteiros com o quickstart do REQ-14); `specs/006-mensageria/spec.md` › Pendências futuras: limpeza e DLQ apontam para o REQ-14 (resolvido).
 - [X] T026 Varredura de segredos (só credenciais de desenvolvimento novas, já documentadas), `dotnet format --verify-no-changes` e a suíte local inteira (zero ignorados); registrar a contagem em Notes.
 - [X] T027 Executar o quickstart (§2 a §4) com a API e o Worker locais e registrar em Notes.
-- [ ] T028 Fazer push e abrir o PR em português (Resumo, Pontos de atenção, Validação) com `Closes #30`, citando os documentos de fluxo atualizados e a mudança de credenciais do broker. Acompanhar o `build-testes` e o `contrato-compatibilidade` até ficarem verdes, inclusive depois de cada push posterior, e registrar em Notes.
+- [X] T028 Fazer push e abrir o PR em português (Resumo, Pontos de atenção, Validação) com `Closes #30`, citando os documentos de fluxo atualizados e a mudança de credenciais do broker. Acompanhar o `build-testes` e o `contrato-compatibilidade` até ficarem verdes, inclusive depois de cada push posterior, e registrar em Notes.
 
 ---
 
@@ -334,3 +334,5 @@ troca o painel do broker por um reenvio controlado; a US3 avisa; a US4 reduz o a
   forma assíncrona; a rodada seguinte ainda pegava o lock ocupado e era pulada. A rotina não
   muda (ela solta com `sp_releaseapplock`, síncrono); o teste agora solta da mesma forma e
   confere que só uma rodada foi pulada. 5 de 5 execuções locais verdes.
+- **T028, CI (2026-10-25, terceiro push)**: "Build e testes", "Demonstração" e "breaking-changes"
+  verdes no PR #36.
