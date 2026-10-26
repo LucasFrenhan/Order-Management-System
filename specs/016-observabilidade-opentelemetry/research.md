@@ -1,6 +1,6 @@
 # Research: rastreabilidade com OpenTelemetry (estudo da issue #37)
 
-**Issue**: [#37](https://github.com/LucasFrenhan/Order-Management-System/issues/37) | **Data**: 2026-10-26 | **Situação**: proposta, aguardando decisão
+**Issue**: [#37](https://github.com/LucasFrenhan/Order-Management-System/issues/37) | **Data**: 2026-10-26 | **Situação**: aprovada (adotar parcialmente); revisada no plano
 
 Este documento é o primeiro entregável da issue #37: a decisão fundamentada sobre adotar o
 OpenTelemetry, com as alternativas e o custo de cada parte. Se a decisão for adotar, ele vira
@@ -98,15 +98,20 @@ depois, por outro processo, pelo `DespachanteEventosSaida`. Na publicação, `Ac
 é nulo; o RabbitMQ.Client começaria um trace novo.
 
 **Decisão**:
-1. **Gravar o contexto**: coluna nova `ContextoRastreio` (`nvarchar(55)`, nula) em
-   `EventosSaida`, com migration. `EventoSaida.De` lê `Activity.Current?.Id` (formato W3C
-   `00-<trace>-<span>-<flags>`). Sem activity, fica nula e tudo segue como hoje. O
-   `tracestate` não é gravado: o OMS não usa, e ele pode crescer até 512 caracteres.
-2. **Retomar na publicação**: em `DespachanteEventosSaida.PublicarAsync`, se houver contexto,
-   abrir uma activity `publicar {tipo}` (fonte `PedidoFulfillment.Mensageria`, `Producer`) com
-   esse contexto como pai e um link para a rodada do despachante. O `BasicPublishAsync` cria o
-   span dele como filho e injeta o `traceparent` dela. O consumidor do outro lado continua o
-   mesmo trace.
+1. **Gravar o contexto**: coluna nova `ContextoRastreio` (`varchar(55)`, nula) em
+   `EventosSaida`, com migration, mapeada como **propriedade de sombra** do EF Core (revisão do
+   plano). Um interceptor de `SaveChanges` na Infrastructure (`InterceptorContextoRastreio`)
+   preenche a coluna das linhas **novas** com `Activity.Current?.Id` (formato W3C
+   `00-<trace>-<span>-<flags>`, só quando `IdFormat == W3C`). O Domain e o Application não
+   mudam: nenhuma fábrica (`EventoSaida.De`, `Pedido`) passa a conhecer rastreamento, e
+   nenhum dos nove pontos que gravam eventos precisa de ajuste. Sem activity, fica nula e tudo
+   segue como hoje. O `tracestate` não é gravado: o OMS não usa, e ele pode crescer até 512
+   caracteres.
+2. **Retomar na publicação**: em `DespachanteEventosSaida.PublicarAsync`, se houver contexto
+   válido, abrir uma activity `outbox publicar {tipo}` (fonte `PedidoFulfillment`, `Internal`)
+   com esse contexto como pai. O `BasicPublishAsync` cria o span `Producer` dele como filho e
+   injeta o `traceparent` dele. O consumidor do outro lado continua o mesmo trace. Sem link
+   para o ciclo do despachante: ciclos não geram span (item 3).
 3. **Não criar span por ciclo vazio**: o despachante roda a cada 1 s. Spans só por evento
    publicado, nunca pela consulta dos pendentes (ver R-09 sobre o SQL do polling).
 
@@ -155,7 +160,8 @@ criação do pedido**. É o padrão que a convenção recomenda para trabalho em
 continua sendo a rodada, e o link leva ao pedido.
 
 Para ter o contexto de criação do pedido, coluna nova `ContextoRastreio` em `Pedidos`, gravada
-na criação (mesma migration). A alternativa de buscar no `EventoSaida` de `pedido.criado` não
+na criação pelo mesmo interceptor (mesma migration). A consulta dos pedidos parados e a dos
+estornos pendentes passam a devolver esse contexto junto do pedido. A alternativa de buscar no `EventoSaida` de `pedido.criado` não
 serve: o evento não tem coluna de pedido e é apagado pela limpeza depois de 7 dias.
 
 | Rotina | Span raiz | Filhos | Link |
@@ -215,27 +221,37 @@ porque não existe convenção para esses conceitos de negócio:
 
 | # | Métrica | Instrumento | Unidade | Atributos | Fonte do valor | Vale o custo? |
 |---|---------|-------------|---------|-----------|----------------|---------------|
-| 1 | `oms.outbox.pendentes` | gauge observável | `{evento}` | — | amostrador (abaixo) | **Sim**, principal sinal de despachante parado |
+| 1 | `oms.outbox.eventos_pendentes` | gauge observável | `{evento}` | — | amostrador (abaixo) | **Sim**, principal sinal de despachante parado |
 | 2 | `oms.outbox.pendente_mais_antigo.idade` | gauge observável | `s` | — | amostrador | **Sim**, alerta natural ("> 60 s") |
 | 3 | `oms.mensageria.dlq.mensagens` | gauge observável | `{mensagem}` | `oms.consumidor` | última leitura do `MonitorDlq` | **Sim**, complementa o 5011 |
 | 4 | `oms.mensageria.mensagens` | contador | `{mensagem}` | `oms.consumidor`, `oms.resultado` | `ConsumidorEventos` | **Sim**, substitui contar o 5005/5006 |
-| 5 | `oms.rotinas.execucoes` | contador | `{execucao}` | `oms.rotina`, `oms.resultado` | reconciliação, estornos, reenvio | **Sim**, barato |
+| 5 | `oms.rotinas.itens` | contador | `{item}` | `oms.rotina`, `oms.resultado` | reconciliação, estornos, reenvio | **Sim**, barato |
 | 6 | `oms.limpeza.linhas_apagadas` | contador | `{linha}` | `oms.limpeza.alvo` | `LimpezaMensageria` | **Sim**, substitui o 5013 |
-| — | `oms.estornos.pendentes` | gauge observável | `{estorno}` | — | amostrador | Opcional (mesmo amostrador, custo marginal) |
-| — | latência por etapa | histograma | `s` | `oms.etapa` | consumidores | **Adiar**: o trace mostra por pedido; a métrica exige decidir a origem do tempo (criação ou etapa anterior) e cuidar de reentregas |
+| — | `oms.estornos.pendentes` | — | — | — | — | **Não** neste REQ: a spec fixou seis métricas |
+| — | latência por etapa | — | — | — | — | **Adiar**: o trace mostra por pedido; a métrica exige decidir a origem do tempo (criação ou etapa anterior) e cuidar de reentregas |
+| — | `messaging.process.duration` | — | — | — | — | **Não** neste REQ: o trace já mede cada consumo; entra com a latência por etapa |
 
-Duração do consumo: o histograma `messaging.process.duration` da convenção não é emitido pelo
-RabbitMQ.Client 7. O plano pode medi-lo em `ConsumidorEventos` com o nome da convenção; é
-barato e fica junto da métrica 4.
+Valores de `oms.resultado` (revisão do plano):
+- métrica 4: `processado`, `duplicado`, `nova_tentativa`, `dlq`, `irrecuperavel`;
+- métrica 5, por item tratado: reconciliação (`oms.rotina = reconciliacao`) `recuperado`,
+  `esgotado`, `falhou`; estornos (`estornos`) `confirmado`, `falhou`; reenvio da DLQ
+  (`reenvio_dlq`, por pedido de reenvio) `concluido`, `falhou`.
 
-**Amostrador**: os callbacks de gauge observável são síncronos e rodam a cada exportação; não
-podem ir ao banco. Um serviço leve no Worker consulta a cada 30 s `COUNT(*)` e `MIN(CriadoEm)`
-dos pendentes (o índice filtrado `IX_EventosSaida_Pendentes` já existe) e guarda os valores;
-os gauges só leem. O `MonitorDlq` passa a guardar a última contagem por consumidor e a
-publicar o gauge 3; o log 5011 continua (aviso e métrica convivem, sem mudar o ID).
+**Amostrador** (`AmostradorOutbox`, só no Worker e só com a telemetria ligada): os callbacks de
+gauge observável são síncronos e rodam a cada exportação; não podem ir ao banco. O serviço
+consulta a cada 30 s `COUNT_BIG(*)` e `MIN(CriadoEm)` dos pendentes (o índice filtrado
+`IX_EventosSaida_Pendentes` já existe) e guarda os valores; os gauges só leem. Sem pendentes,
+a idade é 0. Banco fora: mantém o último valor e loga em Debug (sem ID novo de aviso).
 
-O aviso 5011 hoje roda a cada 5 min. O plano decide se o intervalo de leitura da DLQ cai para
-1 min quando a métrica estiver ligada.
+**DLQ** (clarify, pergunta 2): com a telemetria ligada, o `MonitorDlq` lê a cada 1 min
+(`ReenvioDlq:MetricaIntervaloSegundos`, padrão 60) e guarda a última contagem por consumidor
+para o gauge 3; o log 5011 sai no máximo a cada `AvisoIntervaloSegundos` (300), contado desde o
+último aviso. Com a telemetria desligada, nada muda: leitura e aviso a cada 5 min. Com o aviso
+desligado (`AvisoHabilitado = false`) e a telemetria ligada, lê só para a métrica.
+
+**Várias instâncias** (clarify, pergunta 3): cada instância publica com `service.instance.id`
+(padrão do SDK: um GUID por processo); os gauges 1 a 3 saem iguais de todas, e o painel usa o
+máximo; os contadores 4 a 6 se somam.
 
 ## R-08 Logs correlacionados
 
@@ -273,7 +289,7 @@ compose pelo Aspire AppHost (fora do escopo; a demo continuaria só com Docker):
 ```yaml
   aspire-dashboard:
     profiles: [demo, observabilidade]
-    image: mcr.microsoft.com/dotnet/aspire-dashboard:13.6.x   # fixar no plano (regra das 2 semanas)
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:13.6.0   # 2026-10-01; a 13.6.1 tem menos de 2 semanas
     environment:
       ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: "true"     # só local; dados em memória
     ports:
@@ -301,8 +317,8 @@ compose pelo Aspire AppHost (fora do escopo; a demo continuaria só com Docker):
 
 ## R-11 Desligado, destino fora do ar, amostragem e desempenho
 
-**Desligado**: sem `OTEL_EXPORTER_OTLP_ENDPOINT` (nem `OpenTelemetry:Habilitado`), o
-OpenTelemetry nem é registrado. Sem ouvinte, o ASP.NET Core e o RabbitMQ.Client não criam
+**Desligado**: sem `OTEL_EXPORTER_OTLP_ENDPOINT` e sem `Observabilidade:Habilitada = true`
+(usado só pelos testes, que coletam sem exportar), o OpenTelemetry nem é registrado. Sem ouvinte, o ASP.NET Core e o RabbitMQ.Client não criam
 activities, `Activity.Current` fica nulo, as colunas `ContextoRastreio` ficam nulas, e o
 comportamento é o de hoje. É o padrão dos testes existentes, que não mudam.
 
@@ -313,7 +329,7 @@ Worker não esperam nem falham (critério de aceite 6, coberto por teste com end
 **Amostragem**:
 - local e demo: `ParentBased(AlwaysOn)`, tudo;
 - produção: `ParentBased(TraceIdRatioBased(r))`, com `r` por configuração
-  (`OpenTelemetry:TaxaAmostragem`, padrão 1,0);
+  (`Observabilidade:TaxaAmostragem`, padrão 1,0);
 - como o contexto viaja pelo outbox com a flag de amostragem, a decisão da requisição vale
   para o pedido inteiro: ou o trace vem completo, ou não vem;
 - as métricas e os logs não são amostrados.
@@ -329,8 +345,13 @@ Worker não esperam nem falham (critério de aceite 6, coberto por teste com end
 
 - **Unitários**: `EventoSaida.De` grava o `Activity.Current.Id` e nulo sem activity; o
   amostrador do R-09; os nomes e unidades das métricas.
-- **Integração (banco e broker reais, Testcontainers, como hoje)**, com um `ActivityListener`
-  e um `MeterListener` da BCL, sem o pacote `OpenTelemetry.Exporter.InMemory`:
+- **Integração (banco e broker reais, Testcontainers, como hoje)**, com o SDK ligado por
+  `Observabilidade:Habilitada = true` e um coletor de teste registrado como `BaseProcessor<Activity>`
+  e `BaseProcessor<LogRecord>` (classes do próprio SDK, que já vem pelo
+  `OpenTelemetry.Extensions.Hosting`), mais um `MeterListener` da BCL para as métricas. Assim o
+  amostrador do R-09 também é exercitado, e não entra o pacote `OpenTelemetry.Exporter.InMemory`.
+  Como a API e o Worker rodam no mesmo processo de teste, cada fábrica registra o próprio coletor
+  e os testes filtram pelo trace id:
   - criar um pedido gera um só trace da rota `POST` até os três consumidores (aceite 1);
   - uma mensagem da DLQ reenviada continua o trace original e tem link para o pedido de
     reenvio (aceite 2);
