@@ -114,6 +114,8 @@ public sealed class ServicoPedidos(
     /// e deixa o estorno do pagamento aprovado pendente para o processo de workers, na mesma
     /// gravação e sem chamar o gateway (REQ-13, R-01). A releitura depois de um conflito decide a
     /// corrida com o worker (REQ-08, R-05): se a cobrança venceu, o cancelamento pede o estorno.
+    /// O cancelamento grava junto o <c>pedido.cancelado</c>, com o motivo <c>Operacao</c> ou
+    /// <c>Cliente</c> pelo perfil (REQ-15, R-02); o descarte de um conflito leva o evento junto.
     /// </summary>
     public async Task<Resultado<PedidoResponseDTO>> AtualizarStatusAsync(
         Guid pedidoId, Guid usuarioId, IReadOnlyCollection<PerfilUsuario> perfis, AtualizarStatusPedidoRequestDTO atualizacao, CancellationToken cancellationToken)
@@ -145,6 +147,8 @@ public sealed class ServicoPedidos(
                 }
 
                 cancelamento = pedido.Cancelar(usuarioId, atualizacao.Motivo, produtos, agora);
+                armazenamento.Adicionar(EventosPedido.Cancelado(
+                    pedido, operacao ? MotivoCancelamento.Operacao : MotivoCancelamento.Cliente, null, cancelamento.Value, agora));
             }
             else
             {

@@ -1,9 +1,11 @@
 using Microsoft.Extensions.Logging;
 using PedidoFulfillment.Application.Comum;
+using PedidoFulfillment.Application.Contratos.Eventos;
 using PedidoFulfillment.Application.Pagamentos;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Domain.Pagamentos;
 using PedidoFulfillment.Domain.Pedidos;
+using PedidoFulfillment.Domain.Produtos;
 
 namespace PedidoFulfillment.Application.Reconciliacao;
 
@@ -100,7 +102,8 @@ public sealed class ServicoReconciliacao(
     /// <summary>
     /// Ler, decidir e gravar, até <see cref="Reavaliacoes"/> vezes em conflito (R-07). O que a
     /// regra deixou rastreado é descartado antes; o pedido relido precisa continuar parado na
-    /// mesma etapa, senão nada é cancelado. Grava sem evento de saída (spec, Assumptions).
+    /// mesma etapa, senão nada é cancelado. Grava junto o <c>pedido.cancelado</c> com a etapa
+    /// esgotada (REQ-15, R-02); o descarte do início de cada reavaliação leva o evento junto.
     /// </summary>
     private async Task<ResultadoReconciliacao> EsgotarAsync(
         PedidoParado parado, int falhas, DateTimeOffset agora, ParametrosEsgotamento parametros, CancellationToken cancellationToken)
@@ -124,7 +127,9 @@ public sealed class ServicoReconciliacao(
                     return ResultadoReconciliacao.Falhou;
                 }
 
-                var motivo = await CancelarAsync(pedido, parado.Etapa, agora, cancellationToken);
+                var (motivo, resultado) = await CancelarAsync(pedido, parado.Etapa, agora, cancellationToken);
+                armazenamento.Adicionar(EventosPedido.Cancelado(
+                    pedido, MotivoCancelamento.ReconciliacaoEsgotada, EtapaDoContrato(parado.Etapa), resultado, agora));
                 await armazenamento.SalvarAsync(cancellationToken);
                 registro.Remover(parado.PedidoId);
                 EventosReconciliacao.PedidoEsgotado(logger, parado.PedidoId, parado.Etapa, falhas, motivo);
@@ -151,26 +156,37 @@ public sealed class ServicoReconciliacao(
         _ => false
     };
 
-    private async Task<string> CancelarAsync(Pedido pedido, EtapaFluxoPedido etapa, DateTimeOffset agora, CancellationToken cancellationToken)
+    private async Task<(string Motivo, ResultadoCancelamento Resultado)> CancelarAsync(
+        Pedido pedido, EtapaFluxoPedido etapa, DateTimeOffset agora, CancellationToken cancellationToken)
     {
         if (etapa == EtapaFluxoPedido.Estoque)
         {
-            pedido.MudarStatus(StatusPedido.Cancelado, null, MotivoEstoqueNaoReservado, agora);
-            return MotivoEstoqueNaoReservado;
+            // Sem reserva, sem pagamento e sem ordem: o Cancelar só valida e grava o histórico (REQ-15, R-01).
+            return (MotivoEstoqueNaoReservado, pedido.Cancelar(null, MotivoEstoqueNaoReservado, new Dictionary<Guid, Produto>(), agora));
         }
 
         var ids = pedido.Itens.Select(i => i.ProdutoId).ToList();
         var produtos = (await armazenamento.ObterProdutosAsync(ids, paraAlterar: true, cancellationToken)).ToDictionary(p => p.Id);
         if (etapa == EtapaFluxoPedido.Pagamento)
         {
-            pedido.RegistrarPagamentoNaoProcessado(MotivoPagamentoNaoProcessado, produtos, agora);
-            return MotivoPagamentoNaoProcessado;
+            return (MotivoPagamentoNaoProcessado, pedido.RegistrarPagamentoNaoProcessado(MotivoPagamentoNaoProcessado, produtos, agora));
         }
 
         // Entrega (REQ-13, R-06): o pedido está pago; o cancelamento deixa o estorno pendente.
-        pedido.Cancelar(null, MotivoOrdemEntregaNaoCriada, produtos, agora);
-        return MotivoOrdemEntregaNaoCriada;
+        return (MotivoOrdemEntregaNaoCriada, pedido.Cancelar(null, MotivoOrdemEntregaNaoCriada, produtos, agora));
     }
+
+    /// <summary>
+    /// Conversão explícita para o contrato (REQ-15, R-04): uma etapa interna nova não vira valor
+    /// do contrato sem decisão.
+    /// </summary>
+    private static EtapaEsgotada EtapaDoContrato(EtapaFluxoPedido etapa) => etapa switch
+    {
+        EtapaFluxoPedido.Estoque => EtapaEsgotada.Estoque,
+        EtapaFluxoPedido.Pagamento => EtapaEsgotada.Pagamento,
+        EtapaFluxoPedido.Entrega => EtapaEsgotada.Entrega,
+        _ => throw new ArgumentOutOfRangeException(nameof(etapa), etapa, "Etapa sem valor no contrato do pedido.cancelado.")
+    };
 
     private static string Descrever(Exception excecao) => $"{excecao.GetType().Name}: {excecao.Message}";
 }

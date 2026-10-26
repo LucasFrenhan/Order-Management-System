@@ -65,6 +65,29 @@ public sealed class PedidoCancelamentoTestes
     [Theory]
     [InlineData(StatusPedido.Pendente)]
     [InlineData(StatusPedido.Processando)]
+    public void Sem_reserva_e_sem_produtos_cancela_como_a_falta_de_estoque_e_a_reconciliacao(StatusPedido status)
+    {
+        // REQ-15, R-01: substitui o MudarStatus(Cancelado, null, motivo) da falta de estoque e da
+        // reconciliação da etapa de estoque, com o mesmo histórico e um resultado todo falso.
+        var pedido = PedidoNovo();
+        if (status != StatusPedido.Pendente)
+        {
+            pedido.MudarStatus(status, Operador, null, Reserva);
+        }
+
+        var resultado = pedido.Cancelar(null, "Estoque insuficiente.", new Dictionary<Guid, Produto>(), Cancelamento);
+
+        resultado.Should().Be(new ResultadoCancelamento(false, false, false));
+        pedido.Status.Should().Be(StatusPedido.Cancelado);
+        var entrada = pedido.Historico.Last();
+        (entrada.StatusAnterior, entrada.StatusNovo, entrada.AutorId, entrada.Motivo, entrada.OcorridoEm)
+            .Should().Be((status, StatusPedido.Cancelado, (Guid?)null, "Estoque insuficiente.", Cancelamento));
+        pedido.AtualizadoEm.Should().Be(Cancelamento);
+    }
+
+    [Theory]
+    [InlineData(StatusPedido.Pendente)]
+    [InlineData(StatusPedido.Processando)]
     public void Com_reserva_e_sem_pagamento_devolve_o_estoque_sem_estorno(StatusPedido status)
     {
         var pedido = PedidoReservado(status);

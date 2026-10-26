@@ -1,5 +1,6 @@
 using System.Net;
 using FluentAssertions;
+using PedidoFulfillment.Application.Contratos.Eventos;
 using PedidoFulfillment.Testes.Integracao.Infraestrutura;
 using static PedidoFulfillment.Testes.Integracao.Pedidos.CenarioPedidos;
 
@@ -45,7 +46,8 @@ public sealed class StatusPedidoComBancoTestes(BancoDadosTeste banco)
     public async Task Admin_cancela_pedido_pronto_para_envio()
     {
         Assert.SkipUnless(banco.DockerDisponivel, "Docker indisponível");
-        await using var api = Api(banco.NovoBanco());
+        var stringConexao = banco.NovoBanco();
+        await using var api = Api(stringConexao);
         var (cliente, _, _) = await ClienteAsync(api);
         var admin = await AdminAsync(api);
         var id = (await CriadoAsync(cliente, (Cat001, 1))).GetProperty("id").GetGuid();
@@ -53,6 +55,12 @@ public sealed class StatusPedidoComBancoTestes(BancoDadosTeste banco)
         await MudarStatusAsync(admin, id, "ProntoParaEnvio");
 
         (await MudarStatusAsync(admin, id, "Cancelado", "Endereço inválido")).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // REQ-15, US1 cenário 2, sem pagamento, reserva nem ordem.
+        var cancelado = await EventosOutbox.CanceladoAsync(stringConexao, id);
+        (cancelado.Motivo, cancelado.EtapaEsgotada).Should().Be((MotivoCancelamento.Operacao, (EtapaEsgotada?)null));
+        (cancelado.EstoqueDevolvido, cancelado.EstornoPendente, cancelado.OrdemEntregaCancelada).Should().Be((false, false, false));
+        cancelado.Numero.Should().MatchRegex(@"^PED-\d{8}-\d{6}$");
     }
 
     [Fact]
@@ -74,6 +82,11 @@ public sealed class StatusPedidoComBancoTestes(BancoDadosTeste banco)
         (await BancoDadosTeste.ConsultarAsync<string>(stringConexao,
             $"SELECT TOP 1 Motivo FROM HistoricosStatusPedido WHERE PedidoId = '{pendente}' ORDER BY Id DESC")).Should().Be("Desisti");
         recusado.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+
+        // REQ-15, US1 cenário 1: o motivo digitado fica no histórico, não no evento.
+        var evento = await EventosOutbox.CanceladoAsync(stringConexao, pendente);
+        (evento.Motivo, evento.EstornoPendente).Should().Be((MotivoCancelamento.Cliente, false));
+        (await EventosOutbox.ListarAsync<PedidoCancelado>(stringConexao, processando)).Should().BeEmpty();
     }
 
     [Fact]
@@ -123,6 +136,8 @@ public sealed class StatusPedidoComBancoTestes(BancoDadosTeste banco)
 
             (await BancoDadosTeste.ConsultarAsync<int>(stringConexao, $"SELECT COUNT(*) FROM HistoricosStatusPedido WHERE PedidoId = '{id}'"))
                 .Should().Be(2, $"repetição {repeticao}");
+            // REQ-15: um pedido.cancelado só quando o cancelamento venceu.
+            (await EventosOutbox.ListarAsync<PedidoCancelado>(stringConexao, id)).Should().HaveCount(final == "Cancelado" ? 1 : 0, $"repetição {repeticao}");
         }
     }
 }

@@ -54,20 +54,29 @@ public sealed class DisputaCancelamentoTestes(MensageriaTeste mensageria)
         var (cliente, _, _) = await ClienteAsync(api);
         var gateway = new GatewayQueEspera();
         var logs = new CapturaLogs();
-        await using var worker = await WorkerDePagamentoAsync(stringConexao, gateway, logs);
+        // REQ-15: o processador de estornos ligado, para ver o pagamento.estornado do fim da história.
+        await using var worker = await WorkerDePagamentoAsync(stringConexao, gateway, logs,
+            new Dictionary<string, string?> { ["Estornos:Habilitado"] = "true", ["Estornos:IntervaloSegundos"] = "1" });
 
         var pedidoId = (await CriadoAsync(cliente, (Cat001, 1))).GetProperty("id").GetGuid();
         await gateway.Chamado.Task.WaitAsync(Prazo, Cancelamento);
         await CancelarComoOperacaoAsync(await OperadorAsync(api), pedidoId);
         gateway.Liberar();
 
-        (await EsperarSituacaoAsync(stringConexao, pedidoId, "EstornoPendente")).Should().BeTrue("R-07: o Cliente foi cobrado, e o estorno fica pendente");
+        (await EsperarLogAsync(logs, 7009, Prazo)).Should().BeTrue("R-07: o Cliente foi cobrado, e o estorno fica pendente");
         (await StatusAsync(stringConexao, pedidoId)).Should().Be("Cancelado");
         (await BancoDadosTeste.ConsultarAsync<int>(stringConexao,
             $"SELECT COUNT(*) FROM EventosSaida WHERE Tipo = '{TiposEvento.PagamentoAprovado}' AND Conteudo LIKE '%{pedidoId}%'"))
-            .Should().Be(0, "o pedido está cancelado: pagamento.aprovado não sai");
-        (await EsperarLogAsync(logs, 7009, Prazo)).Should().BeTrue();
+            .Should().Be(0, "o pedido está cancelado: pagamento.aprovado não sai (REQ-15, FR-014)");
         gateway.Cobrancas.Should().Be(1);
+
+        // REQ-15, US2 cenário 4: o cancelamento saiu sem estorno pendente; o estorno aparece só no pagamento.estornado.
+        (await EventosOutbox.CanceladoAsync(stringConexao, pedidoId)).EstornoPendente.Should().BeFalse();
+        (await EsperarSituacaoAsync(stringConexao, pedidoId, "Estornado")).Should().BeTrue();
+        var estornado = (await EventosOutbox.ListarAsync<PagamentoEstornado>(stringConexao, pedidoId)).Should().ContainSingle().Subject.Dados;
+        var valorCobrado = await BancoDadosTeste.ConsultarAsync<decimal>(stringConexao, $"SELECT Valor FROM Pagamentos WHERE PedidoId = '{pedidoId}'");
+        (estornado.Valor, estornado.IdentificadorTransacao, estornado.IdentificadorEstorno)
+            .Should().Be((valorCobrado, $"SIM-{pedidoId:N}", $"SIM-EST-{pedidoId:N}"));
     }
 
     [Fact]
@@ -89,6 +98,9 @@ public sealed class DisputaCancelamentoTestes(MensageriaTeste mensageria)
         (await SituacaoAsync(stringConexao, pedidoId)).Should().Be("EstornoPendente");
         (await BancoDadosTeste.ConsultarAsync<int>(stringConexao,
             $"SELECT COUNT(*) FROM HistoricosStatusPedido WHERE PedidoId = '{pedidoId}' AND StatusNovo = 'Cancelado'")).Should().Be(1);
+        // REQ-15, US1 cenário 8: um único pedido.cancelado, do vencedor.
+        (await EventosOutbox.ListarAsync<PedidoCancelado>(stringConexao, pedidoId)).Should().ContainSingle()
+            .Which.Dados.EstornoPendente.Should().BeTrue();
     }
 
     [Fact]
@@ -112,16 +124,19 @@ public sealed class DisputaCancelamentoTestes(MensageriaTeste mensageria)
             $"SELECT COUNT(*) FROM OrdensEntrega WHERE PedidoId = '{pedidoId}' AND CanceladaEm IS NOT NULL");
         var despachadas = await BancoDadosTeste.ConsultarAsync<int>(stringConexao,
             $"SELECT COUNT(*) FROM OrdensEntrega WHERE PedidoId = '{pedidoId}' AND DespachadoEm IS NOT NULL");
+        var eventos = await EventosOutbox.ListarAsync<PedidoCancelado>(stringConexao, pedidoId);
         if (status == "Cancelado")
         {
             (canceladas, despachadas).Should().Be((1, 0));
             (await SituacaoAsync(stringConexao, pedidoId)).Should().Be("EstornoPendente");
+            eventos.Should().ContainSingle().Which.Dados.OrdemEntregaCancelada.Should().BeTrue();
         }
         else
         {
             status.Should().Be("Despachado");
             (canceladas, despachadas).Should().Be((0, 1));
             (await SituacaoAsync(stringConexao, pedidoId)).Should().Be("Aprovado");
+            eventos.Should().BeEmpty("o despacho venceu: nada foi cancelado");
         }
     }
 
@@ -145,7 +160,8 @@ public sealed class DisputaCancelamentoTestes(MensageriaTeste mensageria)
     }
 
     /// <summary>Worker de estoque e pagamento com o gateway dado, sem a entrega.</summary>
-    private async Task<FabricaWorker> WorkerDePagamentoAsync(string stringConexao, IGatewayPagamento gateway, CapturaLogs logs)
+    private async Task<FabricaWorker> WorkerDePagamentoAsync(
+        string stringConexao, IGatewayPagamento gateway, CapturaLogs logs, IReadOnlyDictionary<string, string?>? configuracoes = null)
     {
         await mensageria.LimparFilasConsumidorAsync(FilaEstoque);
         await mensageria.LimparFilasConsumidorAsync(CenarioPagamento.FilaPagamento);
@@ -153,6 +169,7 @@ public sealed class DisputaCancelamentoTestes(MensageriaTeste mensageria)
         {
             StringConexao = stringConexao,
             ConfiguracoesBroker = mensageria.ConfiguracoesBroker,
+            Configuracoes = configuracoes ?? new Dictionary<string, string?>(),
             Servicos = servicos =>
             {
                 RemoverConsumidor<CriacaoOrdemEntrega, PagamentoAprovado>(servicos);

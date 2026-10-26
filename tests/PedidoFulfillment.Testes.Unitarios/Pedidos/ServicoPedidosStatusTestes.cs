@@ -1,6 +1,7 @@
 using FluentAssertions;
 using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Contratos.Erros;
+using PedidoFulfillment.Application.Contratos.Eventos;
 using PedidoFulfillment.Application.Contratos.Pedidos;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Domain.Pedidos;
@@ -270,7 +271,9 @@ public sealed class ServicoPedidosStatusTestes
         gravado.Pagamento.EstornoSolicitadoEm.Should().Be(Agora.AddHours(1));
         gravado.EstoqueReservado.Should().BeFalse();
         EstoqueGravado().Should().Be(11);
-        armazenamento.EventosGravados.Should().BeEmpty("REQ-13, FR-017: nenhum evento novo");
+        var cancelado = EventosPedidoTestes.DadosCancelado(armazenamento.EventosGravados.Should().ContainSingle().Subject);
+        (cancelado.Motivo, cancelado.EstoqueDevolvido, cancelado.EstornoPendente, cancelado.OrdemEntregaCancelada)
+            .Should().Be((MotivoCancelamento.Operacao, true, true, false), "REQ-15: o cancelamento sai como pedido.cancelado");
         var estorno = logger.Eventos.Should().ContainSingle(e => e.Id.Id == 7005).Subject;
         estorno.Propriedades["Origem"]!.ToString().Should().Be("Operacao");
         estorno.Propriedades["PedidoId"].Should().Be(PedidoId);
@@ -316,6 +319,89 @@ public sealed class ServicoPedidosStatusTestes
 
         Gravado().Pagamento.Should().BeNull();
         logger.Eventos.Should().NotContain(e => e.Id.Id == 7005);
+    }
+
+    // REQ-15, US1: o cancelamento pela API grava um pedido.cancelado na mesma gravação.
+
+    [Fact]
+    public async Task Cliente_que_cancela_gera_pedido_cancelado_com_motivo_Cliente()
+    {
+        armazenamento.Produtos.Add(produto);
+        PedidoEm(StatusPedido.Pendente, reservado: true);
+
+        (await Mudar(Dono, StatusPedido.Cancelado, "Desisti", PerfilUsuario.Cliente)).Valor!.Status.Should().Be(StatusPedido.Cancelado);
+
+        var evento = armazenamento.EventosGravados.Should().ContainSingle().Subject;
+        evento.Tipo.Should().Be(TiposEvento.PedidoCancelado);
+        var dados = EventosPedidoTestes.DadosCancelado(evento);
+        dados.PedidoId.Should().Be(PedidoId);
+        dados.Numero.Should().Be("PED-20261022-000001");
+        dados.Motivo.Should().Be(MotivoCancelamento.Cliente);
+        dados.EtapaEsgotada.Should().BeNull();
+        dados.CanceladoEm.Should().Be(Agora.AddHours(1));
+        (dados.EstoqueDevolvido, dados.EstornoPendente, dados.OrdemEntregaCancelada).Should().Be((true, false, false));
+    }
+
+    [Theory]
+    [InlineData(PerfilUsuario.Admin)]
+    [InlineData(PerfilUsuario.OperadorLogistica)]
+    public async Task Operacao_que_cancela_gera_pedido_cancelado_com_motivo_Operacao(PerfilUsuario perfil)
+    {
+        PedidoEm(StatusPedido.Processando);
+
+        (await Mudar(Operador, StatusPedido.Cancelado, "Sem pagamento", perfil)).Valor!.Status.Should().Be(StatusPedido.Cancelado);
+
+        var dados = EventosPedidoTestes.DadosCancelado(armazenamento.EventosGravados.Should().ContainSingle().Subject);
+        dados.Motivo.Should().Be(MotivoCancelamento.Operacao);
+        (dados.EstoqueDevolvido, dados.EstornoPendente, dados.OrdemEntregaCancelada).Should().Be((false, false, false));
+    }
+
+    [Fact]
+    public async Task Operador_que_cancela_o_proprio_pedido_gera_motivo_Operacao()
+    {
+        PedidoEm(StatusPedido.Pendente);
+
+        // O dono também tem perfil de operação: vale o perfil (spec, Edge Cases).
+        (await Mudar(Dono, StatusPedido.Cancelado, "Desisti", PerfilUsuario.Cliente, PerfilUsuario.Admin)).Valor!.Status.Should().Be(StatusPedido.Cancelado);
+
+        EventosPedidoTestes.DadosCancelado(armazenamento.EventosGravados.Should().ContainSingle().Subject).Motivo.Should().Be(MotivoCancelamento.Operacao);
+    }
+
+    [Fact]
+    public async Task Conflito_no_cancelamento_grava_um_unico_pedido_cancelado()
+    {
+        PedidoEm(StatusPedido.Pendente);
+        armazenamento.ConflitosRestantes = 1;
+
+        (await Mudar(Dono, StatusPedido.Cancelado, "Desisti", PerfilUsuario.Cliente)).Valor!.Status.Should().Be(StatusPedido.Cancelado);
+
+        armazenamento.EventosGravados.Should().ContainSingle(e => e.Tipo == TiposEvento.PedidoCancelado);
+    }
+
+    [Fact]
+    public async Task Tres_conflitos_no_cancelamento_nao_gravam_evento()
+    {
+        PedidoEm(StatusPedido.Pendente);
+        armazenamento.ConflitosRestantes = 3;
+
+        var resultado = await Mudar(Operador, StatusPedido.Cancelado, "x", PerfilUsuario.Admin);
+
+        resultado.Falha!.Detalhe.Should().Be("O pedido foi alterado por outra operação; tente novamente.");
+        armazenamento.EventosGravados.Should().BeEmpty("US1 cenário 9: cancelamento que não grava não gera evento");
+    }
+
+    [Theory]
+    [InlineData(StatusPedido.Pendente, StatusPedido.Processando, PerfilUsuario.Admin)]
+    [InlineData(StatusPedido.Despachado, StatusPedido.Cancelado, PerfilUsuario.Admin)]
+    [InlineData(StatusPedido.Cancelado, StatusPedido.Cancelado, PerfilUsuario.Admin)]
+    [InlineData(StatusPedido.Processando, StatusPedido.Cancelado, PerfilUsuario.Cliente)]
+    public async Task Outras_transicoes_e_recusas_nao_geram_pedido_cancelado(StatusPedido de, StatusPedido para, PerfilUsuario perfil)
+    {
+        PedidoEm(de);
+
+        await Mudar(perfil == PerfilUsuario.Cliente ? Dono : Operador, para, "x", perfil);
+
+        armazenamento.EventosGravados.Should().NotContain(e => e.Tipo == TiposEvento.PedidoCancelado);
     }
 
     [Fact]

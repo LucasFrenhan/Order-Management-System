@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
+using PedidoFulfillment.Application.Contratos.Eventos;
 using PedidoFulfillment.Application.Reconciliacao;
 using PedidoFulfillment.Domain.Pagamentos;
 using PedidoFulfillment.Domain.Pedidos;
@@ -47,6 +48,16 @@ public sealed class ServicoReconciliacaoTestes
         });
 
     private Pedido Gravado() => armazenamento.ObterPedidoAsync(PedidoId, false, CancellationToken.None).Result!;
+
+    /// <summary>O esgotamento grava um único <c>pedido.cancelado</c> com a etapa (REQ-15, US1 cenários 5 a 7).</summary>
+    private void EsgotadoComEtapa(EtapaEsgotada etapa, bool estoque, bool estorno)
+    {
+        var dados = EventosPedidoTestes.DadosCancelado(armazenamento.EventosGravados.Should().ContainSingle().Subject);
+        dados.PedidoId.Should().Be(PedidoId);
+        (dados.Motivo, dados.EtapaEsgotada).Should().Be((MotivoCancelamento.ReconciliacaoEsgotada, etapa));
+        dados.CanceladoEm.Should().Be(Agora);
+        (dados.EstoqueDevolvido, dados.EstornoPendente, dados.OrdemEntregaCancelada).Should().Be((estoque, estorno, false));
+    }
 
     private static PedidoParado Parado(EtapaFluxoPedido etapa, DateTimeOffset? atualizadoEm = null) => new(PedidoId, etapa, atualizadoEm ?? Criacao);
 
@@ -117,7 +128,7 @@ public sealed class ServicoReconciliacaoTestes
         entrada.AutorId.Should().BeNull();
         entrada.Motivo.Should().Be(ServicoReconciliacao.MotivoEstoqueNaoReservado).And.Be("Não foi possível reservar o estoque.");
         armazenamento.Gravacoes.Should().Be(1);
-        armazenamento.EventosGravados.Should().BeEmpty("não existe evento de cancelamento");
+        EsgotadoComEtapa(EtapaEsgotada.Estoque, estoque: false, estorno: false);
         registro.ComFalha.Should().BeEmpty();
         var log = logger.Eventos.Should().ContainSingle(e => e.Id.Id == 9002).Subject;
         log.Nivel.Should().Be(LogLevel.Error);
@@ -140,7 +151,7 @@ public sealed class ServicoReconciliacaoTestes
         pedido.Historico.Last().Motivo.Should().Be(ServicoReconciliacao.MotivoPagamentoNaoProcessado).And.Be("Não foi possível processar o pagamento.");
         armazenamento.Produtos.Single(p => p.Id == a.Id).QuantidadeEstoque.Should().Be(10);
         armazenamento.Produtos.Single(p => p.Id == b.Id).QuantidadeEstoque.Should().Be(3);
-        armazenamento.EventosGravados.Should().BeEmpty();
+        EsgotadoComEtapa(EtapaEsgotada.Pagamento, estoque: true, estorno: false);
     }
 
     [Theory]
@@ -186,7 +197,7 @@ public sealed class ServicoReconciliacaoTestes
         pedido.Pagamento!.Situacao.Should().Be(SituacaoPagamento.EstornoPendente);
         pedido.EstoqueReservado.Should().BeFalse();
         armazenamento.Produtos.Single(p => p.Id == a.Id).QuantidadeEstoque.Should().Be(10);
-        armazenamento.EventosGravados.Should().BeEmpty("não existe evento de cancelamento");
+        EsgotadoComEtapa(EtapaEsgotada.Entrega, estoque: true, estorno: true);
         logger.Eventos.Should().ContainSingle(e => e.Id.Id == 9002).Which.Propriedades["Etapa"].Should().Be(EtapaFluxoPedido.Entrega);
         logger.Eventos.Should().ContainSingle(e => e.Id.Id == 7005).Which.Propriedades["Origem"]!.ToString().Should().Be("Reconciliacao");
     }
@@ -265,6 +276,7 @@ public sealed class ServicoReconciliacaoTestes
         armazenamento.Gravacoes.Should().Be(0);
         registro.ComFalha.Should().Equal(PedidoId);
         Gravado().Status.Should().Be(StatusPedido.Pendente);
+        armazenamento.EventosGravados.Should().BeEmpty("cancelamento que não grava não gera evento (REQ-15)");
     }
 
     [Fact]
@@ -278,6 +290,7 @@ public sealed class ServicoReconciliacaoTestes
 
         resultado.Should().Be(ResultadoReconciliacao.Esgotado);
         armazenamento.Gravacoes.Should().Be(1);
+        EsgotadoComEtapa(EtapaEsgotada.Estoque, estoque: false, estorno: false);
     }
 
     [Fact]
