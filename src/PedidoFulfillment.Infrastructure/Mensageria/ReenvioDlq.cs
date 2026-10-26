@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Options;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Infrastructure.Configuracao;
+using PedidoFulfillment.Infrastructure.Observabilidade;
 using RabbitMQ.Client;
 
 namespace PedidoFulfillment.Infrastructure.Mensageria;
@@ -85,6 +87,18 @@ internal sealed class ReenvioDlq(ConexaoRabbitMQ conexao, IOptions<OpcoesReenvio
                     ContentType = propriedades.ContentType,
                     Headers = CabecalhosReenvio.ParaReenvio(cabecalhos, pedido.Id, relogio.GetUtcNow())
                 };
+
+                // A cópia continua o trace de origem da mensagem, lido antes de o cliente sobrescrever o
+                // traceparent, com link para a execução (REQ-16, R-04); sem origem, é filha da execução.
+                var execucao = Activity.Current;
+                var origem = ContextoRastreio.DoCabecalho(cabecalhos);
+                using var span = TelemetriaOms.Fonte.StartActivity(
+                    TelemetriaOms.Spans.Reenviar(propriedades.Type), ActivityKind.Internal, origem ?? default,
+                    links: origem is not null && execucao is not null ? [new ActivityLink(execucao.Context)] : null);
+                span?.SetTag(TelemetriaOms.Atributos.EventoTipo, propriedades.Type);
+                span?.SetTag(TelemetriaOms.Atributos.MensagemId, propriedades.MessageId);
+                span?.SetTag(TelemetriaOms.Atributos.Consumidor, pedido.Consumidor);
+                span?.SetTag(TelemetriaOms.Atributos.ReenvioPedidoId, pedido.Id.ToString());
 
                 // Com as confirmações rastreadas, a chamada só volta depois do ack do broker; sem fila, lança.
                 await canal.BasicPublishAsync("", destino, mandatory: true, copia, mensagem.Body, cancellationToken);

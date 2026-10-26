@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -5,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Infrastructure.Configuracao;
+using PedidoFulfillment.Infrastructure.Observabilidade;
 using PedidoFulfillment.Infrastructure.Persistencia;
 
 namespace PedidoFulfillment.Infrastructure.Mensageria;
@@ -106,8 +108,16 @@ internal sealed class ExecutorReenviosDlq(
 
         await using (canal)
         {
+            var contexto = escopo.ServiceProvider.GetRequiredService<ContextoBancoDados>();
             foreach (var pedido in pedidos)
             {
+                // Um trace por execução, ligado à requisição do Admin que registrou o pedido (REQ-16, R-04).
+                var contextoRegistro = contexto.Entry(pedido).Property<string?>(ContextoBancoDados.ContextoRastreio).CurrentValue;
+                using var span = TelemetriaOms.Fonte.StartActivity(
+                    TelemetriaOms.Spans.ReenviarDlq(pedido.Consumidor), ActivityKind.Internal, default(ActivityContext),
+                    links: TelemetriaOms.LigacaoPara(contextoRegistro));
+                span?.SetTag(TelemetriaOms.Atributos.ReenvioPedidoId, pedido.Id.ToString());
+                span?.SetTag(TelemetriaOms.Atributos.Consumidor, pedido.Consumidor);
                 pedido.Iniciar(relogio.GetUtcNow());
                 await armazenamento.SalvarAsync(cancellationToken);
                 try
@@ -117,16 +127,27 @@ internal sealed class ExecutorReenviosDlq(
                     await armazenamento.SalvarAsync(cancellationToken);
                     EventosLimpezaReenvio.ReenvioConcluido(logger, pedido.Id, pedido.AutorId, pedido.Consumidor, pedido.Filtro.ToString(),
                         contagens.Reenviadas, contagens.BloqueadasPeloLimite, contagens.ForaDoFiltro);
+                    MarcarContagens(span, contagens, TelemetriaOms.Resultados.Concluido);
                 }
                 catch (ReenvioInterrompidoException interrupcao)
                 {
                     pedido.Falhar(interrupcao.Parciais, interrupcao.Message, relogio.GetUtcNow());
                     await armazenamento.SalvarAsync(cancellationToken);
                     EventosLimpezaReenvio.ReenvioFalhou(logger, pedido.Id, pedido.Consumidor, interrupcao.Parciais.Reenviadas, pedido.Situacao.ToString(), interrupcao.Message);
+                    MarcarContagens(span, interrupcao.Parciais, TelemetriaOms.Resultados.Falhou);
+                    span.MarcarErro(interrupcao.InnerException?.GetType().Name ?? nameof(ReenvioInterrompidoException));
                     // O canal caiu: os demais pedidos ficam para a rodada seguinte.
                     return;
                 }
             }
         }
+    }
+
+    private static void MarcarContagens(Activity? span, ContagensReenvio contagens, string resultado)
+    {
+        span?.SetTag(TelemetriaOms.Atributos.ReenvioReenviadas, contagens.Reenviadas);
+        span?.SetTag(TelemetriaOms.Atributos.ReenvioBloqueadas, contagens.BloqueadasPeloLimite);
+        span?.SetTag(TelemetriaOms.Atributos.ReenvioForaDoFiltro, contagens.ForaDoFiltro);
+        span?.SetTag(TelemetriaOms.Atributos.Resultado, resultado);
     }
 }
