@@ -55,6 +55,20 @@ API.
   do código): a falta de estoque e o esgotamento das etapas de estoque e de pagamento chegam a
   `Cancelado` por outros caminhos. O evento vale para toda chegada a `Cancelado` (FR-001).
 
+### Session 2026-10-26 (clarify)
+
+- Q: Além dos campos já definidos, o `pedido.cancelado` traz o valor do pedido e os itens? →
+  A: Não. O evento fica enxuto; quem precisar do valor ou dos itens relaciona pelo
+  identificador do pedido com `pedido.criado` ou `entrega.criada`.
+- Q: O `pagamento.estornado` traz os identificadores do gateway (transação da cobrança e
+  identificador do estorno)? → A: Sim, os dois, como o `pagamento.aprovado` já traz a
+  transação. Não são dados pessoais; a regra do REQ-13 de não registrá-los vale para os logs,
+  não para o contrato dos eventos.
+- Q: Quando a cobrança é aprovada para um pedido já cancelado (REQ-13, FR-006), sai algum
+  evento antes da confirmação do estorno? → A: Não. Nenhum `pagamento.aprovado` nem evento de
+  estorno pendente sai; o caso aparece só no `pagamento.estornado`, que traz o valor e a
+  transação da cobrança.
+
 ## User Scenarios & Testing *(mandatory)*
 
 Os "usuários" deste requisito são os sistemas de fora do OMS que precisam reagir ao fim de um
@@ -163,8 +177,9 @@ schemas e o conteúdo dos tipos existentes não mudaram.
 ### Edge Cases
 
 - **Cancelamento e cobrança ao mesmo tempo**: se o cancelamento vence, sai `pedido.cancelado`
-  sem estorno pendente, e a cobrança aprovada depois é registrada com estorno (REQ-13, FR-006);
-  o fim dessa história chega por `pagamento.estornado`. Se a cobrança vence, o cancelamento
+  sem estorno pendente, e a cobrança aprovada depois é registrada com estorno (REQ-13, FR-006),
+  sem `pagamento.aprovado` nem outro evento (FR-014); o caso aparece só no
+  `pagamento.estornado`, com o valor e a transação da cobrança. Se a cobrança vence, o cancelamento
   relê o pedido pago e sai `pedido.cancelado` com estorno pendente.
 - **Reconciliação e API cancelando o mesmo pedido**: um dos dois vence pela concorrência
   otimista, e sai um único `pedido.cancelado`, com o motivo de quem venceu.
@@ -194,7 +209,9 @@ schemas e o conteúdo dos tipos existentes não mudaram.
   categoria (`Cliente`, `Operacao`, `EstoqueInsuficiente` ou `ReconciliacaoEsgotada`); a etapa
   esgotada (`Estoque`, `Pagamento` ou `Entrega`), só quando o motivo é
   `ReconciliacaoEsgotada`; o instante do cancelamento; se o estoque reservado foi devolvido;
-  se o estorno ficou pendente; e se uma ordem de entrega foi cancelada.
+  se o estorno ficou pendente; e se uma ordem de entrega foi cancelada. O evento MUST NOT
+  trazer o valor nem os itens do pedido: quem precisar deles relaciona pelo identificador do
+  pedido com `pedido.criado` ou `entrega.criada`.
 - **FR-003**: O motivo MUST ser `Cliente` quando o cancelamento pela API é feito por um
   usuário sem perfil de operação, e `Operacao` quando é feito por Admin ou OperadorLogistica.
 - **FR-004**: Os eventos que já existem (`estoque.insuficiente`, `pagamento.recusado`) MUST
@@ -210,7 +227,11 @@ schemas e o conteúdo dos tipos existentes não mudaram.
   novas tentativas de estorno MUST NOT gerar evento.
 - **FR-007**: `pagamento.estornado` MUST trazer: o identificador e o número do pedido, o valor
   estornado, o identificador da transação da cobrança, o identificador do estorno no gateway e
-  o instante do estorno.
+  o instante do estorno. Os identificadores do gateway vão no evento, como no
+  `pagamento.aprovado`, e continuam fora dos logs (REQ-13, FR-016).
+- **FR-014**: A cobrança aprovada para um pedido já cancelado (REQ-13, FR-006) MUST NOT gerar
+  `pagamento.aprovado` nem outro evento quando é registrada; ela aparece só no
+  `pagamento.estornado` da confirmação, que traz o valor e a transação da cobrança.
 
 **Contrato**
 
