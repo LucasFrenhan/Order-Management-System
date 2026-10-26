@@ -76,9 +76,10 @@ Rodadas que não pegam o lock e ciclos do despachante sem eventos não geram spa
 
 - **Várias instâncias**: os gauges 1 a 3 saem iguais de cada instância; agregue com `max`.
   Os contadores 4 a 6 se somam.
-- **Atraso**: 1 e 2 até `IntervaloAmostragemOutboxSegundos` (30 s); 3 até
-  `MetricaIntervaloSegundos` (60 s); mais o intervalo de exportação do SDK (60 s por padrão,
-  `OTEL_METRIC_EXPORT_INTERVAL`).
+- **Atraso** (FR-017): leitura mais envio. A leitura é de até `IntervaloAmostragemOutboxSegundos`
+  (30 s) para 1 e 2, e de até `MetricaIntervaloSegundos` (60 s) para 3. O envio acontece a cada
+  30 s (padrão do OMS; o do SDK seria 60 s), e `OTEL_METRIC_EXPORT_INTERVAL` sobrescreve.
+  Com os padrões, o atraso de ponta a ponta é de até 60 s para 1 e 2 e de até 90 s para 3.
 - Os gauges só existem com a telemetria ligada; sem leitura ainda, não emitem ponto.
 
 ## Logs
@@ -91,7 +92,10 @@ Rodadas que não pegam o lock e ciclos do despachante sem eventos não geram spa
 ## Propagação
 
 - Formato W3C Trace Context (`traceparent`); `tracestate` e baggage não são usados.
-- HTTP: a API aceita `traceparent` de entrada (o chamador pode continuar o próprio trace).
+- HTTP: a API aceita `traceparent` de entrada, e o chamador pode continuar o próprio trace.
+  A flag de amostragem dele também é respeitada (`ParentBased`), então um chamador pode forçar
+  ou evitar a amostragem dos próprios pedidos. Isso não expõe dados e é aceito; fica
+  registrado como limitação no fluxo 02 (analyze A1).
 - Broker: cabeçalho `traceparent` gravado pelo RabbitMQ.Client (ver
   [data-model.md](../data-model.md#mensagem-no-broker)).
 - Outbox, pedido e pedido de reenvio: coluna `ContextoRastreio`.

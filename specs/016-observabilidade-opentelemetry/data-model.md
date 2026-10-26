@@ -35,7 +35,7 @@ Só as mudanças sobre o modelo dos REQ-04 a REQ-15.
 | Registro | Antes | Depois |
 |----------|-------|--------|
 | `PedidoParado` | `(PedidoId, Etapa, AtualizadoEm)` | `+ ContextoRastreio (string?)` |
-| `IConsultaEstornosPendentes.ListarAsync` | lista de `Guid` | lista de `EstornoPendente(PedidoId, ContextoRastreio)` |
+| `IConsultaEstornosPendentes.ListarAsync` | `Task<IReadOnlyList<Guid>> ListarAsync(int quantidade, CancellationToken)` | `Task<IReadOnlyList<EstornoPendente>> ListarAsync(int quantidade, CancellationToken)`, com `sealed record EstornoPendente(Guid PedidoId, string? ContextoRastreio)` no Application |
 
 O texto é opaco para o Application: só é repassado à Infrastructure para criar o link.
 
@@ -76,6 +76,7 @@ consumidor, e não mais o da leitura.
 
 ### Variáveis padrão do OpenTelemetry (lidas pelo SDK)
 
-`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL` (padrão `grpc`),
+`OTEL_METRIC_EXPORT_INTERVAL` (o OMS define 30 000 ms como padrão no código, FR-017; a
+variável sobrescreve), `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL` (padrão `grpc`),
 `OTEL_EXPORTER_OTLP_HEADERS`, `OTEL_SERVICE_NAME` (padrão `oms-api` e `oms-worker`),
 `OTEL_RESOURCE_ATTRIBUTES`. Ver [contracts/telemetria.md](./contracts/telemetria.md).

@@ -253,6 +253,10 @@ desligado (`AvisoHabilitado = false`) e a telemetria ligada, lê só para a mét
 (padrão do SDK: um GUID por processo); os gauges 1 a 3 saem iguais de todas, e o painel usa o
 máximo; os contadores 4 a 6 se somam.
 
+**Envio das métricas** (analyze I1): o OMS define 30 s como intervalo padrão de envio (o do
+SDK é 60 s), sobrescrito por `OTEL_METRIC_EXPORT_INTERVAL`. Com a leitura de 30 s, o outbox
+parado aparece no destino em até 60 s (SC-004); a DLQ, em até 90 s.
+
 ## R-08 Logs correlacionados
 
 **Decisão**:

@@ -70,7 +70,7 @@ MsSql e RabbitMq; coletor de teste como `BaseProcessor<Activity>`/`BaseProcessor
 **Scale/Scope**:
 - 1 extensão de registro, 1 amostrador de traces, 1 interceptor do EF, 1 classe de telemetria
   (fonte, meter, instrumentos e nomes), 1 serviço novo no Worker (`AmostradorOutbox`);
-- ajustes em 7 serviços existentes (despachante, consumidor, reenvio, executor, monitor da
+- ajustes em 8 serviços existentes (despachante, consumidor, reenvio, executor, monitor da
   DLQ, reconciliação, estornos e limpeza) e em 2 consultas (pedidos parados, estornos);
 - 1 middleware na API (`user.id` e rota de pedido);
 - 1 seção de opções (`Observabilidade`) e 1 opção nova em `ReenvioDlq`; 1 migration;
@@ -196,6 +196,8 @@ registros de leitura das rotinas, e o Domain não muda.
 | `UsePublisherAsParent` mudar numa versão futura do cliente | Teste de ponta a ponta (aceite 1) falha na atualização |
 | Testes existentes mudarem de comportamento | Telemetria desligada por padrão nas fábricas; só os testes de `Observabilidade/` a ligam |
 | Dois provedores no mesmo processo de teste (API e Worker) | Cada fábrica tem o próprio coletor; asserções filtram pelo trace id do pedido |
+| Ouvintes de `ActivitySource` valem para o processo inteiro: um teste com a telemetria ligada em paralelo faria um teste de "desligada" ver contexto e `traceparent` (analyze U1) | Testes de `Observabilidade/` numa coleção `ColecaoObservabilidade` com `DisableParallelization = true`; testes de persistência do contexto usam um `ActivitySource` próprio |
+| Atraso das métricas maior que o prometido (analyze I1) | Envio das métricas a cada 30 s por padrão no código; o FR-017 separa leitura e envio, e o contrato documenta o total |
 | Destino fora do ar travar a aplicação | Exportação em lote com fila limitada e prazo; teste com endpoint inválido (FR-021) |
 | Contexto gravado inválido ou adulterado no cabeçalho | `ActivityContext.TryParse`; inválido é ignorado (FR-013), teste unitário |
 | Vazar dado sensível | Atributos definidos em `TelemetriaOms` e `contracts/telemetria.md`; teste de varredura do exportado (SC-006) |

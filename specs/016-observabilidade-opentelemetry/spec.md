@@ -273,6 +273,9 @@ local; depois derrubar o painel e conferir que pedidos continuam sendo criados e
 - **Mensagem na DLQ publicada antes deste requisito** (sem contexto): o reenvio funciona; o
   processamento da cópia começa um trace novo ligado à execução do reenvio.
 - **Painel local reiniciado**: os dados guardados nele se perdem; é esperado para o uso local.
+- **Contexto de entrada na API**: um chamador que envia `traceparent` continua o próprio trace,
+  inclusive a decisão de amostragem dele. Nenhum dado sensível entra por isso; fica registrado
+  como limitação no documento de fluxo da criação de pedido.
 - **Dados sensíveis**: nenhum trace, métrica ou log exportado pode conter e-mail, senha, token,
   corpo de requisição ou de mensagem, nem valores de parâmetros de consultas ao banco.
 
@@ -338,8 +341,11 @@ local; depois derrubar o painel e conferir que pedidos continuam sendo criados e
   pela instância; as métricas de estado (1 a 3) são publicadas por todas as instâncias, e a
   documentação MUST orientar a usar o maior valor entre elas, enquanto as contagens (4 a 6) se
   somam.
-- **FR-017**: As métricas de outbox e de DLQ MUST refletir o estado com atraso de no máximo
-  1 minuto, sem que a leitura delas pelo exportador consulte o banco ou o broker a cada vez.
+- **FR-017**: O valor das métricas de outbox e de DLQ publicado pelo processo MUST refletir o
+  estado com atraso de no máximo 30 s (outbox) e 1 min (DLQ), sem que a leitura delas pelo
+  exportador consulte o banco ou o broker a cada vez. O envio ao destino MUST ocorrer a cada
+  30 s por padrão, configurável; o atraso de ponta a ponta é a soma dos dois e fica
+  documentado.
 - **FR-018**: O aviso de DLQ acima do limite (log 5011) MUST continuar como hoje, no máximo uma
   vez a cada intervalo do aviso (padrão 5 min), mesmo com a DLQ lida a cada 1 min para a
   métrica; a métrica o complementa.
@@ -397,8 +403,9 @@ local; depois derrubar o painel e conferir que pedidos continuam sendo criados e
   logs dos dois processos, sem abrir os logs à mão.
 - **SC-003**: 100% das mensagens reenviadas da DLQ que tinham trace de origem aparecem no trace
   original do pedido e ligadas à execução do reenvio.
-- **SC-004**: Um despachante parado é percebido pela métrica de idade do pendente mais antigo em
-  até 1 minuto, sem depender de ler logs.
+- **SC-004**: Um despachante parado é percebido no destino pela métrica de idade do pendente mais
+  antigo em até 1 minuto (30 s de leitura mais 30 s de envio, com a configuração padrão), sem
+  depender de ler logs.
 - **SC-005**: Com a exportação desligada ou o destino fora do ar, 100% da suíte de testes atual
   passa e o tempo de resposta da criação de pedido não piora mais do que 5% em relação a hoje.
 - **SC-006**: Uma varredura da telemetria exportada nos testes encontra zero ocorrências de
