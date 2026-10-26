@@ -2,8 +2,9 @@
 
 **Onde roda**: Worker, consumidor `entrega` (fila `oms.entrega`), ao receber `pagamento.aprovado`.
 **Origem**: REQ-10 ([spec](../../specs/010-fulfillment/spec.md),
-[contrato](../../specs/010-fulfillment/contracts/consumidor-entrega.md)) e REQ-13
-([spec](../../specs/013-cancelamento-com-estorno/spec.md), cancelamento da ordem).
+[contrato](../../specs/010-fulfillment/contracts/consumidor-entrega.md)), REQ-13
+([spec](../../specs/013-cancelamento-com-estorno/spec.md), cancelamento da ordem) e REQ-15
+([spec](../../specs/015-visibilidade-cancelamentos/spec.md), `pedido.cancelado`).
 A base de consumo está no [fluxo 8](08-publicacao-e-consumo-de-eventos.md).
 
 ## Caminho feliz
@@ -70,5 +71,5 @@ entrega.", o estoque devolvido e o estorno pendente (fluxo 9).
 
 ## Limitações
 
-- O cancelamento da ordem não publica evento; a logística externa que leu o `entrega.criada`
-  não fica sabendo (#29).
+- Nenhuma. O cancelamento da ordem, que antes não chegava a outros sistemas, sai no `pedido.cancelado`, com
+  `ordemEntregaCancelada: true`, para a logística externa que leu o `entrega.criada` (#29, REQ-15).

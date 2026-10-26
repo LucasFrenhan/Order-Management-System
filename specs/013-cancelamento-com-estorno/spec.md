@@ -51,7 +51,7 @@ passa a se esgotar como as etapas de estoque e de pagamento.
   (FR-006). Uma recusa nesse caso continua descartada.
 - Q: A consulta do pedido mostra a situação do estorno? → A: Não. As situações "estorno
   pendente" e "estornado" ficam internas, como `NaoProcessado`; a operação acompanha pelos
-  logs (FR-016), e a visibilidade para outros sistemas segue na issue #29 (FR-018).
+  logs (FR-016), e a visibilidade para outros sistemas segue na issue #29 (FR-018), resolvida no REQ-15 (`pagamento.estornado`).
 - Q: Quem pode cancelar um pedido já pago, agora que o cancelamento gera estorno? → A: Não
   muda: Admin e OperadorLogistica cancelam em `Processando` e `ProntoParaEnvio`; o Cliente só
   em `Pendente` (403 depois, como hoje). O autor fica no histórico.
@@ -317,7 +317,7 @@ transação.
 **Compatibilidade**
 
 - **FR-017**: Os contratos de eventos v1 MUST permanecer inalterados, e nenhum evento novo é
-  publicado (a visibilidade dos cancelamentos fica na issue #29). O contrato HTTP v1 MUST
+  publicado (a visibilidade dos cancelamentos fica na issue #29, resolvida no REQ-15). O contrato HTTP v1 MUST
   mudar só de forma compatível: o campo opcional do FR-009; as respostas do cancelamento não
   mudam.
 - **FR-018**: As situações "estorno pendente" e "estornado" do pagamento MUST ser internas,
@@ -390,9 +390,9 @@ transação.
   ficar retido por desistência do sistema. Não há rota para a operação forçar ou dar baixa
   num estorno; o registro de erro (FR-003) é o sinal para agir fora do sistema.
 - As situações de estorno e o cancelamento da ordem não geram evento; outros sistemas ficarem
-  sabendo dos cancelamentos é a issue #29.
+  sabendo dos cancelamentos é a issue #29, resolvida no REQ-15.
 - Ficam fora do escopo: estorno parcial, cancelamento de pedido despachado (devolução),
-  eventos de cancelamento e de estorno (#29), limpeza e reprocessamento da DLQ (#30) e um
+  eventos de cancelamento e de estorno (#29, REQ-15), limpeza e reprocessamento da DLQ (#30) e um
   gateway real.
 - O ambiente local do REQ-02 (banco e broker no ar) é pré-requisito para os testes de
   integração. Sem Docker, eles são ignorados localmente e reprovam no CI (REQ-07).

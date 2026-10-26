@@ -5,6 +5,7 @@ using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Application.Reconciliacao;
 using PedidoFulfillment.Domain.Pedidos;
+using PedidoFulfillment.Domain.Produtos;
 
 namespace PedidoFulfillment.Application.Estoque;
 
@@ -88,16 +89,13 @@ public sealed class ReservaEstoque(IArmazenamentoPedidos armazenamento, TimeProv
 
     /// <summary>
     /// Nenhum estoque mudou (tudo ou nada); o pedido vai para Cancelado, sem autor, e as faltas
-    /// saem em <c>estoque.insuficiente</c> (FR-006).
+    /// saem em <c>estoque.insuficiente</c> (FR-006), junto com o <c>pedido.cancelado</c> (REQ-15, R-01).
+    /// Sem reserva, sem pagamento e sem ordem, <see cref="Pedido.Cancelar"/> só valida a transição e
+    /// grava o histórico.
     /// </summary>
     private async Task CancelarSemEstoqueAsync(Guid idEvento, Pedido pedido, IReadOnlyList<FaltaEstoque> faltas, DateTimeOffset agora, CancellationToken cancellationToken)
     {
-        if (!TransicoesStatusPedido.PermitidaParaOperacao(pedido.Status, StatusPedido.Cancelado))
-        {
-            throw new InvalidOperationException($"O pedido {pedido.Id} está em {pedido.Status} e não pode ser cancelado.");
-        }
-
-        pedido.MudarStatus(StatusPedido.Cancelado, null, MotivoSemEstoque, agora);
+        var resultado = pedido.Cancelar(null, MotivoSemEstoque, new Dictionary<Guid, Produto>(), agora);
         armazenamento.Adicionar(EventoSaida.De(EnvelopeEvento.Criar(pedido.Id, new EstoqueInsuficiente
         {
             PedidoId = pedido.Id,
@@ -109,6 +107,7 @@ public sealed class ReservaEstoque(IArmazenamentoPedidos armazenamento, TimeProv
                 Inativo = f.Inativo
             })]
         }, agora), agora));
+        armazenamento.Adicionar(EventosPedido.Cancelado(pedido, MotivoCancelamento.EstoqueInsuficiente, null, resultado, agora));
         await armazenamento.SalvarAsync(cancellationToken);
         EventosEstoque.PedidoCanceladoSemEstoque(logger, idEvento, pedido.Id, faltas.Count);
     }

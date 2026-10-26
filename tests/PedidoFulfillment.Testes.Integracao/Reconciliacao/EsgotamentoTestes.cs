@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using PedidoFulfillment.Application.Contratos.Eventos;
 using PedidoFulfillment.Application.Pagamentos;
 using PedidoFulfillment.Application.Reconciliacao;
 using PedidoFulfillment.Testes.Integracao.Infraestrutura;
@@ -50,7 +51,8 @@ public sealed class EsgotamentoTestes(MensageriaTeste mensageria)
             (await ReservadoAsync(stringConexao, pedidoId)).Should().BeFalse();
             (await EstoqueAsync(stringConexao, Cat001)).Should().Be(50);
             (await EstoqueAsync(stringConexao, Cat002)).Should().Be(100);
-            (await BancoDadosTeste.ConsultarAsync<int>(stringConexao, "SELECT COUNT(*) FROM EventosSaida")).Should().Be(eventosAntes, "não existe evento de cancelamento");
+            (await BancoDadosTeste.ConsultarAsync<int>(stringConexao, "SELECT COUNT(*) FROM EventosSaida")).Should().Be(eventosAntes + 1, "REQ-15: só o pedido.cancelado");
+            await CanceladoNaReconciliacaoAsync(stringConexao, pedidoId, EtapaEsgotada.Pagamento, estoque: true, estorno: false);
             logs.Registros.Count(r => r.Evento.Id == 9003).Should().BeGreaterThanOrEqualTo(3);
             logs.Registros.Should().ContainSingle(r => r.Evento.Id == 9002).Which.Texto.Should().Contain("Falhas=3");
         }
@@ -61,7 +63,7 @@ public sealed class EsgotamentoTestes(MensageriaTeste mensageria)
     }
 
     [Fact]
-    public async Task Reserva_que_falha_sempre_se_esgota_e_cancela_sem_evento()
+    public async Task Reserva_que_falha_sempre_se_esgota_e_cancela_so_com_o_pedido_cancelado()
     {
         Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
         var stringConexao = mensageria.NovoBanco();
@@ -78,7 +80,8 @@ public sealed class EsgotamentoTestes(MensageriaTeste mensageria)
 
             (await EsperarStatusAsync(stringConexao, pedidoId, "Cancelado", Prazo)).Should().BeTrue();
             (await UltimoMotivoSemAutorAsync(stringConexao, pedidoId)).Should().Be("Não foi possível reservar o estoque.");
-            (await BancoDadosTeste.ConsultarAsync<int>(stringConexao, "SELECT COUNT(*) FROM EventosSaida WHERE Tipo <> 'pedido.criado'")).Should().Be(0);
+            (await BancoDadosTeste.ConsultarAsync<int>(stringConexao, "SELECT COUNT(*) FROM EventosSaida WHERE Tipo NOT IN ('pedido.criado', 'pedido.cancelado')")).Should().Be(0);
+            await CanceladoNaReconciliacaoAsync(stringConexao, pedidoId, EtapaEsgotada.Estoque, estoque: false, estorno: false);
         }
         finally
         {
@@ -96,7 +99,6 @@ public sealed class EsgotamentoTestes(MensageriaTeste mensageria)
         var (cliente, _, _) = await ClienteAsync(api);
         var pedidoId = await ParadoNaEntregaAsync(mensageria, stringConexao, cliente);
         await EnvelhecerAsync(stringConexao, pedidoId, UmDia);
-        var eventosAntes = await BancoDadosTeste.ConsultarAsync<int>(stringConexao, "SELECT COUNT(*) FROM EventosSaida");
         using var logs = new CapturaLogs();
         var configuracoes = new Dictionary<string, string?>(Esgotamento) { ["Estornos:Habilitado"] = "true", ["Estornos:IntervaloSegundos"] = "1" };
 
@@ -109,11 +111,12 @@ public sealed class EsgotamentoTestes(MensageriaTeste mensageria)
             (await UltimoMotivoSemAutorAsync(stringConexao, pedidoId)).Should().Be("Não foi possível criar a ordem de entrega.");
             (await ReservadoAsync(stringConexao, pedidoId)).Should().BeFalse();
             (await EstoqueAsync(stringConexao, Cat001)).Should().Be(50);
-            (await BancoDadosTeste.ConsultarAsync<int>(stringConexao, "SELECT COUNT(*) FROM EventosSaida")).Should().Be(eventosAntes, "não existe evento de cancelamento");
+            await CanceladoNaReconciliacaoAsync(stringConexao, pedidoId, EtapaEsgotada.Entrega, estoque: true, estorno: true);
             logs.Registros.Should().ContainSingle(r => r.Evento.Id == 9002).Which.Texto.Should().Contain("Entrega");
             logs.Registros.Should().ContainSingle(r => r.Evento.Id == 7005).Which.Texto.Should().Contain("Reconciliacao");
             (await MensageriaTeste.EsperarAteAsync(async () => await SituacaoAsync(stringConexao, pedidoId) == "Estornado", Prazo))
                 .Should().BeTrue("o processador de estornos estorna o pedido cancelado pela reconciliação");
+            (await EventosOutbox.ListarAsync<PagamentoEstornado>(stringConexao, pedidoId)).Should().ContainSingle("REQ-15, US2");
         }
         finally
         {
@@ -248,6 +251,14 @@ public sealed class EsgotamentoTestes(MensageriaTeste mensageria)
         {
             await LimparFilasAsync(mensageria);
         }
+    }
+
+    /// <summary>O esgotamento grava um único <c>pedido.cancelado</c> com a etapa (REQ-15, US1 cenários 5 a 7).</summary>
+    private static async Task CanceladoNaReconciliacaoAsync(string stringConexao, Guid pedidoId, EtapaEsgotada etapa, bool estoque, bool estorno)
+    {
+        var cancelado = await EventosOutbox.CanceladoAsync(stringConexao, pedidoId);
+        (cancelado.Motivo, cancelado.EtapaEsgotada).Should().Be((MotivoCancelamento.ReconciliacaoEsgotada, etapa));
+        (cancelado.EstoqueDevolvido, cancelado.EstornoPendente, cancelado.OrdemEntregaCancelada).Should().Be((estoque, estorno, false));
     }
 
     private sealed class GatewayQueFalha : IGatewayPagamento

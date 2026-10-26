@@ -4,9 +4,10 @@
 a cada consumidor.
 **Origem**: REQ-06 ([spec](../../specs/006-mensageria/spec.md),
 [topologia e consumo](../../specs/006-mensageria/contracts/topologia-e-consumo.md),
-[schemas](../../specs/006-mensageria/contracts/eventos/)) e REQ-12 ([spec](../../specs/012-publicacao-garantida/spec.md),
-[contrato](../../specs/012-publicacao-garantida/contracts/publicacao-e-reconciliacao.md)) e REQ-14
-([spec](../../specs/014-limpeza-e-dlq/spec.md), mensagem reenviada da DLQ).
+[schemas](../../specs/006-mensageria/contracts/eventos/)), REQ-12 ([spec](../../specs/012-publicacao-garantida/spec.md),
+[contrato](../../specs/012-publicacao-garantida/contracts/publicacao-e-reconciliacao.md)), REQ-14
+([spec](../../specs/014-limpeza-e-dlq/spec.md), mensagem reenviada da DLQ) e REQ-15
+([spec](../../specs/015-visibilidade-cancelamentos/spec.md), [contrato e schemas](../../specs/015-visibilidade-cancelamentos/contracts/eventos-cancelamento-e-estorno.md) de `pedido.cancelado` e `pagamento.estornado`).
 
 ## Eventos
 
@@ -18,6 +19,8 @@ a cada consumidor.
 | `pagamento.aprovado` | `pagamento` | `entrega` |
 | `pagamento.recusado` | `pagamento` | nenhum |
 | `entrega.criada` | `entrega` | nenhum |
+| `pedido.cancelado` | todo cancelamento: API, `estoque`, reconciliação (REQ-15) | nenhum |
+| `pagamento.estornado` | confirmação do estorno no Worker (REQ-15) | nenhum |
 
 Todos usam o mesmo envelope:
 
@@ -27,6 +30,26 @@ Todos usam o mesmo envelope:
 ```
 
 Os contratos são versionados (Princípio II): na mesma versão, só entram campos opcionais.
+
+### Sistemas de fora: cancelamentos e estornos (REQ-15)
+
+Um sistema de fora (financeiro, atendimento, logística) recebe os cancelamentos e os estornos
+ligando a própria fila à troca `oms.eventos` (`topic`) com as chaves `pedido.cancelado` e
+`pagamento.estornado`. Nenhum consumidor interno os recebe.
+
+- `pedido.cancelado` sai em **toda** chegada de um pedido a `Cancelado`: pela API (`Cliente` ou
+  `Operacao`), pela falta de estoque (`EstoqueInsuficiente`, junto com o `estoque.insuficiente`)
+  e pela reconciliação (`ReconciliacaoEsgotada`, com a etapa). Não sai para `PagamentoRejeitado`,
+  que continua avisado só pelo `pagamento.recusado`.
+- `pagamento.estornado` sai uma vez por pedido, quando o Worker confirma o estorno (fluxo 10).
+- Sem dados pessoais, sem o identificador do Cliente e sem o motivo digitado na API. O
+  `pagamento.estornado` traz os identificadores do gateway, como o `pagamento.aprovado`.
+- **Nenhum caminho esquece o evento**: a gravação do pedido recusa, com erro, um pedido que vai
+  a `Cancelado` sem `pedido.cancelado`, ou um pagamento que vai a `Estornado` sem
+  `pagamento.estornado`, na mesma gravação (REQ-15, R-03). Nada é gravado, e o erro segue o
+  caminho de quem chamou: na API, 500; no Worker, novas tentativas e DLQ.
+- Não há ordem garantida entre tipos diferentes, nem entre o `estoque.insuficiente` e o
+  `pedido.cancelado` da mesma gravação. Deduplicar por `idEvento`.
 
 ## Publicação: o outbox
 
@@ -60,8 +83,8 @@ sequenceDiagram
   principal, espera e DLQ. Ele usa a mesma função e as mesmas opções que os consumidores,
   então a declaração dos dois lados nunca entra em conflito.
 - **Rota obrigatória.** Os tipos com consumidor interno saem com `mandatory`. Os demais
-  (`estoque.insuficiente`, `pagamento.recusado`, `entrega.criada`) saem sem exigir fila, para
-  sistemas externos que declaram as próprias.
+  (`estoque.insuficiente`, `pagamento.recusado`, `entrega.criada`, `pedido.cancelado` e
+  `pagamento.estornado`) saem sem exigir fila, para sistemas externos que declaram as próprias.
 
 | Situação | Resultado | Por quê |
 |----------|-----------|---------|
@@ -134,3 +157,6 @@ no [fluxo 11](11-limpeza-e-reenvio-da-dlq.md).
 ## Limitações
 
 - A purga da DLQ (apagar mensagens sem reenviar) continua manual, pelo painel do RabbitMQ.
+- Um tipo sem consumidor interno (por exemplo, `pedido.cancelado`) publicado sem nenhuma fila
+  ligada é descartado pelo broker e dado como enviado. Um sistema de fora só recebe o que for
+  publicado depois de ligar a própria fila (REQ-15, Assumptions).

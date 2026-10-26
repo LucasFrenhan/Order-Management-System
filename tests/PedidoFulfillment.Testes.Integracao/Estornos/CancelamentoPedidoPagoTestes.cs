@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
+using PedidoFulfillment.Application.Contratos.Eventos;
 using PedidoFulfillment.Testes.Integracao.Infraestrutura;
 using static PedidoFulfillment.Testes.Integracao.Estoque.CenarioEstoque;
 using static PedidoFulfillment.Testes.Integracao.Estornos.CenarioEstorno;
@@ -19,7 +20,7 @@ public sealed class CancelamentoPedidoPagoTestes(MensageriaTeste mensageria)
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task Operacao_cancela_pedido_pago_com_estoque_devolvido_e_estorno_pendente_sem_evento_novo()
+    public async Task Operacao_cancela_pedido_pago_com_estoque_devolvido_estorno_pendente_e_pedido_cancelado()
     {
         Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
         var stringConexao = mensageria.NovoBanco();
@@ -40,7 +41,11 @@ public sealed class CancelamentoPedidoPagoTestes(MensageriaTeste mensageria)
         (await EstoqueAsync(stringConexao, Cat001), await EstoqueAsync(stringConexao, Cat002)).Should().Be(estoqueAntes);
         (await SituacaoAsync(stringConexao, pedidoId)).Should().Be("EstornoPendente");
         (await TentativasAsync(stringConexao, pedidoId)).Should().Be(0);
-        (await EventosSaidaAsync(stringConexao)).Should().Be(eventosAntes, "REQ-13, FR-017: o cancelamento não publica nada");
+        // REQ-15, US1 cenário 2: um único evento novo, o pedido.cancelado da mesma gravação.
+        (await EventosSaidaAsync(stringConexao)).Should().Be(eventosAntes + 1);
+        var cancelado = await EventosOutbox.CanceladoAsync(stringConexao, pedidoId);
+        (cancelado.Motivo, cancelado.EtapaEsgotada).Should().Be((MotivoCancelamento.Operacao, (EtapaEsgotada?)null));
+        (cancelado.EstoqueDevolvido, cancelado.EstornoPendente, cancelado.OrdemEntregaCancelada).Should().Be((true, true, false));
     }
 
     [Fact]
@@ -71,6 +76,12 @@ public sealed class CancelamentoPedidoPagoTestes(MensageriaTeste mensageria)
         var consulta = await cliente.GetFromJsonAsync<JsonElement>($"/api/v1/pedidos/{pedidoId}", Cancelamento);
         consulta.GetProperty("entrega").GetProperty("canceladaEm").GetDateTimeOffset()
             .Should().Be(entrega.GetProperty("canceladaEm").GetDateTimeOffset());
+
+        // REQ-15, US1 cenário 3.
+        var cancelado = await EventosOutbox.CanceladoAsync(stringConexao, pedidoId);
+        cancelado.Motivo.Should().Be(MotivoCancelamento.Operacao);
+        (cancelado.EstoqueDevolvido, cancelado.EstornoPendente, cancelado.OrdemEntregaCancelada).Should().Be((true, true, true));
+        cancelado.CanceladoEm.Should().Be(entrega.GetProperty("canceladaEm").GetDateTimeOffset());
     }
 
     [Fact]
@@ -110,6 +121,7 @@ public sealed class CancelamentoPedidoPagoTestes(MensageriaTeste mensageria)
         resposta.StatusCode.Should().Be(HttpStatusCode.Conflict);
         (await CorpoAsync(resposta)).GetProperty("detail").GetString().Should().Be("O pedido está em Despachado e não pode passar para Cancelado.");
         (await SituacaoAsync(stringConexao, pedidoId)).Should().Be("Aprovado");
+        (await EventosOutbox.ListarAsync<PedidoCancelado>(stringConexao, pedidoId)).Should().BeEmpty("REQ-15: a recusa não gera evento");
     }
 
     [Fact]
@@ -124,6 +136,8 @@ public sealed class CancelamentoPedidoPagoTestes(MensageriaTeste mensageria)
         (await MudarStatusAsync(await OperadorAsync(api), pedidoId, "Cancelado", "Sem estoque.")).StatusCode.Should().Be(HttpStatusCode.OK);
 
         (await Pagamentos.CenarioPagamento.PagamentosAsync(stringConexao, pedidoId)).Should().Be(0);
+        var cancelado = await EventosOutbox.CanceladoAsync(stringConexao, pedidoId);
+        (cancelado.Motivo, cancelado.EstornoPendente).Should().Be((MotivoCancelamento.Operacao, false));
     }
 
     [Fact]
@@ -145,6 +159,9 @@ public sealed class CancelamentoPedidoPagoTestes(MensageriaTeste mensageria)
         resposta.StatusCode.Should().Be(HttpStatusCode.Conflict);
         (await CodigoAsync(resposta)).Should().Be("PEDIDO_TRANSICAO_INVALIDA");
         (await SituacaoAsync(stringConexao, pedidoId)).Should().Be("Recusado");
+        // REQ-15, FR-005: PagamentoRejeitado não é cancelamento; só o pagamento.recusado saiu.
+        (await EventosOutbox.ListarAsync<PagamentoRecusado>(stringConexao, pedidoId)).Should().ContainSingle();
+        (await EventosOutbox.ListarAsync<PedidoCancelado>(stringConexao, pedidoId)).Should().BeEmpty();
     }
 
     [Fact]
@@ -161,6 +178,7 @@ public sealed class CancelamentoPedidoPagoTestes(MensageriaTeste mensageria)
         resposta.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         (await StatusAsync(stringConexao, pedidoId)).Should().Be("Processando");
         (await SituacaoAsync(stringConexao, pedidoId)).Should().Be("Aprovado");
+        (await EventosOutbox.ListarAsync<PedidoCancelado>(stringConexao, pedidoId)).Should().BeEmpty("REQ-15: a recusa não gera evento");
     }
 
     [Fact]

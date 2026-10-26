@@ -28,6 +28,7 @@ estão em [`docs/fluxos/`](docs/fluxos/README.md).
 | REQ-12 — Publicação garantida e reconciliação ([spec](specs/012-publicacao-garantida/spec.md)) | O despachante declara as filas de todos os consumidores antes de publicar e exige rota para os tipos com consumidor (devolvido sem fila, o evento fica pendente); a reconciliação periódica no Worker aplica a regra da etapa aos pedidos parados por evento perdido, inclusive os pagos sem ordem do REQ-10, e cancela os de estoque e pagamento que falham por mais de 24 h |
 | REQ-13 — Cancelamento depois do pagamento, com estorno ([spec](specs/013-cancelamento-com-estorno/spec.md)) | Cancelar um pedido pago deixa o estorno pendente na mesma gravação (com o estoque devolvido e a ordem de entrega sem despacho cancelada, `entrega.canceladaEm` na consulta); o Worker estorna no gateway e tenta de novo sem desistir; a reconciliação passa a esgotar a etapa de entrega; cobrança e estorno idempotentes por pedido |
 | REQ-14 — Limpeza de mensageria e reenvio da DLQ ([spec](specs/014-limpeza-e-dlq/spec.md)) | O Worker apaga, em lotes, os eventos enviados, os processados, as chaves de idempotência e os pedidos de reenvio antigos; o Admin pede pela API o reenvio da DLQ de um consumidor, com filtro e limite de 3 reenvios, e o Worker o executa sem perder nem embaralhar mensagens; aviso no log quando a DLQ passa de 10 mensagens; a API passa a usar um usuário próprio no broker, sem permissões |
+| REQ-15 — Cancelamentos e estornos visíveis para outros sistemas ([spec](specs/015-visibilidade-cancelamentos/spec.md)) | Todo cancelamento, por qualquer caminho, grava `pedido.cancelado` na mesma gravação, com o motivo em categoria, a etapa esgotada e o que foi desfeito junto; a confirmação do estorno grava `pagamento.estornado`; os dois são acréscimos à v1, com schema, sem consumidor interno e sem dados pessoais; uma guarda na gravação recusa cancelamento ou estorno sem evento |
 
 ## Demonstração rápida
 
@@ -64,16 +65,17 @@ Com o REQ-11, as issues de negócio do roteiro original (#1 a #11) estão entreg
 vai da criação ao despacho com rastreio. O REQ-12 fechou a perda silenciosa de eventos, e o
 REQ-13 garante que o Cliente nunca fica cobrado por um pedido cancelado. O REQ-14 limpou os
 dados de mensageria que cresciam sem limite e trocou o painel do broker por um reenvio da DLQ
-controlado. Cada trabalho novo segue o fluxo SDD (`/speckit-specify` → `/speckit-clarify` →
+controlado, e o REQ-15 tornou os cancelamentos e os estornos visíveis para outros sistemas.
+Cada trabalho novo segue o fluxo SDD (`/speckit-specify` → `/speckit-clarify` →
 `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`), em uma
-branch `feature/req-XX-...`, com a numeração a partir do REQ-15.
+branch `feature/req-XX-...`, com a numeração a partir do REQ-16.
 
 | Ordem | Requisito | Origem | Escopo |
 |-------|-----------|--------|--------|
-| 1 | a numerar (decisão em aberto) | [#29](https://github.com/LucasFrenhan/Order-Management-System/issues/29) — clarify do REQ-12 e do REQ-13 | Como outros sistemas ficam sabendo dos cancelamentos e dos estornos (não existe evento de cancelamento nem de estorno; o esgotamento da reconciliação cancela sem evento) |
-| 2 | a numerar | [#18](https://github.com/LucasFrenhan/Order-Management-System/issues/18) — SonarQube Cloud | Análise estática de código no CI |
+| 1 | a numerar | [#18](https://github.com/LucasFrenhan/Order-Management-System/issues/18) — SonarQube Cloud | Análise estática de código no CI |
+| 2 | a numerar (estudo) | [#37](https://github.com/LucasFrenhan/Order-Management-System/issues/37) — OpenTelemetry | Traces, métricas e logs correlacionados entre a API e o Worker; o primeiro entregável é a decisão no `research.md` |
 
-O que os REQ-04 a REQ-14 já deixaram pronto:
+O que os REQ-04 a REQ-15 já deixaram pronto:
 
 - **Armazenamento**: produtos, pedidos com itens e histórico de status, pagamentos e ordens
   de entrega, com as restrições no banco.
@@ -109,6 +111,10 @@ O que os REQ-04 a REQ-14 já deixaram pronto:
 - **Administração da mensageria** (REQ-14): a política `PoliticaAdministracao` (só Admin), o
   `PedidoReenvioDlq` e a lista `ConsumidoresConhecidos`, que um consumidor novo precisa ganhar
   ([limpeza e reenvio](specs/014-limpeza-e-dlq/contracts/limpeza-e-reenvio.md)).
+- **Eventos de cancelamento e estorno** (REQ-15): `EventosPedido.Cancelado` monta o
+  `pedido.cancelado` de qualquer caminho, a partir do `ResultadoCancelamento`; um caminho novo
+  de cancelamento precisa adicioná-lo, ou a guarda do `ArmazenamentoPedidos` recusa a gravação
+  ([contrato](specs/015-visibilidade-cancelamentos/contracts/eventos-cancelamento-e-estorno.md)).
 
 Decisões e pontos já conhecidos:
 
@@ -124,8 +130,8 @@ Decisões e pontos já conhecidos:
   aplicação no SQL Server) procura pedidos parados há mais de 10 min nas etapas de estoque,
   pagamento e entrega e aplica a regra do consumidor da etapa, com o mesmo evento de saída.
   Uma falha conta um ciclo, em memória; com 3 ciclos e mais de 24 h parado, o pedido de
-  estoque ou de pagamento é cancelado sem evento (o pagamento fica `NaoProcessado`, situação
-  interna). Desde o REQ-13, o pedido pago cuja ordem falha sempre também se esgota: é
+  estoque ou de pagamento é cancelado (o pagamento fica `NaoProcessado`, situação interna),
+  com o `pedido.cancelado` do REQ-15. Desde o REQ-13, o pedido pago cuja ordem falha sempre também se esgota: é
   cancelado com o estorno pendente.
 - **Estorno assíncrono** (REQ-13). Cancelar um pedido pago não chama o gateway: o pagamento
   passa a `EstornoPendente` na mesma gravação, e o `ProcessadorEstornos` do Worker estorna a
@@ -160,13 +166,19 @@ Decisões e pontos já conhecidos:
   Cliente, e nunca o autor.
 - **Ordem de entrega de pedido cancelado** (REQ-13). Cancelar um pedido `ProntoParaEnvio`
   cancela também a ordem (`entrega.canceladaEm`), que não pode mais ser despachada.
+- **Um evento só de cancelamento** (REQ-15). `pedido.cancelado` sai em todo cancelamento, com o
+  motivo em categoria (sem o texto digitado, que pode ter dados pessoais), inclusive junto do
+  `estoque.insuficiente`. O pedido em `PagamentoRejeitado` não é cancelamento e continua
+  avisado só pelo `pagamento.recusado`. O estorno confirmado sai em `pagamento.estornado`, com
+  os identificadores do gateway. Uma guarda na gravação do pedido recusa, com erro, um
+  cancelamento ou um estorno sem o evento, para nenhum caminho novo cancelar em silêncio.
 
 ## Pré-requisitos
 
 - SDK do .NET 10 (`winget install Microsoft.DotNet.SDK.10`)
 - Docker com Compose v2, para o [ambiente local](#ambiente-local) (`winget install Docker.DockerDesktop`)
 
-Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md), [domínio e persistência](specs/004-dominio-persistencia/quickstart.md), [pedidos](specs/005-criacao-pedidos/quickstart.md), [mensageria](specs/006-mensageria/quickstart.md), [CI e demonstração](specs/007-ci-demo/quickstart.md), [estoque](specs/008-estoque/quickstart.md), [pagamento](specs/009-pagamento/quickstart.md), [entrega](specs/010-fulfillment/quickstart.md), [rastreio](specs/011-rastreio/quickstart.md), [publicação garantida e reconciliação](specs/012-publicacao-garantida/quickstart.md) , [cancelamento com estorno](specs/013-cancelamento-com-estorno/quickstart.md) e [limpeza e reenvio da DLQ](specs/014-limpeza-e-dlq/quickstart.md).
+Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md), [domínio e persistência](specs/004-dominio-persistencia/quickstart.md), [pedidos](specs/005-criacao-pedidos/quickstart.md), [mensageria](specs/006-mensageria/quickstart.md), [CI e demonstração](specs/007-ci-demo/quickstart.md), [estoque](specs/008-estoque/quickstart.md), [pagamento](specs/009-pagamento/quickstart.md), [entrega](specs/010-fulfillment/quickstart.md), [rastreio](specs/011-rastreio/quickstart.md), [publicação garantida e reconciliação](specs/012-publicacao-garantida/quickstart.md), [cancelamento com estorno](specs/013-cancelamento-com-estorno/quickstart.md), [limpeza e reenvio da DLQ](specs/014-limpeza-e-dlq/quickstart.md) e [cancelamentos e estornos para outros sistemas](specs/015-visibilidade-cancelamentos/quickstart.md).
 
 ## Ambiente local
 
@@ -344,6 +356,12 @@ Os eventos de domínio trafegam pelo RabbitMQ ([spec](specs/006-mensageria/spec.
   e `ReenvioDlq` (pedidos executados a cada 1 min, até 3 reenvios e 1 000 mensagens por
   pedido; aviso acima de 10 mensagens na DLQ, a cada 5 min). As faixas estão no fluxo 11; fora
   delas, o Worker não sobe. Os logs 5009 a 5015 mostram cada limpeza, reenvio e aviso.
+- **Cancelamentos e estornos para outros sistemas** (REQ-15, [contrato e schemas](specs/015-visibilidade-cancelamentos/contracts/eventos-cancelamento-e-estorno.md),
+  [fluxo](docs/fluxos/08-publicacao-e-consumo-de-eventos.md#sistemas-de-fora-cancelamentos-e-estornos-req-15)):
+  todo cancelamento grava `pedido.cancelado`, com o motivo (`Cliente`, `Operacao`,
+  `EstoqueInsuficiente` ou `ReconciliacaoEsgotada`, com a etapa) e o que foi desfeito junto, e
+  toda confirmação de estorno grava `pagamento.estornado`. Nenhum consumidor interno os recebe:
+  um sistema de fora liga a própria fila a `oms.eventos` com essas chaves.
 
 Para rodar localmente, com o [ambiente local](#ambiente-local) no ar e a API já iniciada
 (é ela que aplica as migrations):

@@ -40,8 +40,10 @@ public sealed class PedidoPagamentoNaoProcessadoTestes
     {
         var pedido = PedidoReservado(status);
 
-        pedido.RegistrarPagamentoNaoProcessado(Motivo, Produtos, Esgotamento);
+        var resultado = pedido.RegistrarPagamentoNaoProcessado(Motivo, Produtos, Esgotamento);
 
+        // O resultado alimenta o pedido.cancelado (REQ-15, R-01).
+        resultado.Should().Be(new ResultadoCancelamento(EstoqueDevolvido: true, EstornoSolicitado: false, OrdemCancelada: false));
         pedido.Pagamento!.Situacao.Should().Be(SituacaoPagamento.NaoProcessado);
         pedido.Pagamento.Valor.Should().Be(65.5m).And.Be(pedido.ValorTotal);
         pedido.Pagamento.IdentificadorTransacao.Should().BeNull();

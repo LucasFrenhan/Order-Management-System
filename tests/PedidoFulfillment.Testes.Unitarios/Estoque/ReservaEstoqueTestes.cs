@@ -88,10 +88,10 @@ public sealed class ReservaEstoqueTestes
 
     private int Estoque(Produto produto) => armazenamento.Produtos.Single(p => p.Id == produto.Id).QuantidadeEstoque;
 
+    /// <summary>O único evento do tipo; a falta de estoque grava também o <c>pedido.cancelado</c> (REQ-15).</summary>
     private EnvelopeEvento<T> EventoGravado<T>(string tipo)
     {
-        var evento = armazenamento.EventosGravados.Should().ContainSingle().Subject;
-        evento.Tipo.Should().Be(tipo);
+        var evento = armazenamento.EventosGravados.Should().ContainSingle(e => e.Tipo == tipo).Subject;
         return SerializacaoEventos.Desserializar<T>(evento.Conteudo);
     }
 
@@ -150,6 +150,35 @@ public sealed class ReservaEstoqueTestes
         var item = envelope.Dados.Itens.Should().ContainSingle("só os itens que faltaram").Subject;
         (item.ProdutoId, item.QuantidadeSolicitada, item.QuantidadeDisponivel, item.Inativo).Should().Be((b.Id, 2, 1, false));
         logger.Eventos.Should().ContainSingle(e => e.Id.Id == 6002);
+    }
+
+    [Fact]
+    public async Task Falta_de_estoque_grava_tambem_o_pedido_cancelado_na_mesma_gravacao()
+    {
+        armazenamento.AlterarProduto(b.Id, p => p.AjustarEstoque(-4, Criacao));
+        PedidoEm();
+
+        await Manipular();
+
+        // REQ-15, US1 cenário 4: os dois eventos saem juntos, numa gravação só.
+        armazenamento.Gravacoes.Should().Be(1);
+        armazenamento.EventosGravados.Select(e => e.Tipo).Should().BeEquivalentTo([TiposEvento.EstoqueInsuficiente, TiposEvento.PedidoCancelado]);
+        var cancelado = EventoGravado<PedidoCancelado>(TiposEvento.PedidoCancelado);
+        cancelado.IdCorrelacao.Should().Be(PedidoId);
+        cancelado.Dados.Motivo.Should().Be(MotivoCancelamento.EstoqueInsuficiente);
+        cancelado.Dados.EtapaEsgotada.Should().BeNull();
+        cancelado.Dados.CanceladoEm.Should().Be(Agora);
+        (cancelado.Dados.EstoqueDevolvido, cancelado.Dados.EstornoPendente, cancelado.Dados.OrdemEntregaCancelada).Should().Be((false, false, false));
+    }
+
+    [Fact]
+    public async Task Reserva_bem_sucedida_nao_grava_pedido_cancelado()
+    {
+        PedidoEm();
+
+        await Manipular();
+
+        armazenamento.EventosGravados.Should().NotContain(e => e.Tipo == TiposEvento.PedidoCancelado);
     }
 
     [Fact]

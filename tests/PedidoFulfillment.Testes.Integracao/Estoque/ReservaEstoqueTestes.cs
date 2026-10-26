@@ -70,12 +70,20 @@ public sealed class ReservaEstoqueTestes(MensageriaTeste mensageria)
         (await BancoDadosTeste.ConsultarAsync<string>(stringConexao,
             $"SELECT TOP 1 Motivo FROM HistoricosStatusPedido WHERE PedidoId = '{pedidoId}' ORDER BY OcorridoEm DESC, Id DESC")).Should().Be("Estoque insuficiente.");
 
+        // REQ-15, US1 cenário 4: o pedido.cancelado sai na mesma gravação do estoque.insuficiente.
+        var cancelado = await EventosOutbox.CanceladoAsync(stringConexao, pedidoId);
+        (cancelado.Motivo, cancelado.EtapaEsgotada).Should().Be((MotivoCancelamento.EstoqueInsuficiente, (EtapaEsgotada?)null));
+        (cancelado.EstoqueDevolvido, cancelado.EstornoPendente, cancelado.OrdemEntregaCancelada).Should().Be((false, false, false));
+        var insuficiente = (await EventosOutbox.ListarAsync<EstoqueInsuficiente>(stringConexao, pedidoId)).Should().ContainSingle().Subject;
+        cancelado.CanceladoEm.Should().Be(insuficiente.OcorridoEm);
+
         // Reentrega do mesmo evento depois do cancelamento: nada muda (cenário 4).
         var original = await PedidoCriadoGravadoAsync(stringConexao, pedidoId);
         await PublicarAsync(mensageria, original, SerializacaoEventos.Desserializar<PedidoCriado>(original).IdEvento.ToString());
         (await EsperarLogAsync(logs, 5005, Prazo)).Should().BeTrue();
         DoPedido(fila, pedidoId).Should().ContainSingle();
         (await StatusAsync(stringConexao, pedidoId)).Should().Be("Cancelado");
+        (await EventosOutbox.ListarAsync<PedidoCancelado>(stringConexao, pedidoId)).Should().ContainSingle("a reentrega não cancela de novo");
     }
 
     [Fact]

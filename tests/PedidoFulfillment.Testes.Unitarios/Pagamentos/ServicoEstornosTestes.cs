@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
+using PedidoFulfillment.Application.Contratos.Eventos;
 using PedidoFulfillment.Application.Pagamentos;
 using PedidoFulfillment.Domain.Pagamentos;
 using PedidoFulfillment.Domain.Pedidos;
@@ -63,6 +64,22 @@ public sealed class ServicoEstornosTestes
         var log = logger.Eventos.Should().ContainSingle(e => e.Id.Id == 7006).Subject;
         log.Propriedades["PedidoId"].Should().Be(PedidoId);
         log.Mensagem.Should().NotContain("SIM-", "FR-016: o log não traz transação nem estorno");
+
+        // REQ-15, US2 cenário 1: a confirmação grava o pagamento.estornado, com os identificadores do gateway.
+        var evento = armazenamento.EventosGravados.Should().ContainSingle().Subject;
+        evento.Tipo.Should().Be(TiposEvento.PagamentoEstornado);
+        var envelope = SerializacaoEventos.Desserializar<PagamentoEstornado>(evento.Conteudo);
+        envelope.IdCorrelacao.Should().Be(PedidoId);
+        envelope.OcorridoEm.Should().Be(agora);
+        envelope.Dados.Should().BeEquivalentTo(new PagamentoEstornado
+        {
+            PedidoId = PedidoId,
+            Numero = "PED-20261024-000001",
+            Valor = 40m,
+            IdentificadorTransacao = Transacao,
+            IdentificadorEstorno = "SIM-EST-00000000000000000000000000000001",
+            EstornadoEm = agora
+        });
     }
 
     [Fact]
@@ -114,6 +131,7 @@ public sealed class ServicoEstornosTestes
         pagamento.TentativasEstorno.Should().Be(1);
         pagamento.UltimaFalhaEstornoEm.Should().Be(agora);
         armazenamento.Descartes.Should().BeGreaterThanOrEqualTo(1);
+        armazenamento.EventosGravados.Should().BeEmpty("REQ-15, FR-006: falhas não geram evento");
         var log = logger.Eventos.Should().ContainSingle(e => e.Id.Id == 7007).Subject;
         log.Nivel.Should().Be(LogLevel.Warning);
         log.Propriedades["Tentativas"].Should().Be(1);
@@ -162,6 +180,7 @@ public sealed class ServicoEstornosTestes
         gateway.Estornos.Should().ContainSingle();
         armazenamento.Descartes.Should().Be(2);
         Gravado().Pagamento!.Situacao.Should().Be(SituacaoPagamento.Estornado);
+        armazenamento.EventosGravados.Should().ContainSingle(e => e.Tipo == TiposEvento.PagamentoEstornado, "o descarte leva o evento da tentativa perdida");
     }
 
     [Fact]
@@ -178,6 +197,7 @@ public sealed class ServicoEstornosTestes
         pagamento.Situacao.Should().Be(SituacaoPagamento.EstornoPendente);
         pagamento.TentativasEstorno.Should().Be(0, "o gateway confirmou: não é falha do estorno");
         logger.Eventos.Should().ContainSingle(e => e.Id.Id == 7007);
+        armazenamento.EventosGravados.Should().BeEmpty();
     }
 
     [Fact]
@@ -197,6 +217,7 @@ public sealed class ServicoEstornosTestes
         resultado.Should().Be(ResultadoRodadaEstorno.NadaAFazer);
         Gravado().Pagamento!.IdentificadorEstorno.Should().Be("SIM-EST-OUTRO");
         armazenamento.Gravacoes.Should().Be(0);
+        armazenamento.EventosGravados.Should().BeEmpty("quem confirmou antes gravou o evento");
     }
 
     [Fact]

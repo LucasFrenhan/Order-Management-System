@@ -3,8 +3,9 @@
 **Onde roda**: Worker, serviço `ReconciliadorPedidos`, periódico e automático.
 **Origem**: REQ-12 ([spec](../../specs/012-publicacao-garantida/spec.md),
 [contrato](../../specs/012-publicacao-garantida/contracts/publicacao-e-reconciliacao.md),
-[research](../../specs/012-publicacao-garantida/research.md)) e REQ-13
-([spec](../../specs/013-cancelamento-com-estorno/spec.md), esgotamento da etapa de entrega).
+[research](../../specs/012-publicacao-garantida/research.md)), REQ-13
+([spec](../../specs/013-cancelamento-com-estorno/spec.md), esgotamento da etapa de entrega) e REQ-15
+([spec](../../specs/015-visibilidade-cancelamentos/spec.md), `pedido.cancelado` no esgotamento).
 
 ## Para que serve
 
@@ -30,7 +31,7 @@ flowchart TD
     E -- não estava mais apto --> G[Nada muda, log 9007]
     E -- falhou --> H[Conta 1 ciclo, log 9003]
     H --> I{3 ciclos e mais de 24 h?}
-    I -- sim --> J[Esgotado: cancela sem evento, log 9002; na entrega, estorno pendente]
+    I -- sim --> J[Esgotado: cancela com pedido.cancelado, log 9002; na entrega, estorno pendente]
     I -- não --> K[Tenta no próximo ciclo, no fim da fila]
     F & G & J & K --> L[Resumo do ciclo, log 9004]
 ```
@@ -59,9 +60,9 @@ warn: ReconciliadorPedidos[9004] Reconciliação: recuperados 0 no estoque, 0 no
 | A regra encontrou o pedido não apto | Nada muda | Outro caminho já o moveu |
 | A regra lançou exceção (gateway fora, banco fora, conflitos persistentes) | Conta um ciclo com falha, em memória; nada é gravado no pedido | Decisão do clarify: não gravar marcas de falha no pedido |
 | Recusa do gateway | **Não** é falha: é o resultado normal (`PagamentoRejeitado`) | — |
-| Estoque: 3 ciclos com falha e parado há mais de 24 h | `Cancelado`, sem autor, "Não foi possível reservar o estoque.", sem evento | Um pedido não fica parado para sempre |
-| Pagamento: 3 ciclos com falha e parado há mais de 24 h | Pagamento `NaoProcessado`, estoque devolvido e `Cancelado`, sem autor, "Não foi possível processar o pagamento.", sem evento | Libera o estoque preso |
-| Entrega: 3 ciclos com falha e parado há mais de 24 h | Estoque devolvido, pagamento `EstornoPendente` e `Cancelado`, sem autor, "Não foi possível criar a ordem de entrega.", sem evento; o Worker estorna depois (fluxo 10), logs 9002 e 7005 (origem `Reconciliacao`) | O pedido está pago: cancelar exige o estorno, que o REQ-13 trouxe (#28) |
+| Estoque: 3 ciclos com falha e parado há mais de 24 h | `Cancelado`, sem autor, "Não foi possível reservar o estoque.", e `pedido.cancelado` com a etapa `Estoque` | Um pedido não fica parado para sempre |
+| Pagamento: 3 ciclos com falha e parado há mais de 24 h | Pagamento `NaoProcessado`, estoque devolvido e `Cancelado`, sem autor, "Não foi possível processar o pagamento.", e `pedido.cancelado` com a etapa `Pagamento` | Libera o estoque preso |
+| Entrega: 3 ciclos com falha e parado há mais de 24 h | Estoque devolvido, pagamento `EstornoPendente` e `Cancelado`, sem autor, "Não foi possível criar a ordem de entrega.", e `pedido.cancelado` com a etapa `Entrega`; o Worker estorna depois (fluxo 10), logs 9002 e 7005 (origem `Reconciliacao`) | O pedido está pago: cancelar exige o estorno, que o REQ-13 trouxe (#28) |
 | Mais de 24 h, mas só 1 ou 2 ciclos com falha | Não é cancelado | Uma falha isolada num pedido antigo não basta |
 | Pedido saiu da etapa entre a falha e o esgotamento | Não é cancelado | O esgotamento relê o pedido e confere a etapa antes de cancelar |
 
@@ -119,5 +120,6 @@ se perdeu: vale investigar a causa (DLQ, broker, consumidor parado).
 
 ## Limitações
 
-- O cancelamento por esgotamento não publica evento (#29).
+- Nenhuma pendência de visibilidade: o cancelamento por esgotamento sai como `pedido.cancelado`,
+  com o motivo `ReconciliacaoEsgotada` e a etapa (#29, REQ-15).
 - As situações `NaoProcessado`, `EstornoPendente` e `Estornado` são internas: não aparecem na API.

@@ -1,8 +1,11 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using PedidoFulfillment.Application.Comum;
+using PedidoFulfillment.Application.Contratos.Eventos;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Domain.Entregas;
+using PedidoFulfillment.Domain.Pagamentos;
 using PedidoFulfillment.Domain.Pedidos;
 using PedidoFulfillment.Domain.Produtos;
 
@@ -53,6 +56,7 @@ internal sealed class ArmazenamentoPedidos(ContextoBancoDados contexto) : IArmaz
 
     public async Task SalvarAsync(CancellationToken cancellationToken)
     {
+        ExigirEventosDeCancelamentoEEstorno();
         try
         {
             await contexto.SaveChangesAsync(cancellationToken);
@@ -92,6 +96,55 @@ internal sealed class ArmazenamentoPedidos(ContextoBancoDados contexto) : IArmaz
 
     private bool GravandoChaveIdempotencia() =>
         contexto.ChangeTracker.Entries<RegistroIdempotencia>().Any(e => e.State == EntityState.Added);
+
+    /// <summary>
+    /// Guarda do REQ-15 (R-03): um pedido que passa a Cancelado precisa de um <c>pedido.cancelado</c>
+    /// do mesmo pedido na mesma gravação, e um pagamento que passa a Estornado, de um
+    /// <c>pagamento.estornado</c>. Faltando, é erro de programação: nada é gravado, e a exceção segue
+    /// o caminho de erro de quem chamou (no Worker, novas tentativas e DLQ; na API, 500). Fica aqui, e
+    /// não no <see cref="ContextoBancoDados"/>, porque é regra do fluxo da aplicação: os testes
+    /// semeiam pedidos cancelados direto pelo contexto, e entidades novas não são conferidas.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Falta o evento de um cancelamento ou de um estorno.</exception>
+    private void ExigirEventosDeCancelamentoEEstorno()
+    {
+        var cancelados = contexto.ChangeTracker.Entries<Pedido>()
+            .Where(e => e.State == EntityState.Modified
+                && e.Property(p => p.Status).OriginalValue != StatusPedido.Cancelado
+                && e.Property(p => p.Status).CurrentValue == StatusPedido.Cancelado)
+            .Select(e => (e.Entity.Id, Descricao: $"pedido {e.Entity.Numero}"));
+        var estornados = contexto.ChangeTracker.Entries<Pagamento>()
+            .Where(e => e.State == EntityState.Modified
+                && e.Property(p => p.Situacao).OriginalValue == SituacaoPagamento.EstornoPendente
+                && e.Property(p => p.Situacao).CurrentValue == SituacaoPagamento.Estornado)
+            .Select(e => (Id: e.Entity.PedidoId, Descricao: $"pagamento do pedido {e.Entity.PedidoId}"));
+
+        Exigir(cancelados.ToList(), TiposEvento.PedidoCancelado);
+        Exigir(estornados.ToList(), TiposEvento.PagamentoEstornado);
+    }
+
+    private void Exigir(IReadOnlyList<(Guid PedidoId, string Descricao)> alterados, string tipo)
+    {
+        if (alterados.Count == 0)
+        {
+            return;
+        }
+
+        var comEvento = contexto.ChangeTracker.Entries<EventoSaida>()
+            .Where(e => e.State == EntityState.Added && e.Entity.Tipo == tipo)
+            .Select(e => IdCorrelacao(e.Entity.Conteudo))
+            .ToHashSet();
+        if (alterados.FirstOrDefault(a => !comEvento.Contains(a.PedidoId)) is { Descricao: { } descricao })
+        {
+            throw new InvalidOperationException($"O {descricao} muda sem o evento {tipo} na mesma gravação (REQ-15).");
+        }
+    }
+
+    private static Guid IdCorrelacao(string conteudo)
+    {
+        using var documento = JsonDocument.Parse(conteudo);
+        return documento.RootElement.GetProperty("idCorrelacao").GetGuid();
+    }
 
     public void DescartarAlteracoes() => contexto.ChangeTracker.Clear();
 }

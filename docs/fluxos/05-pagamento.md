@@ -2,9 +2,10 @@
 
 **Onde roda**: Worker, consumidor `pagamento` (fila `oms.pagamento`), ao receber `estoque.reservado`.
 **Origem**: REQ-09 ([spec](../../specs/009-pagamento/spec.md),
-[contrato](../../specs/009-pagamento/contracts/consumidor-pagamento.md)) e REQ-13
+[contrato](../../specs/009-pagamento/contracts/consumidor-pagamento.md)), REQ-13
 ([spec](../../specs/013-cancelamento-com-estorno/spec.md), chave de idempotência e cobrança
-para pedido cancelado). O estorno está no [fluxo 10](10-estorno.md).
+para pedido cancelado) e REQ-15 ([spec](../../specs/015-visibilidade-cancelamentos/spec.md),
+sem evento na cobrança para pedido cancelado). O estorno está no [fluxo 10](10-estorno.md).
 A base de consumo está no [fluxo 8](08-publicacao-e-consumo-de-eventos.md).
 
 ## Caminho feliz
@@ -33,7 +34,7 @@ A ordem de entrega (fluxo 6) consome esse evento.
 | `Processando` ou `ProntoParaEnvio`, apto | aprova | `Aprovado` | **sem mudança** | mantido | `pagamento.aprovado` | A operação já moveu o pedido; o pagamento não o faz voltar |
 | Não final, apto | recusa | `Recusado` | `PagamentoRejeitado` (final), sem autor, motivo do gateway | **devolvido** na mesma gravação | `pagamento.recusado` | O estoque não fica preso num pedido que não será pago |
 | Status final, sem reserva ou já pago | **não chamado** | — | sem mudança | sem mudança | nenhum (log 7003) | Idempotência pelo estado: nunca cobra duas vezes o mesmo pedido |
-| Cancelado pela operação **enquanto** o gateway aprovava (a gravação dá conflito e a releitura encontra o pedido `Cancelado` sem pagamento) | chamado uma vez, aprova | `EstornoPendente`, com a transação | `Cancelado`, sem mudança | já devolvido pelo cancelamento | nenhum (logs 7009 e 7005, origem `CobrancaAposCancelamento`) | O Cliente foi cobrado: o pagamento é registrado e o estorno sai pelo fluxo 10 (REQ-13, R-07). Uma recusa nesse caso continua descartada |
+| Cancelado pela operação **enquanto** o gateway aprovava (a gravação dá conflito e a releitura encontra o pedido `Cancelado` sem pagamento) | chamado uma vez, aprova | `EstornoPendente`, com a transação | `Cancelado`, sem mudança | já devolvido pelo cancelamento | nenhum, nem `pagamento.aprovado` (logs 7009 e 7005, origem `CobrancaAposCancelamento`) | O Cliente foi cobrado: o pagamento é registrado e o estorno sai pelo fluxo 10 (REQ-13, R-07); para outros sistemas, o caso aparece só no `pagamento.estornado` (REQ-15, FR-014). Uma recusa nesse caso continua descartada |
 | Não existe | — | — | — | — | novas tentativas e DLQ | — |
 | Conflito nas 3 reavaliações | chamado uma vez | — | sem mudança | sem mudança | novas tentativas e DLQ | O resultado do gateway vale para as reavaliações: uma mensagem não "sorteia" duas vezes |
 
