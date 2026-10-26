@@ -210,7 +210,7 @@ ainda.
   - `README.md`: linha do REQ-15 em **Estado atual**; **Próximos passos** sem a #29 (resolvida), com a #18 e a #37; **Decisões**: evento único de cancelamento com motivo em categoria e guarda na gravação; **Roteiros de validação**: o quickstart do REQ-15;
   - `specs/012-publicacao-garantida/spec.md` e `specs/013-cancelamento-com-estorno/spec.md`: as pendências que apontam para a #29 passam a citar o REQ-15.
 - [X] T028 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados); registrar a contagem em Notes.
-- [ ] T029 Executar o [quickstart](./quickstart.md) (§2, §3, §4, §6 e §7) com a API e o Worker locais e registrar em Notes o que chegou à fila `sistema-externo.teste`.
+- [X] T029 Executar o [quickstart](./quickstart.md) (§2, §3, §4, §6 e §7) com a API e o Worker locais e registrar em Notes o que chegou à fila `sistema-externo.teste`.
 - [ ] T030 Fazer push e abrir o PR em português (Resumo, Pontos de atenção, Validação) com `Closes #29`, citando em Validação os documentos de fluxo atualizados. Acompanhar os workflows `build-testes` e `contrato-compatibilidade` até ficarem verdes, **inclusive depois de cada push posterior**, e registrar em Notes.
 
 ---
@@ -308,3 +308,15 @@ que um caminho futuro volte a cancelar em silêncio.
 - **T028 (2026-10-26)**: nenhum segredo no diff; `dotnet format --verify-no-changes` limpo;
   suíte local inteira com Docker: 636 unitários e 397 de integração, zero ignorados (1.033 no
   total; 982 na linha de base).
+- **T029 (2026-10-26, local)**: API e Worker locais, fila durável `sistema-externo.teste` ligada a
+  `oms.eventos`. §3: o Cliente cancelou um pedido `Pendente` (200) e a operação cancelou um
+  `ProntoParaEnvio` pago (200); na fila, `pedido.cancelado` com `Cliente` (flags falsas) e com
+  `Operacao` (as três flags verdadeiras) e, cerca de 30 s depois, um `pagamento.estornado` com o
+  valor (259,80) e os identificadores `SIM-…` e `SIM-EST-…`. O motivo digitado, com um "CPF"
+  de propósito, não apareceu em nenhuma mensagem. §4: com a falta criada entre a criação e o
+  consumo, `pedido.cancelado` com `EstoqueInsuficiente` e o `estoque.insuficiente` no outbox.
+  §6: todos os eventos com `EnviadoEm`. §7: com taxa 0, o pedido foi a `PagamentoRejeitado`
+  com `pagamento.recusado` e nenhum `pedido.cancelado`. O quickstart foi corrigido em dois
+  pontos: a fila precisa ser durável (o RabbitMQ 4 recusa fila transitória não exclusiva) e a
+  falta de estoque não pode ser criada pela API (422 na criação). A fila de teste foi apagada e
+  o estoque, devolvido.

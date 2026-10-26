@@ -29,8 +29,9 @@ dotnet run --project src/PedidoFulfillment.Worker --launch-profile http   # term
 ```
 
 No [painel do RabbitMQ](http://localhost:15672) (`oms` / `oms-dev-local`), crie a fila
-`sistema-externo.teste` e ligue-a à troca `oms.eventos` com as chaves `pedido.cancelado` e
-`pagamento.estornado`. Essa fila faz o papel de um sistema de fora.
+`sistema-externo.teste`, **durável** (o RabbitMQ 4 recusa fila transitória não exclusiva), e
+ligue-a à troca `oms.eventos` com as chaves `pedido.cancelado` e `pagamento.estornado`. Essa
+fila faz o papel de um sistema de fora; apague-a no fim, ou ela acumula mensagens.
 
 ## 3. Cancelamento pelo Cliente e pela operação (US1, cenários 1 a 3)
 
@@ -45,10 +46,13 @@ No [painel do RabbitMQ](http://localhost:15672) (`oms` / `oms-dev-local`), crie 
 
 ## 4. Falta de estoque (US1, cenário 4)
 
-Crie um pedido com quantidade acima do estoque de um produto. **Esperado**: o pedido fica
-`Cancelado` e, na fila, um `pedido.cancelado` com `motivo` `EstoqueInsuficiente` e todas as
-flags falsas. O `estoque.insuficiente` continua saindo (só aparece na fila se ela também for
-ligada a essa chave).
+A API recusa na criação (422 `PRODUTO_INDISPONIVEL`) um pedido acima do estoque, então a falta
+precisa acontecer entre a criação e o consumo: com o Worker parado, crie um pedido de 2
+unidades de `CAT-002`, baixe o estoque dele para 1 no banco
+(`UPDATE Produtos SET QuantidadeEstoque = 1 WHERE Sku = 'CAT-002'`) e suba o Worker.
+**Esperado**: o pedido fica `Cancelado` e, na fila, um `pedido.cancelado` com `motivo`
+`EstoqueInsuficiente` e todas as flags falsas. O `estoque.insuficiente` continua saindo (só
+aparece na fila se ela também for ligada a essa chave). Devolva o estoque no fim.
 
 ## 5. Reconciliação (US1, cenários 5 a 7)
 
