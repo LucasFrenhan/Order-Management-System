@@ -211,7 +211,7 @@ ainda.
   - `specs/012-publicacao-garantida/spec.md` e `specs/013-cancelamento-com-estorno/spec.md`: as pendências que apontam para a #29 passam a citar o REQ-15.
 - [X] T028 Varredura de segredos, `dotnet format --verify-no-changes` e a suíte local inteira (com Docker; zero ignorados); registrar a contagem em Notes.
 - [X] T029 Executar o [quickstart](./quickstart.md) (§2, §3, §4, §6 e §7) com a API e o Worker locais e registrar em Notes o que chegou à fila `sistema-externo.teste`.
-- [ ] T030 Fazer push e abrir o PR em português (Resumo, Pontos de atenção, Validação) com `Closes #29`, citando em Validação os documentos de fluxo atualizados. Acompanhar os workflows `build-testes` e `contrato-compatibilidade` até ficarem verdes, **inclusive depois de cada push posterior**, e registrar em Notes.
+- [X] T030 Fazer push e abrir o PR em português (Resumo, Pontos de atenção, Validação) com `Closes #29`, citando em Validação os documentos de fluxo atualizados. Acompanhar os workflows `build-testes` e `contrato-compatibilidade` até ficarem verdes, **inclusive depois de cada push posterior**, e registrar em Notes.
 
 ---
 
@@ -320,3 +320,6 @@ que um caminho futuro volte a cancelar em silêncio.
   pontos: a fila precisa ser durável (o RabbitMQ 4 recusa fila transitória não exclusiva) e a
   falta de estoque não pode ser criada pela API (422 na criação). A fila de teste foi apagada e
   o estoque, devolvido.
+- **T030 (2026-10-26)**: PR #38 aberto com `Closes #29`. CI verde: `Build e testes` (7 min 19 s)
+  e `Demonstração`. O `contrato-compatibilidade` não roda, porque só dispara quando um
+  `specs/**/contracts/*.yaml` muda, e o contrato HTTP v1 não mudou.
