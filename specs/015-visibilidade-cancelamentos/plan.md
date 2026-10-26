@@ -121,9 +121,10 @@ tests/
 │   ├── Dominio/PedidoCancelamentoTestes.cs                     # cancelar sem reserva (caminho do estoque)
 │   ├── Dominio/PedidoPagamentoNaoProcessadoTestes.cs           # resultado devolvido
 │   ├── Pedidos/EventosPedidoTestes.cs                          # NOVO: fábrica
-│   ├── Pedidos/ServicoPedidosStatusTestes.cs                   # NOVO: Cliente e Operacao no evento
+│   ├── Pedidos/ServicoPedidosStatusTestes.cs                   # Cliente e Operacao no evento
 │   ├── Estoque/ReservaEstoqueTestes.cs                         # evento EstoqueInsuficiente
 │   ├── Pagamentos/ServicoEstornosTestes.cs                     # evento na confirmação e nas reavaliações
+│   ├── Reconciliacao/ServicoReconciliacaoTestes.cs             # evento com a etapa esgotada
 │   └── Mensageria/SerializacaoEventosTestes.cs                 # ida e volta dos tipos novos
 └── PedidoFulfillment.Testes.Integracao/
     ├── PedidoFulfillment.Testes.Integracao.csproj              # copia os schemas de specs/015
