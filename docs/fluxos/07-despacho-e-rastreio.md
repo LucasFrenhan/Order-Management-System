@@ -78,5 +78,6 @@ e 4005 (duplicado). Nenhum log traz a transportadora nem o código.
 
 ## Limitações
 
-- Não há evento `pedido.despachado` para outros sistemas (#29).
+- Não há evento `pedido.despachado` para outros sistemas. Ficou fora do #29, que tratou só do
+  cancelamento e do estorno (REQ-15, spec, Assumptions).
 - O rastreio não é validado com a transportadora.

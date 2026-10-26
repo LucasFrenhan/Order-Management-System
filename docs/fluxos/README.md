@@ -9,14 +9,14 @@ verdade: estes documentos as consolidam por fluxo, de ponta a ponta.
 |---|-------|-----------|------|
 | 1 | [Autenticação](01-autenticacao.md) | API | 01, 03, 14 |
 | 2 | [Criação de pedido](02-criacao-de-pedido.md) | API | 01, 04, 05 |
-| 3 | [Consulta e mudança de status](03-consulta-e-mudanca-de-status.md) | API | 05, 08, 11, 13 |
-| 4 | [Reserva de estoque](04-reserva-de-estoque.md) | Worker | 08 |
-| 5 | [Pagamento](05-pagamento.md) | Worker | 09, 13 |
-| 6 | [Ordem de entrega](06-ordem-de-entrega.md) | Worker | 10, 13 |
+| 3 | [Consulta e mudança de status](03-consulta-e-mudanca-de-status.md) | API | 05, 08, 11, 13, 15 |
+| 4 | [Reserva de estoque](04-reserva-de-estoque.md) | Worker | 08, 15 |
+| 5 | [Pagamento](05-pagamento.md) | Worker | 09, 13, 15 |
+| 6 | [Ordem de entrega](06-ordem-de-entrega.md) | Worker | 10, 13, 15 |
 | 7 | [Despacho e rastreio](07-despacho-e-rastreio.md) | API | 11 |
-| 8 | [Publicação de eventos e consumo](08-publicacao-e-consumo-de-eventos.md) | Worker | 06, 12, 14 |
-| 9 | [Reconciliação de pedidos parados](09-reconciliacao.md) | Worker | 12, 13 |
-| 10 | [Estorno](10-estorno.md) | Worker | 13 |
+| 8 | [Publicação de eventos e consumo](08-publicacao-e-consumo-de-eventos.md) | Worker | 06, 12, 14, 15 |
+| 9 | [Reconciliação de pedidos parados](09-reconciliacao.md) | Worker | 12, 13, 15 |
+| 10 | [Estorno](10-estorno.md) | Worker | 13, 15 |
 | 11 | [Limpeza e reenvio da DLQ](11-limpeza-e-reenvio-da-dlq.md) | Worker e API (Admin) | 14 |
 
 ## O pedido de ponta a ponta
@@ -77,7 +77,8 @@ stateDiagram-v2
   de pagamento ou de entrega falha por mais de 24 h (fluxo 9).
 - **`Cancelado` leva junto** o estoque reservado (devolvido), o pagamento aprovado (estorno
   pendente, fluxo 10) e a ordem de entrega sem despacho (cancelada), na mesma gravação
-  (REQ-13).
+  (REQ-13), e grava o `pedido.cancelado` para outros sistemas (REQ-15, fluxo 8). O estorno
+  confirmado grava o `pagamento.estornado` (fluxo 10).
 
 ## Convenções de erro da API
 

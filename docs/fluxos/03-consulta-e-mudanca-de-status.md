@@ -3,8 +3,8 @@
 **Rotas**: `GET /api/v1/pedidos/{id}` e `PATCH /api/v1/pedidos/{id}/status`, para todos os perfis.
 **Origem**: REQ-01 ([ciclo de vida](../../specs/001-contratos-api/data-model.md#ciclo-de-vida-do-pedido-fr-020)),
 REQ-05 ([spec](../../specs/005-criacao-pedidos/spec.md)), REQ-08 (devolução do estoque),
-REQ-11 (histórico e entrega na resposta) e REQ-13 ([spec](../../specs/013-cancelamento-com-estorno/spec.md),
-estorno e cancelamento da ordem).
+REQ-11 (histórico e entrega na resposta), REQ-13 ([spec](../../specs/013-cancelamento-com-estorno/spec.md),
+estorno e cancelamento da ordem) e REQ-15 ([spec](../../specs/015-visibilidade-cancelamentos/spec.md), evento `pedido.cancelado`).
 
 ## Consulta
 
@@ -72,10 +72,23 @@ Tudo na mesma gravação do cancelamento, sem chamar o gateway de pagamento (#28
 | Estoque reservado | O estoque volta aos produtos (REQ-08) | 6005 |
 | Pagamento `Aprovado` | O pagamento passa a `EstornoPendente`; o Worker estorna depois (fluxo 10) | 7005, origem `Operacao` |
 | Ordem de entrega sem despacho | A ordem ganha `canceladaEm` e não pode mais ser despachada | 8004 |
+| Qualquer situação | Grava no outbox um `pedido.cancelado`, com o motivo `Operacao` (Admin ou OperadorLogistica) ou `Cliente` e o que foi desfeito junto (REQ-15) | — |
 
 Exemplo: cancelar um pedido em `ProntoParaEnvio` responde 200 com
 `"entrega": { …, "despachadoEm": null, "canceladaEm": "2026-10-24T15:20:00+00:00" }`; o estorno
-é confirmado em até 1 minuto pelo Worker.
+é confirmado em até 1 minuto pelo Worker. O mesmo cancelamento grava:
+
+```json
+{ "tipo": "pedido.cancelado", "versao": 1, "idCorrelacao": "0199f1a2-…",
+  "dados": { "pedidoId": "0199f1a2-…", "numero": "PED-20261024-000001", "motivo": "Operacao", "etapaEsgotada": null,
+             "canceladoEm": "2026-10-24T15:20:00+00:00", "estoqueDevolvido": true, "estornoPendente": true,
+             "ordemEntregaCancelada": true } }
+```
+
+O motivo digitado fica só no histórico; o evento leva a categoria, sem o texto, sem o autor e
+sem dados pessoais. O contrato completo está no
+[REQ-15](../../specs/015-visibilidade-cancelamentos/contracts/eventos-cancelamento-e-estorno.md),
+e a publicação, no [fluxo 8](08-publicacao-e-consumo-de-eventos.md).
 
 **Por que o estorno é assíncrono**: o cancelamento não pode depender do gateway. Com o gateway
 fora do ar, o pedido é cancelado e o estorno espera (decisão do specify do REQ-13).
@@ -102,15 +115,15 @@ fora do ar, o pedido é cancelado e o estorno espera (decisão do specify do REQ
 | Cancelamento depois do pagamento aprovado | Permitido para a operação; o estoque volta e o estorno fica pendente para o Worker (fluxo 10) |
 | Cancelamento depois de `ProntoParaEnvio` | Permitido; a ordem de entrega é cancelada junto (`canceladaEm`), e o estorno fica pendente |
 | Cancelamento e despacho ao mesmo tempo | Um dos dois vence (fluxo 7). Nunca há rastreio num pedido cancelado nem ordem cancelada despachada |
-| Dois cancelamentos ao mesmo tempo | Um responde 200 e o outro 409; há um único estorno pendente |
+| Dois cancelamentos ao mesmo tempo | Um responde 200 e o outro 409; há um único estorno pendente e um único `pedido.cancelado` |
 | Cancelamento e esgotamento da entrega na reconciliação | Um dos dois vence; o pedido é cancelado uma vez, com um único estorno pendente (fluxo 9) |
 
 ## Falhas externas
 
 | Falha | Comportamento |
 |-------|---------------|
-| Banco fora do ar | 500 genérico; nenhuma mudança fica gravada pela metade |
-| Broker fora do ar | Não afeta: a mudança de status pela API não publica evento |
+| Banco fora do ar | 500 genérico; nenhuma mudança fica gravada pela metade, nem o `pedido.cancelado` |
+| Broker fora do ar | Não afeta a resposta: o `pedido.cancelado` fica pendente no outbox e sai quando o broker volta (fluxo 8). As outras mudanças de status não publicam evento |
 | Gateway de pagamento ou Worker fora do ar | Não afeta o cancelamento: o estorno fica pendente até o Worker conseguir estornar (fluxo 10) |
 
 ## Observabilidade
@@ -121,7 +134,9 @@ entrega cancelada).
 
 ## Limitações
 
-- Não há evento de mudança de status, de cancelamento nem de estorno para outros sistemas (#29).
+- As mudanças de status que não são cancelamento (por exemplo, o despacho) não publicam evento.
+  O cancelamento e o estorno passaram a publicar `pedido.cancelado` e `pagamento.estornado`
+  (#29, REQ-15).
 - Pedidos cancelados com pagamento aprovado **antes do REQ-13** não são estornados
   automaticamente; a consulta para encontrá-los está no
   [quickstart do REQ-13](../../specs/013-cancelamento-com-estorno/quickstart.md#5-pedidos-pagos-e-cancelados-antes-do-req-13).

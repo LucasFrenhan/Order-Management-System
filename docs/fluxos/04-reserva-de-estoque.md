@@ -2,7 +2,7 @@
 
 **Onde roda**: Worker, consumidor `estoque` (fila `oms.estoque`), ao receber `pedido.criado`.
 **Origem**: REQ-08 ([spec](../../specs/008-estoque/spec.md),
-[contrato](../../specs/008-estoque/contracts/consumidor-estoque.md)).
+[contrato](../../specs/008-estoque/contracts/consumidor-estoque.md)) e REQ-15 (`pedido.cancelado` na falta de estoque).
 A base de consumo (novas tentativas, DLQ e duplicados) está no [fluxo 8](08-publicacao-e-consumo-de-eventos.md).
 
 ## Caminho feliz
@@ -26,7 +26,7 @@ O pagamento (fluxo 5) consome esse evento.
 | Pedido lido | Estoque | Status | Evento de saída | Mensagem | Por quê |
 |-------------|---------|--------|-----------------|----------|---------|
 | Não final, todos os itens disponíveis | abatido | sem mudança | `estoque.reservado` | ack | — |
-| Não final, algum item indisponível | **nada abatido** | `Cancelado`, sem autor, motivo "Estoque insuficiente." | `estoque.insuficiente`, só com os itens em falta | ack | Tudo ou nada: reservar parte do pedido deixaria estoque preso num pedido que não pode ser atendido |
+| Não final, algum item indisponível | **nada abatido** | `Cancelado`, sem autor, motivo "Estoque insuficiente." | `estoque.insuficiente`, só com os itens em falta, e `pedido.cancelado` com o motivo `EstoqueInsuficiente` (REQ-15) | ack | Tudo ou nada: reservar parte do pedido deixaria estoque preso num pedido que não pode ser atendido |
 | Status final (`Cancelado`, `Despachado`, `PagamentoRejeitado`) | sem mudança | sem mudança | nenhum | ack, com log 6003 | O pedido não precisa mais de estoque, por exemplo porque foi cancelado antes do consumo |
 | Já reservado | sem mudança | sem mudança | nenhum | ack, com log 6003 | Idempotência pelo estado: um segundo evento não reserva duas vezes |
 | Não existe | — | — | — | novas tentativas e DLQ | Inconsistência que precisa de investigação |
@@ -38,6 +38,17 @@ Exemplo de falta:
 { "tipo": "estoque.insuficiente", "versao": 1,
   "dados": { "pedidoId": "…", "itens": [ { "produtoId": "…0008", "quantidadeSolicitada": 2, "quantidadeDisponivel": 1, "inativo": false } ] } }
 ```
+
+Na mesma gravação sai o `pedido.cancelado` (REQ-15), para quem só acompanha os cancelamentos:
+
+```json
+{ "tipo": "pedido.cancelado", "versao": 1,
+  "dados": { "pedidoId": "…", "numero": "PED-20261024-000002", "motivo": "EstoqueInsuficiente", "etapaEsgotada": null,
+             "canceladoEm": "…", "estoqueDevolvido": false, "estornoPendente": false, "ordemEntregaCancelada": false } }
+```
+
+Os dois saem pelo outbox na ordem em que foram gravados, mas o contrato não garante ordem
+entre tipos diferentes: quem consome os dois não deve depender dela.
 
 ## Casos de borda
 
@@ -67,5 +78,5 @@ Logs 6001 (reservado), 6002 (cancelado por falta), 6003 (ignorado), 6004 (confli
 
 ## Limitações
 
-- Pedido que falha sempre na reserva é cancelado pela reconciliação depois de 24 h, sem evento
-  (fluxo 9).
+- Pedido que falha sempre na reserva é cancelado pela reconciliação depois de 24 h (fluxo 9),
+  com o `pedido.cancelado` da etapa `Estoque` (#29, REQ-15).

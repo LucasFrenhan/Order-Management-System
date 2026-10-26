@@ -65,7 +65,7 @@ Este requisito fecha esse caminho em duas frentes:
   Em cada ciclo, os pedidos sem falha recente vêm antes dos que já falharam em ciclos
   anteriores.
   A visibilidade desses cancelamentos para outros sistemas (não existe evento de
-  cancelamento) fica anotada como pendência.
+  cancelamento) fica anotada como pendência (issue #29, resolvida no REQ-15: `pedido.cancelado`).
 
 ## User Scenarios & Testing *(mandatory)*
 

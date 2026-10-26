@@ -5,7 +5,8 @@ pelo cancelamento (fluxo 3), pelo esgotamento da entrega (fluxo 9) ou pelo consu
 pagamento (fluxo 5).
 **Origem**: REQ-13 ([spec](../../specs/013-cancelamento-com-estorno/spec.md),
 [contrato](../../specs/013-cancelamento-com-estorno/contracts/estorno-e-cancelamento.md),
-[research](../../specs/013-cancelamento-com-estorno/research.md)), issue #28.
+[research](../../specs/013-cancelamento-com-estorno/research.md)), issue #28, e REQ-15
+([spec](../../specs/015-visibilidade-cancelamentos/spec.md), `pagamento.estornado`), issue #29.
 
 ## Para que serve
 
@@ -46,7 +47,7 @@ flowchart TD
     D --> E{Relê: ainda EstornoPendente?}
     E -- não --> G[Nada a fazer]
     E -- sim --> F{Gateway: EstornarAsync}
-    F -- confirmou --> H[Estornado, com identificador e instante, log 7006]
+    F -- confirmou --> H[Estornado, com identificador e instante, e pagamento.estornado; log 7006]
     F -- recusou ou falhou --> I[TentativasEstorno + 1, log 7007]
     I --> J{Mais de 24 h pendente e 3 tentativas?}
     J -- sim --> K[Log 7008, Error; continua sendo tentado]
@@ -60,6 +61,21 @@ Worker escreve, na rodada seguinte:
 info: ServicoEstornos[7006] Estorno do pedido 0199f1a2-… (valor 149.70) confirmado pelo gateway depois de 0 tentativa(s) com falha.
 info: ProcessadorEstornos[7012] Rodada de estornos: 1 confirmado(s) e 0 falha(s).
 ```
+
+Na mesma gravação da confirmação sai o `pagamento.estornado` (REQ-15), uma única vez por
+pedido, com os identificadores do gateway, que continuam fora dos logs:
+
+```json
+{ "tipo": "pagamento.estornado", "versao": 1, "idCorrelacao": "0199f1a2-…",
+  "dados": { "pedidoId": "0199f1a2-…", "numero": "PED-20261024-000001", "valor": 149.70,
+             "identificadorTransacao": "SIM-0199f1a1…", "identificadorEstorno": "SIM-EST-0199f1a3…",
+             "estornadoEm": "2026-10-24T15:21:00+00:00" } }
+```
+
+A cobrança aprovada para um pedido já cancelado (fluxo 5) não gera `pagamento.aprovado`: o
+`pedido.cancelado` desse pedido saiu com `estornoPendente: false`, e o caso aparece só no
+`pagamento.estornado`, que traz o valor e a transação da cobrança. Para conciliar dinheiro, a
+fonte é o `pagamento.estornado`.
 
 ## Ordem da fila
 
@@ -94,7 +110,7 @@ novos de saírem (índice filtrado `IX_Pagamentos_EstornoPendente`).
 | Gateway fora do ar | Os cancelamentos continuam; os estornos ficam pendentes e são tentados a cada rodada, com 7008 depois de 24 h e 3 tentativas |
 | Worker fora do ar | Os cancelamentos continuam pela API; os estornos esperam até o Worker voltar e saem na primeira rodada |
 | Banco fora do ar | A rodada termina com o log 7010 e é tentada no próximo intervalo, sem derrubar o Worker. Um erro num pedido também vai para o 7010, com o id do pedido, e os demais seguem |
-| Broker fora do ar | Não afeta: o estorno não publica evento |
+| Broker fora do ar | Não afeta o estorno: o `pagamento.estornado` fica pendente no outbox e sai quando o broker volta (fluxo 8) |
 
 ## Configuração (seção `Estornos`, validada na partida)
 
@@ -127,7 +143,8 @@ Nenhum log traz o identificador da transação ou do estorno, nem dado pessoal.
 
 ## Limitações
 
-- Não há evento de estorno nem de cancelamento para outros sistemas (#29).
+- Uma falha de estorno não gera evento; só a confirmação gera o `pagamento.estornado`. O
+  cancelamento e o estorno passaram a ser visíveis para outros sistemas (#29, REQ-15).
 - Não há rota para a operação forçar ou dar baixa num estorno; o log 7008 é o sinal para agir
   fora do sistema.
 - Estorno sempre do valor total; estorno parcial e devolução de pedido despachado ficam fora do
