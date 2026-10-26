@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/LucasFrenhan/Order-Management-System/specs/015-visibilidade-cancelamentos/contracts/eventos/pagamento.estornado.v1.schema.json",
+  "title": "pagamento.estornado v1",
+  "description": "Publicado pelo processo de workers quando o gateway confirma o estorno do pagamento de um pedido cancelado (REQ-13, REQ-15), na mesma gravação da confirmação.",
+  "type": "object",
+  "required": ["idEvento", "tipo", "versao", "ocorridoEm", "idCorrelacao", "dados"],
+  "properties": {
+    "idEvento": { "type": "string", "format": "uuid" },
+    "tipo": { "const": "pagamento.estornado" },
+    "versao": { "const": 1 },
+    "ocorridoEm": { "type": "string", "format": "date-time" },
+    "idCorrelacao": { "type": "string", "format": "uuid" },
+    "dados": {
+      "type": "object",
+      "required": ["pedidoId", "numero", "valor", "identificadorTransacao", "identificadorEstorno", "estornadoEm"],
+      "properties": {
+        "pedidoId": { "type": "string", "format": "uuid" },
+        "numero": { "type": "string", "pattern": "^PED-\\d{8}-\\d{6}$" },
+        "valor": { "type": "number", "exclusiveMinimum": 0, "multipleOf": 0.01 },
+        "identificadorTransacao": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "identificadorEstorno": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "estornadoEm": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
