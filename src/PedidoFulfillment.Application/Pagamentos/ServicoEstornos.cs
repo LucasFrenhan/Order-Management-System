@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PedidoFulfillment.Application.Comum;
+using PedidoFulfillment.Application.Contratos.Eventos;
+using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Domain.Pagamentos;
 using PedidoFulfillment.Domain.Pedidos;
@@ -24,7 +26,8 @@ public sealed record ParametrosAlertaEstorno(TimeSpan LimiteAlerta, int Tentativ
 /// <summary>
 /// Decide um estorno pendente (REQ-13, R-04): pede o estorno ao gateway e grava a confirmação ou
 /// a falha. O estorno nunca desiste; depois do limite de alerta, cada falha é um erro no log.
-/// Um escopo por pedido: a rodada, no Infrastructure, cria o escopo.
+/// A confirmação grava junto o <c>pagamento.estornado</c> (REQ-15, R-05). Um escopo por pedido: a
+/// rodada, no Infrastructure, cria o escopo.
 /// </summary>
 public sealed class ServicoEstornos(
     IArmazenamentoPedidos armazenamento, IGatewayPagamento gateway, TimeProvider relogio, ILogger<ServicoEstornos> logger)
@@ -64,7 +67,9 @@ public sealed class ServicoEstornos(
         for (var reavaliacao = 1; ; reavaliacao++)
         {
             var tentativas = pedido.Pagamento!.TentativasEstorno;
-            pedido.ConfirmarEstorno(identificadorEstorno, relogio.GetUtcNow());
+            var agora = relogio.GetUtcNow();
+            pedido.ConfirmarEstorno(identificadorEstorno, agora);
+            armazenamento.Adicionar(EventoEstornado(pedido, agora));
             try
             {
                 await armazenamento.SalvarAsync(cancellationToken);
@@ -136,5 +141,20 @@ public sealed class ServicoEstornos(
     {
         var pedido = await armazenamento.ObterPedidoAsync(pedidoId, paraAlterar: true, cancellationToken);
         return pedido?.Pagamento?.Situacao == SituacaoPagamento.EstornoPendente ? pedido : null;
+    }
+
+    /// <summary><c>pagamento.estornado</c> do estorno recém-confirmado, com o instante gravado no pagamento (REQ-15, R-05).</summary>
+    private static EventoSaida EventoEstornado(Pedido pedido, DateTimeOffset agora)
+    {
+        var pagamento = pedido.Pagamento!;
+        return EventoSaida.De(EnvelopeEvento.Criar(pedido.Id, new PagamentoEstornado
+        {
+            PedidoId = pedido.Id,
+            Numero = pedido.Numero,
+            Valor = pagamento.Valor,
+            IdentificadorTransacao = pagamento.IdentificadorTransacao!,
+            IdentificadorEstorno = pagamento.IdentificadorEstorno!,
+            EstornadoEm = agora
+        }, agora), agora);
     }
 }

@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using PedidoFulfillment.Application.Contratos.Eventos;
 using PedidoFulfillment.Application.Pagamentos;
 using PedidoFulfillment.Infrastructure.Configuracao;
 using PedidoFulfillment.Infrastructure.Pagamentos;
@@ -58,6 +59,15 @@ public sealed class ProcessamentoEstornosTestes(MensageriaTeste mensageria)
         (await EsperarLogsAsync(logs, 7012)).Should().BeTrue();
         logs.Registros.Where(r => r.Evento.Id is >= 7005 and <= 7012).Should().NotContain(r => r.Texto.Contains("SIM-", StringComparison.Ordinal),
             "FR-016: nenhum log traz transação ou estorno");
+
+        // REQ-15, US2 cenário 1: um pagamento.estornado, com os identificadores do gateway e o instante gravado.
+        var estornado = (await EventosOutbox.ListarAsync<PagamentoEstornado>(stringConexao, pedidoId)).Should().ContainSingle().Subject.Dados;
+        estornado.IdentificadorEstorno.Should().Be($"SIM-EST-{pedidoId:N}");
+        estornado.IdentificadorTransacao.Should().Be(await BancoDadosTeste.ConsultarAsync<string>(stringConexao,
+            $"SELECT IdentificadorTransacao FROM Pagamentos WHERE PedidoId = '{pedidoId}'"));
+        estornado.Valor.Should().Be(await BancoDadosTeste.ConsultarAsync<decimal>(stringConexao, $"SELECT Valor FROM Pagamentos WHERE PedidoId = '{pedidoId}'"));
+        estornado.EstornadoEm.Should().Be(await BancoDadosTeste.ConsultarAsync<DateTimeOffset>(stringConexao,
+            $"SELECT EstornadoEm FROM Pagamentos WHERE PedidoId = '{pedidoId}'"));
     }
 
     [Fact]
@@ -77,10 +87,12 @@ public sealed class ProcessamentoEstornosTestes(MensageriaTeste mensageria)
         (await SituacaoAsync(stringConexao, pedidoId)).Should().Be("EstornoPendente");
         (await TentativasAsync(stringConexao, pedidoId)).Should().BeGreaterThanOrEqualTo(2);
         (await Estoque.CenarioEstoque.StatusAsync(stringConexao, pedidoId)).Should().Be("Cancelado");
+        (await EventosOutbox.ListarAsync<PagamentoEstornado>(stringConexao, pedidoId)).Should().BeEmpty("REQ-15, FR-006: falhas não geram evento");
 
         gateway.Modo = GatewayEstornoControlado.ModoEstorno.Confirmar;
 
         (await EsperarSituacaoAsync(stringConexao, pedidoId, "Estornado")).Should().BeTrue("o estorno nunca desiste (FR-003)");
+        (await EventosOutbox.ListarAsync<PagamentoEstornado>(stringConexao, pedidoId)).Should().ContainSingle("REQ-15, US2 cenário 2");
     }
 
     [Fact]
@@ -115,6 +127,7 @@ public sealed class ProcessamentoEstornosTestes(MensageriaTeste mensageria)
         (await EsperarLogsAsync(logs, 7012, quantidade: 4)).Should().BeTrue("as duas instâncias seguem rodando");
         gateway.EstornosDo(pedidoId).Should().Be(1, "FR-005");
         logs.Registros.Count(r => r.Evento.Id == 7006).Should().Be(1);
+        (await EventosOutbox.ListarAsync<PagamentoEstornado>(stringConexao, pedidoId)).Should().ContainSingle("REQ-15, SC-002");
     }
 
     [Fact]
@@ -217,6 +230,9 @@ public sealed class ProcessamentoEstornosTestes(MensageriaTeste mensageria)
         gateway.PrimeiraResposta.Should().NotBeNull();
         (await BancoDadosTeste.ConsultarAsync<string>(stringConexao, $"SELECT IdentificadorEstorno FROM Pagamentos WHERE PedidoId = '{pedidoId}'"))
             .Should().Be(gateway.PrimeiraResposta!.IdentificadorEstorno, "a segunda chamada devolve o mesmo estorno");
+        // REQ-15, US2 cenário 3: só a gravação que deu certo leva o evento.
+        (await EventosOutbox.ListarAsync<PagamentoEstornado>(stringConexao, pedidoId)).Should().ContainSingle()
+            .Which.Dados.IdentificadorEstorno.Should().Be(gateway.PrimeiraResposta.IdentificadorEstorno);
     }
 
     /// <summary>Repassa ao gateway real, mas "perde" a primeira resposta do estorno, como um Worker que caiu antes de gravar.</summary>
