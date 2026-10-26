@@ -76,9 +76,17 @@ public sealed class OpcoesReenvioDlq
 
     public int AvisoIntervaloSegundos { get; set; } = 300;
 
+    /// <summary>
+    /// Leitura da DLQ para a métrica, só com a telemetria ligada (REQ-16, clarify 2); o aviso
+    /// continua no máximo a cada <see cref="AvisoIntervaloSegundos"/>.
+    /// </summary>
+    public int MetricaIntervaloSegundos { get; set; } = 60;
+
     public TimeSpan Intervalo => TimeSpan.FromSeconds(IntervaloSegundos);
 
     public TimeSpan AvisoIntervalo => TimeSpan.FromSeconds(AvisoIntervaloSegundos);
+
+    public TimeSpan MetricaIntervalo => TimeSpan.FromSeconds(MetricaIntervaloSegundos);
 }
 
 /// <summary>Acumula todas as falhas, nomeando cada chave sem mostrar valores.</summary>
@@ -92,6 +100,7 @@ public sealed class ValidadorOpcoesReenvioDlq : IValidateOptions<OpcoesReenvioDl
         faixas.Limitar(options.MensagensPorPedido, 1, 10000, nameof(OpcoesReenvioDlq.MensagensPorPedido));
         faixas.Limitar(options.AvisoLimite, 1, 1000000, nameof(OpcoesReenvioDlq.AvisoLimite));
         faixas.Limitar(options.AvisoIntervaloSegundos, 10, 86400, nameof(OpcoesReenvioDlq.AvisoIntervaloSegundos));
+        faixas.Limitar(options.MetricaIntervaloSegundos, 10, 300, nameof(OpcoesReenvioDlq.MetricaIntervaloSegundos));
         return faixas.Resultado();
     }
 }
@@ -108,6 +117,9 @@ internal sealed class FaixasOpcoes(string secao)
             falhas.Add($"{secao}:{chave} deve estar entre {minimo} e {maximo}.");
         }
     }
+
+    /// <summary>Falha que não é faixa inteira (por exemplo, a taxa de amostragem, REQ-16).</summary>
+    public void Falhar(string mensagem) => falhas.Add(mensagem);
 
     public ValidateOptionsResult Resultado() => falhas.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(falhas);
 }

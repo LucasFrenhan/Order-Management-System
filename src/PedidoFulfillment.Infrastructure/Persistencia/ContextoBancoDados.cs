@@ -10,6 +10,7 @@ using PedidoFulfillment.Domain.Pedidos;
 using PedidoFulfillment.Domain.Produtos;
 using PedidoFulfillment.Infrastructure.Identidade;
 using PedidoFulfillment.Infrastructure.Mensageria;
+using PedidoFulfillment.Infrastructure.Observabilidade;
 
 namespace PedidoFulfillment.Infrastructure.Persistencia;
 
@@ -22,6 +23,14 @@ public sealed class ContextoBancoDados(DbContextOptions<ContextoBancoDados> opti
 {
     /// <summary>Propriedade de sombra <c>rowversion</c> de Produto e Pedido (research R-04).</summary>
     internal const string Versao = "Versao";
+
+    /// <summary>
+    /// Propriedade de sombra com o contexto W3C da criação (REQ-16, data-model), em
+    /// <c>EventosSaida</c>, <c>Pedidos</c> e <c>PedidosReenvioDlq</c>.
+    /// </summary>
+    internal const string ContextoRastreio = "ContextoRastreio";
+
+    private static readonly InterceptorContextoRastreio InterceptorRastreio = new();
 
     /// <summary>Tamanho das colunas de enum gravadas como texto (R-06).</summary>
     internal const int TamanhoEnum = 30;
@@ -75,6 +84,13 @@ public sealed class ContextoBancoDados(DbContextOptions<ContextoBancoDados> opti
             throw Conflito(excecao);
         }
     }
+
+    /// <summary>
+    /// Contexto de rastreamento nas linhas novas do outbox, dos pedidos e dos reenvios (REQ-16,
+    /// R-03), em qualquer instância do contexto, inclusive as criadas fora da injeção.
+    /// </summary>
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
+        optionsBuilder.AddInterceptors(InterceptorRastreio);
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

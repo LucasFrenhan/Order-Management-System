@@ -19,6 +19,8 @@ internal sealed class ConfiguracaoPedidoReenvioDlq : IEntityTypeConfiguration<Pe
         pedido.Property(p => p.TipoEvento).HasMaxLength(PedidoReenvioDlq.TamanhoMaximoTipoEvento);
         pedido.Property(p => p.TrechoMotivo).HasMaxLength(PedidoReenvioDlq.TamanhoMaximoTrechoMotivo);
         pedido.Property(p => p.MotivoFalha).HasMaxLength(PedidoReenvioDlq.TamanhoMaximoMotivoFalha);
+        // Contexto W3C da requisição do Admin, ligado à execução do reenvio (REQ-16, R-04).
+        pedido.Property<string?>(ContextoBancoDados.ContextoRastreio).HasMaxLength(Observabilidade.ContextoRastreio.Tamanho).IsUnicode(false);
         pedido.Property(p => p.Situacao).HasConversion<string>().HasMaxLength(ContextoBancoDados.TamanhoEnum);
         pedido.Ignore(p => p.Filtro);
         pedido.HasIndex(p => new { p.Situacao, p.RegistradoEm }).HasDatabaseName("IX_PedidosReenvioDlq_Situacao_RegistradoEm");

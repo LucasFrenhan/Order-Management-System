@@ -30,6 +30,7 @@ public sealed class OpcoesLimpezaTestes
         (opcoes.Habilitado, opcoes.AvisoHabilitado).Should().Be((true, true));
         (opcoes.Intervalo, opcoes.MaximoReenvios, opcoes.MensagensPorPedido).Should().Be((TimeSpan.FromMinutes(1), 3, 1000));
         (opcoes.AvisoLimite, opcoes.AvisoIntervalo).Should().Be((10, TimeSpan.FromMinutes(5)));
+        opcoes.MetricaIntervalo.Should().Be(TimeSpan.FromMinutes(1));
     }
 
     [Theory]
@@ -54,6 +55,7 @@ public sealed class OpcoesLimpezaTestes
     [InlineData(nameof(OpcoesReenvioDlq.MensagensPorPedido), 1, 10000)]
     [InlineData(nameof(OpcoesReenvioDlq.AvisoLimite), 1, 1000000)]
     [InlineData(nameof(OpcoesReenvioDlq.AvisoIntervaloSegundos), 10, 86400)]
+    [InlineData(nameof(OpcoesReenvioDlq.MetricaIntervaloSegundos), 10, 300)]
     public void Faixas_do_reenvio(string chave, int minimo, int maximo)
     {
         Validar(new OpcoesReenvioDlq(), chave, minimo, ValidadorReenvio.Validate).Should().BeEmpty();

@@ -21,6 +21,9 @@ public sealed class FabricaWorker : WebApplicationFactory<ProgramaWorker>
 
     public IReadOnlyDictionary<string, string?> Configuracoes { get; init; } = new Dictionary<string, string?>();
 
+    /// <summary>Liga a telemetria (REQ-16) e coleta spans, logs e métricas em memória.</summary>
+    public ColetorTelemetria? Telemetria { get; init; }
+
     /// <summary>Recebe a exceção original de uma falha de partida (ver <see cref="Infraestrutura.FalhaPartida"/>).</summary>
     public FalhaPartida FalhaPartida { get; } = new();
 
@@ -44,6 +47,11 @@ public sealed class FabricaWorker : WebApplicationFactory<ProgramaWorker>
         builder.UseSetting("Limpeza:Habilitada", "false");
         builder.UseSetting("ReenvioDlq:Habilitado", "false");
         builder.UseSetting("ReenvioDlq:AvisoHabilitado", "false");
+        if (Telemetria is not null)
+        {
+            builder.UseSetting("Observabilidade:Habilitada", "true");
+        }
+
         foreach (var (chave, valor) in ConfiguracoesBroker.Concat(Configuracoes))
         {
             builder.UseSetting(chave, valor);
@@ -53,6 +61,11 @@ public sealed class FabricaWorker : WebApplicationFactory<ProgramaWorker>
         if (Servicos is not null)
         {
             builder.ConfigureTestServices(Servicos);
+        }
+
+        if (Telemetria is not null)
+        {
+            builder.ConfigureTestServices(Telemetria.RegistrarEm);
         }
     }
 }
