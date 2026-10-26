@@ -207,7 +207,7 @@ schemas e o conteúdo dos tipos existentes não mudaram.
   cancelamento. Um cancelamento que não grava MUST NOT gerar evento.
 - **FR-002**: `pedido.cancelado` MUST trazer: o identificador e o número do pedido; o motivo em
   categoria (`Cliente`, `Operacao`, `EstoqueInsuficiente` ou `ReconciliacaoEsgotada`); a etapa
-  esgotada (`Estoque`, `Pagamento` ou `Entrega`), só quando o motivo é
+  esgotada (`Estoque`, `Pagamento` ou `Entrega`), sempre enviada, nula quando o motivo não é
   `ReconciliacaoEsgotada`; o instante do cancelamento; se o estoque reservado foi devolvido;
   se o estorno ficou pendente; e se uma ordem de entrega foi cancelada. O evento MUST NOT
   trazer o valor nem os itens do pedido: quem precisar deles relaciona pelo identificador do
@@ -229,7 +229,7 @@ schemas e o conteúdo dos tipos existentes não mudaram.
   estornado, o identificador da transação da cobrança, o identificador do estorno no gateway e
   o instante do estorno. Os identificadores do gateway vão no evento, como no
   `pagamento.aprovado`, e continuam fora dos logs (REQ-13, FR-016).
-- **FR-014**: A cobrança aprovada para um pedido já cancelado (REQ-13, FR-006) MUST NOT gerar
+- **FR-014** (acrescentado no clarify): A cobrança aprovada para um pedido já cancelado (REQ-13, FR-006) MUST NOT gerar
   `pagamento.aprovado` nem outro evento quando é registrada; ela aparece só no
   `pagamento.estornado` da confirmação, que traz o valor e a transação da cobrança.
 
@@ -274,8 +274,8 @@ schemas e o conteúdo dos tipos existentes não mudaram.
 - **SC-002**: 100% dos estornos confirmados depois da implantação têm exatamente um
   `pagamento.estornado`.
 - **SC-003**: Com o broker e o despachante no ar, os eventos novos ficam disponíveis para
-  outros sistemas no mesmo tempo dos demais eventos (em até alguns segundos no ambiente de
-  demonstração).
+  outros sistemas no mesmo ciclo do despachante que os demais eventos, dentro da meta de 10
+  segundos do fluxo do REQ-10 no ambiente de demonstração.
 - **SC-004**: 100% dos eventos novos publicados nos testes são válidos pelo schema.
 - **SC-005**: Os consumidores existentes e os contratos HTTP e de eventos v1 continuam
   compatíveis (verificação de contrato sem quebra), e a suíte continua 100% verde no CI.

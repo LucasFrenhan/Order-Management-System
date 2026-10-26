@@ -102,12 +102,13 @@ ainda.
   - Admin e OperadorLogistica cancelam (sem pagamento, pago, pago com ordem): `motivo` `Operacao` e as flags do resultado (data-model);
   - um usuário com perfil de operação cancelando um pedido que é dele: `Operacao`;
   - conflito na primeira gravação e sucesso na segunda: um único `pedido.cancelado` gravado (o da segunda tentativa);
+  - conflito nas 3 tentativas: nenhum `pedido.cancelado` gravado e a resposta de conflito de hoje (US1 cenário 9);
   - mudanças para outros status, 403, 404 e 409: nenhum `pedido.cancelado`.
 - [ ] T009 [P] [US1] Em `tests/PedidoFulfillment.Testes.Unitarios/Estoque/ReservaEstoqueTestes.cs`: com falta de estoque, a mesma gravação leva `estoque.insuficiente` (conteúdo de hoje, sem mudança) e `pedido.cancelado` com `motivo` `EstoqueInsuficiente`, `etapaEsgotada` nulo e as três flags falsas; o histórico continua sem autor e com `Estoque insuficiente.`; reserva bem-sucedida e pedido ignorado não geram `pedido.cancelado`.
 - [ ] T010 [P] [US1] Em `tests/PedidoFulfillment.Testes.Unitarios/Reconciliacao/ServicoReconciliacaoTestes.cs`: no esgotamento, um `pedido.cancelado` com `motivo` `ReconciliacaoEsgotada` e `etapaEsgotada` `Estoque` (flags falsas), `Pagamento` (`estoqueDevolvido` verdadeiro) e `Entrega` (`estoqueDevolvido` e `estornoPendente` verdadeiros, `ordemEntregaCancelada` falso); os motivos do histórico continuam os do REQ-12/13; falha sem esgotar, pedido que saiu da etapa e conflito seguido de releitura que encontra o pedido fora da etapa não geram evento; conflito seguido de esgotamento grava um só evento.
 - [ ] T011 [P] [US1] Integração, com banco real, conferindo as linhas de `EventosSaida` do tipo `pedido.cancelado` (conteúdo desserializado com `SerializacaoEventos`):
   - `tests/PedidoFulfillment.Testes.Integracao/Pedidos/StatusPedidoComBancoTestes.cs`: Cliente e operação (US1 cenários 1 e 2);
-  - `tests/PedidoFulfillment.Testes.Integracao/Estornos/CancelamentoPedidoPagoTestes.cs`: pedido pago com ordem (cenário 3), e cancelamento recusado (409, 403) sem evento (cenário 9);
+  - `tests/PedidoFulfillment.Testes.Integracao/Estornos/CancelamentoPedidoPagoTestes.cs`: pedido pago com ordem (cenário 3), e cancelamento recusado (409 do pedido já cancelado, 403 do Cliente em pedido pago) sem evento (cenário 8 e Edge Cases); com o armazenamento falhando na gravação (banco fora do ar), nenhuma linha no outbox (cenário 9);
   - `tests/PedidoFulfillment.Testes.Integracao/Estoque/ReservaEstoqueTestes.cs`: falta de estoque com os dois eventos (cenário 4);
   - `tests/PedidoFulfillment.Testes.Integracao/Reconciliacao/EsgotamentoTestes.cs`: as três etapas (cenários 5 a 7);
   - `tests/PedidoFulfillment.Testes.Integracao/Estornos/DisputaCancelamentoTestes.cs`: dois cancelamentos simultâneos e reconciliação × API geram um único `pedido.cancelado`, com o motivo de quem venceu (cenário 8 e Edge Cases);
@@ -189,7 +190,7 @@ ainda.
   - `Pagamento` em `Modified` com `Situacao` original `EstornoPendente` e atual `Estornado`;
   - para cada um, exigir um `EventoSaida` em `Added` do tipo `pedido.cancelado` ou `pagamento.estornado` cujo `idCorrelacao` (lido do `Conteudo` com `JsonDocument`) é o `PedidoId`; faltando, `InvalidOperationException` com o número ou o identificador do pedido e o tipo esperado, sem gravar.
 
-  XML doc citando o REQ-15 e por que a guarda não fica no `ContextoBancoDados`. T024 deve passar, e a suíte inteira continua verde (todos os caminhos já gravam o evento).
+  XML doc citando o REQ-15, por que a guarda não fica no `ContextoBancoDados` e que a exceção segue o caminho de erro de hoje (Worker: novas tentativas e DLQ; API: 500). T024 deve passar, e a suíte inteira continua verde (todos os caminhos já gravam o evento).
 
 **Checkpoint**: commit `feat(persistencia): recusa cancelamento e estorno sem evento no outbox [REQ-15]`.
 
@@ -200,6 +201,7 @@ ainda.
 - [ ] T026 [P] Documentos de fluxo (regra do `CLAUDE.md`, R-10), conferindo mensagens, motivos, IDs de log e links relativos no código:
   - `docs/fluxos/03-consulta-e-mudanca-de-status.md`: o cancelamento pela API grava `pedido.cancelado` (`Cliente` ou `Operacao`), com exemplo do evento; Limitações sem o item de cancelamento invisível (#29 no lugar);
   - `docs/fluxos/04-reserva-de-estoque.md`: a falta de estoque grava `estoque.insuficiente` e `pedido.cancelado` na mesma gravação, sem ordem garantida entre eles;
+  - `docs/fluxos/06-ordem-de-entrega.md`: a ordem cancelada junto com o pedido aparece no `pedido.cancelado` (`ordemEntregaCancelada`);
   - `docs/fluxos/08-publicacao-e-consumo-de-eventos.md`: catálogo com os dois tipos novos, sem consumidor interno (saem sem rota obrigatória), e como um sistema de fora os recebe;
   - `docs/fluxos/09-reconciliacao.md`: o esgotamento grava `pedido.cancelado` com a etapa; Limitações sem o "cancela sem evento";
   - `docs/fluxos/10-estorno.md`: a confirmação grava `pagamento.estornado`; a cobrança aprovada para pedido cancelado só aparece nele; Limitações sem a invisibilidade do estorno;
@@ -267,6 +269,11 @@ que um caminho futuro volte a cancelar em silêncio.
   estorno parcial e consumidor interno dos tipos novos.
 - Lição do REQ-10: depois de cada push, acompanhar o CI de novo; um teste instável só aparece
   em outra rodada.
+- **Analyze (2026-10-26)**: aplicadas as correções C1 (falha na gravação sem evento na T008 e
+  na T011), I1 (cenários da T011 renumerados), A1 (FR-002: etapa sempre enviada, nula fora da
+  reconciliação), I2 (FR-014 marcado como do clarify), U1 (a exceção da guarda segue o caminho
+  de erro de hoje, no R-03 e na T025), A2 (SC-003 com a meta de 10 s do REQ-10) e G1 (fluxo 6
+  na T026).
 - **SC-003 e SC-006** decorrem de não mudar o despachante nem o caminho do pedido: os eventos
   novos são uma linha a mais no outbox, na mesma transação. Não há tarefa de desempenho
   própria; a suíte de desempenho existente continua rodando no CI.

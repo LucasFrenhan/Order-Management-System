@@ -74,7 +74,9 @@ mapeamento.
   `pagamento.estornado` do mesmo pedido.
 
 Faltando algum, lança `InvalidOperationException` (erro de programação, não de negócio), sem
-gravar nada. O `idCorrelacao` é lido do `Conteudo` com `JsonDocument`, sem coluna nova.
+gravar nada. O `idCorrelacao` é lido do `Conteudo` com `JsonDocument`, sem coluna nova. A
+exceção segue o caminho de erro que já existe em cada processo: no Worker, a mensagem vai para
+as novas tentativas e, depois, para a DLQ; na API, vira 500. Nenhum comportamento novo.
 
 **Motivo**: FR-001 e FR-006 pedem "por qualquer caminho". Um caminho novo que cancele sem
 evento falha em qualquer teste de integração que passe por ele, em vez de cancelar em silêncio
