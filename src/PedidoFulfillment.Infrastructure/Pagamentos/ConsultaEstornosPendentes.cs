@@ -12,12 +12,17 @@ namespace PedidoFulfillment.Infrastructure.Pagamentos;
 /// </summary>
 internal sealed class ConsultaEstornosPendentes(ContextoBancoDados contexto) : IConsultaEstornosPendentes
 {
-    public async Task<IReadOnlyList<Guid>> ListarAsync(int quantidade, CancellationToken cancellationToken) =>
+    public async Task<IReadOnlyList<EstornoPendente>> ListarAsync(int quantidade, CancellationToken cancellationToken) =>
         await contexto.Set<Pagamento>().AsNoTracking()
             .Where(p => p.Situacao == SituacaoPagamento.EstornoPendente)
             .OrderBy(p => p.UltimaFalhaEstornoEm)
             .ThenBy(p => p.EstornoSolicitadoEm)
             .Take(quantidade)
-            .Select(p => p.PedidoId)
+            // O contexto da criação do pedido, para o passo da rodada se ligar a ele (REQ-16, R-05).
+            .Select(p => new EstornoPendente(
+                p.PedidoId,
+                contexto.Pedidos.Where(pedido => pedido.Id == p.PedidoId)
+                    .Select(pedido => EF.Property<string?>(pedido, ContextoBancoDados.ContextoRastreio))
+                    .FirstOrDefault()))
             .ToListAsync(cancellationToken);
 }

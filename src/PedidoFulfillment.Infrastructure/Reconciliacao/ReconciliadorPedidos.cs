@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -5,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PedidoFulfillment.Application.Reconciliacao;
 using PedidoFulfillment.Infrastructure.Configuracao;
+using PedidoFulfillment.Infrastructure.Observabilidade;
 
 namespace PedidoFulfillment.Infrastructure.Reconciliacao;
 
@@ -62,6 +64,9 @@ internal sealed class ReconciliadorPedidos(
 
             try
             {
+                // Um trace por ciclo efetivo; o ciclo sem o lock não gera span (REQ-16, R-05).
+                using var ciclo = TelemetriaOms.Fonte.StartActivity(TelemetriaOms.Spans.Reconciliar, ActivityKind.Internal, default(ActivityContext));
+                ciclo?.SetTag(TelemetriaOms.Atributos.Rotina, TelemetriaOms.Rotinas.Reconciliacao);
                 await ReconciliarLoteAsync(configuracao, cancellationToken);
             }
             finally
@@ -118,18 +123,36 @@ internal sealed class ReconciliadorPedidos(
     /// <summary>Um escopo por pedido: a falha de um não interrompe os demais (FR-011).</summary>
     private async Task<ResultadoReconciliacao> ReconciliarAsync(PedidoParado parado, ParametrosEsgotamento parametros, CancellationToken cancellationToken)
     {
+        // Passo do ciclo, ligado ao trace de criação do pedido (REQ-16, R-05); os eventos gravados
+        // aqui herdam este passo como contexto.
+        using var span = TelemetriaOms.Fonte.StartActivity(
+            TelemetriaOms.Spans.ReconciliarPedido, ActivityKind.Internal, default(ActivityContext),
+            links: TelemetriaOms.LigacaoPara(parado.ContextoRastreio));
+        span?.SetTag(TelemetriaOms.Atributos.PedidoId, parado.PedidoId.ToString());
+        span?.SetTag(TelemetriaOms.Atributos.Etapa, parado.Etapa.ToString());
+        ResultadoReconciliacao resultado;
         try
         {
             await using var escopo = escopos.CreateAsyncScope();
-            return await escopo.ServiceProvider.GetRequiredService<ServicoReconciliacao>()
+            resultado = await escopo.ServiceProvider.GetRequiredService<ServicoReconciliacao>()
                 .ReconciliarAsync(parado, relogio.GetUtcNow(), parametros, cancellationToken);
         }
         catch (Exception excecao) when (excecao is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             var contagem = registro.RegistrarFalha(parado.PedidoId, relogio.GetUtcNow());
             EventosReconciliacao.FalhaPedido(logger, parado.PedidoId, parado.Etapa, contagem, $"{excecao.GetType().Name}: {excecao.Message}");
-            return ResultadoReconciliacao.Falhou;
+            span.MarcarErro(excecao.GetType().Name);
+            resultado = ResultadoReconciliacao.Falhou;
         }
+
+        span?.SetTag(TelemetriaOms.Atributos.Resultado, resultado switch
+        {
+            ResultadoReconciliacao.Recuperado => TelemetriaOms.Resultados.Recuperado,
+            ResultadoReconciliacao.Esgotado => TelemetriaOms.Resultados.Esgotado,
+            ResultadoReconciliacao.Falhou => TelemetriaOms.Resultados.Falhou,
+            _ => null
+        });
+        return resultado;
     }
 
     private static async Task<bool> AdquirirLockAsync(SqlConnection conexao, CancellationToken cancellationToken)

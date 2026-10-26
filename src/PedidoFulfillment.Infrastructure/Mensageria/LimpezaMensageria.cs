@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -6,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Infrastructure.Configuracao;
+using PedidoFulfillment.Infrastructure.Observabilidade;
 using PedidoFulfillment.Infrastructure.Persistencia;
 
 namespace PedidoFulfillment.Infrastructure.Mensageria;
@@ -25,6 +27,12 @@ internal sealed class LimpezaMensageria(
 {
     /// <summary>Nome do lock de aplicação; outra instância do Worker que não o consegue pula a rodada.</summary>
     internal const string RecursoLock = "oms-limpeza";
+
+    // Valores de oms.limpeza.alvo (contrato › Valores dos atributos enumerados).
+    internal const string AlvoEnviados = "enviados";
+    internal const string AlvoProcessados = "processados";
+    internal const string AlvoChaves = "chaves";
+    internal const string AlvoPedidosReenvio = "pedidos_reenvio";
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -63,6 +71,9 @@ internal sealed class LimpezaMensageria(
 
             try
             {
+                // Um trace por rodada efetiva, com um passo por alvo (REQ-16, R-05).
+                using var rodada = TelemetriaOms.Fonte.StartActivity(TelemetriaOms.Spans.Limpar, ActivityKind.Internal, default(ActivityContext));
+                rodada?.SetTag(TelemetriaOms.Atributos.Rotina, TelemetriaOms.Rotinas.Limpeza);
                 await LimparAsync(configuracao, cancellationToken);
             }
             finally
@@ -85,16 +96,16 @@ internal sealed class LimpezaMensageria(
         var limiteChaves = agora - configuracao.RetencaoChaves;
         var limitePedidos = agora - configuracao.RetencaoPedidosReenvio;
 
-        var enviados = await EmLotesAsync(configuracao, (contexto, lote, ct) => contexto.EventosSaida
+        var enviados = await EmLotesAsync(configuracao, AlvoEnviados, (contexto, lote, ct) => contexto.EventosSaida
             .Where(e => e.EnviadoEm != null && e.EnviadoEm < limiteEnviados)
             .OrderBy(e => e.EnviadoEm).Take(lote).ExecuteDeleteAsync(ct), cancellationToken);
-        var processados = await EmLotesAsync(configuracao, (contexto, lote, ct) => contexto.EventosProcessados
+        var processados = await EmLotesAsync(configuracao, AlvoProcessados, (contexto, lote, ct) => contexto.EventosProcessados
             .Where(p => p.ProcessadoEm < limiteProcessados)
             .OrderBy(p => p.ProcessadoEm).Take(lote).ExecuteDeleteAsync(ct), cancellationToken);
-        var chaves = await EmLotesAsync(configuracao, (contexto, lote, ct) => contexto.ChavesIdempotencia
+        var chaves = await EmLotesAsync(configuracao, AlvoChaves, (contexto, lote, ct) => contexto.ChavesIdempotencia
             .Where(c => c.CriadoEm < limiteChaves)
             .OrderBy(c => c.CriadoEm).Take(lote).ExecuteDeleteAsync(ct), cancellationToken);
-        var pedidos = await EmLotesAsync(configuracao, (contexto, lote, ct) => contexto.PedidosReenvioDlq
+        var pedidos = await EmLotesAsync(configuracao, AlvoPedidosReenvio, (contexto, lote, ct) => contexto.PedidosReenvioDlq
             .Where(p => (p.Situacao == SituacaoReenvioDlq.Concluido || p.Situacao == SituacaoReenvioDlq.Falhou) && p.RegistradoEm < limitePedidos)
             .OrderBy(p => p.RegistradoEm).Take(lote).ExecuteDeleteAsync(ct), cancellationToken);
 
@@ -104,8 +115,10 @@ internal sealed class LimpezaMensageria(
 
     /// <summary>Até <c>LotesPorRodada</c> lotes, cada um num escopo e numa transação curta; para quando um lote vem incompleto.</summary>
     private async Task<int> EmLotesAsync(
-        OpcoesLimpeza configuracao, Func<ContextoBancoDados, int, CancellationToken, Task<int>> apagar, CancellationToken cancellationToken)
+        OpcoesLimpeza configuracao, string alvo, Func<ContextoBancoDados, int, CancellationToken, Task<int>> apagar, CancellationToken cancellationToken)
     {
+        using var span = TelemetriaOms.Fonte.StartActivity(TelemetriaOms.Spans.LimparAlvo(alvo));
+        span?.SetTag(TelemetriaOms.Atributos.LimpezaAlvo, alvo);
         var total = 0;
         for (var lote = 0; lote < configuracao.LotesPorRodada; lote++)
         {
@@ -118,6 +131,7 @@ internal sealed class LimpezaMensageria(
             }
         }
 
+        span?.SetTag(TelemetriaOms.Atributos.LimpezaLinhasApagadas, total);
         return total;
     }
 }

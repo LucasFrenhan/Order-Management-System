@@ -87,8 +87,10 @@ public sealed class ContextoRastreioPersistenciaTestes(MensageriaTeste mensageri
     {
         var ouvinte = new ActivityListener
         {
-            // Pelo nome: comparar com o campo estático aqui dispararia a criação da fonte no meio do registro.
-            ShouldListenTo = fonte => fonte.Name == NomeFonte,
+            // Pelo nome: comparar com o campo estático aqui dispararia a criação da fonte no meio do
+            // registro. A fonte do OMS também, como faz o SDK ligado: sem ouvinte nela, o interceptor
+            // entende que a telemetria está desligada e não grava (FR-020).
+            ShouldListenTo = fonte => fonte.Name is NomeFonte or "PedidoFulfillment",
             Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded
         };
         ActivitySource.AddActivityListener(ouvinte);

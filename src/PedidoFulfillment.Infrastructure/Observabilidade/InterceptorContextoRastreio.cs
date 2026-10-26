@@ -29,8 +29,10 @@ internal sealed class InterceptorContextoRastreio : SaveChangesInterceptor
 
     private static void Preencher(DbContext? contexto)
     {
-        // Sem activity (telemetria desligada), nada a gravar: a coluna fica nula, como antes.
-        if (contexto is null || ContextoRastreio.Atual() is not { } atual)
+        // Telemetria desligada, nada a gravar: a coluna fica nula, como antes (FR-020). A activity
+        // sozinha não basta: o ASP.NET Core cria uma em toda requisição, mesmo sem OpenTelemetry;
+        // a fonte do OMS só tem ouvinte com o SDK ligado.
+        if (contexto is null || !TelemetriaOms.Fonte.HasListeners() || ContextoRastreio.Atual() is not { } atual)
         {
             return;
         }

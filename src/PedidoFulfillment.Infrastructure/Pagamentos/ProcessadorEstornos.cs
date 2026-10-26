@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -5,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PedidoFulfillment.Application.Pagamentos;
 using PedidoFulfillment.Infrastructure.Configuracao;
+using PedidoFulfillment.Infrastructure.Observabilidade;
 
 namespace PedidoFulfillment.Infrastructure.Pagamentos;
 
@@ -62,6 +64,9 @@ internal sealed class ProcessadorEstornos(
 
             try
             {
+                // Um trace por rodada efetiva; a rodada sem o lock não gera span (REQ-16, R-05).
+                using var rodada = TelemetriaOms.Fonte.StartActivity(TelemetriaOms.Spans.ProcessarEstornos, ActivityKind.Internal, default(ActivityContext));
+                rodada?.SetTag(TelemetriaOms.Atributos.Rotina, TelemetriaOms.Rotinas.Estornos);
                 await EstornarLoteAsync(configuracao, cancellationToken);
             }
             finally
@@ -79,7 +84,7 @@ internal sealed class ProcessadorEstornos(
 
     private async Task EstornarLoteAsync(OpcoesEstornos configuracao, CancellationToken cancellationToken)
     {
-        IReadOnlyList<Guid> lote;
+        IReadOnlyList<EstornoPendente> lote;
         await using (var escopo = escopos.CreateAsyncScope())
         {
             lote = await escopo.ServiceProvider.GetRequiredService<IConsultaEstornosPendentes>()
@@ -88,9 +93,9 @@ internal sealed class ProcessadorEstornos(
 
         var parametros = new ParametrosAlertaEstorno(configuracao.LimiteAlerta, configuracao.TentativasAlerta);
         int confirmados = 0, falhas = 0;
-        foreach (var pedidoId in lote)
+        foreach (var pendente in lote)
         {
-            switch (await EstornarAsync(pedidoId, parametros, cancellationToken))
+            switch (await EstornarAsync(pendente, parametros, cancellationToken))
             {
                 case ResultadoRodadaEstorno.Confirmado:
                     confirmados++;
@@ -106,19 +111,35 @@ internal sealed class ProcessadorEstornos(
     }
 
     /// <summary>Um escopo por pedido: a falha de um não interrompe os demais.</summary>
-    private async Task<ResultadoRodadaEstorno> EstornarAsync(Guid pedidoId, ParametrosAlertaEstorno parametros, CancellationToken cancellationToken)
+    private async Task<ResultadoRodadaEstorno> EstornarAsync(EstornoPendente pendente, ParametrosAlertaEstorno parametros, CancellationToken cancellationToken)
     {
+        var pedidoId = pendente.PedidoId;
+        // Passo da rodada, ligado ao trace de criação do pedido (REQ-16, R-05).
+        using var span = TelemetriaOms.Fonte.StartActivity(
+            TelemetriaOms.Spans.EstornarPedido, ActivityKind.Internal, default(ActivityContext),
+            links: TelemetriaOms.LigacaoPara(pendente.ContextoRastreio));
+        span?.SetTag(TelemetriaOms.Atributos.PedidoId, pedidoId.ToString());
+        ResultadoRodadaEstorno resultado;
         try
         {
             await using var escopo = escopos.CreateAsyncScope();
-            return await escopo.ServiceProvider.GetRequiredService<ServicoEstornos>().EstornarAsync(pedidoId, parametros, cancellationToken);
+            resultado = await escopo.ServiceProvider.GetRequiredService<ServicoEstornos>().EstornarAsync(pedidoId, parametros, cancellationToken);
         }
         catch (Exception excecao) when (excecao is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             // Banco fora no meio ou erro inesperado: a próxima rodada trata o pedido de novo.
             EventosPagamento.FalhaRodadaEstornos(logger, excecao.GetType().Name, $"pedido {pedidoId}: {excecao.Message}");
-            return ResultadoRodadaEstorno.Falhou;
+            span.MarcarErro(excecao.GetType().Name);
+            resultado = ResultadoRodadaEstorno.Falhou;
         }
+
+        span?.SetTag(TelemetriaOms.Atributos.Resultado, resultado switch
+        {
+            ResultadoRodadaEstorno.Confirmado => TelemetriaOms.Resultados.Confirmado,
+            ResultadoRodadaEstorno.Falhou => TelemetriaOms.Resultados.Falhou,
+            _ => null
+        });
+        return resultado;
     }
 
     private static async Task<bool> AdquirirLockAsync(SqlConnection conexao, CancellationToken cancellationToken)
