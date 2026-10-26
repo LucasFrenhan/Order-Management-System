@@ -28,7 +28,7 @@ public sealed class LeitorMensagemTestes
     [Theory]
     [InlineData("", "Corpo vazio")]
     [InlineData("{ nao e json", "JSON inválido")]
-    [InlineData("""{"tipo":"pedido.cancelado","versao":1}""", "Tipo desconhecido")]
+    [InlineData("""{"tipo":"pedido.despachado","versao":1}""", "Tipo desconhecido")]
     [InlineData("""{"tipo":"pedido.criado","versao":2}""", "Versão não suportada")]
     [InlineData("""{"versao":1}""", "Envelope sem tipo")]
     public void Envelope_invalido_e_irrecuperavel(string corpo, string motivo)

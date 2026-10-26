@@ -4,7 +4,7 @@ using PedidoFulfillment.Application.Contratos.Eventos;
 
 namespace PedidoFulfillment.Testes.Unitarios.Mensageria;
 
-/// <summary>Serialização dos contratos de evento v1 (REQ-06, FR-001 a FR-004; REQ-08, FR-012 e FR-013; REQ-10, FR-008 e FR-009).</summary>
+/// <summary>Serialização dos contratos de evento v1 (REQ-06, FR-001 a FR-004; REQ-08, FR-012 e FR-013; REQ-10, FR-008 e FR-009; REQ-15, R-04).</summary>
 public sealed class SerializacaoEventosTestes
 {
     internal static readonly DateTimeOffset Instante = new(2026, 10, 22, 15, 30, 0, TimeSpan.Zero);
@@ -59,6 +59,29 @@ public sealed class SerializacaoEventosTestes
         ]
     }, Instante);
 
+    internal static EnvelopeEvento<PedidoCancelado> PedidoCancelado(MotivoCancelamento motivo = MotivoCancelamento.Operacao, EtapaEsgotada? etapa = null) =>
+        EnvelopeEvento.Criar(PedidoId, new PedidoCancelado
+        {
+            PedidoId = PedidoId,
+            Numero = "PED-20261022-000001",
+            Motivo = motivo,
+            EtapaEsgotada = etapa,
+            CanceladoEm = Instante,
+            EstoqueDevolvido = true,
+            EstornoPendente = true,
+            OrdemEntregaCancelada = false
+        }, Instante);
+
+    internal static EnvelopeEvento<PagamentoEstornado> PagamentoEstornado() => EnvelopeEvento.Criar(PedidoId, new PagamentoEstornado
+    {
+        PedidoId = PedidoId,
+        Numero = "PED-20261022-000001",
+        Valor = 829.70m,
+        IdentificadorTransacao = "SIM-1",
+        IdentificadorEstorno = "SIM-EST-1",
+        EstornadoEm = Instante
+    }, Instante);
+
     [Fact]
     public void Envelope_traz_tipo_versao_correlacao_e_campos_em_camelCase()
     {
@@ -86,11 +109,15 @@ public sealed class SerializacaoEventosTestes
         TiposEvento.EstoqueInsuficiente.Should().Be("estoque.insuficiente");
         EntregaCriada().Tipo.Should().Be(TiposEvento.EntregaCriada);
         TiposEvento.EntregaCriada.Should().Be("entrega.criada");
-        TiposEvento.TipoDados.Should().HaveCount(6);
+        PedidoCancelado().Tipo.Should().Be(TiposEvento.PedidoCancelado);
+        TiposEvento.PedidoCancelado.Should().Be("pedido.cancelado");
+        PagamentoEstornado().Tipo.Should().Be(TiposEvento.PagamentoEstornado);
+        TiposEvento.PagamentoEstornado.Should().Be("pagamento.estornado");
+        TiposEvento.TipoDados.Should().HaveCount(8);
     }
 
     [Fact]
-    public void Ida_e_volta_preserva_os_valores_dos_seis_eventos()
+    public void Ida_e_volta_preserva_os_valores_dos_oito_eventos()
     {
         DeveVoltarIgual(PedidoCriado());
         DeveVoltarIgual(EstoqueReservado());
@@ -98,6 +125,38 @@ public sealed class SerializacaoEventosTestes
         DeveVoltarIgual(PagamentoRecusado());
         DeveVoltarIgual(EstoqueInsuficiente());
         DeveVoltarIgual(EntregaCriada());
+        DeveVoltarIgual(PedidoCancelado());
+        DeveVoltarIgual(PedidoCancelado(MotivoCancelamento.ReconciliacaoEsgotada, EtapaEsgotada.Entrega));
+        DeveVoltarIgual(PagamentoEstornado());
+    }
+
+    [Fact]
+    public void Pedido_cancelado_traz_o_motivo_e_a_etapa_como_texto_e_a_etapa_nula_explicita()
+    {
+        using var json = JsonDocument.Parse(SerializacaoEventos.Serializar(PedidoCancelado()));
+        var dados = json.RootElement.GetProperty("dados");
+
+        json.RootElement.GetProperty("tipo").GetString().Should().Be("pedido.cancelado");
+        dados.EnumerateObject().Select(p => p.Name).Should().Equal(
+            "pedidoId", "numero", "motivo", "etapaEsgotada", "canceladoEm", "estoqueDevolvido", "estornoPendente", "ordemEntregaCancelada");
+        dados.GetProperty("motivo").GetString().Should().Be("Operacao");
+        dados.GetProperty("etapaEsgotada").ValueKind.Should().Be(JsonValueKind.Null);
+
+        using var esgotado = JsonDocument.Parse(SerializacaoEventos.Serializar(PedidoCancelado(MotivoCancelamento.ReconciliacaoEsgotada, EtapaEsgotada.Entrega)));
+        esgotado.RootElement.GetProperty("dados").GetProperty("motivo").GetString().Should().Be("ReconciliacaoEsgotada");
+        esgotado.RootElement.GetProperty("dados").GetProperty("etapaEsgotada").GetString().Should().Be("Entrega");
+    }
+
+    [Fact]
+    public void Pagamento_estornado_traz_o_valor_e_os_identificadores_do_gateway_em_camelCase()
+    {
+        using var json = JsonDocument.Parse(SerializacaoEventos.Serializar(PagamentoEstornado()));
+        var dados = json.RootElement.GetProperty("dados");
+
+        json.RootElement.GetProperty("tipo").GetString().Should().Be("pagamento.estornado");
+        dados.EnumerateObject().Select(p => p.Name).Should().Equal(
+            "pedidoId", "numero", "valor", "identificadorTransacao", "identificadorEstorno", "estornadoEm");
+        dados.GetProperty("valor").GetRawText().Should().Be("829.70");
     }
 
     [Fact]

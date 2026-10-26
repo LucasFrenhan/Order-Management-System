@@ -9,8 +9,8 @@ namespace PedidoFulfillment.Testes.Integracao.Mensageria;
 /// <summary>
 /// Conformidade dos eventos v1 com os schemas publicados em
 /// <c>specs/006-mensageria/contracts/eventos/</c> (REQ-06, FR-003, FR-004; constituição V),
-/// <c>specs/008-estoque/contracts/eventos/</c> (REQ-08) e <c>specs/010-fulfillment/contracts/eventos/</c>
-/// (REQ-10, FR-009).
+/// <c>specs/008-estoque/contracts/eventos/</c> (REQ-08), <c>specs/010-fulfillment/contracts/eventos/</c>
+/// (REQ-10, FR-009) e <c>specs/015-visibilidade-cancelamentos/contracts/eventos/</c> (REQ-15, FR-008).
 /// </summary>
 public sealed class SchemaEventosTestes
 {
@@ -61,8 +61,36 @@ public sealed class SchemaEventosTestes
             Motivo = "Cartão recusado"
         }, Instante)) },
         { TiposEvento.EstoqueInsuficiente, JsonEstoqueInsuficiente() },
-        { TiposEvento.EntregaCriada, JsonEntregaCriada() }
+        { TiposEvento.EntregaCriada, JsonEntregaCriada() },
+        { TiposEvento.PedidoCancelado, JsonPedidoCancelado(MotivoCancelamento.Operacao, null) },
+        { TiposEvento.PedidoCancelado, JsonPedidoCancelado(MotivoCancelamento.ReconciliacaoEsgotada, EtapaEsgotada.Entrega) },
+        { TiposEvento.PagamentoEstornado, JsonPagamentoEstornado() }
     };
+
+    // REQ-15: cancelamento pela operação (sem etapa) ou esgotado na reconciliação (com etapa).
+    private static string JsonPedidoCancelado(MotivoCancelamento motivo, EtapaEsgotada? etapa) =>
+        SerializacaoEventos.Serializar(EnvelopeEvento.Criar(PedidoId, new PedidoCancelado
+        {
+            PedidoId = PedidoId,
+            Numero = "PED-20261026-000042",
+            Motivo = motivo,
+            EtapaEsgotada = etapa,
+            CanceladoEm = Instante,
+            EstoqueDevolvido = true,
+            EstornoPendente = true,
+            OrdemEntregaCancelada = etapa is null
+        }, Instante));
+
+    // REQ-15: estorno do valor de 829,70, com os identificadores do gateway simulado.
+    private static string JsonPagamentoEstornado() => SerializacaoEventos.Serializar(EnvelopeEvento.Criar(PedidoId, new PagamentoEstornado
+    {
+        PedidoId = PedidoId,
+        Numero = "PED-20261026-000042",
+        Valor = 829.70m,
+        IdentificadorTransacao = "SIM-0199f1a1c2d37e4f8a5b6c7d8e9f0a1b",
+        IdentificadorEstorno = "SIM-EST-0199f1a3d4e57f6a8b9c0d1e2f3a4b5c",
+        EstornadoEm = Instante
+    }, Instante));
 
     // REQ-10: ordem de entrega de um pedido com dois itens.
     private static string JsonEntregaCriada() => SerializacaoEventos.Serializar(EnvelopeEvento.Criar(PedidoId, new EntregaCriada
@@ -207,6 +235,77 @@ public sealed class SchemaEventosTestes
         }
 
         DeveSerValido(TiposEvento.EntregaCriada, raiz.ToJsonString()).Should().BeFalse(caso);
+    }
+
+    public static TheoryData<string, string> AlteracoesPedidoCancelado() => new()
+    {
+        { "sem motivo", "remover:motivo" },
+        { "motivo fora da lista (PagamentoRejeitado não é cancelamento)", "motivo:PagamentoRecusado" },
+        { "sem etapaEsgotada", "remover:etapaEsgotada" },
+        { "etapa com motivo que não é da reconciliação", "etapaEsgotada:Entrega" },
+        { "reconciliação sem etapa", "motivo:ReconciliacaoEsgotada" },
+        { "campo extra (clienteId)", "clienteId:extra" },
+        { "número fora do padrão", "numero:PED-1" }
+    };
+
+    /// <summary>REQ-15, US3 cenário 1.</summary>
+    [Theory]
+    [MemberData(nameof(AlteracoesPedidoCancelado))]
+    public void Pedido_cancelado_fora_do_contrato_e_recusado(string caso, string alteracao)
+    {
+        var raiz = JsonNode.Parse(JsonPedidoCancelado(MotivoCancelamento.Operacao, null))!.AsObject();
+        var dados = raiz["dados"]!.AsObject();
+        var (campo, valor) = (alteracao.Split(':')[0], alteracao.Split(':')[1]);
+        switch (campo)
+        {
+            case "remover":
+                dados.Remove(valor);
+                break;
+            case "clienteId":
+                dados["clienteId"] = Guid.CreateVersion7().ToString();
+                break;
+            default:
+                dados[campo] = valor;
+                break;
+        }
+
+        DeveSerValido(TiposEvento.PedidoCancelado, raiz.ToJsonString()).Should().BeFalse(caso);
+    }
+
+    public static TheoryData<string, string> AlteracoesPagamentoEstornado() => new()
+    {
+        { "sem identificadorEstorno", "remover:identificadorEstorno" },
+        { "valor zero", "valor:0" },
+        { "valor com 3 casas", "valor:10.555" },
+        { "identificadorTransacao com 101 caracteres", "identificadorTransacao:longo" },
+        { "campo extra", "extra:1" }
+    };
+
+    /// <summary>REQ-15, US3 cenário 1.</summary>
+    [Theory]
+    [MemberData(nameof(AlteracoesPagamentoEstornado))]
+    public void Pagamento_estornado_fora_do_contrato_e_recusado(string caso, string alteracao)
+    {
+        var raiz = JsonNode.Parse(JsonPagamentoEstornado())!.AsObject();
+        var dados = raiz["dados"]!.AsObject();
+        var (campo, valor) = (alteracao.Split(':')[0], alteracao.Split(':')[1]);
+        switch (campo)
+        {
+            case "remover":
+                dados.Remove(valor);
+                break;
+            case "valor":
+                dados["valor"] = decimal.Parse(valor, System.Globalization.CultureInfo.InvariantCulture);
+                break;
+            case "identificadorTransacao":
+                dados["identificadorTransacao"] = new string('X', 101);
+                break;
+            default:
+                dados[campo] = valor;
+                break;
+        }
+
+        DeveSerValido(TiposEvento.PagamentoEstornado, raiz.ToJsonString()).Should().BeFalse(caso);
     }
 
     /// <summary>Também usado pelos testes de integração dos consumidores, nas mensagens publicadas (REQ-09).</summary>
