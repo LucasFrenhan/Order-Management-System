@@ -5,7 +5,8 @@
 # Versões das imagens fixas, sem "latest"; atualizar de forma manual e deliberada.
 #
 #   docker compose up -d --wait                       sobe e espera banco e broker
-#   docker compose --profile demo up -d --wait --build  sobe banco, broker, API e Worker
+#   docker compose --profile demo up -d --wait --build  sobe banco, broker, API, Worker e o painel de telemetria
+#   docker compose --profile observabilidade up -d     sobe só o painel, para a API e o Worker pelo SDK (REQ-16)
 #   docker compose down                               para (os dados continuam nos volumes)
 #   docker compose --profile demo down -v             para tudo e apaga os dados locais
 
@@ -71,6 +72,8 @@ services:
       # A API só confere a prontidão do broker, com um usuário sem permissões (REQ-14).
       RabbitMQ__Usuario: ${OMS_RABBITMQ_API_USUARIO:-oms-api}
       RabbitMQ__Senha: ${OMS_RABBITMQ_API_SENHA:-oms-api-dev-local}
+      # Telemetria para o painel local (REQ-16); sem a variável, a telemetria fica desligada.
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://aspire-dashboard:18889
     ports:
       - "${OMS_API_PORTA:-5230}:8080"
     healthcheck:
@@ -98,6 +101,7 @@ services:
       RabbitMQ__Porta: "5672"
       RabbitMQ__Usuario: ${OMS_RABBITMQ_USUARIO:-oms}
       RabbitMQ__Senha: ${OMS_RABBITMQ_SENHA:-oms-dev-local}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://aspire-dashboard:18889
     ports:
       - "${OMS_WORKER_PORTA:-5231}:8080"
     healthcheck:
@@ -106,6 +110,20 @@ services:
       timeout: 5s
       retries: 12
       start_period: 20s
+
+  # Painel local de telemetria (REQ-16, research R-10): traces, métricas e logs por OTLP, só em
+  # memória (reiniciar apaga). Contêiner independente: a demo continua exigindo só o Docker. A
+  # 13.6.1 tinha menos de duas semanas; a 13.6.0 é de 2026-10-01.
+  aspire-dashboard:
+    profiles: [demo, observabilidade]
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:13.6.0
+    environment:
+      # SOMENTE LOCAL: sem autenticação na interface nem no OTLP; os dados ficam em memória.
+      ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: "true"
+    ports:
+      - "${OMS_DASHBOARD_PORTA:-18888}:18888"
+      # OTLP gRPC, para a API e o Worker rodando pelo SDK.
+      - "${OMS_OTLP_PORTA:-4317}:18889"
 
 volumes:
   oms-sqlserver:
