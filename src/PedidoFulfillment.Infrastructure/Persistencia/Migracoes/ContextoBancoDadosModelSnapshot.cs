@@ -139,6 +139,11 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ContextoRastreio")
+                        .HasMaxLength(55)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(55)");
+
                     b.Property<DateTimeOffset>("CriadoEm")
                         .HasColumnType("datetimeoffset");
 
@@ -197,6 +202,11 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ContextoRastreio")
+                        .HasMaxLength(55)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(55)");
 
                     b.Property<DateTimeOffset?>("FalhouAte")
                         .HasColumnType("datetimeoffset");
@@ -477,6 +487,11 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
 
                     b.Property<Guid>("ClienteId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContextoRastreio")
+                        .HasMaxLength(55)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(55)");
 
                     b.Property<DateTimeOffset>("CriadoEm")
                         .HasColumnType("datetimeoffset");

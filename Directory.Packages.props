@@ -1,5 +1,5 @@
 <Project>
-  <!-- Pacotes justificados em specs/001-contratos-api/plan.md, specs/002-setup-infraestrutura/plan.md, specs/003-autenticacao-identity/plan.md e specs/006-mensageria/plan.md (constituição: dependências exigem justificativa). -->
+  <!-- Pacotes justificados em specs/001-contratos-api/plan.md, specs/002-setup-infraestrutura/plan.md, specs/003-autenticacao-identity/plan.md, specs/006-mensageria/plan.md e specs/016-observabilidade-opentelemetry/plan.md (constituição: dependências exigem justificativa). -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
@@ -23,6 +23,13 @@
     <PackageVersion Include="RabbitMQ.Client" Version="7.2.2" />
     <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.13" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.13" />
+  </ItemGroup>
+  <ItemGroup Label="Observabilidade">
+    <!-- REQ-16 (specs/016-observabilidade-opentelemetry/plan.md): série 1.19, estável; a 1.20.x tinha menos de duas semanas. -->
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.19.1" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.19.1" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.19.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.SqlClient" Version="1.19.0" />
   </ItemGroup>
   <ItemGroup Label="Testes">
     <PackageVersion Include="xunit.v3" Version="3.2.2" />

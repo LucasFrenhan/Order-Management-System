@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -6,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Infrastructure.Configuracao;
+using PedidoFulfillment.Infrastructure.Observabilidade;
 using PedidoFulfillment.Infrastructure.Persistencia;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
@@ -93,7 +95,9 @@ internal sealed partial class DespachanteEventosSaida(
                 break;
             }
 
-            if (!await PublicarAsync(evento, cancellationToken))
+            // Contexto de quem gravou o evento (REQ-16, R-03): a publicação continua aquele trace.
+            var contextoRastreio = contexto.Entry(evento).Property<string?>(ContextoBancoDados.ContextoRastreio).CurrentValue;
+            if (!await PublicarAsync(evento, contextoRastreio, cancellationToken))
             {
                 break;
             }
@@ -103,8 +107,15 @@ internal sealed partial class DespachanteEventosSaida(
         await transacao.CommitAsync(cancellationToken);
     }
 
-    private async Task<bool> PublicarAsync(EventoSaida evento, CancellationToken cancellationToken)
+    private async Task<bool> PublicarAsync(EventoSaida evento, string? contextoRastreio, CancellationToken cancellationToken)
     {
+        // Sem contexto válido (gravado com a telemetria desligada ou adulterado), começa um trace
+        // novo (FR-013). O span de publicação do RabbitMQ.Client é filho deste e injeta o traceparent.
+        ContextoRastreio.TentarLer(contextoRastreio, out var pai);
+        using var activity = TelemetriaOms.Fonte.StartActivity(TelemetriaOms.Spans.OutboxPublicar(evento.Tipo), ActivityKind.Internal, pai);
+        activity?.SetTag(TelemetriaOms.Atributos.EventoTipo, evento.Tipo);
+        activity?.SetTag(TelemetriaOms.Atributos.MensagemId, evento.IdEvento.ToString());
+        activity?.SetTag(TelemetriaOms.Atributos.OutboxEsperaMs, (long)(relogio.GetUtcNow() - evento.CriadoEm).TotalMilliseconds);
         using var prazo = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         prazo.CancelAfter(PrazoPublicacao);
         try
@@ -132,10 +143,12 @@ internal sealed partial class DespachanteEventosSaida(
         {
             // Sem fila ligada: pendente, com espera crescente. O canal novo declara a topologia de
             // novo, o que recria a fila apagada antes da próxima tentativa (R-03).
+            activity.MarcarErro(MotivoSemRota);
             return await RegistrarFalhaAsync(evento, MotivoSemRota, $"{MotivoSemRota}: {devolvido.ReplyText}");
         }
         catch (Exception excecao) when (excecao is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
+            activity.MarcarErro(excecao.GetType().Name);
             return await RegistrarFalhaAsync(evento, excecao.GetType().Name, $"{excecao.GetType().Name}: {excecao.Message}");
         }
     }

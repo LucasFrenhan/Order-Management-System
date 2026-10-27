@@ -14,6 +14,8 @@ internal sealed class ConfiguracaoEventoSaida : IEntityTypeConfiguration<EventoS
         evento.HasIndex(e => e.IdEvento).IsUnique();
         evento.Property(e => e.Tipo).HasMaxLength(EventoSaida.TamanhoMaximoTipo);
         evento.Property(e => e.UltimoErro).HasMaxLength(EventoSaida.TamanhoMaximoErro);
+        // Contexto W3C de quem gravou o evento, retomado na publicação (REQ-16, R-03).
+        evento.Property<string?>(ContextoBancoDados.ContextoRastreio).HasMaxLength(Observabilidade.ContextoRastreio.Tamanho).IsUnicode(false);
         evento.HasIndex(e => new { e.ProximaTentativaEm, e.Id })
             .HasDatabaseName("IX_EventosSaida_Pendentes")
             .HasFilter("[EnviadoEm] IS NULL");

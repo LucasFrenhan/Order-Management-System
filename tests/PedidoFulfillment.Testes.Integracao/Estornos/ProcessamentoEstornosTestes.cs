@@ -258,7 +258,7 @@ public sealed class ProcessamentoEstornosTestes(MensageriaTeste mensageria)
 
     private sealed class ConsultaQueFalha : IConsultaEstornosPendentes
     {
-        public Task<IReadOnlyList<Guid>> ListarAsync(int quantidade, CancellationToken cancellationToken) =>
+        public Task<IReadOnlyList<EstornoPendente>> ListarAsync(int quantidade, CancellationToken cancellationToken) =>
             throw new InvalidOperationException("Banco indisponível na consulta.");
     }
 }

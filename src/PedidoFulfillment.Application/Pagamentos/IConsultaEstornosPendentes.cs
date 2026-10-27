@@ -6,5 +6,5 @@ namespace PedidoFulfillment.Application.Pagamentos;
 /// </summary>
 public interface IConsultaEstornosPendentes
 {
-    Task<IReadOnlyList<Guid>> ListarAsync(int quantidade, CancellationToken cancellationToken);
+    Task<IReadOnlyList<EstornoPendente>> ListarAsync(int quantidade, CancellationToken cancellationToken);
 }

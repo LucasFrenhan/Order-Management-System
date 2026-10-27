@@ -3,12 +3,14 @@ using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using PedidoFulfillment.API.Endpoints;
 using PedidoFulfillment.API.Erros;
+using PedidoFulfillment.API.Observabilidade;
 using PedidoFulfillment.API.OpenApi;
 using PedidoFulfillment.API.Seguranca;
 using PedidoFulfillment.Application.Autenticacao;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Infrastructure;
+using PedidoFulfillment.Infrastructure.Observabilidade;
 using PedidoFulfillment.Infrastructure.Saude;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,6 +29,8 @@ builder.Services.AdicionarProblemDetails();
 builder.Services.AdicionarAutenticacaoJwt();
 builder.Services.AdicionarPoliticasAutorizacao();
 builder.Services.AdicionarInfraestrutura(builder.Configuration);
+// Traces, métricas e logs por OTLP, só com destino configurado (REQ-16).
+builder.AdicionarObservabilidade("oms-api");
 builder.Services.AddOpenApi("v1", opcoes =>
 {
     opcoes.AddDocumentTransformer<TransformadorSchemasErroOpenApi>();
@@ -47,6 +51,8 @@ var app = builder.Build();
 
 app.UsarProblemDetails();
 app.UseAuthentication();
+// Usuário e pedido no span da requisição (REQ-16, FR-001).
+app.UsarAtributosRequisicao();
 app.UseAuthorization();
 
 // Constituição v1.1.0, Princípio III: documentação pública somente fora de produção.

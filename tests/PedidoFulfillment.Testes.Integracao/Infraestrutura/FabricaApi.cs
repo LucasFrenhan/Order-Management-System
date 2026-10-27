@@ -51,6 +51,9 @@ public class FabricaApi : WebApplicationFactory<Program>
     /// <summary>Valores aplicados depois dos padrões, para sobrescrevê-los.</summary>
     public IReadOnlyDictionary<string, string?> Configuracoes { get; init; } = new Dictionary<string, string?>();
 
+    /// <summary>Liga a telemetria (REQ-16) e coleta spans, logs e métricas em memória.</summary>
+    public ColetorTelemetria? Telemetria { get; init; }
+
     /// <summary>Quando informado, recebe todos os logs da API.</summary>
     public CapturaLogs? Logs { get; init; }
 
@@ -78,6 +81,11 @@ public class FabricaApi : WebApplicationFactory<Program>
             builder.UseSetting("RabbitMQ:VirtualHost", "/");
         }
 
+        if (Telemetria is not null)
+        {
+            builder.UseSetting("Observabilidade:Habilitada", "true");
+        }
+
         foreach (var (chave, valor) in Configuracoes)
         {
             builder.UseSetting(chave, valor);
@@ -102,6 +110,8 @@ public class FabricaApi : WebApplicationFactory<Program>
             {
                 services.Replace(ServiceDescriptor.Singleton(ServicoPedidos));
             }
+
+            Telemetria?.RegistrarEm(services);
         });
     }
 

@@ -32,7 +32,7 @@ internal sealed class ConsultaPedidosParados(ContextoBancoDados contexto) : ICon
                 .ToListAsync(cancellationToken));
         }
 
-        return [.. lote.Select(c => new PedidoParado(c.PedidoId, (EtapaFluxoPedido)c.Etapa, c.AtualizadoEm))];
+        return [.. lote.Select(c => new PedidoParado(c.PedidoId, (EtapaFluxoPedido)c.Etapa, c.AtualizadoEm, c.ContextoRastreio))];
     }
 
     /// <summary>A etapa sai de uma expressão condicional, na ordem do fluxo; zero é "nenhuma".</summary>
@@ -43,6 +43,8 @@ internal sealed class ConsultaPedidosParados(ContextoBancoDados contexto) : ICon
             {
                 PedidoId = p.Id,
                 AtualizadoEm = p.AtualizadoEm,
+                // Contexto da criação, para o passo da rodada se ligar ao pedido (REQ-16, R-05).
+                ContextoRastreio = EF.Property<string?>(p, ContextoBancoDados.ContextoRastreio),
                 Etapa =
                     // Estoque: status não final, sem reserva (REQ-08).
                     !p.EstoqueReservado
@@ -67,5 +69,7 @@ internal sealed class ConsultaPedidosParados(ContextoBancoDados contexto) : ICon
         public DateTimeOffset AtualizadoEm { get; init; }
 
         public int Etapa { get; init; }
+
+        public string? ContextoRastreio { get; init; }
     }
 }

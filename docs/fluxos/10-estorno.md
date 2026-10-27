@@ -141,6 +141,12 @@ processador por padrão.
 
 Nenhum log traz o identificador da transação ou do estorno, nem dado pessoal.
 
+Com a telemetria ligada (REQ-16), cada rodada que pega o lock é um trace `processar_estornos`,
+e cada estorno é um passo `estornar pedido`, com `oms.pedido.id`, `oms.resultado` (`confirmado`,
+`falhou`) e um link para o trace de criação do pedido. A métrica `oms.rotinas.itens`
+(`oms.rotina = estornos`) conta os resultados. A rodada ignorada (7011) não gera trace.
+Detalhes no [fluxo 12](12-rastreabilidade-e-metricas.md).
+
 ## Limitações
 
 - Uma falha de estorno não gera evento; só a confirmação gera o `pagamento.estornado`. O

@@ -23,6 +23,8 @@ internal sealed class ConfiguracaoPedido : IEntityTypeConfiguration<Pedido>
         pedido.Property(p => p.Moeda).HasMaxLength(3);
         pedido.Property(p => p.ValorTotal).HasPrecision(18, 2);
         pedido.Property<byte[]>(ContextoBancoDados.Versao).IsRowVersion();
+        // Contexto W3C da criação, para as rotinas ligarem o pedido ao trace dele (REQ-16, R-05).
+        pedido.Property<string?>(ContextoBancoDados.ContextoRastreio).HasMaxLength(Observabilidade.ContextoRastreio.Tamanho).IsUnicode(false);
 
         // Pedidos são histórico: o dono não pode ser apagado (FR-007).
         pedido.HasOne<Usuario>().WithMany().HasForeignKey(p => p.ClienteId).OnDelete(DeleteBehavior.Restrict);
