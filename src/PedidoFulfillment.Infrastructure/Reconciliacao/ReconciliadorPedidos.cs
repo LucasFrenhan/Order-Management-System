@@ -145,13 +145,19 @@ internal sealed class ReconciliadorPedidos(
             resultado = ResultadoReconciliacao.Falhou;
         }
 
-        span?.SetTag(TelemetriaOms.Atributos.Resultado, resultado switch
+        var valor = resultado switch
         {
             ResultadoReconciliacao.Recuperado => TelemetriaOms.Resultados.Recuperado,
             ResultadoReconciliacao.Esgotado => TelemetriaOms.Resultados.Esgotado,
             ResultadoReconciliacao.Falhou => TelemetriaOms.Resultados.Falhou,
             _ => null
-        });
+        };
+        if (valor is not null)
+        {
+            span?.SetTag(TelemetriaOms.Atributos.Resultado, valor);
+            TelemetriaOms.ContarItem(TelemetriaOms.Rotinas.Reconciliacao, valor);
+        }
+
         return resultado;
     }
 

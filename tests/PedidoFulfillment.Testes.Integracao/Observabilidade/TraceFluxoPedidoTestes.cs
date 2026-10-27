@@ -138,6 +138,12 @@ public sealed class TraceFluxoPedidoTestes(MensageriaTeste mensageria)
         var duplicado = await coletor.EsperarSpanAsync(s => EhEntrega(s, "entrega", umaFalha, "duplicado"), Prazo);
         duplicado.Should().NotBeNull();
         duplicado!.Status.Should().NotBe(ActivityStatusCode.Error);
+
+        // Métrica 4 (US5): por consumidor e resultado.
+        coletor.Soma("oms.mensageria.mensagens", ("oms.consumidor", ManipuladorFalhaControlada.Nome), ("oms.resultado", "nova_tentativa")).Should().Be(4);
+        coletor.Soma("oms.mensageria.mensagens", ("oms.consumidor", ManipuladorFalhaControlada.Nome), ("oms.resultado", "dlq")).Should().Be(1);
+        coletor.Soma("oms.mensageria.mensagens", ("oms.consumidor", ManipuladorFalhaControlada.Nome), ("oms.resultado", "processado")).Should().Be(1);
+        coletor.Soma("oms.mensageria.mensagens", ("oms.consumidor", "entrega"), ("oms.resultado", "duplicado")).Should().Be(1);
     }
 
     [Fact]

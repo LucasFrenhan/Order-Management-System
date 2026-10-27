@@ -2,8 +2,8 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
-using PedidoFulfillment.Application.Entregas;
 using PedidoFulfillment.Application.Contratos.Eventos;
+using PedidoFulfillment.Application.Entregas;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Pagamentos;
 using PedidoFulfillment.Testes.Integracao.Estoque;
@@ -55,6 +55,7 @@ public sealed class TraceReenvioDlqTestes(MensageriaTeste mensageria)
         execucao.Links.Select(l => l.Context.TraceId).Should().Equal([registro.TraceId], "ligada à requisição do Admin");
         (execucao.Atributo("oms.reenvio.reenviadas"), execucao.Atributo("oms.reenvio.bloqueadas"), execucao.Atributo("oms.resultado"))
             .Should().Be((2, 1, "concluido"));
+        coletor.Soma("oms.rotinas.itens", ("oms.rotina", "reenvio_dlq"), ("oms.resultado", "concluido")).Should().Be(1, "métrica 5 (US5)");
 
         var reenvioComOrigem = coletor.Span(s => s.DisplayName == "reenviar pedido.criado" && Equals(s.Atributo("messaging.message.id"), comOrigem))!;
         reenvioComOrigem.TraceId.Should().Be(origem.TraceId, "a cópia continua o trace de origem");

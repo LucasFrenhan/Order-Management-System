@@ -149,5 +149,6 @@ internal sealed class ExecutorReenviosDlq(
         span?.SetTag(TelemetriaOms.Atributos.ReenvioBloqueadas, contagens.BloqueadasPeloLimite);
         span?.SetTag(TelemetriaOms.Atributos.ReenvioForaDoFiltro, contagens.ForaDoFiltro);
         span?.SetTag(TelemetriaOms.Atributos.Resultado, resultado);
+        TelemetriaOms.ContarItem(TelemetriaOms.Rotinas.ReenvioDlq, resultado);
     }
 }

@@ -132,6 +132,7 @@ internal sealed class LimpezaMensageria(
         }
 
         span?.SetTag(TelemetriaOms.Atributos.LimpezaLinhasApagadas, total);
+        TelemetriaOms.LinhasApagadas.Add(total, new KeyValuePair<string, object?>(TelemetriaOms.Atributos.LimpezaAlvo, alvo));
         return total;
     }
 }

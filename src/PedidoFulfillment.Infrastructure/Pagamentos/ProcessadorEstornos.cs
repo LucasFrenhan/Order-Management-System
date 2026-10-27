@@ -133,12 +133,18 @@ internal sealed class ProcessadorEstornos(
             resultado = ResultadoRodadaEstorno.Falhou;
         }
 
-        span?.SetTag(TelemetriaOms.Atributos.Resultado, resultado switch
+        var valor = resultado switch
         {
             ResultadoRodadaEstorno.Confirmado => TelemetriaOms.Resultados.Confirmado,
             ResultadoRodadaEstorno.Falhou => TelemetriaOms.Resultados.Falhou,
             _ => null
-        });
+        };
+        if (valor is not null)
+        {
+            span?.SetTag(TelemetriaOms.Atributos.Resultado, valor);
+            TelemetriaOms.ContarItem(TelemetriaOms.Rotinas.Estornos, valor);
+        }
+
         return resultado;
     }
 

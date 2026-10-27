@@ -67,6 +67,7 @@ public sealed class TraceRotinasTestes(MensageriaTeste mensageria)
         var passoSemContexto = await coletor.EsperarSpanAsync(s => s.DisplayName == "reconciliar pedido" && Equals(s.Atributo("oms.pedido.id"), semContexto.ToString()), Prazo);
         passoSemContexto.Should().NotBeNull();
         passoSemContexto!.Links.Should().BeEmpty("o pedido foi criado sem contexto");
+        coletor.Soma("oms.rotinas.itens", ("oms.rotina", "reconciliacao"), ("oms.resultado", "recuperado")).Should().Be(2, "métrica 5 (US5)");
     }
 
     [Fact]
@@ -90,6 +91,7 @@ public sealed class TraceRotinasTestes(MensageriaTeste mensageria)
         passo.Links.Select(l => l.Context.TraceId).Should().Equal(criacao.TraceId);
         var rodada = coletor.Span(s => s.SpanId == passo.ParentSpanId)!;
         (rodada.DisplayName, rodada.ParentSpanId, rodada.Atributo("oms.rotina")).Should().Be(("processar_estornos", default(ActivitySpanId), "estornos"));
+        coletor.Soma("oms.rotinas.itens", ("oms.rotina", "estornos"), ("oms.resultado", "confirmado")).Should().Be(1, "métrica 5 (US5)");
     }
 
     [Fact]
@@ -127,6 +129,7 @@ public sealed class TraceRotinasTestes(MensageriaTeste mensageria)
         var alvos = coletor.Spans.Where(s => s.ParentSpanId == rodada.SpanId && s.DisplayName.StartsWith("limpar ", StringComparison.Ordinal)).ToList();
         alvos.Select(s => s.Atributo("oms.limpeza.alvo")).Should().BeEquivalentTo(["enviados", "processados", "chaves", "pedidos_reenvio"]);
         alvos.Single(s => Equals(s.Atributo("oms.limpeza.alvo"), "enviados")).Atributo("oms.limpeza.linhas_apagadas").Should().Be(1);
+        coletor.Soma("oms.limpeza.linhas_apagadas", ("oms.limpeza.alvo", "enviados")).Should().Be(1, "métrica 6 (US5)");
     }
 
     [Fact]

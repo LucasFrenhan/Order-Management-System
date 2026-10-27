@@ -121,7 +121,7 @@ internal sealed partial class ConsumidorEventos<TManipulador, TDados>(
         {
             await PublicarAsync(TopologiaMensageria.FilaMortas(consumidor), corpo, entrega.BasicProperties, DlqCabecalhos(tentativas, leitura.Motivo!), cancellationToken);
             EnviadaParaDlq(logger, entrega.BasicProperties.MessageId, consumidor, tentativas, leitura.Motivo!);
-            span?.SetTag(TelemetriaOms.Atributos.Resultado, TelemetriaOms.Resultados.Irrecuperavel);
+            Registrar(span, TelemetriaOms.Resultados.Irrecuperavel);
             span.MarcarErro(ErroIrrecuperavel);
             await canalConsumo!.BasicAckAsync(entrega.DeliveryTag, multiple: false, cancellationToken);
             return;
@@ -133,12 +133,12 @@ internal sealed partial class ConsumidorEventos<TManipulador, TDados>(
             if (await ManipularAsync(envelope, cancellationToken))
             {
                 EventoProcessado(logger, envelope.IdEvento, consumidor);
-                span?.SetTag(TelemetriaOms.Atributos.Resultado, TelemetriaOms.Resultados.Processado);
+                Registrar(span, TelemetriaOms.Resultados.Processado);
             }
             else
             {
                 DuplicadoDescartado(logger, envelope.IdEvento, consumidor);
-                span?.SetTag(TelemetriaOms.Atributos.Resultado, TelemetriaOms.Resultados.Duplicado);
+                Registrar(span, TelemetriaOms.Resultados.Duplicado);
             }
         }
         catch (Exception excecao) when (!cancellationToken.IsCancellationRequested)
@@ -153,19 +153,26 @@ internal sealed partial class ConsumidorEventos<TManipulador, TDados>(
                 };
                 await PublicarAsync(TopologiaMensageria.FilaEspera(consumidor, espera), corpo, entrega.BasicProperties, cabecalhos, cancellationToken);
                 NovaTentativa(logger, envelope.IdEvento, consumidor, tentativas + 1, espera, motivo);
-                span?.SetTag(TelemetriaOms.Atributos.Resultado, TelemetriaOms.Resultados.NovaTentativa);
+                Registrar(span, TelemetriaOms.Resultados.NovaTentativa);
             }
             else
             {
                 await PublicarAsync(TopologiaMensageria.FilaMortas(consumidor), corpo, entrega.BasicProperties, DlqCabecalhos(tentativas, motivo), cancellationToken);
                 EnviadaParaDlq(logger, envelope.IdEvento.ToString(), consumidor, tentativas, motivo);
-                span?.SetTag(TelemetriaOms.Atributos.Resultado, TelemetriaOms.Resultados.Dlq);
+                Registrar(span, TelemetriaOms.Resultados.Dlq);
             }
 
             span.MarcarErro(excecao.GetType().Name);
         }
 
         await canalConsumo!.BasicAckAsync(entrega.DeliveryTag, multiple: false, cancellationToken);
+    }
+
+    /// <summary>O resultado no span de entrega e na métrica de mensagens (REQ-16, contrato › Métricas).</summary>
+    private void Registrar(Activity? span, string resultado)
+    {
+        span?.SetTag(TelemetriaOms.Atributos.Resultado, resultado);
+        TelemetriaOms.Mensagens.Add(1, new(TelemetriaOms.Atributos.Consumidor, consumidor), new(TelemetriaOms.Atributos.Resultado, resultado));
     }
 
     /// <summary>Verdadeiro se o manipulador rodou; falso se o evento já tinha sido processado.</summary>

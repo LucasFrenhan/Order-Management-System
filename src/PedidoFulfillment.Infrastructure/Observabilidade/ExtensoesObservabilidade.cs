@@ -87,4 +87,11 @@ public static class ExtensoesObservabilidade
 
         return builder;
     }
+
+    /// <summary>Leitura do outbox para as métricas 1 e 2, só no Worker; parado com a telemetria desligada.</summary>
+    public static IServiceCollection AdicionarAmostradorOutbox(this IServiceCollection services)
+    {
+        services.AddHostedService<AmostradorOutbox>();
+        return services;
+    }
 }
