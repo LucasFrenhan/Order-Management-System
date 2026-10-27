@@ -202,14 +202,14 @@ o ambiente local e os casos de desligado e fora do ar.
 
 ## Phase 9: Polish & Cross-Cutting Concerns
 
-- [ ] T034 [P] Desempenho (SC-005, analyze C2): rodar `DesempenhoEntregaTestes` em três situações (telemetria desligada; ligada com o coletor; ligada com `OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:1`, destino inacessível) e registrar em Notes o p95 de cada, comparando com o REQ-15; a desligada e a com destino inacessível não podem piorar mais de 5%.
-- [ ] T035 [P] Documentos de fluxo (regra do `CLAUDE.md`), conferindo nomes, atributos, métricas, intervalos e IDs de log no código e os links relativos:
+- [X] T034 [P] Desempenho (SC-005, analyze C2): rodar `DesempenhoEntregaTestes` em três situações (telemetria desligada; ligada com o coletor; ligada com `OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:1`, destino inacessível) e registrar em Notes o p95 de cada, comparando com o REQ-15; a desligada e a com destino inacessível não podem piorar mais de 5%.
+- [X] T035 [P] Documentos de fluxo (regra do `CLAUDE.md`), conferindo nomes, atributos, métricas, intervalos e IDs de log no código e os links relativos:
   - `docs/fluxos/08-publicacao-e-consumo-de-eventos.md`: cabeçalho `traceparent`, coluna `ContextoRastreio` do outbox, span `outbox publicar`, atributos do `deliver`, métrica 4, configuração `Observabilidade`;
   - `docs/fluxos/02-criacao-de-pedido.md`: o trace começa na rota e o contexto é gravado no pedido e no evento; em "Limitações", um chamador com `traceparent` próprio decide a amostragem dos próprios pedidos (analyze A1);
   - `docs/fluxos/09-reconciliacao.md` e `10-estorno.md`: spans das rodadas, link ao pedido, métrica 5;
   - `docs/fluxos/11-limpeza-e-reenvio-da-dlq.md`: reenvio no trace original, spans da limpeza, métricas 3, 5 e 6, leitura de 1 min com o 5011 a cada 5 min, atraso de ponta a ponta das métricas e agregação dos gauges por `max` entre instâncias (FR-016a, analyze C4); em "Limitações", "Não há métricas nem alertas além dos logs" vira "Não há alertas" com a issue #37 citada pela resolução das métricas;
   - `docs/fluxos/README.md`: linha sobre a telemetria (fluxo transversal) e o painel local na tabela de dependências externas.
-- [ ] T036 [P] Documentação do projeto: `README.md` (Estado atual com o REQ-16; Próximos passos com #18; seção de observabilidade com o painel, as variáveis `OTEL_*`, os destinos do contrato e a agregação dos gauges por `max` com várias instâncias do Worker (FR-016a); roteiros com o quickstart do REQ-16).
+- [X] T036 [P] Documentação do projeto: `README.md` (Estado atual com o REQ-16; Próximos passos com #18; seção de observabilidade com o painel, as variáveis `OTEL_*`, os destinos do contrato e a agregação dos gauges por `max` com várias instâncias do Worker (FR-016a); roteiros com o quickstart do REQ-16).
 - [ ] T037 Varredura de segredos, `dotnet format --verify-no-changes`, `dotnet list package --vulnerable --include-transitive` e a suíte local inteira (zero ignorados); registrar a contagem em Notes.
 - [ ] T038 Executar o quickstart (§2 a §6) e registrar em Notes.
 - [ ] T039 Fazer push e abrir o PR em português (Resumo, Pontos de atenção, Validação) com `Closes #37`, citando os quatro pacotes novos e a justificativa no plano, a migration, o painel no compose e os documentos de fluxo atualizados. Acompanhar o `build-testes` e o `contrato-compatibilidade` até ficarem verdes, inclusive depois de cada push posterior, e registrar em Notes.
@@ -283,3 +283,44 @@ logs; a US5 traz as métricas; a US6 entrega o painel local.
   `max` na T035 e na T036) e D1 (8 serviços no plano).
 - A T009 valida o maior risco do plano (SqlClient 1.19 com o Microsoft.Data.SqlClient 7.1.1);
   se falhar, registrar aqui e na spec antes de seguir.
+- **T001 (linha de base, 2026-10-26)**: 1.033 testes, 636 unitários e 397 de integração, zero
+  ignorados.
+- **Fundação e US1 (2026-10-26)**, num só commit (`bf339be`): o mapeamento da coluna e a
+  migration entraram cedo, porque o teste do SqlClient (T009) já exige o modelo sincronizado.
+  - **Risco do plano resolvido (T009)**: a instrumentação do SqlClient 1.19 gera os spans com
+    o Microsoft.Data.SqlClient 7.1.1, com o texto parametrizado e sem valores.
+  - As opções `SetDbQueryParameters` e `EnableTraceContextPropagation` do SqlClient são internas
+    na 1.19 (só por variáveis experimentais `OTEL_DOTNET_EXPERIMENTAL_SQLCLIENT_*`), e o padrão
+    delas já é desligado: o registro usa `AddSqlClientInstrumentation()` sem opções.
+  - O amostrador reconhece o SQL pelo atributo `db.system.name` que a instrumentação passa na
+    criação do span (o `SamplingParameters` não traz o nome da fonte).
+  - O interceptor ficou no `OnConfiguring` do `ContextoBancoDados`, e não no `AddDbContext`:
+    vale também para os contextos criados fora da injeção (testes e ferramentas).
+  - A rota do `POST` de pedidos é registrada como `/api/v1/pedidos/` (com a barra), e o
+    `oms.pedido.id` da criação vem do `Location` da resposta, no middleware, sem mexer nos
+    endpoints (o plano previa `EndpointsPedidos`).
+  - Como as fontes valem para o processo inteiro, os provedores da API e do Worker dos testes
+    recebem os mesmos spans: o coletor guarda cada span uma vez, pelo id.
+  - A coleção `ColecaoObservabilidade` ficou no `CenarioObservabilidade.cs`, com a
+    `MensageriaTeste` como fixture própria.
+  - Com o broker pausado, a publicação começa logo e espera a confirmação: o intervalo aparece
+    na duração do span, e não em `oms.outbox.espera_ms`. O teste mede o intervalo no trace.
+- **US2 a US4 (2026-10-26)**:
+  - **Achado (US3)**: o ASP.NET Core cria uma activity em toda requisição, mesmo sem
+    OpenTelemetry; o interceptor passou a gravar o contexto só com a fonte `PedidoFulfillment`
+    ouvida (SDK ligado), para cumprir o FR-020. O teste de persistência ouve também essa fonte.
+  - A recuperação da etapa de estoque aplica a regra da etapa e grava `estoque.reservado`; o
+    teste confere esse evento como filho do passo.
+  - T025: nada precisou mudar no registro dos logs.
+- **US5 (2026-10-26)**: os testes do `MonitorDlq` com a telemetria ligada ficaram em
+  `Observabilidade/MetricasTestes.cs`, na coleção sem paralelismo, e não em
+  `MonitorDlqTestes.cs` (regra U1); os contadores 4, 5 e 6 são conferidos nos testes de trace,
+  que já montam os cenários. O estado dos gauges é estático, por processo (`EstadoMetricas`).
+- **US6 (2026-10-26)**: no processo de teste, os ouvintes são globais, então o caso "ligada só
+  na API" prova só que o fluxo termina; a ausência de `traceparent` com o Worker desligado só
+  se observa em processos separados (quickstart §5).
+- **T034 (desempenho, 2026-10-26)**: duas rodadas de 20 medições em cada situação. p95 do
+  `POST` 9 a 11 ms e do pedido à entrega 382 a 386 ms, iguais com a telemetria desligada, ligada
+  com o coletor e ligada com o destino inacessível (o REQ-13 mediu 381 ms). Sem piora.
+- **T035**: fluxo novo `12-rastreabilidade-e-metricas.md` (transversal) e a linha no índice;
+  fluxos 02, 08, 09, 10, 11 e o índice atualizados; a limitação de métricas saiu do fluxo 11.

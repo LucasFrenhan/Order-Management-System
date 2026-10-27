@@ -29,6 +29,7 @@ estão em [`docs/fluxos/`](docs/fluxos/README.md).
 | REQ-13 — Cancelamento depois do pagamento, com estorno ([spec](specs/013-cancelamento-com-estorno/spec.md)) | Cancelar um pedido pago deixa o estorno pendente na mesma gravação (com o estoque devolvido e a ordem de entrega sem despacho cancelada, `entrega.canceladaEm` na consulta); o Worker estorna no gateway e tenta de novo sem desistir; a reconciliação passa a esgotar a etapa de entrega; cobrança e estorno idempotentes por pedido |
 | REQ-14 — Limpeza de mensageria e reenvio da DLQ ([spec](specs/014-limpeza-e-dlq/spec.md)) | O Worker apaga, em lotes, os eventos enviados, os processados, as chaves de idempotência e os pedidos de reenvio antigos; o Admin pede pela API o reenvio da DLQ de um consumidor, com filtro e limite de 3 reenvios, e o Worker o executa sem perder nem embaralhar mensagens; aviso no log quando a DLQ passa de 10 mensagens; a API passa a usar um usuário próprio no broker, sem permissões |
 | REQ-15 — Cancelamentos e estornos visíveis para outros sistemas ([spec](specs/015-visibilidade-cancelamentos/spec.md)) | Todo cancelamento, por qualquer caminho, grava `pedido.cancelado` na mesma gravação, com o motivo em categoria, a etapa esgotada e o que foi desfeito junto; a confirmação do estorno grava `pagamento.estornado`; os dois são acréscimos à v1, com schema, sem consumidor interno e sem dados pessoais; uma guarda na gravação recusa cancelamento ou estorno sem evento |
+| REQ-16 — Rastreabilidade de ponta a ponta do pedido ([spec](specs/016-observabilidade-opentelemetry/spec.md)) | OpenTelemetry com exportação OTLP, ligado só com destino: o pedido aparece num único trace da rota `POST` até o consumidor de entrega, pelo outbox (coluna `ContextoRastreio`) e pelo RabbitMQ (`traceparent` do cliente nativo), com tentativas, DLQ e reenvio; rotinas com trace por rodada e link ao pedido; logs com trace e span, sem mudar os IDs; seis métricas (outbox, DLQ, consumo, rotinas e limpeza); painel local Aspire Dashboard no compose |
 
 ## Demonstração rápida
 
@@ -46,6 +47,7 @@ docker compose --profile demo down                   # para; os dados continuam 
 | Contrato navegável | <http://localhost:5230/scalar/v1> |
 | Prontidão do Worker | <http://localhost:5231/health/pronto> |
 | Painel do RabbitMQ | <http://localhost:15672> (`oms` / `oms-dev-local`) |
+| Painel de telemetria (traces, métricas e logs) | <http://localhost:18888> (sem login; só local) |
 
 Usuários **somente de desenvolvimento**: `admin@oms.local` / `AdminDev2026` (Admin) e
 `operador@oms.local` / `OperadorDev2026` (OperadorLogistica). Clientes se registram em
@@ -65,17 +67,17 @@ Com o REQ-11, as issues de negócio do roteiro original (#1 a #11) estão entreg
 vai da criação ao despacho com rastreio. O REQ-12 fechou a perda silenciosa de eventos, e o
 REQ-13 garante que o Cliente nunca fica cobrado por um pedido cancelado. O REQ-14 limpou os
 dados de mensageria que cresciam sem limite e trocou o painel do broker por um reenvio da DLQ
-controlado, e o REQ-15 tornou os cancelamentos e os estornos visíveis para outros sistemas.
+controlado, e o REQ-15 tornou os cancelamentos e os estornos visíveis para outros sistemas. O
+REQ-16 trouxe a rastreabilidade de ponta a ponta do pedido, com métricas da mensageria.
 Cada trabalho novo segue o fluxo SDD (`/speckit-specify` → `/speckit-clarify` →
 `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`), em uma
-branch `feature/req-XX-...`, com a numeração a partir do REQ-16.
+branch `feature/req-XX-...`, com a numeração a partir do REQ-17.
 
 | Ordem | Requisito | Origem | Escopo |
 |-------|-----------|--------|--------|
 | 1 | a numerar | [#18](https://github.com/LucasFrenhan/Order-Management-System/issues/18) — SonarQube Cloud | Análise estática de código no CI |
-| 2 | a numerar (estudo) | [#37](https://github.com/LucasFrenhan/Order-Management-System/issues/37) — OpenTelemetry | Traces, métricas e logs correlacionados entre a API e o Worker; o primeiro entregável é a decisão no `research.md` |
 
-O que os REQ-04 a REQ-15 já deixaram pronto:
+O que os REQ-04 a REQ-16 já deixaram pronto:
 
 - **Armazenamento**: produtos, pedidos com itens e histórico de status, pagamentos e ordens
   de entrega, com as restrições no banco.
@@ -178,7 +180,7 @@ Decisões e pontos já conhecidos:
 - SDK do .NET 10 (`winget install Microsoft.DotNet.SDK.10`)
 - Docker com Compose v2, para o [ambiente local](#ambiente-local) (`winget install Docker.DockerDesktop`)
 
-Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md), [domínio e persistência](specs/004-dominio-persistencia/quickstart.md), [pedidos](specs/005-criacao-pedidos/quickstart.md), [mensageria](specs/006-mensageria/quickstart.md), [CI e demonstração](specs/007-ci-demo/quickstart.md), [estoque](specs/008-estoque/quickstart.md), [pagamento](specs/009-pagamento/quickstart.md), [entrega](specs/010-fulfillment/quickstart.md), [rastreio](specs/011-rastreio/quickstart.md), [publicação garantida e reconciliação](specs/012-publicacao-garantida/quickstart.md), [cancelamento com estorno](specs/013-cancelamento-com-estorno/quickstart.md), [limpeza e reenvio da DLQ](specs/014-limpeza-e-dlq/quickstart.md) e [cancelamentos e estornos para outros sistemas](specs/015-visibilidade-cancelamentos/quickstart.md).
+Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md), [domínio e persistência](specs/004-dominio-persistencia/quickstart.md), [pedidos](specs/005-criacao-pedidos/quickstart.md), [mensageria](specs/006-mensageria/quickstart.md), [CI e demonstração](specs/007-ci-demo/quickstart.md), [estoque](specs/008-estoque/quickstart.md), [pagamento](specs/009-pagamento/quickstart.md), [entrega](specs/010-fulfillment/quickstart.md), [rastreio](specs/011-rastreio/quickstart.md), [publicação garantida e reconciliação](specs/012-publicacao-garantida/quickstart.md), [cancelamento com estorno](specs/013-cancelamento-com-estorno/quickstart.md), [limpeza e reenvio da DLQ](specs/014-limpeza-e-dlq/quickstart.md), [cancelamentos e estornos para outros sistemas](specs/015-visibilidade-cancelamentos/quickstart.md) e [rastreabilidade e métricas](specs/016-observabilidade-opentelemetry/quickstart.md).
 
 ## Ambiente local
 
@@ -374,6 +376,26 @@ No [painel do RabbitMQ](http://localhost:15672), a troca `oms.eventos` e as fila
 assim que o Worker sobe. A DLQ é reenviada pelo pedido de um Admin
 (`POST /api/v1/admin/dlq/{consumidor}/reenvios`, executado pelo Worker) e só a purga continua
 pelo painel ([fluxo 11](docs/fluxos/11-limpeza-e-reenvio-da-dlq.md)).
+
+## Observabilidade
+
+Traces, métricas e logs saem por OTLP (REQ-16, [fluxo 12](docs/fluxos/12-rastreabilidade-e-metricas.md),
+[contrato](specs/016-observabilidade-opentelemetry/contracts/telemetria.md)). Sem destino, a
+telemetria fica desligada e nada muda.
+
+- **Demonstração**: o perfil `demo` sobe o painel (Aspire Dashboard, em contêiner) em
+  <http://localhost:18888>, e a API e o Worker já exportam para ele. Os dados ficam em memória.
+- **Pelo SDK**: `docker compose --profile observabilidade up -d` sobe só o painel; rode a API e o
+  Worker com `$env:OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4317"`.
+- **Outros destinos**, só por configuração: Jaeger (OTLP direto), Grafana Tempo,
+  Prometheus/Mimir e Loki (por um OpenTelemetry Collector ou Grafana Alloy) ou Azure Monitor
+  (Collector com o exportador `azuremonitor`). Variáveis padrão: `OTEL_EXPORTER_OTLP_ENDPOINT`,
+  `OTEL_EXPORTER_OTLP_PROTOCOL`, `OTEL_EXPORTER_OTLP_HEADERS`, `OTEL_SERVICE_NAME`,
+  `OTEL_RESOURCE_ATTRIBUTES` e `OTEL_METRIC_EXPORT_INTERVAL`.
+- **Seção `Observabilidade`**: `TaxaAmostragem` (1,0) e, no Worker,
+  `IntervaloAmostragemOutboxSegundos` (30).
+- **Várias instâncias do Worker**: os gauges (`oms.outbox.*` e `oms.mensageria.dlq.mensagens`)
+  saem iguais de cada instância; agregue com `max`. Os contadores se somam.
 
 ## Integração contínua
 

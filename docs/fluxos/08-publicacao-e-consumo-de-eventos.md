@@ -148,6 +148,19 @@ duplicado (5005), sem efeito repetido.
 | `IntervalosNovaTentativaMs` | 1000, 2000, 4000 |
 | `PrefetchConsumidor` | 10 |
 
+## Telemetria (REQ-16)
+
+Com a telemetria ligada, cada evento do outbox guarda o contexto de quem o gravou (coluna
+`ContextoRastreio`), e o despachante publica dentro de `outbox publicar {tipo}`, filho desse
+contexto, com `oms.outbox.espera_ms`. O RabbitMQ.Client grava o cabeçalho de transporte
+`traceparent` na publicação, e o span `deliver` do consumidor continua o trace, marcado com
+`oms.consumidor`, `oms.evento.tipo`, `oms.pedido.id`, `oms.tentativa` e `oms.resultado`
+(`processado`, `duplicado`, `nova_tentativa`, `dlq`, `irrecuperavel`). A métrica
+`oms.mensageria.mensagens` conta os mesmos resultados por consumidor, e
+`oms.outbox.eventos_pendentes` e `oms.outbox.pendente_mais_antigo.idade` mostram um despachante
+parado. O envelope v1 não muda. Desligada, nada disso acontece. Detalhes no
+[fluxo 12](12-rastreabilidade-e-metricas.md).
+
 ## Limpeza e reenvio (REQ-14)
 
 Os eventos enviados e os registros de processados são apagados pela limpeza depois de 7 dias,

@@ -8,16 +8,17 @@ verdade: estes documentos as consolidam por fluxo, de ponta a ponta.
 | # | Fluxo | Onde roda | REQs |
 |---|-------|-----------|------|
 | 1 | [Autenticação](01-autenticacao.md) | API | 01, 03, 14 |
-| 2 | [Criação de pedido](02-criacao-de-pedido.md) | API | 01, 04, 05 |
+| 2 | [Criação de pedido](02-criacao-de-pedido.md) | API | 01, 04, 05, 16 |
 | 3 | [Consulta e mudança de status](03-consulta-e-mudanca-de-status.md) | API | 05, 08, 11, 13, 15 |
 | 4 | [Reserva de estoque](04-reserva-de-estoque.md) | Worker | 08, 15 |
 | 5 | [Pagamento](05-pagamento.md) | Worker | 09, 13, 15 |
 | 6 | [Ordem de entrega](06-ordem-de-entrega.md) | Worker | 10, 13, 15 |
 | 7 | [Despacho e rastreio](07-despacho-e-rastreio.md) | API | 11 |
-| 8 | [Publicação de eventos e consumo](08-publicacao-e-consumo-de-eventos.md) | Worker | 06, 12, 14, 15 |
-| 9 | [Reconciliação de pedidos parados](09-reconciliacao.md) | Worker | 12, 13, 15 |
-| 10 | [Estorno](10-estorno.md) | Worker | 13, 15 |
-| 11 | [Limpeza e reenvio da DLQ](11-limpeza-e-reenvio-da-dlq.md) | Worker e API (Admin) | 14 |
+| 8 | [Publicação de eventos e consumo](08-publicacao-e-consumo-de-eventos.md) | Worker | 06, 12, 14, 15, 16 |
+| 9 | [Reconciliação de pedidos parados](09-reconciliacao.md) | Worker | 12, 13, 15, 16 |
+| 10 | [Estorno](10-estorno.md) | Worker | 13, 15, 16 |
+| 11 | [Limpeza e reenvio da DLQ](11-limpeza-e-reenvio-da-dlq.md) | Worker e API (Admin) | 14, 16 |
+| 12 | [Rastreabilidade e métricas](12-rastreabilidade-e-metricas.md) | API e Worker (transversal) | 16 |
 
 ## O pedido de ponta a ponta
 
@@ -47,6 +48,9 @@ sequenceDiagram
 O fluxo automático vai da criação até `ProntoParaEnvio`. O despacho é sempre feito pela
 operação. A reconciliação (fluxo 9) cobre os pedidos que param no meio porque um evento se
 perdeu. Quando um pedido pago é cancelado, o estorno (fluxo 10) devolve o valor ao Cliente.
+
+Com a telemetria ligada (fluxo 12), esse caminho inteiro aparece num único trace, da rota
+`POST` até o consumidor de entrega, atravessando o outbox e o RabbitMQ.
 
 ## Estados do pedido
 
@@ -105,5 +109,6 @@ SQL, dados de conexão ou senhas.
 | RabbitMQ (API) | Não afeta: a API só confere a prontidão do broker, com o usuário próprio `oms-api`, sem permissões (REQ-14) | Não afeta: os eventos ficam pendentes no outbox, e os pedidos de reenvio da DLQ, pendentes no banco |
 | RabbitMQ (Worker) | O Worker sobe; a prontidão (`/health/pronto`) mostra o broker indisponível; consumidores e despachante se conectam quando ele voltar | Os eventos ficam pendentes no outbox, com espera crescente até 10 s entre tentativas |
 | Gateway de pagamento | — | A cobrança falha: novas tentativas, DLQ e, se o pedido continuar parado, a reconciliação. O estorno fica pendente e é tentado a cada rodada; o cancelamento não depende do gateway |
+| Destino da telemetria (REQ-16) | Não afeta: sem destino, a telemetria fica desligada | Não afeta: a exportação é em segundo plano e descarta o que não consegue enviar |
 
 Cada documento detalha a sua parte.

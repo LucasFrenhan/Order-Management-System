@@ -118,6 +118,13 @@ Fora das faixas, o Worker não sobe e a mensagem cita a chave, por exemplo
 Os logs trazem só identificadores, etapas e contagens. Um aviso 9001 indica que um evento
 se perdeu: vale investigar a causa (DLQ, broker, consumidor parado).
 
+Com a telemetria ligada (REQ-16), cada ciclo que pega o lock é um trace `reconciliar`, e cada
+pedido tratado é um passo `reconciliar pedido`, com `oms.pedido.id`, `oms.etapa`,
+`oms.resultado` (`recuperado`, `esgotado`, `falhou`) e um link para o trace de criação do
+pedido. O evento gravado pelo passo continua o trace dele. A métrica `oms.rotinas.itens`
+(`oms.rotina = reconciliacao`) conta os resultados. O ciclo ignorado (9006) não gera trace.
+Detalhes no [fluxo 12](12-rastreabilidade-e-metricas.md).
+
 ## Limitações
 
 - Nenhuma pendência de visibilidade: o cancelamento por esgotamento sai como `pedido.cancelado`,

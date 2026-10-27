@@ -92,3 +92,13 @@ Para ver o estado atual, o Cliente consulta o `Location` (fluxo 3).
 ## Observabilidade
 
 Logs 4001 (pedido criado, com id, número, itens e total) e 4002 (repetição idempotente).
+
+Com a telemetria ligada (REQ-16), a requisição abre o trace do pedido: o span da rota leva
+`user.id` (o identificador do token, nunca o e-mail) e `oms.pedido.id`, e o contexto é gravado
+no pedido e no `pedido.criado` (coluna `ContextoRastreio`), para o trace continuar pelo outbox
+até a entrega. Detalhes no [fluxo 12](12-rastreabilidade-e-metricas.md).
+
+## Limitações
+
+- Um chamador que manda o cabeçalho `traceparent` continua o próprio trace e decide a
+  amostragem dos próprios pedidos (REQ-16, analyze A1). Não expõe dados.

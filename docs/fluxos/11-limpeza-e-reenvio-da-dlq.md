@@ -124,7 +124,9 @@ Uma mensagem bloqueada pelo limite continua na DLQ e entrando no aviso de tamanh
 ## Aviso da DLQ
 
 O `MonitorDlq` confere a cada 5 min o tamanho de `oms.C.dlq` de cada consumidor e escreve o
-5011 quando passa de 10 mensagens:
+5011 quando passa de 10 mensagens. Com a telemetria ligada (REQ-16), confere a cada 1 min
+(`MetricaIntervaloSegundos`) para a métrica `oms.mensageria.dlq.mensagens`, e o 5011 continua
+no máximo uma vez a cada 5 min por consumidor:
 
 ```text
 warn: MonitorDlq[5011] A DLQ de estoque tem 23 mensagem(ns), acima do limite de 10. Investigue a causa e, se for o caso, peça o reenvio.
@@ -166,6 +168,7 @@ Seção `ReenvioDlq`:
 | `AvisoHabilitado` | `true` | — |
 | `AvisoLimite` | 10 | 1 a 1 000 000 |
 | `AvisoIntervaloSegundos` | 300 | 10 a 86 400 |
+| `MetricaIntervaloSegundos` | 60 | 10 a 300 |
 
 Fora das faixas, o Worker não sobe e a mensagem cita a chave, por exemplo
 "Limpeza:RetencaoChavesHoras deve estar entre 24 e 8760.".
@@ -185,10 +188,25 @@ Fora das faixas, o Worker não sobe e a mensagem cita a chave, por exemplo
 
 O autor é o identificador do usuário, nunca o e-mail.
 
+Com a telemetria ligada (REQ-16):
+
+- cada pedido de reenvio executado é um trace `reenviar_dlq {consumidor}`, ligado à requisição
+  do Admin; cada mensagem reenviada ganha `reenviar {tipo}` no trace original dela, e o consumo
+  da cópia continua esse trace;
+- cada rodada de limpeza é um trace `limpar`, com um passo `limpar {alvo}` e as linhas
+  apagadas;
+- métricas: `oms.mensageria.dlq.mensagens` por consumidor (gauge; com várias instâncias,
+  agregue com `max`), `oms.rotinas.itens` com `oms.rotina = reenvio_dlq` e
+  `oms.limpeza.linhas_apagadas` por alvo. O atraso até o destino é a leitura (1 min) mais o
+  envio (30 s).
+
+Detalhes no [fluxo 12](12-rastreabilidade-e-metricas.md).
+
 ## Limitações
 
 - A purga da DLQ (apagar sem reenviar) continua manual, pelo painel do RabbitMQ.
-- Não há métricas nem alertas além dos logs.
+- Não há alertas além dos logs. As métricas vieram com o REQ-16 (issue #37,
+  [fluxo 12](12-rastreabilidade-e-metricas.md)).
 - Os dados apagados pela limpeza não são arquivados.
 - A garantia de ordem vale para filas clássicas; uma migração das DLQs para filas quorum
   exige rever a estratégia.
