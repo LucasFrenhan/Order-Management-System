@@ -21,9 +21,43 @@ Antes de iniciar um novo REQ (o primeiro passo é o `/speckit-specify`), é obri
    - Nenhuma alteração local sem commit (`git status --short` vazio).
 3. **Branch nova a partir da `main` atualizada:**
    `git switch -c feature/req-NN-<nome> main`.
+4. **Issue em andamento no GitHub**: veja a regra abaixo.
 
 Se qualquer item falhar, pare e informe o que impede o início, em vez de contornar (por
 exemplo, empilhar a branch sobre outra ainda não mergeada).
+
+## Regra: issue iniciada passa de "Todo" para "In progress"
+
+Toda vez que começar o trabalho de uma task ou issue registrada no GitHub (um REQ no
+`/speckit-specify`, um estudo, uma investigação ou uma correção), mude o campo "Status" do
+item dela no GitHub Project de **Todo** para **In progress**, junto com o sync acima e antes
+de qualquer outro passo.
+
+- O quadro é o projeto **OMS** (número 4, do usuário `LucasFrenhan`). O campo "Status" tem as
+  opções `Todo`, `In progress` e `Done`. Ids (conferidos em 2026-10-27; se o comando falhar,
+  confira de novo com `gh project field-list 4 --owner LucasFrenhan`):
+
+  | O quê | Id |
+  |-------|----|
+  | Projeto OMS | `PVT_kwHOBbApDs4BoGZe` |
+  | Campo Status | `PVTSSF_lAHOBbApDs4BoGZezhmoA40` |
+  | Opção `In progress` | `47fc9ee4` |
+
+- Comandos, com `N` = número da issue:
+
+  ```bash
+  item=$(gh project item-list 4 --owner LucasFrenhan --limit 200 --format json \
+    -q '.items[] | select(.content.number == N) | .id')
+  gh project item-edit --id "$item" --project-id PVT_kwHOBbApDs4BoGZe \
+    --field-id PVTSSF_lAHOBbApDs4BoGZezhmoA40 --single-select-option-id 47fc9ee4
+  ```
+
+  Para conferir antes e depois: `gh issue view N --json projectItems -q '.projectItems'`.
+- O token precisa do escopo `project`. Sem ele, peça ao usuário para rodar
+  `! gh auth refresh -h github.com -s project`.
+- Se a issue não estiver em nenhum projeto, ou o status não for "Todo", avise e pergunte antes
+  de mudar.
+- Confirme a mudança no relatório do sync (issue, projeto e status novo).
 
 ## Convenções já em uso
 
