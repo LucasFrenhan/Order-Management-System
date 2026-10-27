@@ -37,7 +37,7 @@ public sealed class TraceFluxoPedidoTestes(MensageriaTeste mensageria)
         (await CenarioEntrega.EsperarOrdemAsync(stringConexao, pedidoId, Prazo)).Should().BeTrue();
         var entregaEstoque = await EsperarEntregaAsync(coletor, pedidoId, "entrega");
         entregaEstoque.Should().NotBeNull("o consumidor de entrega processa no mesmo trace");
-        var requisicao = coletor.Span(s => s.EhRequisicao("POST", "/api/v1/pedidos/") && Equals(s.Atributo("oms.pedido.id"), pedidoId.ToString()));
+        var requisicao = await CriacaoAsync(coletor, pedidoId);
         requisicao.Should().NotBeNull("a criação gera o span da rota com o pedido");
         requisicao!.Atributo("user.id").Should().Be(Sub(token), "o usuário é o id do token, nunca o e-mail");
 
@@ -88,7 +88,7 @@ public sealed class TraceFluxoPedidoTestes(MensageriaTeste mensageria)
 
         var consumo = await EsperarEntregaAsync(coletor, pedidoId, "estoque");
         consumo.Should().NotBeNull();
-        var requisicao = coletor.Span(s => s.EhRequisicao("POST", "/api/v1/pedidos/") && Equals(s.Atributo("oms.pedido.id"), pedidoId.ToString()))!;
+        var requisicao = await CriacaoAsync(coletor, pedidoId);
         consumo!.TraceId.Should().Be(requisicao.TraceId, "a publicação e o consumo continuam o trace da requisição");
         coletor.DoTrace(requisicao.TraceId)
             .Should().Contain(s => s.DisplayName == $"outbox publicar {TiposEvento.PedidoCriado}" && s.Status != ActivityStatusCode.Error);

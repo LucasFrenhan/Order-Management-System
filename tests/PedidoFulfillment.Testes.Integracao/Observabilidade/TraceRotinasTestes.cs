@@ -34,6 +34,8 @@ public sealed class TraceRotinasTestes(MensageriaTeste mensageria)
     {
         Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
         var stringConexao = mensageria.NovoBanco();
+        // Sem provedor de teste anterior ainda vivo, para o pedido "sem contexto" sair mesmo sem.
+        await EsperarSemOuvintesAsync();
         // Pedido criado com a telemetria desligada: o passo sai sem link.
         Guid semContexto;
         await using (var apiSem = Api(stringConexao, null))
@@ -46,7 +48,7 @@ public sealed class TraceRotinasTestes(MensageriaTeste mensageria)
         await using var api = Api(stringConexao, coletor);
         var (cliente, _, _) = await ClienteAsync(api);
         var comContexto = await CenarioReconciliacao.ParadoNoEstoqueAsync(mensageria, stringConexao, cliente);
-        var criacao = coletor.Span(s => s.EhRequisicao("POST", "/api/v1/pedidos/") && Equals(s.Atributo("oms.pedido.id"), comContexto.ToString()))!;
+        var criacao = await CriacaoAsync(coletor, comContexto);
         await CenarioReconciliacao.EnvelhecerAsync(stringConexao, comContexto, UmaHora);
         await CenarioReconciliacao.EnvelhecerAsync(stringConexao, semContexto, UmaHora);
 
@@ -79,7 +81,7 @@ public sealed class TraceRotinasTestes(MensageriaTeste mensageria)
         await using var api = Api(stringConexao, coletor);
         var (cliente, _, _) = await ClienteAsync(api);
         var pedidoId = await CenarioEstorno.PedidoPagoAsync(mensageria, stringConexao, cliente);
-        var criacao = coletor.Span(s => s.EhRequisicao("POST", "/api/v1/pedidos/") && Equals(s.Atributo("oms.pedido.id"), pedidoId.ToString()))!;
+        var criacao = await CriacaoAsync(coletor, pedidoId);
         await CenarioEstorno.CancelarComoOperacaoAsync(await OperadorAsync(api), pedidoId);
 
         await using var worker = WorkerRotina(stringConexao, coletor, new() { ["Estornos:Habilitado"] = "true", ["Estornos:IntervaloSegundos"] = "1" });

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using FluentAssertions;
+using PedidoFulfillment.Infrastructure.Observabilidade;
 using PedidoFulfillment.Testes.Integracao.Autenticacao;
 using PedidoFulfillment.Testes.Integracao.Entregas;
 using PedidoFulfillment.Testes.Integracao.Estoque;
@@ -57,6 +58,27 @@ internal static class CenarioObservabilidade
 
         return worker;
     }
+
+    /// <summary>
+    /// O span da criação do pedido. Espera por ele: o ASP.NET Core encerra o span depois de mandar
+    /// a resposta, e o cliente pode receber o 201 antes.
+    /// </summary>
+    public static async Task<Activity> CriacaoAsync(ColetorTelemetria coletor, Guid pedidoId)
+    {
+        var span = await coletor.EsperarSpanAsync(
+            s => s.EhRequisicao("POST", "/api/v1/pedidos/") && Equals(s.Atributo("oms.pedido.id"), pedidoId.ToString()), Prazo);
+        span.Should().NotBeNull("a criação gera o span da rota com o pedido");
+        return span!;
+    }
+
+    /// <summary>
+    /// Espera os provedores de testes anteriores soltarem as fontes. A fábrica da API (top-level
+    /// <c>Program</c>) descarta o host numa thread própria e volta antes de o provedor de traces
+    /// ser descartado: sem esperar, um teste "desligado" ainda veria o ouvinte do anterior.
+    /// </summary>
+    public static async Task EsperarSemOuvintesAsync() =>
+        (await MensageriaTeste.EsperarAteAsync(() => Task.FromResult(!TelemetriaOms.Fonte.HasListeners()), Prazo))
+            .Should().BeTrue("nenhum provedor de telemetria pode continuar ativo");
 
     public static object? Atributo(this Activity span, string chave) => span.GetTagItem(chave);
 

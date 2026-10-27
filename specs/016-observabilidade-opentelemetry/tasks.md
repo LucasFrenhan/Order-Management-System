@@ -210,7 +210,7 @@ o ambiente local e os casos de desligado e fora do ar.
   - `docs/fluxos/11-limpeza-e-reenvio-da-dlq.md`: reenvio no trace original, spans da limpeza, métricas 3, 5 e 6, leitura de 1 min com o 5011 a cada 5 min, atraso de ponta a ponta das métricas e agregação dos gauges por `max` entre instâncias (FR-016a, analyze C4); em "Limitações", "Não há métricas nem alertas além dos logs" vira "Não há alertas" com a issue #37 citada pela resolução das métricas;
   - `docs/fluxos/README.md`: linha sobre a telemetria (fluxo transversal) e o painel local na tabela de dependências externas.
 - [X] T036 [P] Documentação do projeto: `README.md` (Estado atual com o REQ-16; Próximos passos com #18; seção de observabilidade com o painel, as variáveis `OTEL_*`, os destinos do contrato e a agregação dos gauges por `max` com várias instâncias do Worker (FR-016a); roteiros com o quickstart do REQ-16).
-- [ ] T037 Varredura de segredos, `dotnet format --verify-no-changes`, `dotnet list package --vulnerable --include-transitive` e a suíte local inteira (zero ignorados); registrar a contagem em Notes.
+- [X] T037 Varredura de segredos, `dotnet format --verify-no-changes`, `dotnet list package --vulnerable --include-transitive` e a suíte local inteira (zero ignorados); registrar a contagem em Notes.
 - [ ] T038 Executar o quickstart (§2 a §6) e registrar em Notes.
 - [ ] T039 Fazer push e abrir o PR em português (Resumo, Pontos de atenção, Validação) com `Closes #37`, citando os quatro pacotes novos e a justificativa no plano, a migration, o painel no compose e os documentos de fluxo atualizados. Acompanhar o `build-testes` e o `contrato-compatibilidade` até ficarem verdes, inclusive depois de cada push posterior, e registrar em Notes.
 
@@ -324,3 +324,12 @@ logs; a US5 traz as métricas; a US6 entrega o painel local.
   com o coletor e ligada com o destino inacessível (o REQ-13 mediu 381 ms). Sem piora.
 - **T035**: fluxo novo `12-rastreabilidade-e-metricas.md` (transversal) e a linha no índice;
   fluxos 02, 08, 09, 10, 11 e o índice atualizados; a limitação de métricas saiu do fluxo 11.
+- **T037 (2026-10-26)**: 1.104 testes verdes (683 unitários e 421 de integração), zero
+  ignorados; `dotnet format --verify-no-changes` e `dotnet list package --vulnerable` limpos;
+  nenhum segredo novo (só as credenciais de desenvolvimento já documentadas e o modo sem login
+  do painel local, comentado no compose). Duas intermitências corrigidas antes:
+  - o ASP.NET Core encerra o span da requisição depois de mandar a resposta, então o teste
+    pode procurá-lo antes de ele existir: `CriacaoAsync` espera o span;
+  - a fábrica da API (top-level `Program`) descarta o host numa thread própria e volta antes de
+    o provedor de traces ser descartado: os testes que dependem da telemetria desligada esperam
+    a fonte sem ouvinte (`EsperarSemOuvintesAsync`).

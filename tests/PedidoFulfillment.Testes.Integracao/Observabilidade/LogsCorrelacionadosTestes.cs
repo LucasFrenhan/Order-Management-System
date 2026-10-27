@@ -37,7 +37,7 @@ public sealed class LogsCorrelacionadosTestes(MensageriaTeste mensageria)
 
         var pedidoId = (await CriadoAsync(cliente, (Cat001, 1))).GetProperty("id").GetGuid();
         (await CenarioEntrega.EsperarOrdemAsync(stringConexao, pedidoId, Prazo)).Should().BeTrue();
-        var traceId = coletor.Span(s => s.EhRequisicao("POST", "/api/v1/pedidos/") && Equals(s.Atributo("oms.pedido.id"), pedidoId.ToString()))!.TraceId;
+        var traceId = (await CriacaoAsync(coletor, pedidoId)).TraceId;
         (await MensageriaTeste.EsperarAteAsync(
             () => Task.FromResult(coletor.Logs.Count(l => l.TraceId == traceId && l.Evento.Id == 8001) == 1), Prazo)).Should().BeTrue();
 

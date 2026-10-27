@@ -20,6 +20,7 @@ public sealed class TelemetriaDesligadaTestes(MensageriaTeste mensageria)
     public async Task Desligada_nao_grava_contexto_nem_traceparent()
     {
         Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
+        await EsperarSemOuvintesAsync();
         var stringConexao = mensageria.NovoBanco();
         await using var api = Api(stringConexao, null);
         var (cliente, _, _) = await ClienteAsync(api);
