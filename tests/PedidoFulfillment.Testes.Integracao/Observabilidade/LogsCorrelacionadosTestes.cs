@@ -66,5 +66,8 @@ public sealed class LogsCorrelacionadosTestes(MensageriaTeste mensageria)
             .Should().HaveFlag(ActivityTrackingOptions.TraceId).And.HaveFlag(ActivityTrackingOptions.SpanId);
         worker.Services.GetRequiredService<IOptionsMonitor<SimpleConsoleFormatterOptions>>().CurrentValue.IncludeScopes
             .Should().BeTrue("o console mostra os escopos, onde ficam o trace e o passo (FR-014)");
+        // Sem o nome, o console usaria o caminho de compatibilidade, que ignora as opções acima.
+        worker.Services.GetRequiredService<IOptionsMonitor<ConsoleLoggerOptions>>().CurrentValue.FormatterName
+            .Should().Be(ConsoleFormatterNames.Simple);
     }
 }

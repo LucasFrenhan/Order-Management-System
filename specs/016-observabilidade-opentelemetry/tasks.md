@@ -211,7 +211,7 @@ o ambiente local e os casos de desligado e fora do ar.
   - `docs/fluxos/README.md`: linha sobre a telemetria (fluxo transversal) e o painel local na tabela de dependências externas.
 - [X] T036 [P] Documentação do projeto: `README.md` (Estado atual com o REQ-16; Próximos passos com #18; seção de observabilidade com o painel, as variáveis `OTEL_*`, os destinos do contrato e a agregação dos gauges por `max` com várias instâncias do Worker (FR-016a); roteiros com o quickstart do REQ-16).
 - [X] T037 Varredura de segredos, `dotnet format --verify-no-changes`, `dotnet list package --vulnerable --include-transitive` e a suíte local inteira (zero ignorados); registrar a contagem em Notes.
-- [ ] T038 Executar o quickstart (§2 a §6) e registrar em Notes.
+- [X] T038 Executar o quickstart (§2 a §6) e registrar em Notes.
 - [ ] T039 Fazer push e abrir o PR em português (Resumo, Pontos de atenção, Validação) com `Closes #37`, citando os quatro pacotes novos e a justificativa no plano, a migration, o painel no compose e os documentos de fluxo atualizados. Acompanhar o `build-testes` e o `contrato-compatibilidade` até ficarem verdes, inclusive depois de cada push posterior, e registrar em Notes.
 
 ---
@@ -333,3 +333,20 @@ logs; a US5 traz as métricas; a US6 entrega o painel local.
   - a fábrica da API (top-level `Program`) descarta o host numa thread própria e volta antes de
     o provedor de traces ser descartado: os testes que dependem da telemetria desligada esperam
     a fonte sem ouvinte (`EsperarSemOuvintesAsync`).
+- **T038 (quickstart, 2026-10-26)**, com o perfil `demo` e o painel 13.6.0:
+  - §2: um pedido criado pela API chega a `ProntoParaEnvio` num único trace no painel, com a
+    rota `POST /api/v1/pedidos/`, as quatro publicações do outbox, os quatro `publish`, os três
+    `deliver` (`processado`) e 29 consultas SQL filhas; o pedido e os quatro eventos gravaram o
+    mesmo trace id em `ContextoRastreio`. Os dois serviços aparecem com traces, logs e métricas.
+  - **Achado e correção**: o console não mostrava o trace id. Sem `FormatterName`, o provedor de
+    console usa o caminho de compatibilidade, que troca as opções do formatador pelo
+    `IncludeScopes` antigo (falso). O registro passou a definir o formatador `simple`, e o teste
+    da T024 confere isso. Depois da correção: `=> SpanId:..., TraceId:...` em cada log.
+  - §3: com o broker parado, o `outbox publicar pedido.criado` falha com erro e tenta de novo, e
+    a terceira tentativa sai no trace do pedido. **Achado fora do escopo, anterior ao REQ-16**:
+    depois de o broker reiniciar (`docker compose stop/start rabbitmq`), os consumidores não
+    voltam (0 consumidores nas filas) até o Worker reiniciar; reproduzido com o Worker da `main`.
+    As métricas só aparecem na interface do painel, sem API; ficaram cobertas pelos testes.
+  - §6: com o painel parado, o pedido é criado em 14 ms e chega a `ProntoParaEnvio`, sem erro
+    nos logs.
+  - §5 (API pelo SDK) não foi rodado à parte: é a mesma configuração por variável do §2.

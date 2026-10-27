@@ -122,8 +122,8 @@ Exemplo no console:
 
 ```text
 info: ConsumidorEventos[5006]
-      => TraceId:4bf92f3577b34da6a3ce929d0e0e4736 => SpanId:00f067aa0ba902b7
-      Evento 0199f6b1-... processado por estoque.
+      => SpanId:b06267cf351d37f5, TraceId:67c6b66f77a3da034e1aa1953cf2c576
+      Evento 01a17ac7-b989-769c-bb7a-2c5dd9d744a9 processado por entrega.
 ```
 
 ## Configuração

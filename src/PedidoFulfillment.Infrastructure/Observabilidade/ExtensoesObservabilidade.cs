@@ -41,6 +41,9 @@ public static class ExtensoesObservabilidade
         builder.Services.Configure<LoggerFactoryOptions>(opcoes =>
             opcoes.ActivityTrackingOptions = ActivityTrackingOptions.TraceId | ActivityTrackingOptions.SpanId);
         builder.Services.Configure<SimpleConsoleFormatterOptions>(opcoes => opcoes.IncludeScopes = true);
+        // Sem o nome do formatador, o console usa o caminho de compatibilidade, que troca as opções
+        // acima pelo IncludeScopes antigo (falso) e esconde os escopos.
+        builder.Services.Configure<ConsoleLoggerOptions>(opcoes => opcoes.FormatterName ??= ConsoleFormatterNames.Simple);
 
         if (!OpcoesObservabilidade.Ligada(configuracao))
         {
