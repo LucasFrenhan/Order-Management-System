@@ -212,7 +212,7 @@ o ambiente local e os casos de desligado e fora do ar.
 - [X] T036 [P] Documentação do projeto: `README.md` (Estado atual com o REQ-16; Próximos passos com #18; seção de observabilidade com o painel, as variáveis `OTEL_*`, os destinos do contrato e a agregação dos gauges por `max` com várias instâncias do Worker (FR-016a); roteiros com o quickstart do REQ-16).
 - [X] T037 Varredura de segredos, `dotnet format --verify-no-changes`, `dotnet list package --vulnerable --include-transitive` e a suíte local inteira (zero ignorados); registrar a contagem em Notes.
 - [X] T038 Executar o quickstart (§2 a §6) e registrar em Notes.
-- [ ] T039 Fazer push e abrir o PR em português (Resumo, Pontos de atenção, Validação) com `Closes #37`, citando os quatro pacotes novos e a justificativa no plano, a migration, o painel no compose e os documentos de fluxo atualizados. Acompanhar o `build-testes` e o `contrato-compatibilidade` até ficarem verdes, inclusive depois de cada push posterior, e registrar em Notes.
+- [X] T039 Fazer push e abrir o PR em português (Resumo, Pontos de atenção, Validação) com `Closes #37`, citando os quatro pacotes novos e a justificativa no plano, a migration, o painel no compose e os documentos de fluxo atualizados. Acompanhar o `build-testes` e o `contrato-compatibilidade` até ficarem verdes, inclusive depois de cada push posterior, e registrar em Notes.
 
 ---
 
@@ -350,3 +350,6 @@ logs; a US5 traz as métricas; a US6 entrega o painel local.
   - §6: com o painel parado, o pedido é criado em 14 ms e chega a `ProntoParaEnvio`, sem erro
     nos logs.
   - §5 (API pelo SDK) não foi rodado à parte: é a mesma configuração por variável do §2.
+- **T039 (2026-10-26)**: PR #40 aberto com `Closes #37`. `build-testes` verde (Build e testes em
+  6m56s; Demonstração em 1m57s). O `contrato-compatibilidade` não rodou: nenhum contrato da API
+  mudou.
