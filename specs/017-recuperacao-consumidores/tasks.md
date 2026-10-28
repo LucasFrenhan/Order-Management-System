@@ -186,7 +186,7 @@ logs 5016 a 5019; métricas 7 e 8 com a telemetria ligada.
 - [X] T027 [P] Desempenho (SC-006): rodar `tests/PedidoFulfillment.Testes.Integracao/Entregas/DesempenhoEntregaTestes.cs` e registrar em Notes o p95, comparando com o da `main` na T001; não pode piorar mais de 5%.
 - [X] T028 Varredura de segredos nos arquivos alterados, `dotnet format --verify-no-changes` e a suíte local inteira com `OMS_EXIGIR_DOCKER=1` (zero ignorados); registrar a contagem em Notes.
 - [X] T029 Executar o quickstart (§2 a §5) com `docker compose --profile demo` e registrar em Notes (consumidores por fila antes, durante e depois; prontidão; logs; métricas no painel).
-- [ ] T030 Fazer push e abrir o PR em português (Resumo, Pontos de atenção, Validação) com `Closes #41`, citando a causa confirmada, a recuperação automática do cliente desligada, a entrada nova na prontidão (e o efeito no healthcheck do compose), os logs e as métricas novos, e os documentos de fluxo atualizados. Acompanhar o `build-testes` e o `contrato-compatibilidade` até ficarem verdes, inclusive depois de cada push posterior, e registrar em Notes.
+- [X] T030 Fazer push e abrir o PR em português (Resumo, Pontos de atenção, Validação) com `Closes #41`, citando a causa confirmada, a recuperação automática do cliente desligada, a entrada nova na prontidão (e o efeito no healthcheck do compose), os logs e as métricas novos, e os documentos de fluxo atualizados. Acompanhar o `build-testes` e o `contrato-compatibilidade` até ficarem verdes, inclusive depois de cada push posterior, e registrar em Notes.
 
 ---
 
@@ -301,3 +301,7 @@ visibilidade (prontidão, logs e métricas).
 - **T027 (desempenho)**: duas rodadas de `DesempenhoEntregaTestes` na branch: p95 do pagamento à
   entrega 198 a 200 ms e do pedido à entrega 382 ms nas duas, igual ao REQ-16 (382 a 386 ms).
   Sem piora.
+- **T030 (PR, 2026-10-28)**: PR #42 aberto com `Closes #41`. `build-testes`: "Build e testes"
+  verde em 9 min 47 s (suíte completa, com o teste intermitente do REQ-16 corrigido) e
+  "Demonstração" verde em 2 min 17 s. O `contrato-compatibilidade` não roda neste PR: o gatilho
+  é `specs/**/contracts/*.yaml`, e nenhum contrato OpenAPI mudou.
