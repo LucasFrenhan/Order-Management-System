@@ -107,7 +107,7 @@ SQL, dados de conexão ou senhas.
 | SQL Server (API) | Com a preparação ligada, a API não sobe e informa qual banco falhou, sem dados de conexão | 500 genérico; nada é gravado pela metade |
 | SQL Server (Worker) | O Worker sobe; o despacho, o consumo e a reconciliação falham por ciclo e são tentados de novo | Despacho e reconciliação tentam no próximo ciclo; a mensagem consumida vai para as novas tentativas e, no fim, para a DLQ |
 | RabbitMQ (API) | Não afeta: a API só confere a prontidão do broker, com o usuário próprio `oms-api`, sem permissões (REQ-14) | Não afeta: os eventos ficam pendentes no outbox, e os pedidos de reenvio da DLQ, pendentes no banco |
-| RabbitMQ (Worker) | O Worker sobe; a prontidão (`/health/pronto`) mostra o broker indisponível; consumidores e despachante se conectam quando ele voltar | Os eventos ficam pendentes no outbox, com espera crescente até 10 s entre tentativas |
+| RabbitMQ (Worker) | O Worker sobe; a prontidão (`/health/pronto`) mostra o broker e os consumidores indisponíveis; consumidores e despachante se conectam quando ele voltar | Os eventos ficam pendentes no outbox, com espera crescente até 10 s entre tentativas; os consumidores voltam sozinhos em até 1 min depois de o broker voltar, e a prontidão do Worker mostra `consumidores: Unhealthy` enquanto isso (REQ-17) |
 | Gateway de pagamento | — | A cobrança falha: novas tentativas, DLQ e, se o pedido continuar parado, a reconciliação. O estorno fica pendente e é tentado a cada rodada; o cancelamento não depende do gateway |
 | Destino da telemetria (REQ-16) | Não afeta: sem destino, a telemetria fica desligada | Não afeta: a exportação é em segundo plano e descarta o que não consegue enviar |
 

@@ -6,8 +6,11 @@ a cada consumidor.
 [topologia e consumo](../../specs/006-mensageria/contracts/topologia-e-consumo.md),
 [schemas](../../specs/006-mensageria/contracts/eventos/)), REQ-12 ([spec](../../specs/012-publicacao-garantida/spec.md),
 [contrato](../../specs/012-publicacao-garantida/contracts/publicacao-e-reconciliacao.md)), REQ-14
-([spec](../../specs/014-limpeza-e-dlq/spec.md), mensagem reenviada da DLQ) e REQ-15
-([spec](../../specs/015-visibilidade-cancelamentos/spec.md), [contrato e schemas](../../specs/015-visibilidade-cancelamentos/contracts/eventos-cancelamento-e-estorno.md) de `pedido.cancelado` e `pagamento.estornado`).
+([spec](../../specs/014-limpeza-e-dlq/spec.md), mensagem reenviada da DLQ), REQ-15
+([spec](../../specs/015-visibilidade-cancelamentos/spec.md), [contrato e schemas](../../specs/015-visibilidade-cancelamentos/contracts/eventos-cancelamento-e-estorno.md) de `pedido.cancelado` e `pagamento.estornado`)
+e REQ-17 ([spec](../../specs/017-recuperacao-consumidores/spec.md),
+[contrato](../../specs/017-recuperacao-consumidores/contracts/recuperacao-consumo.md), recuperação
+dos consumidores depois de o broker reiniciar).
 
 ## Eventos
 
@@ -127,15 +130,66 @@ chega como uma entrega nova:
 O `MessageId` e o envelope não mudam, então um evento já processado é descartado como
 duplicado (5005), sem efeito repetido.
 
+### Inscrição dos consumidores (REQ-17)
+
+O Worker mantém **uma conexão** com o broker, sem a recuperação automática do RabbitMQ.Client:
+o próprio processo é dono da recuperação. Uma conexão fechada está morta, e o próximo
+componente que precisa dela a descarta e abre outra. Até o REQ-17, a conexão em recuperação
+parecia fechada, era descartada no meio, e os consumidores ficavam sem inscrição até o Worker
+reiniciar (issue #41).
+
+Cada consumidor tem um **supervisor de inscrição**, que mantém uma sessão por vez: canal de
+publicação com confirmação, canal de consumo com a topologia declarada (principal, espera e
+DLQ) e a inscrição em `oms.C`. A sessão termina no primeiro sinal de perda:
+
+| Sinal | Origem no log 5016 | Exemplo |
+|-------|--------------------|---------|
+| Canal de consumo ou de publicação fechado | `canal` | Broker parado, conexão fechada à força, rede caída (o heartbeat de 10 s percebe), erro de canal |
+| Inscrição cancelada pelo broker, com o canal aberto | `cancelamento` | Fila `oms.C` apagada |
+
+Depois da perda, o supervisor fecha a sessão e abre outra: a primeira tentativa sai na hora, e
+as seguintes esperam 1 s, 2 s, 4 s, 8 s e depois 10 s fixos, até dar certo. Com o broker de
+volta, o consumo volta em até 1 min. Nunca há duas sessões do mesmo consumidor ao mesmo tempo,
+então cada fila tem no máximo um consumidor por Worker.
+
+- **Ack pela sessão que entregou.** O `delivery tag` só vale no canal que entregou; a
+  confirmação e a republicação na espera ou na DLQ usam os canais daquela sessão. Se o canal
+  fechou no meio do tratamento, a confirmação falha sem erro, e o broker devolve a mensagem à
+  fila com os cabeçalhos de antes. Se o efeito já estava gravado, a reentrega é descartada
+  como duplicada (5005); senão, é processada uma vez.
+- **Encerramento.** Com o Worker encerrando, nenhuma sessão nova é aberta, e a espera em curso
+  termina na hora.
+
+| Log | Nível | Quando |
+|-----|-------|--------|
+| 5008 `FalhaInicioConsumidor` | Warning | Tentativa que falha antes da primeira inscrição (partida) |
+| 5016 `InscricaoPerdida` | Warning | Sinal de perda, com a origem e o motivo (`320 CONNECTION_FORCED - …`, `cancelada pelo broker`) |
+| 5017 `FalhaReinscricao` | Warning | Tentativa que falha depois de uma perda, com a próxima espera em ms |
+| 5018 `ConsumidorReinscrito` | Information | Volta, com o tempo sem inscrição em ms |
+| 5019 `ConexaoBrokerFechada` | Warning | A conexão fechou sem o processo pedir (iniciador, código e motivo) |
+
+Nenhum deles traz credenciais nem a cadeia de conexão.
+
+**Prontidão do Worker.** `/health/pronto` do Worker tem a entrada `consumidores`: `Healthy` só
+com todos os consumidores inscritos, `Unhealthy` na hora em que algum perde a inscrição (e antes
+da primeira), sem tolerância. Com ela, o Worker responde 503 durante uma queda do broker, e o
+healthcheck do compose o mostra `unhealthy`, sem reiniciar nada. A prontidão da API não muda.
+
+```json
+{ "status": "Unhealthy", "dependencias": { "sqlserver": "Healthy", "rabbitmq": "Healthy", "consumidores": "Unhealthy" } }
+```
+
 ## Falhas externas
 
 | Falha | Comportamento |
 |-------|---------------|
-| Broker fora do ar na partida do Worker | O Worker sobe. A prontidão mostra o broker indisponível; consumidores e despachante tentam de novo até conectar (log 5008) |
-| Broker fora do ar por muito tempo | Os eventos se acumulam no outbox, sem limite. A espera de cada um cresce até 10 s |
-| Broker recriado (filas apagadas) | O canal novo do despachante recria as filas antes de publicar |
-| Fila de um consumidor apagada com o Worker no ar | O despachante a recria, mas o consumidor dela perde a inscrição até o Worker reiniciar. A mensagem fica na fila, e a reconciliação leva o pedido adiante |
-| Credenciais do broker inválidas | O Worker não fica pronto, e a prontidão não revela as credenciais |
+| Broker fora do ar na partida do Worker | O Worker sobe. A prontidão mostra o broker e os consumidores indisponíveis; consumidores e despachante tentam de novo até conectar (log 5008) |
+| Broker cai e volta com o Worker no ar | Cada consumidor perde a inscrição (5016, origem `canal`; a conexão registra 5019), tenta voltar em 0, 1, 2, 4, 8 e 10 s (5017 a cada falha) e volta em até 1 min depois de o broker aceitar conexões (5018), sem reiniciar o Worker. Durante a queda, a prontidão do Worker responde 503 com `consumidores: Unhealthy`; os eventos novos esperam no outbox, e as mensagens sem ack voltam à fila (REQ-17; antes, issue #41) |
+| Conexão do Worker fechada à força pelo broker | Como a queda: 5019, 5016 e a volta dos três consumidores em até 1 min |
+| Broker fora do ar por muito tempo | Os eventos se acumulam no outbox, sem limite. A espera de cada um cresce até 10 s; a de cada consumidor fica em 10 s |
+| Broker recriado (filas apagadas) | O canal novo do despachante recria as filas antes de publicar, e cada consumidor redeclara principal, espera e DLQ antes de se inscrever de novo |
+| Fila de um consumidor apagada com o Worker no ar | O broker cancela a inscrição (5016, origem `cancelamento`); o consumidor redeclara a topologia e se inscreve de novo na hora (5018). Os outros não são afetados (REQ-17; antes do #41, a inscrição só voltava com o Worker reiniciado) |
+| Credenciais do broker inválidas | O Worker não fica pronto, e a prontidão não revela as credenciais. Com a senha trocada com o Worker no ar, as tentativas seguem a cada 10 s (5017) até a senha voltar a valer |
 | Banco fora do ar | O ciclo de despacho falha (log 5007) e é tentado no seguinte; o consumo segue as novas tentativas e a DLQ |
 | Worker cai entre o efeito e o ack | A reentrega é descartada como duplicada (efeito e registro estão na mesma transação) |
 
@@ -158,7 +212,8 @@ contexto, com `oms.outbox.espera_ms`. O RabbitMQ.Client grava o cabeçalho de tr
 (`processado`, `duplicado`, `nova_tentativa`, `dlq`, `irrecuperavel`). A métrica
 `oms.mensageria.mensagens` conta os mesmos resultados por consumidor, e
 `oms.outbox.eventos_pendentes` e `oms.outbox.pendente_mais_antigo.idade` mostram um despachante
-parado. O envelope v1 não muda. Desligada, nada disso acontece. Detalhes no
+parado. Desde o REQ-17, `oms.mensageria.consumidor.inscrito` (1 ou 0 por consumidor) e
+`oms.mensageria.consumidor.reinscricoes` mostram um consumidor parado e cada volta. O envelope v1 não muda. Desligada, nada disso acontece. Detalhes no
 [fluxo 12](12-rastreabilidade-e-metricas.md).
 
 ## Limpeza e reenvio (REQ-14)

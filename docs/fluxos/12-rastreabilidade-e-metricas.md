@@ -1,6 +1,7 @@
 # Fluxo 12: rastreabilidade e métricas
 
-Transversal: roda na API e no Worker. Spec: [REQ-16](../../specs/016-observabilidade-opentelemetry/spec.md).
+Transversal: roda na API e no Worker. Spec: [REQ-16](../../specs/016-observabilidade-opentelemetry/spec.md);
+as métricas de inscrição dos consumidores são do [REQ-17](../../specs/017-recuperacao-consumidores/contracts/recuperacao-consumo.md).
 Nomes estáveis (spans, atributos, métricas): [contrato de telemetria](../../specs/016-observabilidade-opentelemetry/contracts/telemetria.md).
 Decisões: [research](../../specs/016-observabilidade-opentelemetry/research.md).
 
@@ -101,6 +102,8 @@ Meter `PedidoFulfillment`, emitidas pelo Worker:
 | `oms.mensageria.mensagens` | contador | `{mensagem}` | `oms.consumidor`, `oms.resultado` | A cada mensagem |
 | `oms.rotinas.itens` | contador | `{item}` | `oms.rotina`, `oms.resultado` | A cada pedido tratado (reconciliação, estornos) e a cada pedido de reenvio |
 | `oms.limpeza.linhas_apagadas` | contador | `{linha}` | `oms.limpeza.alvo` | A cada rodada de limpeza |
+| `oms.mensageria.consumidor.inscrito` | gauge | `{inscricao}` | `oms.consumidor` | Estado em memória: 1 inscrito, 0 sem inscrição (REQ-17) |
+| `oms.mensageria.consumidor.reinscricoes` | contador | `{reinscricao}` | `oms.consumidor` | A cada volta depois de uma perda de inscrição; a da partida não conta (REQ-17) |
 
 Também saem as métricas nativas do .NET (`System.Runtime`) e do ASP.NET Core.
 

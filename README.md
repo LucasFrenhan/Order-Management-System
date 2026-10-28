@@ -30,6 +30,7 @@ estão em [`docs/fluxos/`](docs/fluxos/README.md).
 | REQ-14 — Limpeza de mensageria e reenvio da DLQ ([spec](specs/014-limpeza-e-dlq/spec.md)) | O Worker apaga, em lotes, os eventos enviados, os processados, as chaves de idempotência e os pedidos de reenvio antigos; o Admin pede pela API o reenvio da DLQ de um consumidor, com filtro e limite de 3 reenvios, e o Worker o executa sem perder nem embaralhar mensagens; aviso no log quando a DLQ passa de 10 mensagens; a API passa a usar um usuário próprio no broker, sem permissões |
 | REQ-15 — Cancelamentos e estornos visíveis para outros sistemas ([spec](specs/015-visibilidade-cancelamentos/spec.md)) | Todo cancelamento, por qualquer caminho, grava `pedido.cancelado` na mesma gravação, com o motivo em categoria, a etapa esgotada e o que foi desfeito junto; a confirmação do estorno grava `pagamento.estornado`; os dois são acréscimos à v1, com schema, sem consumidor interno e sem dados pessoais; uma guarda na gravação recusa cancelamento ou estorno sem evento |
 | REQ-16 — Rastreabilidade de ponta a ponta do pedido ([spec](specs/016-observabilidade-opentelemetry/spec.md)) | OpenTelemetry com exportação OTLP, ligado só com destino: o pedido aparece num único trace da rota `POST` até o consumidor de entrega, pelo outbox (coluna `ContextoRastreio`) e pelo RabbitMQ (`traceparent` do cliente nativo), com tentativas, DLQ e reenvio; rotinas com trace por rodada e link ao pedido; logs com trace e span, sem mudar os IDs; seis métricas (outbox, DLQ, consumo, rotinas e limpeza); painel local Aspire Dashboard no compose |
+| REQ-17 — Recuperação dos consumidores depois de o broker reiniciar ([spec](specs/017-recuperacao-consumidores/spec.md)) | Correção da issue #41: a conexão do Worker deixa de usar a recuperação automática do RabbitMQ.Client, que era descartada no meio pelo despachante; cada consumidor tem um supervisor que refaz a inscrição depois de queda do broker, conexão fechada à força, canal fechado ou fila apagada (0, 1, 2, 4, 8 e 10 s; volta em até 1 min), com ack pela sessão que entregou; prontidão `consumidores` no Worker; logs 5016 a 5019; métricas de inscrição e de reinscrições |
 
 ## Demonstração rápida
 
@@ -68,16 +69,17 @@ vai da criação ao despacho com rastreio. O REQ-12 fechou a perda silenciosa de
 REQ-13 garante que o Cliente nunca fica cobrado por um pedido cancelado. O REQ-14 limpou os
 dados de mensageria que cresciam sem limite e trocou o painel do broker por um reenvio da DLQ
 controlado, e o REQ-15 tornou os cancelamentos e os estornos visíveis para outros sistemas. O
-REQ-16 trouxe a rastreabilidade de ponta a ponta do pedido, com métricas da mensageria.
+REQ-16 trouxe a rastreabilidade de ponta a ponta do pedido, com métricas da mensageria, e o
+REQ-17 fez os consumidores voltarem sozinhos depois de o broker reiniciar (issue #41).
 Cada trabalho novo segue o fluxo SDD (`/speckit-specify` → `/speckit-clarify` →
 `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`), em uma
-branch `feature/req-XX-...`, com a numeração a partir do REQ-17.
+branch `feature/req-XX-...`, com a numeração a partir do REQ-18.
 
 | Ordem | Requisito | Origem | Escopo |
 |-------|-----------|--------|--------|
 | 1 | a numerar | [#18](https://github.com/LucasFrenhan/Order-Management-System/issues/18) — SonarQube Cloud | Análise estática de código no CI |
 
-O que os REQ-04 a REQ-16 já deixaram pronto:
+O que os REQ-04 a REQ-17 já deixaram pronto:
 
 - **Armazenamento**: produtos, pedidos com itens e histórico de status, pagamentos e ordens
   de entrega, com as restrições no banco.
@@ -117,6 +119,10 @@ O que os REQ-04 a REQ-16 já deixaram pronto:
   `pedido.cancelado` de qualquer caminho, a partir do `ResultadoCancelamento`; um caminho novo
   de cancelamento precisa adicioná-lo, ou a guarda do `ArmazenamentoPedidos` recusa a gravação
   ([contrato](specs/015-visibilidade-cancelamentos/contracts/eventos-cancelamento-e-estorno.md)).
+- **Recuperação do consumo** (REQ-17): cada consumidor registrado com `AdicionarConsumidor`
+  ganha um `SupervisorInscricao`, que refaz a inscrição depois de qualquer perda, e entra na
+  prontidão `consumidores` do Worker; a conexão não usa a recuperação automática do cliente
+  ([contrato](specs/017-recuperacao-consumidores/contracts/recuperacao-consumo.md)).
 
 Decisões e pontos já conhecidos:
 
@@ -180,7 +186,7 @@ Decisões e pontos já conhecidos:
 - SDK do .NET 10 (`winget install Microsoft.DotNet.SDK.10`)
 - Docker com Compose v2, para o [ambiente local](#ambiente-local) (`winget install Docker.DockerDesktop`)
 
-Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md), [domínio e persistência](specs/004-dominio-persistencia/quickstart.md), [pedidos](specs/005-criacao-pedidos/quickstart.md), [mensageria](specs/006-mensageria/quickstart.md), [CI e demonstração](specs/007-ci-demo/quickstart.md), [estoque](specs/008-estoque/quickstart.md), [pagamento](specs/009-pagamento/quickstart.md), [entrega](specs/010-fulfillment/quickstart.md), [rastreio](specs/011-rastreio/quickstart.md), [publicação garantida e reconciliação](specs/012-publicacao-garantida/quickstart.md), [cancelamento com estorno](specs/013-cancelamento-com-estorno/quickstart.md), [limpeza e reenvio da DLQ](specs/014-limpeza-e-dlq/quickstart.md), [cancelamentos e estornos para outros sistemas](specs/015-visibilidade-cancelamentos/quickstart.md) e [rastreabilidade e métricas](specs/016-observabilidade-opentelemetry/quickstart.md).
+Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md), [autenticação](specs/003-autenticacao-identity/quickstart.md), [domínio e persistência](specs/004-dominio-persistencia/quickstart.md), [pedidos](specs/005-criacao-pedidos/quickstart.md), [mensageria](specs/006-mensageria/quickstart.md), [CI e demonstração](specs/007-ci-demo/quickstart.md), [estoque](specs/008-estoque/quickstart.md), [pagamento](specs/009-pagamento/quickstart.md), [entrega](specs/010-fulfillment/quickstart.md), [rastreio](specs/011-rastreio/quickstart.md), [publicação garantida e reconciliação](specs/012-publicacao-garantida/quickstart.md), [cancelamento com estorno](specs/013-cancelamento-com-estorno/quickstart.md), [limpeza e reenvio da DLQ](specs/014-limpeza-e-dlq/quickstart.md), [cancelamentos e estornos para outros sistemas](specs/015-visibilidade-cancelamentos/quickstart.md), [rastreabilidade e métricas](specs/016-observabilidade-opentelemetry/quickstart.md) e [recuperação dos consumidores](specs/017-recuperacao-consumidores/quickstart.md).
 
 ## Ambiente local
 
@@ -234,7 +240,8 @@ Endereços de saúde, públicos (sem token), em todos os ambientes e fora do con
 
 - `/health`: vida; responde 200 enquanto o processo está de pé, sem consultar dependências
 - `/health/pronto`: prontidão; verifica banco e broker (até 5 s cada) e responde 200 ou 503,
-  com o estado de `sqlserver` e `rabbitmq`
+  com o estado de `sqlserver` e `rabbitmq`; no Worker, também `consumidores`, pronta só com
+  todos os consumidores inscritos (REQ-17)
 
 Em Development (e no ambiente `Testes`):
 
