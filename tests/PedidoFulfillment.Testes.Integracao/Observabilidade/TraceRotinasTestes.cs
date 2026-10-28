@@ -59,7 +59,8 @@ public sealed class TraceRotinasTestes(MensageriaTeste mensageria)
         passo.Should().NotBeNull();
         (passo!.Atributo("oms.resultado"), passo.Atributo("oms.etapa")).Should().Be(("recuperado", "Estoque"));
         passo.Links.Select(l => l.Context.TraceId).Should().Equal([criacao.TraceId], "o passo leva ao trace de criação");
-        var ciclo = coletor.Span(s => s.SpanId == passo.ParentSpanId);
+        // O span só é coletado quando termina, e o ciclo termina depois do passo: espera por ele.
+        var ciclo = await coletor.EsperarSpanAsync(s => s.SpanId == passo.ParentSpanId, Prazo);
         ciclo.Should().NotBeNull();
         (ciclo!.DisplayName, ciclo.ParentSpanId, ciclo.Atributo("oms.rotina")).Should().Be(("reconciliar", default(ActivitySpanId), "reconciliacao"));
 
@@ -91,7 +92,8 @@ public sealed class TraceRotinasTestes(MensageriaTeste mensageria)
         passo.Should().NotBeNull();
         passo!.Atributo("oms.resultado").Should().Be("confirmado");
         passo.Links.Select(l => l.Context.TraceId).Should().Equal(criacao.TraceId);
-        var rodada = coletor.Span(s => s.SpanId == passo.ParentSpanId)!;
+        // Como na reconciliação: a rodada termina depois do passo.
+        var rodada = (await coletor.EsperarSpanAsync(s => s.SpanId == passo.ParentSpanId, Prazo))!;
         (rodada.DisplayName, rodada.ParentSpanId, rodada.Atributo("oms.rotina")).Should().Be(("processar_estornos", default(ActivitySpanId), "estornos"));
         coletor.Soma("oms.rotinas.itens", ("oms.rotina", "estornos"), ("oms.resultado", "confirmado")).Should().Be(1, "métrica 5 (US5)");
     }
