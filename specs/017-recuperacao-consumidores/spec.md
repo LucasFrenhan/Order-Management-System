@@ -45,6 +45,10 @@ processo reiniciar.
 - Q: Quando um consumidor perde a inscrição, a prontidão do Worker fica não pronta na hora ou
   só depois de uma tolerância? → A: Na hora, sem tolerância: a entrada `consumidores` mostra
   o estado atual das três inscrições, como a entrada `rabbitmq` mostra o do broker.
+  (Correção do plano: a pergunta dizia que nenhum healthcheck do compose usa a prontidão do
+  Worker, mas o serviço `worker` usa. A decisão continua: o contêiner aparece `unhealthy`
+  durante a queda, e nada reinicia, porque nenhum serviço depende dele e o compose não tem
+  `restart:`.)
 - Q: O REQ inclui uma métrica de consumidores inscritos, além da prontidão e dos logs? → A:
   Sim: um medidor de inscrição por consumidor (1 inscrito, 0 sem inscrição) e um contador de
   voltas por consumidor, os dois só com a telemetria ligada, como acréscimo às métricas do
@@ -281,7 +285,8 @@ volta a pronta depois de os consumidores se inscreverem, e que os logs mostram a
   consulta feita enquanto algum consumidor está sem inscrição, e volta a pronta em até 1 min
   depois de o broker voltar.
 - **SC-005**: O passo 6 da reprodução da issue (`docker compose restart worker`) deixa de ser
-  necessário: o quickstart da issue, seguido do começo ao fim, termina com o pedido entregue.
+  necessário: o quickstart da issue, seguido do começo ao fim, termina com o pedido em
+  `ProntoParaEnvio` e a ordem de entrega criada.
 - **SC-006**: O tempo de fim a fim de um pedido sem queda do broker não piora de forma
   perceptível em relação à `main`.
 
@@ -299,8 +304,8 @@ volta a pronta depois de os consumidores se inscreverem, e que os logs mostram a
   2026-10-28), porque a mesma reinscrição resolve as duas situações e o fluxo 08 já a registra
   como limitação.
 - Não há reinício automático do processo de workers por prontidão não pronta no ambiente de
-  demonstração; a entrada nova na prontidão é para diagnóstico e para orquestradores que a
-  usem.
+  demonstração: o healthcheck do compose lê a prontidão, mas só marca o contêiner como
+  `unhealthy`. A entrada nova é para diagnóstico e para orquestradores que a usem.
 - A mensageria continua com o RabbitMQ.Client nativo (constituição); nenhuma dependência nova
   é esperada, e qualquer uma exigiria justificativa no plano.
 - Com a telemetria ligada (REQ-16), os spans e as métricas de consumo continuam como estão;
