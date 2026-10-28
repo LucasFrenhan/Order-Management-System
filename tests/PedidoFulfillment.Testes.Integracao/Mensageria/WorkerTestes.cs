@@ -26,9 +26,11 @@ public sealed class WorkerTestes(MensageriaTeste mensageria)
             ConfiguracoesBroker = mensageria.ConfiguracoesBroker
         };
 
-        var resposta = await worker.CreateClient().GetAsync("/health/pronto", Cancelamento);
-
-        resposta.StatusCode.Should().Be(HttpStatusCode.OK);
+        // Desde o REQ-17 (R-06), o Worker só fica pronto com os consumidores inscritos.
+        var cliente = worker.CreateClient();
+        (await MensageriaTeste.EsperarAteAsync(
+            async () => (await cliente.GetAsync("/health/pronto", Cancelamento)).StatusCode == HttpStatusCode.OK,
+            TimeSpan.FromSeconds(30))).Should().BeTrue("com banco, broker e consumidores no ar, o Worker fica pronto");
         await using var conexao = await mensageria.ConectarAsync();
         (await MensageriaTeste.EsperarAteAsync(async () =>
         {

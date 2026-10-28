@@ -48,6 +48,16 @@ internal static class TelemetriaOms
     public static readonly Counter<long> LinhasApagadas = Medidor.CreateCounter<long>(
         "oms.limpeza.linhas_apagadas", "{linha}", "Linhas apagadas pela limpeza.");
 
+    /// <summary>Métrica 7 (REQ-17, FR-016a): 1 com o consumidor inscrito, 0 sem inscrição, do <see cref="EstadoMetricas"/>.</summary>
+    public static readonly ObservableGauge<long> ConsumidorInscrito = Medidor.CreateObservableGauge(
+        "oms.mensageria.consumidor.inscrito",
+        () => EstadoMetricas.ConsumidoresInscritos.Select(i => new Measurement<long>(i.Value, new KeyValuePair<string, object?>(Atributos.Consumidor, i.Key))),
+        "{inscricao}", "Se cada consumidor está inscrito na fila principal (1) ou não (0).");
+
+    /// <summary>Métrica 8 (REQ-17, FR-016a): inscrições refeitas depois de uma perda, por consumidor.</summary>
+    public static readonly Counter<long> Reinscricoes = Medidor.CreateCounter<long>(
+        "oms.mensageria.consumidor.reinscricoes", "{reinscricao}", "Vezes que um consumidor voltou a se inscrever depois de perder a inscrição.");
+
     /// <summary>Atributos dos spans e das métricas (prefixo <c>oms.</c> para os de domínio).</summary>
     public static class Atributos
     {

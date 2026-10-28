@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Reconciliacao;
 using PedidoFulfillment.Infrastructure.Configuracao;
+using PedidoFulfillment.Infrastructure.Saude;
 
 namespace PedidoFulfillment.Infrastructure.Mensageria;
 
@@ -19,6 +20,9 @@ public static class ExtensoesMensageria
         services.AddOptions<OpcoesMensageria>().BindConfiguration(OpcoesMensageria.Secao).ValidateOnStart();
         services.TryAddSingleton<ConexaoRabbitMQ>();
         services.TryAddSingleton<TopologiaConhecida>();
+        services.TryAddSingleton<EstadoConsumidores>();
+        // Só no Worker: a API não tem consumidores, e a prontidão dela não muda (REQ-17, FR-014).
+        services.AddHealthChecks().AddCheck<VerificacaoConsumidores>("consumidores", tags: [ExtensoesInfraestrutura.TagPronto]);
         services.AddHostedService<DespachanteEventosSaida>();
         return services;
     }

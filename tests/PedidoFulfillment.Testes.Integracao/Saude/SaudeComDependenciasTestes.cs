@@ -86,5 +86,6 @@ public sealed class SaudeComDependenciasTestes(ConteineresDependencias conteiner
         json.RootElement.GetProperty("status").GetString().Should().Be("Healthy");
         json.RootElement.GetProperty("dependencias").GetProperty("sqlserver").GetString().Should().Be("Healthy");
         json.RootElement.GetProperty("dependencias").GetProperty("rabbitmq").GetString().Should().Be("Healthy");
+        json.RootElement.GetProperty("dependencias").TryGetProperty("consumidores", out _).Should().BeFalse("a API não tem consumidores (REQ-17, FR-014)");
     }
 }

@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Net;
+using System.Net.Sockets;
 using DotNet.Testcontainers.Builders;
 using Microsoft.Data.SqlClient;
 using PedidoFulfillment.Infrastructure.Mensageria;
@@ -27,8 +29,16 @@ public sealed class MensageriaTeste : IAsyncLifetime
 
     public const string SenhaRabbitMQApi = "oms-api-teste-mensageria";
 
+    private static readonly TimeSpan PrazoBrokerNoAr = TimeSpan.FromSeconds(60);
+
     private MsSqlContainer? sqlServer;
     private RabbitMqContainer? rabbitMQ;
+
+    /// <summary>
+    /// Porta fixa do host para o AMQP (REQ-17, R-09): parar e iniciar o contêiner não troca a
+    /// porta que o Worker já usa.
+    /// </summary>
+    private int portaAmqp;
 
     public bool DockerDisponivel { get; private set; }
 
@@ -46,13 +56,15 @@ public sealed class MensageriaTeste : IAsyncLifetime
     public IReadOnlyDictionary<string, string?> ConfiguracoesBroker => new Dictionary<string, string?>
     {
         ["RabbitMQ:Servidor"] = rabbitMQ!.Hostname,
-        ["RabbitMQ:Porta"] = rabbitMQ.GetMappedPublicPort(5672).ToString(CultureInfo.InvariantCulture),
+        ["RabbitMQ:Porta"] = portaAmqp.ToString(CultureInfo.InvariantCulture),
         ["RabbitMQ:Usuario"] = UsuarioRabbitMQ,
         ["RabbitMQ:Senha"] = SenhaRabbitMQ,
         ["RabbitMQ:VirtualHost"] = "/"
     };
 
-    /// <summary>Simula o broker fora do ar sem trocar a porta mapeada.</summary>
+    /// <summary>Senha do usuário do Worker no broker, para conferir que ela não vaza (REQ-17).</summary>
+    public static string SenhaBroker => SenhaRabbitMQ;
+
     /// <summary>Credenciais da API no broker (REQ-14, R-09), no formato da seção RabbitMQ.</summary>
     public IReadOnlyDictionary<string, string?> ConfiguracoesBrokerApi => new Dictionary<string, string?>(ConfiguracoesBroker)
     {
@@ -63,19 +75,122 @@ public sealed class MensageriaTeste : IAsyncLifetime
     public Task<IConnection> ConectarComoApiAsync() => new ConnectionFactory
     {
         HostName = rabbitMQ!.Hostname,
-        Port = rabbitMQ.GetMappedPublicPort(5672),
+        Port = portaAmqp,
         UserName = UsuarioRabbitMQApi,
         Password = SenhaRabbitMQApi
     }.CreateConnectionAsync(TestContext.Current.CancellationToken);
 
+    /// <summary>Simula o broker fora do ar sem trocar a porta mapeada.</summary>
     public Task PausarBrokerAsync() => rabbitMQ!.PauseAsync(TestContext.Current.CancellationToken);
 
     public Task RetomarBrokerAsync() => rabbitMQ!.UnpauseAsync(TestContext.Current.CancellationToken);
 
+    /// <summary>Para o contêiner do broker: as conexões caem como num reinício real (REQ-17).</summary>
+    public Task PararBrokerAsync() => rabbitMQ!.StopAsync(TestContext.Current.CancellationToken);
+
+    /// <summary>Inicia de novo o mesmo contêiner (mesmos dados) e espera o AMQP aceitar conexão.</summary>
+    public async Task IniciarBrokerAsync()
+    {
+        await rabbitMQ!.StartAsync(TestContext.Current.CancellationToken);
+        await EsperarBrokerNoArAsync();
+    }
+
+    /// <summary>Para e inicia o contêiner do broker (REQ-17, R-09), com uma espera opcional parado.</summary>
+    public async Task ReiniciarBrokerAsync(TimeSpan? parado = null)
+    {
+        await PararBrokerAsync();
+        if (parado is { } espera)
+        {
+            await Task.Delay(espera, TestContext.Current.CancellationToken);
+        }
+
+        await IniciarBrokerAsync();
+    }
+
+    /// <summary>
+    /// Apaga tudo do broker (filas, ligações e usuários), como um broker recriado sem dados, e
+    /// recria os usuários dos testes (REQ-17).
+    /// </summary>
+    public async Task RecriarBrokerAsync()
+    {
+        await ExecutarNoBrokerAsync("rabbitmqctl", "stop_app");
+        await ExecutarNoBrokerAsync("rabbitmqctl", "reset");
+        await ExecutarNoBrokerAsync("rabbitmqctl", "start_app");
+        await ExecutarNoBrokerAsync("rabbitmqctl", "await_startup");
+        // Um nó zerado recria o usuário padrão do contêiner; se não recriar, cria aqui.
+        var usuarios = await rabbitMQ!.ExecAsync(["rabbitmqctl", "list_users", "--quiet"], TestContext.Current.CancellationToken);
+        if (!usuarios.Stdout.Contains(UsuarioRabbitMQ + "\t", StringComparison.Ordinal))
+        {
+            await ExecutarNoBrokerAsync("rabbitmqctl", "add_user", UsuarioRabbitMQ, SenhaRabbitMQ);
+            await ExecutarNoBrokerAsync("rabbitmqctl", "set_user_tags", UsuarioRabbitMQ, "administrator");
+            await ExecutarNoBrokerAsync("rabbitmqctl", "set_permissions", "-p", "/", UsuarioRabbitMQ, ".*", ".*", ".*");
+        }
+
+        await CriarUsuarioApiAsync();
+        await EsperarBrokerNoArAsync();
+    }
+
+    /// <summary>Fecha à força todas as conexões abertas no broker (REQ-17).</summary>
+    public Task FecharConexoesAsync() => ExecutarNoBrokerAsync("rabbitmqctl", "close_all_connections", "teste REQ-17");
+
+    /// <summary>Troca a senha do usuário do Worker no broker (REQ-17, credenciais recusadas).</summary>
+    public Task TrocarSenhaAsync(string senha) => ExecutarNoBrokerAsync("rabbitmqctl", "change_password", UsuarioRabbitMQ, senha);
+
+    /// <summary>Volta a senha original do usuário do Worker.</summary>
+    public Task RestaurarSenhaAsync() => TrocarSenhaAsync(SenhaRabbitMQ);
+
+    private async Task ExecutarNoBrokerAsync(params string[] comando)
+    {
+        var resultado = await rabbitMQ!.ExecAsync(comando, TestContext.Current.CancellationToken);
+        if (resultado.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"Falha em '{string.Join(' ', comando)}' no broker: {resultado.Stderr}");
+        }
+    }
+
+    /// <summary>
+    /// Espera o AMQP aceitar conexão: a espera do Testcontainers na partida lê o log, que depois
+    /// de um reinício já tem a linha da partida anterior.
+    /// </summary>
+    private async Task EsperarBrokerNoArAsync()
+    {
+        var conectou = await EsperarAteAsync(async () =>
+        {
+            try
+            {
+                await using var conexao = await ConectarAsync();
+                return true;
+            }
+            catch (Exception excecao) when (excecao is RabbitMQ.Client.Exceptions.BrokerUnreachableException or IOException)
+            {
+                return false;
+            }
+        }, PrazoBrokerNoAr);
+        if (!conectou)
+        {
+            throw new TimeoutException("O broker não voltou a aceitar conexões no prazo.");
+        }
+    }
+
+    /// <summary>Quantos consumidores a fila tem, ou nulo se ela não existe (REQ-17).</summary>
+    public async Task<uint?> ConsumidoresNaFilaAsync(string fila)
+    {
+        await using var conexao = await ConectarAsync();
+        await using var canal = await conexao.CreateChannelAsync(cancellationToken: TestContext.Current.CancellationToken);
+        try
+        {
+            return (await canal.QueueDeclarePassiveAsync(fila, TestContext.Current.CancellationToken)).ConsumerCount;
+        }
+        catch (RabbitMQ.Client.Exceptions.OperationInterruptedException)
+        {
+            return null;
+        }
+    }
+
     public Task<IConnection> ConectarAsync() => new ConnectionFactory
     {
         HostName = rabbitMQ!.Hostname,
-        Port = rabbitMQ.GetMappedPublicPort(5672),
+        Port = portaAmqp,
         UserName = UsuarioRabbitMQ,
         Password = SenhaRabbitMQ
     }.CreateConnectionAsync(TestContext.Current.CancellationToken);
@@ -207,9 +322,11 @@ public sealed class MensageriaTeste : IAsyncLifetime
         try
         {
             sqlServer = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04").Build();
+            portaAmqp = PortaLivre();
             rabbitMQ = new RabbitMqBuilder("rabbitmq:4.3.6-management")
                 .WithUsername(UsuarioRabbitMQ)
                 .WithPassword(SenhaRabbitMQ)
+                .WithPortBinding(portaAmqp, 5672)
                 .Build();
             await Task.WhenAll(sqlServer.StartAsync(), rabbitMQ.StartAsync());
             await CriarUsuarioApiAsync();
@@ -224,6 +341,21 @@ public sealed class MensageriaTeste : IAsyncLifetime
             }
 
             DockerDisponivel = false;
+        }
+    }
+
+    /// <summary>Uma porta TCP livre do host, escolhida pelo sistema operacional.</summary>
+    private static int PortaLivre()
+    {
+        var ouvinte = new TcpListener(IPAddress.Loopback, 0);
+        ouvinte.Start();
+        try
+        {
+            return ((IPEndPoint)ouvinte.LocalEndpoint).Port;
+        }
+        finally
+        {
+            ouvinte.Stop();
         }
     }
 
