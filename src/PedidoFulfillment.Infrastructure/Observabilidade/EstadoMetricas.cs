@@ -11,12 +11,18 @@ namespace PedidoFulfillment.Infrastructure.Observabilidade;
 internal static class EstadoMetricas
 {
     private static readonly ConcurrentDictionary<string, long> Dlq = new();
+    private static readonly ConcurrentDictionary<string, long> Inscricoes = new();
     private static LeituraOutbox? outbox;
 
     /// <summary>Pendentes no outbox e idade do mais antigo; sem leitura ainda, nulo.</summary>
     public static LeituraOutbox? Outbox => Volatile.Read(ref outbox);
 
     public static IEnumerable<KeyValuePair<string, long>> MensagensDlq => Dlq;
+
+    /// <summary>1 inscrito, 0 sem inscrição, por consumidor (REQ-17, métrica 7).</summary>
+    public static IEnumerable<KeyValuePair<string, long>> ConsumidoresInscritos => Inscricoes;
+
+    public static void RegistrarInscricao(string consumidor, bool inscrito) => Inscricoes[consumidor] = inscrito ? 1 : 0;
 
     public static void RegistrarOutbox(long pendentes, double idadeSegundos) =>
         Volatile.Write(ref outbox, new LeituraOutbox(pendentes, idadeSegundos));

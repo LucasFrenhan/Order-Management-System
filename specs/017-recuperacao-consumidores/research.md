@@ -29,6 +29,39 @@
   `DisposeAsync`. A sequência observada é registrada nesta seção (subseção "Observado"). Se ela
   contrariar a análise, o plano volta para revisão antes da correção.
 
+### Observado (2026-10-28)
+
+Teste `RecuperacaoConsumoTestes` com o código da `main` e logs temporários em `ConexaoRabbitMQ`
+(T003), broker parado 10 s com `docker stop`/`start` (Testcontainers, porta fixa):
+
+1. **Sem pedido durante a queda**, o teste passou: `ConnectionShutdownAsync Peer 320
+   CONNECTION_FORCED`, duas `ConnectionRecoveryErrorAsync` (broker ainda subindo) e
+   `RecoverySucceededAsync` 17 s depois; os três consumidores voltaram. Ninguém pediu a conexão
+   durante a queda: o outbox estava vazio e o `MonitorDlq` fica desligado nos testes.
+2. **Com um pedido criado com o broker fora** (evento pendente no outbox), o teste falhou como na
+   issue:
+
+   ```text
+   14:52:17.311 conexão criada
+   14:52:17.606 ConnectionShutdownAsync Peer 320 CONNECTION_FORCED - broker forced connection closure with reason 'shutdown'
+   14:52:19.115 DisposeAsync de conexão IsOpen=False; chamador: DespachanteEventosSaida.ObterCanalAsync
+   14:52:21.222 DisposeAsync de conexão IsOpen=False; chamador: DespachanteEventosSaida.ObterCanalAsync
+   14:52:27.311 DisposeAsync de conexão IsOpen=False; chamador: DespachanteEventosSaida.ObterCanalAsync
+   14:52:37.420 DisposeAsync de conexão IsOpen=False; chamador: DespachanteEventosSaida.ObterCanalAsync
+   14:52:37.424 conexão criada
+   (60 s depois: 0 consumidores em oms.estoque, oms.pagamento e oms.entrega)
+   ```
+
+   O primeiro `DisposeAsync` encerra a recuperação em curso; os seguintes descartam a mesma
+   conexão já morta, porque a criação falha com o broker fora e o campo continua apontando para
+   ela. Com o broker de volta, a conexão nova sai, o despachante publica, e ninguém consome.
+
+**Conclusão**: a análise se confirma, com um detalhe: o defeito precisa de alguém pedindo a
+conexão durante a queda (evento pendente no outbox, `MonitorDlq` com aviso ou telemetria, reenvio
+da DLQ). Na demo da issue isso sempre acontece (monitor ligado com a telemetria do perfil `demo`
+e pedidos novos). A alternativa escolhida em R-02 continua valendo; o teste de reprodução da T003
+passa a criar um pedido com o broker fora.
+
 ## R-02. Alternativa escolhida (FR-002)
 
 - **Decisão**: o processo é dono da recuperação. A conexão passa a ter
