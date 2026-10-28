@@ -40,6 +40,6 @@
 - Correção da hipótese da issue: a prontidão (`VerificacaoRabbitMQ`) abre uma conexão própria
   e não chama a conexão compartilhada; quem a pede durante a queda são o despachante, o
   monitor da DLQ e o reenvio.
-- Sem `[NEEDS CLARIFICATION]`. Candidatos para o `/speckit-clarify`: incluir a fila apagada
-  (User Story 2) no escopo; a prontidão do Worker ficar não pronta logo na perda da inscrição
-  ou só depois de uma tolerância; uma métrica de consumidores inscritos (hoje fora do exigido).
+- Sem `[NEEDS CLARIFICATION]`. Os três candidatos foram resolvidos no `/speckit-clarify` de
+  2026-10-28: a fila apagada fica no escopo; a prontidão fica não pronta na hora, sem
+  tolerância; entram um medidor de inscrição e um contador de voltas por consumidor (FR-016a).

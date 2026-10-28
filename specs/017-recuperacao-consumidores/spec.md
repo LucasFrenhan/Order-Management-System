@@ -34,6 +34,22 @@ consumidores de novo. A mesma lacuna já está registrada no fluxo 08: uma fila 
 apagada com o processo de workers no ar faz o consumidor dela perder a inscrição até o
 processo reiniciar.
 
+## Clarifications
+
+### Session 2026-10-28
+
+- Q: A fila apagada e a conexão derrubada à força, sem o broker inteiro cair, ficam no escopo
+  deste REQ (User Story 2)? → A: Sim. Ficam no escopo a fila apagada, o canal fechado, a
+  inscrição cancelada pelo broker e a conexão fechada à força, cada um com teste de
+  integração; a limitação da fila apagada sai do fluxo 08.
+- Q: Quando um consumidor perde a inscrição, a prontidão do Worker fica não pronta na hora ou
+  só depois de uma tolerância? → A: Na hora, sem tolerância: a entrada `consumidores` mostra
+  o estado atual das três inscrições, como a entrada `rabbitmq` mostra o do broker.
+- Q: O REQ inclui uma métrica de consumidores inscritos, além da prontidão e dos logs? → A:
+  Sim: um medidor de inscrição por consumidor (1 inscrito, 0 sem inscrição) e um contador de
+  voltas por consumidor, os dois só com a telemetria ligada, como acréscimo às métricas do
+  REQ-16.
+
 ## User Scenarios & Testing *(mandatory)*
 
 Os "usuários" deste requisito são quem opera o ambiente, que não deveria precisar reiniciar o
@@ -209,8 +225,9 @@ volta a pronta depois de os consumidores se inscreverem, e que os logs mostram a
 
 **Prontidão e logs**
 
-- **FR-013**: A prontidão do processo de workers MUST ganhar uma entrada para os consumidores,
-  pronta só quando os três estão inscritos e não pronta enquanto algum não estiver; a resposta
+- **FR-013**: A prontidão do processo de workers MUST ganhar uma entrada `consumidores`,
+  pronta só quando os três estão inscritos e não pronta a partir do momento em que algum perde
+  a inscrição, sem tolerância, até ele voltar; a resposta
   continua mostrando só nomes e estados, sem dados de conexão (REQ-02).
 - **FR-014**: A prontidão da API MUST continuar como está.
 - **FR-015**: O processo de workers MUST registrar em log, com IDs de log novos e estáveis: a
@@ -218,6 +235,11 @@ volta a pronta depois de os consumidores se inscreverem, e que os logs mostram a
   e a volta de cada consumidor; os IDs de log existentes não mudam.
 - **FR-016**: Os logs novos MUST seguir a correlação com o trace do REQ-16 quando a telemetria
   está ligada e MUST não incluir credenciais nem a cadeia de conexão.
+- **FR-016a**: Com a telemetria ligada (REQ-16), o processo de workers MUST publicar duas
+  métricas novas, rotuladas pelo consumidor: o estado da inscrição (1 inscrito, 0 sem
+  inscrição) e a quantidade de vezes que o consumidor voltou a se inscrever depois de perder a
+  inscrição. As seis métricas do REQ-16 não mudam; com a telemetria desligada, nada é
+  publicado.
 
 **Verificação e documentação**
 
@@ -225,13 +247,15 @@ volta a pronta depois de os consumidores se inscreverem, e que os logs mostram a
   e iniciar, não só pausar) com o processo de consumo no ar e provar que os três consumidores
   voltam a consumir no prazo, que um evento publicado depois é processado e que uma mensagem
   reentregue não repete o efeito.
-- **FR-018**: Um teste de integração MUST cobrir a perda de inscrição de um consumidor sem a
-  queda do broker (fila apagada ou conexão fechada à força) e a prontidão do processo de
-  workers durante e depois da queda.
+- **FR-018**: Testes de integração MUST cobrir cada perda de inscrição sem a queda do broker
+  (fila principal apagada, canal de consumo fechado, inscrição cancelada pelo broker e conexão
+  fechada à força pelo broker) e a prontidão do processo de workers durante e depois da queda.
 - **FR-019**: O fluxo 08 (`docs/fluxos/08-publicacao-e-consumo-de-eventos.md`) MUST ser
   atualizado: a seção "Falhas externas" passa a descrever a queda e a volta do broker com o
   processo no ar e a fila apagada; a limitação da fila apagada sai da tabela como pendência e
-  passa a citar a issue #41; a prontidão e os logs novos entram nas seções correspondentes.
+  passa a citar a issue #41; a prontidão e os logs novos entram nas seções correspondentes. O
+  fluxo 12 (`docs/fluxos/12-rastreabilidade-e-metricas.md`) ganha as duas métricas novas
+  (FR-016a).
 
 ### Key Entities
 
@@ -271,12 +295,13 @@ volta a pronta depois de os consumidores se inscreverem, e que os logs mostram a
   este requisito não muda os contratos de evento (envelope v1, cabeçalhos e filas).
 - Reiniciar o contêiner do broker no teste de integração com o mesmo volume de dados é a forma
   representativa da queda; o broker sem volume (filas apagadas) entra como caso de borda.
-- A fila apagada com o processo no ar entra no escopo (User Story 2), porque a mesma
-  reinscrição resolve as duas situações e o fluxo 08 já a registra como limitação.
+- A fila apagada com o processo no ar entra no escopo (User Story 2; Clarifications
+  2026-10-28), porque a mesma reinscrição resolve as duas situações e o fluxo 08 já a registra
+  como limitação.
 - Não há reinício automático do processo de workers por prontidão não pronta no ambiente de
   demonstração; a entrada nova na prontidão é para diagnóstico e para orquestradores que a
   usem.
 - A mensageria continua com o RabbitMQ.Client nativo (constituição); nenhuma dependência nova
   é esperada, e qualquer uma exigiria justificativa no plano.
 - Com a telemetria ligada (REQ-16), os spans e as métricas de consumo continuam como estão;
-  uma métrica de consumidores inscritos pode ser avaliada no plano, mas não é exigida.
+  as duas métricas novas (FR-016a) são acréscimos, e os nomes delas são definidos no plano.
