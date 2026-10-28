@@ -109,4 +109,45 @@ public sealed class MetricasTestes(MensageriaTeste mensageria)
         logs.Registros.Where(r => r.Evento.Id == 5011).Should().ContainSingle();
         await PrepararFilasAsync(mensageria);
     }
+
+    [Fact]
+    public async Task Inscricao_dos_consumidores_e_reinscricoes_aparecem_nas_metricas()
+    {
+        // REQ-17, FR-016a (métricas 7 e 8): a fila apagada derruba só a inscrição do estoque.
+        Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
+        using var coletor = new ColetorTelemetria();
+        await using var worker = new FabricaWorker
+        {
+            StringConexao = await mensageria.NovoBancoMigradoAsync(),
+            ConfiguracoesBroker = mensageria.ConfiguracoesBroker,
+            Telemetria = coletor
+        };
+        worker.CreateClient().Dispose();
+        foreach (var consumidor in new[] { "estoque", "pagamento", "entrega" })
+        {
+            (await mensageria.ConsumidorLigadoAsync(consumidor, TimeSpan.FromSeconds(10))).Should().BeTrue();
+        }
+
+        coletor.LerGauges();
+        foreach (var consumidor in new[] { "estoque", "pagamento", "entrega" })
+        {
+            coletor.Ultimo("oms.mensageria.consumidor.inscrito", ("oms.consumidor", consumidor)).Should().Be(1);
+        }
+
+        coletor.Soma("oms.mensageria.consumidor.reinscricoes").Should().Be(0, "a inscrição da partida não conta");
+
+        await mensageria.ApagarFilasConsumidorAsync("estoque", soPrincipal: true);
+        // A volta é imediata depois de a fila sumir: o 0 do gauge dura milissegundos e fica com o
+        // teste unitário do EstadoConsumidores.
+        (await MensageriaTeste.EsperarAteAsync(
+            () => Task.FromResult(coletor.Soma("oms.mensageria.consumidor.reinscricoes", ("oms.consumidor", "estoque")) == 1),
+            TimeSpan.FromSeconds(60))).Should().BeTrue("o consumidor voltou e a volta foi contada");
+
+        coletor.LerGauges();
+        coletor.Ultimo("oms.mensageria.consumidor.inscrito", ("oms.consumidor", "estoque")).Should().Be(1);
+        coletor.Soma("oms.mensageria.consumidor.reinscricoes", ("oms.consumidor", "pagamento")).Should().Be(0);
+        var inscrito = coletor.Medicoes.First(m => m.Nome == "oms.mensageria.consumidor.inscrito");
+        inscrito.Unidade.Should().Be("{inscricao}");
+        coletor.Medicoes.First(m => m.Nome == "oms.mensageria.consumidor.reinscricoes").Unidade.Should().Be("{reinscricao}");
+    }
 }
