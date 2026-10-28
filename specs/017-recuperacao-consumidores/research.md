@@ -146,7 +146,8 @@
   | 5018 | `ConsumidorReinscrito` | Information | supervisor, na volta |
   | 5019 | `ConexaoBrokerFechada` | Warning | `ConexaoRabbitMQ`, no `ConnectionShutdownAsync` não pedido pelo processo |
 
-- O 5008 (`FalhaInicioConsumidor`) continua só para a partida. Mensagens e campos no
+- O 5008 (`FalhaInicioConsumidor`) continua só para a partida, com o mesmo ID, nome e mensagem;
+  como o supervisor faz também as tentativas da partida, ele passa a registrá-lo (analyze I1). Mensagens e campos no
   [contrato](./contracts/recuperacao-consumo.md#logs).
 - Os logs saem pelo `ILogger`, e a correlação do REQ-16 (trace e span quando há atividade)
   continua valendo; o supervisor não abre spans próprios.
@@ -164,8 +165,10 @@
     Worker;
   - os já existentes `ApagarFilasConsumidorAsync(..., soPrincipal: true)` e
     `ConsumidorLigadoAsync` cobrem a fila apagada e a contagem de consumidores.
-- Os testes que derrubam o broker ficam na `ColecaoMensageria`, que roda em série: nenhum outro
-  teste usa o broker enquanto ele reinicia. Os dados do broker sobrevivem a `stop`/`start`.
+- Os testes que derrubam o broker ficam numa coleção própria, `ColecaoQuedaBroker`, com uma
+  instância própria do `MensageriaTeste` (analyze C1): rodam em série entre si, sem reiniciar o
+  broker das outras coleções, e em paralelo com elas, sem alongar a `ColecaoMensageria`. Os dados
+  do broker sobrevivem a `stop`/`start`.
 - O canal fechado sozinho, sem queda da conexão, não tem comando no broker: ele é coberto por
   testes unitários do supervisor (R-10) e, de ponta a ponta, pelo fechamento forçado da conexão.
 

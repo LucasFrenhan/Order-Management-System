@@ -38,8 +38,10 @@ e da troca do consumidor feita na US1.
 - Nenhum pacote NuGet novo; nenhuma migration.
 - `TreatWarningsAsErrors` ligado, e `dotnet format --verify-no-changes` passando.
 - Testcontainers e `OMS_EXIGIR_DOCKER` (REQ-07); nenhuma espera fixa em teste (esperas por
-  condição com `MensageriaTeste.EsperarAteAsync`). Os testes que derrubam o broker ficam na
-  `ColecaoMensageria`, que roda em série.
+  condição com `MensageriaTeste.EsperarAteAsync`). Os testes que derrubam o broker ficam numa
+  coleção própria, `ColecaoQuedaBroker`, com uma instância própria do `MensageriaTeste` (analyze
+  C1): rodam em série entre si e em paralelo com as outras coleções, sem reiniciar o broker
+  delas.
 - Nada sensível em logs e na prontidão: nunca a senha do broker nem a cadeia de conexão.
 - Commits: `tipo(escopo): descrição [REQ-17]`, um por fase.
 
@@ -66,8 +68,10 @@ das inscrições e o supervisor prontos antes de mexer no consumidor.
   - `FecharConexoesAsync()`: `rabbitmqctl close_all_connections "teste REQ-17"`;
   - `ConsumidoresNaFilaAsync(string fila)`: `ConsumerCount` da fila, ou nulo se ela não existe;
   - corrigir o comentário solto "Simula o broker fora do ar sem trocar a porta mapeada" sobre `ConfiguracoesBrokerApi` (ele é de `PausarBrokerAsync`).
+  - `TrocarSenhaAsync(string senha)`: `rabbitmqctl change_password oms <senha>` (analyze G1);
+  - `ColecaoQuedaBroker` (`[CollectionDefinition(nameof(ColecaoQuedaBroker))]`, `ICollectionFixture<MensageriaTeste>`) num arquivo novo `tests/PedidoFulfillment.Testes.Integracao/Mensageria/ColecaoQuedaBroker.cs`.
   Rodar os testes da `ColecaoMensageria` e da `ColecaoObservabilidade` para conferir que nada quebrou.
-- [ ] T003 Confirmação da causa (FR-001, research R-01), **antes de qualquer correção**: em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/RecuperacaoConsumoTestes.cs` (nova, `[Collection(nameof(ColecaoMensageria))]`), escrever `Os_tres_consumidores_voltam_depois_de_o_broker_reiniciar`: Worker (`FabricaWorker`) no ar, esperar os três consumidores (`ConsumidorLigadoAsync` para `estoque`, `pagamento` e `entrega`), `ReiniciarBrokerAsync(TimeSpan.FromSeconds(10))`, esperar até 60 s cada fila principal com `ConsumidoresNaFilaAsync == 1`. Rodar com o código da `main` e confirmar que **falha** (0 consumidores). Com logs temporários (não commitados) em `ConexaoRabbitMQ` para `ConnectionShutdownAsync`, `RecoverySucceededAsync`, `ConnectionRecoveryErrorAsync` e o `DisposeAsync` de `ObterAsync` (com quem chamou), registrar a sequência observada em `specs/017-recuperacao-consumidores/research.md`, R-01, numa subseção "Observado (2026-MM-DD)". **Se a sequência contrariar a análise, parar e revisar o plano antes de seguir.**
+- [ ] T003 Confirmação da causa (FR-001, research R-01), **antes de qualquer correção**: em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/RecuperacaoConsumoTestes.cs` (nova, `[Collection(nameof(ColecaoQuedaBroker))]`), escrever `Os_tres_consumidores_voltam_depois_de_o_broker_reiniciar`: Worker (`FabricaWorker`) no ar, esperar os três consumidores (`ConsumidorLigadoAsync` para `estoque`, `pagamento` e `entrega`), `ReiniciarBrokerAsync(TimeSpan.FromSeconds(10))`, esperar até 60 s cada fila principal com `ConsumidoresNaFilaAsync == 1`. Rodar com o código da `main` e confirmar que **falha** (0 consumidores). Com logs temporários (não commitados) em `ConexaoRabbitMQ` para `ConnectionShutdownAsync`, `RecoverySucceededAsync`, `ConnectionRecoveryErrorAsync` e o `DisposeAsync` de `ObterAsync` (com quem chamou), registrar a sequência observada em `specs/017-recuperacao-consumidores/research.md`, R-01, numa subseção "Observado (2026-MM-DD)". **Se a sequência contrariar a análise, parar e revisar o plano antes de seguir.**
 
 ### Estado e supervisor
 
@@ -81,7 +85,7 @@ das inscrições e o supervisor prontos antes de mexer no consumidor.
   - na partida, a primeira tentativa sai na hora, falhas usam a mesma sequência e não contam reinscrição;
   - cancelar o token durante a espera ou durante uma sessão aberta: sai do laço sem abrir outra sessão e fecha a aberta.
   Devem falhar (o tipo ainda não existe).
-- [ ] T007 `src/PedidoFulfillment.Infrastructure/Mensageria/SupervisorInscricao.cs` (research R-02 a R-04): `internal sealed class SupervisorInscricao(string consumidor, Func<CancellationToken, Task<SessaoConsumo>> abrir, Func<TimeSpan, CancellationToken, Task> esperar, EstadoConsumidores estado, TimeProvider relogio, ILogger logger)` com `ExecutarAsync(CancellationToken)`: laço abrir → marcar inscrito → `await Perdida` (ou cancelamento) → marcar sem inscrição → `DisposeAsync` da sessão → próxima tentativa; intervalos `[0, 1, 2, 4, 8, 10]` s, ficando em 10 s, zerados depois de uma abertura bem-sucedida; para a abstração de teste, `SessaoConsumo` pode ser trocada por uma interface `ISessaoConsumo` (`Task<MotivoPerda> Perdida`, `IAsyncDisposable`). Deixa os pontos de log e de métrica marcados com `// US3` (entram na T023 e na T024). T006 passa.
+- [ ] T007 `src/PedidoFulfillment.Infrastructure/Mensageria/SupervisorInscricao.cs` (research R-02 a R-04): `internal sealed class SupervisorInscricao(string consumidor, Func<CancellationToken, Task<SessaoConsumo>> abrir, Func<TimeSpan, CancellationToken, Task> esperar, EstadoConsumidores estado, TimeProvider relogio, ILogger logger)` com `ExecutarAsync(CancellationToken)`: laço abrir → marcar inscrito → `await Perdida` (ou cancelamento) → marcar sem inscrição → `DisposeAsync` da sessão → próxima tentativa; intervalos `[0, 1, 2, 4, 8, 10]` s, ficando em 10 s, zerados depois de uma abertura bem-sucedida; para a abstração de teste, `SessaoConsumo` pode ser trocada por uma interface `ISessaoConsumo` (`Task<MotivoPerda> Perdida`, `IAsyncDisposable`). O supervisor recebe o logger e é quem registra as falhas ao abrir: o 5008 (`FalhaInicioConsumidor`, movido de `ConsumidorEventos` com o mesmo ID, nome, nível e mensagem) antes da primeira inscrição, e o 5017 depois de uma perda (analyze I1). Deixa os pontos dos outros logs e das métricas marcados com `// US3` (entram na T023 e na T024). T006 passa.
 
 **Checkpoint**: fundação pronta; o teste da T003 continua falhando até a US1.
 
@@ -99,11 +103,11 @@ reiniciar o Worker, sem mensagem perdida nem efeito repetido.
 
 - [ ] T008 [P] [US1] Em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/RecuperacaoConsumoTestes.cs`, acrescentar (US1, cenários 1, 2, 4, 5 e 6):
   - `Pedido_criado_com_o_broker_fora_segue_quando_ele_volta`: `PararBrokerAsync`, gravar pedido e `pedido.criado` no outbox (como os testes de `Estoque/`), `IniciarBrokerAsync`, esperar até 90 s o pedido em `ProntoParaEnvio` com a ordem de entrega criada;
-  - `Consumo_volta_depois_de_queda_longa`: broker parado 70 s; os três consumidores voltam em até 60 s contados de `IniciarBrokerAsync`;
+  - `Consumo_volta_depois_de_queda_longa`: broker parado 30 s, mais que o necessário para a espera chegar ao teto de 10 s (analyze C1; os "vários minutos" do cenário 4 ficam no quickstart §2); os três consumidores voltam em até 60 s contados de `IniciarBrokerAsync`;
   - `Quedas_seguidas_deixam_um_unico_consumidor_por_fila`: três `ReiniciarBrokerAsync` com 2 s entre eles; ao fim, `ConsumidoresNaFilaAsync == 1` nas três filas por 5 s seguidos;
   - `Broker_sem_dados_tem_as_filas_recriadas_antes_da_inscricao`: `RecriarBrokerAsync`; em até 60 s, as filas principal, de espera (100, 200 e 400 ms nos testes) e DLQ dos três consumidores existem, e cada principal tem 1 consumidor.
-- [ ] T009 [P] [US1] Efeito único (FR-008, FR-009, SC-003) em `RecuperacaoConsumoTestes.cs`, `Mensagem_em_processamento_na_queda_nao_repete_o_efeito`: um manipulador de verificação registrado por `FabricaWorker.Servicos` (padrão de `ServicosFalsos.cs`) que, na primeira chamada para o consumidor de estoque, grava o efeito normalmente e segura o retorno num `TaskCompletionSource` até o teste liberar; o teste reinicia o broker com a chamada presa, libera, e confere: a reentrega é descartada como duplicada (log 5005), há exatamente uma reserva para o pedido e um único `estoque.reservado` no outbox.
-- [ ] T010 [P] [US1] Outros componentes (FR-011) em `RecuperacaoConsumoTestes.cs`, `Despachante_monitor_e_reenvio_funcionam_depois_da_queda`: com `ReenvioDlq:Habilitado=true` e o aviso ligado (`Configuracoes`), reiniciar o broker; depois, um evento novo do outbox é publicado e marcado como enviado, o `MonitorDlq` volta a ler (log 5011 ou leitura registrada, conforme os testes de `Administracao/MonitorDlqTestes.cs`) e um pedido de reenvio (padrão de `Administracao/CenarioReenvio.cs`) termina com sucesso, com a mensagem de volta na fila principal.
+- [ ] T009 [P] [US1] Efeito único (FR-008, FR-009, SC-003) em `RecuperacaoConsumoTestes.cs`, `Mensagem_em_processamento_na_queda_nao_repete_o_efeito`: um decorator da `ReservaEstoque` real registrado por `FabricaWorker.Servicos` (padrão de `ServicosFalsos.cs`) que, na primeira chamada, executa a reserva real e segura **antes de retornar** num `TaskCompletionSource` até o teste liberar; o efeito só é confirmado na transação do `ConsumidorEventos` depois do retorno (analyze U1). O teste para o broker com a chamada presa, libera (o commit acontece com o canal já fechado, e o ack falha), inicia o broker e confere: a reentrega é descartada como duplicada (log 5005), há exatamente uma reserva para o pedido e um único `estoque.reservado` no outbox.
+- [ ] T010 [P] [US1] Outros componentes (FR-011) em `RecuperacaoConsumoTestes.cs`, `Despachante_monitor_e_reenvio_funcionam_depois_da_queda`: com `ReenvioDlq:Habilitado=true` e o aviso ligado (`Configuracoes`), reiniciar o broker; depois, um evento novo do outbox é publicado e marcado como enviado, o `MonitorDlq` volta a ler: com `ReenvioDlq:AvisoLimite=0`, `ReenvioDlq:AvisoIntervaloSegundos=1` e uma mensagem na DLQ de estoque (`CenarioReenvio.NaDlqAsync`), um 5011 novo aparece depois da volta (analyze A2) e um pedido de reenvio (padrão de `Administracao/CenarioReenvio.cs`) termina com sucesso, com a mensagem de volta na fila principal.
 
 ### Implementação da US1
 
@@ -129,13 +133,19 @@ força: o consumidor volta sozinho em até 1 min, sem afetar os outros.
 
 ### Testes da US2
 
-- [ ] T013 [P] [US2] `Fila_apagada_e_recriada_e_o_consumidor_volta` em `RecuperacaoConsumoTestes.cs` (US2, cenário 1): com os três inscritos, `ApagarFilasConsumidorAsync("estoque", soPrincipal: true)`; em até 60 s, `oms.estoque` existe com 1 consumidor e um `pedido.criado` publicado nela é processado; `oms.pagamento` e `oms.entrega` mantêm 1 consumidor o tempo todo (amostrar durante a espera).
+- [ ] T013 [P] [US2] `Fila_apagada_e_recriada_e_o_consumidor_volta` em `RecuperacaoConsumoTestes.cs` (US2, cenário 1): com os três inscritos, `ApagarFilasConsumidorAsync("estoque", soPrincipal: true)`; em até 60 s, `oms.estoque` existe com 1 consumidor e um `pedido.criado` publicado nela é processado; `oms.pagamento` e `oms.entrega` mantêm 1 consumidor o tempo todo (amostrar durante a espera). Com `CapturaLogs`: um 5016 com origem `cancelamento` só para `estoque`, e um 5018 para ele.
 - [ ] T014 [P] [US2] `Conexao_fechada_a_forca_tem_os_tres_consumidores_de_volta` em `RecuperacaoConsumoTestes.cs` (US2, cenário 2): `FecharConexoesAsync`; em até 60 s, as três filas com 1 consumidor.
 - [ ] T015 [P] [US2] `Encerrar_o_worker_durante_a_recuperacao_nao_trava` em `RecuperacaoConsumoTestes.cs` (US2, cenário 3; edge case de encerramento): `PararBrokerAsync`, esperar o log 5016 dos três, descartar a `FabricaWorker` e conferir que termina em até 10 s, sem nenhum 5018 depois do pedido de encerramento; `IniciarBrokerAsync` no `finally`.
 
 ### Implementação da US2
 
-- [ ] T016 [US2] Fechar os casos que a T013 a T015 apontarem em `SessaoConsumo.cs` e `SupervisorInscricao.cs`: o `UnregisteredAsync` do cancelamento pelo broker com o canal ainda aberto, o fechamento do canal de publicação e o encerramento sem reinscrever; o canal fechado sozinho (sem comando no broker, research R-09) fica coberto pelos testes da T006. T013 a T015 passam.
+- [ ] T016 [US2] Conferir e completar em `SessaoConsumo.cs` e `SupervisorInscricao.cs` (analyze U2):
+  - o `UnregisteredAsync` vindo do broker (fila apagada) completa a perda com origem `cancelamento` mesmo com o canal aberto, e o `DisposeAsync` da sessão fecha esse canal;
+  - o `UnregisteredAsync` causado pela própria sessão (cancelamento no `DisposeAsync`) é ignorado;
+  - o `ChannelShutdownAsync` do canal de publicação também completa a perda;
+  - com o token cancelado, nenhuma sessão nova é aberta, e a espera em curso termina na hora;
+  - o canal fechado sozinho (sem comando no broker, research R-09) fica coberto pelos testes da T006.
+  T013 a T015 passam.
 
 **Checkpoint**: a limitação "fila apagada com o Worker no ar" do fluxo 08 está resolvida.
 
@@ -151,15 +161,15 @@ logs 5016 a 5019; métricas 7 e 8 com a telemetria ligada.
 ### Testes da US3
 
 - [ ] T017 [P] [US3] Testes unitários de `VerificacaoConsumidores` em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/VerificacaoConsumidoresTestes.cs`: `Healthy` com todos inscritos; `Unhealthy` com um sem inscrição e antes da primeira inscrição; nenhum resultado traz `Description`, `Exception` nem `Data`.
-- [ ] T018 [P] [US3] Prontidão (US3, cenários 1 a 3 e 5; SC-004) em `RecuperacaoConsumoTestes.cs`, `Prontidao_do_worker_mostra_os_consumidores_parados_e_a_volta`: pronta (200) com `"consumidores": "Healthy"`; `PararBrokerAsync` → em até 15 s, 503 com `"consumidores": "Unhealthy"`, e toda leitura seguinte até a volta é 503; `IniciarBrokerAsync` → 200 em até 60 s. A resposta não contém a senha, o host nem nomes de fila. Em `tests/PedidoFulfillment.Testes.Integracao/Saude/SaudeComDependenciasTestes.cs`, acrescentar que a prontidão da API não tem a entrada `consumidores` (FR-014).
-- [ ] T019 [P] [US3] Logs (US3, cenário 4; FR-015, FR-016) em `RecuperacaoConsumoTestes.cs`, `Queda_e_volta_ficam_nos_logs_sem_credenciais`, com `CapturaLogs`: depois de `ReiniciarBrokerAsync(TimeSpan.FromSeconds(5))`, há 5019 (`ConexaoBrokerFechada`), um 5016 por consumidor com origem `canal`, pelo menos um 5017 e um 5018 por consumidor com `DuracaoMs > 0`; na fila apagada (como na T013), um 5016 com origem `cancelamento` só para `estoque`; nenhum texto capturado contém a senha do broker; níveis como no contrato.
+- [ ] T018 [P] [US3] Prontidão e logs numa queda só (US3, cenários 1 a 4; SC-004; FR-015, FR-016; analyze C1) em `RecuperacaoConsumoTestes.cs`, `Queda_e_volta_aparecem_na_prontidao_e_nos_logs_sem_credenciais`, com `CapturaLogs`: pronta (200) com `"consumidores": "Healthy"`; `PararBrokerAsync` → em até 15 s, 503 com `"consumidores": "Unhealthy"`, e toda leitura seguinte até a volta é 503; `IniciarBrokerAsync` → 200 em até 60 s. Nos logs: 5019 (`ConexaoBrokerFechada`), um 5016 por consumidor com origem `canal`, pelo menos um 5017 e um 5018 por consumidor com `DuracaoMs > 0`, níveis como no contrato. Nem a resposta da prontidão nem os logs contêm a senha do broker; a resposta também não tem o host nem nomes de fila. Em `tests/PedidoFulfillment.Testes.Integracao/Saude/SaudeComDependenciasTestes.cs`, acrescentar que a prontidão da API não tem a entrada `consumidores` (FR-014).
+- [ ] T019 [P] [US3] Credenciais recusadas na volta (spec, Edge Cases; analyze G1) em `RecuperacaoConsumoTestes.cs`, `Credenciais_recusadas_mantem_o_worker_nao_pronto_ate_voltarem`, com `CapturaLogs`: com os três inscritos, `TrocarSenhaAsync("outra-senha-req17")` e `FecharConexoesAsync`; por 15 s a prontidão responde 503 com `"consumidores": "Unhealthy"` e há 5017; nenhum log contém nenhuma das duas senhas; `TrocarSenhaAsync` de volta para a original (também no `finally`) → os três voltam em até 60 s.
 - [ ] T020 [P] [US3] Métricas (FR-016a) em `tests/PedidoFulfillment.Testes.Integracao/Observabilidade/MetricasTestes.cs`: com a telemetria ligada, `oms.mensageria.consumidor.inscrito` = 1 para os três; depois de apagar `oms.estoque` e o consumidor voltar, o gauge de `estoque` passou por 0 e voltou a 1, e `oms.mensageria.consumidor.reinscricoes{oms.consumidor=estoque}` = 1 (a inscrição da partida não conta); nomes, unidades (`{inscricao}`, `{reinscricao}`) e atributo `oms.consumidor` como no contrato. Em `TelemetriaDesligadaTestes.cs`, conferir que as duas não são publicadas com a telemetria desligada.
 
 ### Implementação da US3
 
 - [ ] T021 [US3] `src/PedidoFulfillment.Infrastructure/Saude/VerificacaoConsumidores.cs` (research R-06): `IHealthCheck` que lê `EstadoConsumidores.TodosInscritos` e devolve `Healthy()` ou `Unhealthy()` sem descrição; registrar em `AdicionarMensageria` (`ExtensoesMensageria.cs`) com `services.AddHealthChecks().AddCheck<VerificacaoConsumidores>("consumidores", tags: [ExtensoesInfraestrutura.TagPronto])`, só no Worker.
 - [ ] T022 [US3] Ajustar `tests/PedidoFulfillment.Testes.Integracao/Mensageria/WorkerTestes.cs`: `Worker_fica_pronto_e_declara_a_troca_de_eventos` espera até 30 s a prontidão responder 200 (research R-06), em vez de ler uma vez. Procurar com `grep -rn "health/pronto" tests` outros testes do Worker que leiam a prontidão uma vez só e ajustá-los do mesmo jeito.
-- [ ] T023 [US3] Logs em `SupervisorInscricao.cs` (5016 `InscricaoPerdida`, 5017 `FalhaReinscricao`, 5018 `ConsumidorReinscrito` com `DuracaoMs` de `SemInscricaoDesde`) e em `ConexaoRabbitMQ.cs` (5019 `ConexaoBrokerFechada`, assinando `ConnectionShutdownAsync` na criação; não registra quando `Initiator == ShutdownInitiator.Application`), com nomes, níveis e mensagens exatamente como em `contracts/recuperacao-consumo.md`, seção Logs; `ConexaoRabbitMQ` passa a receber `ILogger<ConexaoRabbitMQ>`.
+- [ ] T023 [US3] Logs em `SupervisorInscricao.cs` (5016 `InscricaoPerdida`, 5017 `FalhaReinscricao`, 5018 `ConsumidorReinscrito` com `DuracaoMs` de `SemInscricaoDesde`; o 5008 já está lá desde a T007) e em `ConexaoRabbitMQ.cs` (5019 `ConexaoBrokerFechada`, assinando `ConnectionShutdownAsync` na criação; não registra quando `Initiator == ShutdownInitiator.Application`), com nomes, níveis e mensagens exatamente como em `contracts/recuperacao-consumo.md`, seção Logs; `ConexaoRabbitMQ` passa a receber `ILogger<ConexaoRabbitMQ>`.
 - [ ] T024 [US3] Métricas 7 e 8 em `src/PedidoFulfillment.Infrastructure/Observabilidade/TelemetriaOms.cs` (contrato, seção Métricas): `ConsumidorInscrito` (`ObservableGauge<long>`, `oms.mensageria.consumidor.inscrito`, `{inscricao}`, lido de `EstadoMetricas`, com `oms.consumidor`) e `Reinscricoes` (`Counter<long>`, `oms.mensageria.consumidor.reinscricoes`, `{reinscricao}`); o supervisor soma 1 em `Reinscricoes` a cada abertura bem-sucedida depois de uma perda.
 
 **Checkpoint**: todas as histórias funcionando.
@@ -171,8 +181,8 @@ logs 5016 a 5019; métricas 7 e 8 com a telemetria ligada.
 - [ ] T025 [P] Documentos de fluxo (regra do `CLAUDE.md`), conferindo IDs de log, nomes, intervalos e links relativos no código:
   - `docs/fluxos/08-publicacao-e-consumo-de-eventos.md`: em "Falhas externas", linhas para o broker que cai e volta com o Worker no ar (perda, intervalos 0, 1, 2, 4, 8 e 10 s, volta em até 1 min), a conexão fechada à força, o broker sem dados e as credenciais recusadas; a linha "Broker fora do ar na partida" mantém o 5008; a linha "Fila de um consumidor apagada com o Worker no ar" passa a dizer que o consumidor se inscreve de novo, citando a issue #41; seção de consumo com o supervisor e o ack pela sessão que entregou; prontidão com a entrada `consumidores`; logs 5016 a 5019; a recuperação automática desligada;
   - `docs/fluxos/12-rastreabilidade-e-metricas.md`: métricas 7 e 8;
-  - `docs/fluxos/README.md`: só se a linha do fluxo 08 ou a tabela de dependências externas citarem a recuperação; o diagrama de estados do pedido não muda.
-- [ ] T026 [P] `README.md`: linha do REQ-17 na tabela de requisitos (com o link da spec), "Estado atual" com o REQ-17, numeração do próximo REQ a partir do REQ-18 e a tabela de próximos passos só com a #18; roteiros com o quickstart do REQ-17.
+  - `docs/fluxos/README.md`: a linha "RabbitMQ (Worker)" da tabela de dependências externas passa a dizer que os consumidores voltam sozinhos também com o Worker no ar e que a prontidão do Worker mostra os consumidores parados (analyze G2); o diagrama de estados do pedido não muda.
+- [ ] T026 [P] `README.md`: o trecho de `/health/pronto` (hoje "verifica banco e broker… com o estado de `sqlserver` e `rabbitmq`") ganha a entrada `consumidores`, só no Worker (analyze G2); linha do REQ-17 na tabela de requisitos (com o link da spec), "Estado atual" com o REQ-17, numeração do próximo REQ a partir do REQ-18 e a tabela de próximos passos só com a #18; roteiros com o quickstart do REQ-17.
 - [ ] T027 [P] Desempenho (SC-006): rodar `tests/PedidoFulfillment.Testes.Integracao/Entregas/DesempenhoEntregaTestes.cs` e registrar em Notes o p95, comparando com o da `main` na T001; não pode piorar mais de 5%.
 - [ ] T028 Varredura de segredos nos arquivos alterados, `dotnet format --verify-no-changes` e a suíte local inteira com `OMS_EXIGIR_DOCKER=1` (zero ignorados); registrar a contagem em Notes.
 - [ ] T029 Executar o quickstart (§2 a §5) com `docker compose --profile demo` e registrar em Notes (consumidores por fila antes, durante e depois; prontidão; logs; métricas no painel).
@@ -232,5 +242,17 @@ visibilidade (prontidão, logs e métricas).
 - [P] = arquivos diferentes, sem dependência pendente.
 - Pela regra do `CLAUDE.md`, nenhum REQ novo começa antes de o PR deste ser mergeado.
 - A T003 precisa do Docker no ar; ela é o portão da correção (FR-001).
+- **Analyze (2026-10-28)**: aplicadas as correções C1 (coleção `ColecaoQuedaBroker` própria,
+  queda longa de 30 s, prontidão e logs numa queda só na T018), I1 (o supervisor registra o 5008
+  na partida e o 5017 depois de uma perda), G1 (credenciais recusadas na T019), G2 (seção de
+  saúde do README e linha do índice dos fluxos), U1 (decorator da `ReservaEstoque` na T009), U2
+  (itens da T016), A1 (FR-016 reescrito na spec), A2 (5011 com limite zero na T010) e T1
+  (FR-013 com "todos os consumidores registrados").
+  - G3: a contagem de tentativas preservada quando a republicação falha fica coberta pelo
+    desenho (a original não é confirmada e volta com os cabeçalhos de antes) e pela revisão da
+    T012; um teste de integração exigiria derrubar o canal entre o processamento e a
+    republicação, sem gancho no broker.
+  - G4: o pedido de reenvio em execução na queda segue o tratamento de erro do broker do REQ-14
+    (`ExecucaoReenvioDlqTestes`), sem teste novo.
 - Fora do escopo (spec, Assumptions): conexões separadas para publicar e consumir, reinício
   automático do Worker por prontidão, alertas.

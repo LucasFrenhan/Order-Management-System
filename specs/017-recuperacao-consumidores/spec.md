@@ -230,15 +230,16 @@ volta a pronta depois de os consumidores se inscreverem, e que os logs mostram a
 **Prontidão e logs**
 
 - **FR-013**: A prontidão do processo de workers MUST ganhar uma entrada `consumidores`,
-  pronta só quando os três estão inscritos e não pronta a partir do momento em que algum perde
+  pronta só quando todos os consumidores registrados (hoje três) estão inscritos e não pronta a partir do momento em que algum perde
   a inscrição, sem tolerância, até ele voltar; a resposta
   continua mostrando só nomes e estados, sem dados de conexão (REQ-02).
 - **FR-014**: A prontidão da API MUST continuar como está.
 - **FR-015**: O processo de workers MUST registrar em log, com IDs de log novos e estáveis: a
   perda da conexão ou do canal de consumo (com o motivo), a falha de uma tentativa de voltar
   e a volta de cada consumidor; os IDs de log existentes não mudam.
-- **FR-016**: Os logs novos MUST seguir a correlação com o trace do REQ-16 quando a telemetria
-  está ligada e MUST não incluir credenciais nem a cadeia de conexão.
+- **FR-016**: Os logs novos MUST não incluir credenciais nem a cadeia de conexão. Eles seguem a
+  correlação do REQ-16 quando há uma atividade no momento do log; o supervisor de inscrição não
+  abre spans próprios, então a correlação não é exigida nem testada para eles.
 - **FR-016a**: Com a telemetria ligada (REQ-16), o processo de workers MUST publicar duas
   métricas novas, rotuladas pelo consumidor: o estado da inscrição (1 inscrito, 0 sem
   inscrição) e a quantidade de vezes que o consumidor voltou a se inscrever depois de perder a
