@@ -11,6 +11,7 @@ using PedidoFulfillment.Infrastructure.Observabilidade;
 using PedidoFulfillment.Infrastructure.Persistencia;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using RabbitMQ.Client.Exceptions;
 
 namespace PedidoFulfillment.Infrastructure.Mensageria;
 
@@ -25,17 +26,18 @@ namespace PedidoFulfillment.Infrastructure.Mensageria;
 /// depois, DLQ com o motivo (FR-012, FR-013);</item>
 /// <item>o ack só vem depois disso tudo (FR-016).</item>
 /// </list>
+/// A inscrição é mantida pelo <see cref="SupervisorInscricao"/> (REQ-17): perdida por queda do
+/// broker, conexão fechada, canal fechado ou fila apagada, ela é refeita sem reiniciar o Worker.
 /// </summary>
 internal sealed partial class ConsumidorEventos<TManipulador, TDados>(
     IServiceScopeFactory escopos,
     ConexaoRabbitMQ conexao,
+    EstadoConsumidores estado,
     IOptions<OpcoesMensageria> opcoes,
     TimeProvider relogio,
     ILogger<ConsumidorEventos<TManipulador, TDados>> logger) : BackgroundService
     where TManipulador : class, IManipuladorEvento<TDados>
 {
-    private static readonly TimeSpan EsperaReconexao = TimeSpan.FromSeconds(2);
-
     /// <summary>Fonte do span de entrega (<c>deliver</c>) criado pelo RabbitMQ.Client 7 (REQ-16, R-02).</summary>
     private const string FonteEntrega = "RabbitMQ.Client.Subscriber";
 
@@ -44,8 +46,6 @@ internal sealed partial class ConsumidorEventos<TManipulador, TDados>(
 
     private string consumidor = "";
     private IReadOnlyCollection<string> tipos = [];
-    private IChannel? canalConsumo;
-    private IChannel? canalPublicacao;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -56,57 +56,42 @@ internal sealed partial class ConsumidorEventos<TManipulador, TDados>(
             tipos = [.. manipulador.Tipos];
         }
 
-        // O broker pode ainda não estar no ar: tenta até conseguir, sem derrubar o Worker.
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await IniciarAsync(stoppingToken);
-                break;
-            }
-            catch (Exception excecao) when (!stoppingToken.IsCancellationRequested)
-            {
-                FalhaInicio(logger, consumidor, excecao.GetType().Name, excecao.Message);
-                await Task.Delay(EsperaReconexao, stoppingToken);
-            }
-        }
-
-        try
-        {
-            await Task.Delay(Timeout.Infinite, stoppingToken);
-        }
-        catch (OperationCanceledException)
-        {
-            // Encerramento do Worker.
-        }
+        // O broker pode ainda não estar no ar, ou cair depois: o supervisor tenta até conseguir,
+        // sem derrubar o Worker, e refaz a inscrição a cada perda (REQ-17).
+        var supervisor = new SupervisorInscricao(consumidor, AbrirSessaoAsync, Task.Delay, estado, relogio, logger);
+        await supervisor.ExecutarAsync(stoppingToken);
     }
 
-    public override async Task StopAsync(CancellationToken cancellationToken)
-    {
-        await base.StopAsync(cancellationToken);
-        foreach (var canal in new[] { canalConsumo, canalPublicacao })
-        {
-            if (canal is not null)
-            {
-                await canal.DisposeAsync();
-            }
-        }
-    }
-
-    private async Task IniciarAsync(CancellationToken cancellationToken)
+    private async Task<ISessaoConsumo> AbrirSessaoAsync(CancellationToken cancellationToken)
     {
         var conexaoAberta = await conexao.ObterAsync(cancellationToken);
-        canalPublicacao = await conexaoAberta.CreateChannelAsync(
-            new CreateChannelOptions(publisherConfirmationsEnabled: true, publisherConfirmationTrackingEnabled: true), cancellationToken);
-        canalConsumo = await conexaoAberta.CreateChannelAsync(cancellationToken: cancellationToken);
-        await TopologiaMensageria.DeclararConsumidorAsync(canalConsumo, consumidor, tipos, opcoes.Value.Intervalos, cancellationToken);
-        await canalConsumo.BasicQosAsync(0, (ushort)opcoes.Value.PrefetchConsumidor, false, cancellationToken);
-        var consumidorRabbit = new AsyncEventingBasicConsumer(canalConsumo);
-        consumidorRabbit.ReceivedAsync += (_, entrega) => ProcessarAsync(entrega, cancellationToken);
-        await canalConsumo.BasicConsumeAsync(TopologiaMensageria.FilaPrincipal(consumidor), autoAck: false, consumidorRabbit, cancellationToken);
+        return await SessaoConsumo.AbrirAsync(
+            conexaoAberta,
+            TopologiaMensageria.FilaPrincipal(consumidor),
+            (ushort)opcoes.Value.PrefetchConsumidor,
+            (canal, token) => TopologiaMensageria.DeclararConsumidorAsync(canal, consumidor, tipos, opcoes.Value.Intervalos, token),
+            (sessao, entrega) => ProcessarAsync(sessao, entrega, cancellationToken),
+            cancellationToken);
     }
 
-    private async Task ProcessarAsync(BasicDeliverEventArgs entrega, CancellationToken cancellationToken)
+    /// <summary>
+    /// Com o canal fechado no meio do tratamento (queda do broker), o ack ou a republicação falham:
+    /// a mensagem não é confirmada, e o broker a devolve à fila com os cabeçalhos de antes. Se o
+    /// efeito já foi gravado, a reentrega é descartada como duplicada (REQ-17, R-05).
+    /// </summary>
+    private async Task ProcessarAsync(SessaoConsumo sessao, BasicDeliverEventArgs entrega, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await TratarAsync(sessao, entrega, cancellationToken);
+        }
+        catch (Exception excecao) when (excecao is AlreadyClosedException or OperationInterruptedException && !sessao.CanalConsumo.IsOpen)
+        {
+            // Canal da sessão fechado: o supervisor abre outra, e a mensagem volta pelo broker.
+        }
+    }
+
+    private async Task TratarAsync(SessaoConsumo sessao, BasicDeliverEventArgs entrega, CancellationToken cancellationToken)
     {
         // O corpo só vale durante o callback: copia antes de qualquer espera.
         var corpo = entrega.Body.ToArray();
@@ -119,11 +104,11 @@ internal sealed partial class ConsumidorEventos<TManipulador, TDados>(
         var leitura = LeitorMensagem.Ler<TDados>(corpo, tipos);
         if (leitura.Envelope is not { } envelope)
         {
-            await PublicarAsync(TopologiaMensageria.FilaMortas(consumidor), corpo, entrega.BasicProperties, DlqCabecalhos(tentativas, leitura.Motivo!), cancellationToken);
+            await PublicarAsync(sessao, TopologiaMensageria.FilaMortas(consumidor), corpo, entrega.BasicProperties, DlqCabecalhos(tentativas, leitura.Motivo!), cancellationToken);
             EnviadaParaDlq(logger, entrega.BasicProperties.MessageId, consumidor, tentativas, leitura.Motivo!);
             Registrar(span, TelemetriaOms.Resultados.Irrecuperavel);
             span.MarcarErro(ErroIrrecuperavel);
-            await canalConsumo!.BasicAckAsync(entrega.DeliveryTag, multiple: false, cancellationToken);
+            await sessao.CanalConsumo.BasicAckAsync(entrega.DeliveryTag, multiple: false, cancellationToken);
             return;
         }
 
@@ -151,13 +136,13 @@ internal sealed partial class ConsumidorEventos<TManipulador, TDados>(
                     [PoliticaNovaTentativa.CabecalhoTentativas] = tentativas + 1,
                     [PoliticaNovaTentativa.CabecalhoUltimoErro] = motivo
                 };
-                await PublicarAsync(TopologiaMensageria.FilaEspera(consumidor, espera), corpo, entrega.BasicProperties, cabecalhos, cancellationToken);
+                await PublicarAsync(sessao, TopologiaMensageria.FilaEspera(consumidor, espera), corpo, entrega.BasicProperties, cabecalhos, cancellationToken);
                 NovaTentativa(logger, envelope.IdEvento, consumidor, tentativas + 1, espera, motivo);
                 Registrar(span, TelemetriaOms.Resultados.NovaTentativa);
             }
             else
             {
-                await PublicarAsync(TopologiaMensageria.FilaMortas(consumidor), corpo, entrega.BasicProperties, DlqCabecalhos(tentativas, motivo), cancellationToken);
+                await PublicarAsync(sessao, TopologiaMensageria.FilaMortas(consumidor), corpo, entrega.BasicProperties, DlqCabecalhos(tentativas, motivo), cancellationToken);
                 EnviadaParaDlq(logger, envelope.IdEvento.ToString(), consumidor, tentativas, motivo);
                 Registrar(span, TelemetriaOms.Resultados.Dlq);
             }
@@ -165,7 +150,7 @@ internal sealed partial class ConsumidorEventos<TManipulador, TDados>(
             span.MarcarErro(excecao.GetType().Name);
         }
 
-        await canalConsumo!.BasicAckAsync(entrega.DeliveryTag, multiple: false, cancellationToken);
+        await sessao.CanalConsumo.BasicAckAsync(entrega.DeliveryTag, multiple: false, cancellationToken);
     }
 
     /// <summary>O resultado no span de entrega e na métrica de mensagens (REQ-16, contrato › Métricas).</summary>
@@ -202,9 +187,9 @@ internal sealed partial class ConsumidorEventos<TManipulador, TDados>(
         [PoliticaNovaTentativa.CabecalhoFalhouEm] = relogio.GetUtcNow().ToString("O", CultureInfo.InvariantCulture)
     };
 
-    /// <summary>Republica com confirmação; só depois a original recebe ack.</summary>
+    /// <summary>Republica com confirmação pelo canal da sessão que entregou; só depois a original recebe ack.</summary>
     private async Task PublicarAsync(
-        string fila, byte[] corpo, IReadOnlyBasicProperties original, Dictionary<string, object?> cabecalhos, CancellationToken cancellationToken)
+        SessaoConsumo sessao, string fila, byte[] corpo, IReadOnlyBasicProperties original, Dictionary<string, object?> cabecalhos, CancellationToken cancellationToken)
     {
         var todos = new Dictionary<string, object?>(original.Headers ?? new Dictionary<string, object?>());
         foreach (var (chave, valor) in cabecalhos)
@@ -220,7 +205,7 @@ internal sealed partial class ConsumidorEventos<TManipulador, TDados>(
             ContentType = original.ContentType,
             Headers = todos
         };
-        await canalPublicacao!.BasicPublishAsync("", fila, mandatory: false, propriedades, corpo, cancellationToken);
+        await sessao.CanalPublicacao.BasicPublishAsync("", fila, mandatory: false, propriedades, corpo, cancellationToken);
     }
 
     [LoggerMessage(EventId = 5003, EventName = "NovaTentativa", Level = LogLevel.Warning,
@@ -238,8 +223,4 @@ internal sealed partial class ConsumidorEventos<TManipulador, TDados>(
     [LoggerMessage(EventId = 5006, EventName = "EventoProcessado", Level = LogLevel.Information,
         Message = "Evento {IdEvento} processado por {Consumidor}.")]
     private static partial void EventoProcessado(ILogger logger, Guid idEvento, string consumidor);
-
-    [LoggerMessage(EventId = 5008, EventName = "FalhaInicioConsumidor", Level = LogLevel.Warning,
-        Message = "Consumidor {Consumidor} não iniciou ({Erro}): {Mensagem}. Nova tentativa em instantes.")]
-    private static partial void FalhaInicio(ILogger logger, string consumidor, string erro, string mensagem);
 }
