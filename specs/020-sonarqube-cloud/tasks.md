@@ -109,8 +109,8 @@ Depois do merge do PR 1: sync (nenhum PR aberto, `main` igual à remota) e a bra
 
 ### Phase 9: Polish do PR 2
 
-- [ ] T020 `dotnet build`, `dotnet test` e `dotnet format --verify-no-changes`; varredura do diff; registrar em Notes.
-- [ ] T021 Push e PR 2 em português com **`Closes #18`**, citando em Validação a baseline, a triagem, os PRs descartáveis e que nenhum documento de fluxo muda. O PR 2 já passa pelas três verificações exigidas (`Build e testes`, `Demonstração` e o Quality Gate). Acompanhar até tudo verde, inclusive depois de cada push, e registrar em Notes.
+- [X] T020 `dotnet build`, `dotnet test` e `dotnet format --verify-no-changes`; varredura do diff; registrar em Notes.
+- [X] T021 Push e PR 2 em português com **`Closes #18`**, citando em Validação a baseline, a triagem, os PRs descartáveis e que nenhum documento de fluxo muda. O PR 2 já passa pelas três verificações exigidas (`Build e testes`, `Demonstração` e o Quality Gate). Acompanhar até tudo verde, inclusive depois de cada push, e registrar em Notes.
 
 ---
 
@@ -203,3 +203,10 @@ versionada e os PRs de forks tratados.
   SonarQube (`sonar.coverageReportPaths`), linha a linha e com branches; os testes voltam a gerar só
   o Cobertura, e o passo de separar arquivos saiu (research R-05 revisto; T002, T004 e T005
   ajustados no PR 2).
+- **T020 (2026-11-02)**: `dotnet build` sem avisos e `dotnet format --verify-no-changes` limpo;
+  testes de `OpcoesEstornos` e da API simulada verdes; varredura do diff sem token. A suíte
+  inteira roda no CI do PR (`Build e testes` verde).
+- **T021 (2026-11-02)**: PR [#49](https://github.com/LucasFrenhan/Order-Management-System/pull/49)
+  com `Closes #18`. Com o ReportGenerator, a cobertura do código novo foi de 18,2% para
+  **100%**; `Build e testes`, `Demonstração` e `SonarCloud Code Analysis` verdes, Quality Gate
+  aprovado (as seis condições OK). Merge por rebase pelo auto-merge.
