@@ -33,19 +33,21 @@ public sealed class ValidadorOpcoesEstornos : IValidateOptions<OpcoesEstornos>
 {
     public ValidateOptionsResult Validate(string? name, OpcoesEstornos options)
     {
-        var falhas = new List<string>();
-        Limitar(options.IntervaloSegundos, 1, 3600, nameof(OpcoesEstornos.IntervaloSegundos));
-        Limitar(options.TamanhoLote, 1, 1000, nameof(OpcoesEstornos.TamanhoLote));
-        Limitar(options.LimiteAlertaSegundos, 1, 2592000, nameof(OpcoesEstornos.LimiteAlertaSegundos));
-        Limitar(options.TentativasAlerta, 1, 100, nameof(OpcoesEstornos.TentativasAlerta));
+        // Cada verificação devolve a mensagem da falha, ou nulo: o fluxo fica explícito (a versão
+        // que acumulava numa lista capturada era lida pelo SonarQube como "sempre sem falhas").
+        List<string> falhas =
+        [
+            .. new[]
+            {
+                Limitar(options.IntervaloSegundos, 1, 3600, nameof(OpcoesEstornos.IntervaloSegundos)),
+                Limitar(options.TamanhoLote, 1, 1000, nameof(OpcoesEstornos.TamanhoLote)),
+                Limitar(options.LimiteAlertaSegundos, 1, 2592000, nameof(OpcoesEstornos.LimiteAlertaSegundos)),
+                Limitar(options.TentativasAlerta, 1, 100, nameof(OpcoesEstornos.TentativasAlerta))
+            }.OfType<string>()
+        ];
         return falhas.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(falhas);
 
-        void Limitar(int valor, int minimo, int maximo, string chave)
-        {
-            if (valor < minimo || valor > maximo)
-            {
-                falhas.Add($"{OpcoesEstornos.Secao}:{chave} deve estar entre {minimo} e {maximo}.");
-            }
-        }
+        static string? Limitar(int valor, int minimo, int maximo, string chave) =>
+            valor < minimo || valor > maximo ? $"{OpcoesEstornos.Secao}:{chave} deve estar entre {minimo} e {maximo}." : null;
     }
 }
