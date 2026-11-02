@@ -47,8 +47,8 @@ da cobertura no painel).
 
 ### Phase 1: Setup
 
-- [ ] T001 [P] Acrescentar `dotnet-sonarscanner` **11.3.0** (`rollForward: false`, comando `dotnet-sonarscanner`) em `.config/dotnet-tools.json`, ao lado do `dotnet-ef`; conferir com `dotnet tool restore` e `dotnet sonarscanner --help` localmente, e como ela recebe o token sem a linha de comando (analyze A1: pela variável `SONARQUBE_SCANNER_PARAMS`, em JSON).
-- [ ] T002 [P] Em `coverage.runsettings`, incluir `PedidoFulfillment.Worker` e `PedidoFulfillment.PagamentosSimulados` no padrão de módulos (FR-012), mantendo migrations e `obj/` fora; conferir localmente que `--collect "Code Coverage;Format=cobertura,xml" --settings coverage.runsettings` gera `*.cobertura.xml` e `*.xml` com os seis módulos (R-05).
+- [X] T001 [P] Acrescentar `dotnet-sonarscanner` **11.3.0** (`rollForward: false`, comando `dotnet-sonarscanner`) em `.config/dotnet-tools.json`, ao lado do `dotnet-ef`; conferir com `dotnet tool restore` e `dotnet sonarscanner --help` localmente, e como ela recebe o token sem a linha de comando (analyze A1: pela variável `SONARQUBE_SCANNER_PARAMS`, em JSON).
+- [X] T002 [P] Em `coverage.runsettings`, incluir `PedidoFulfillment.Worker` e `PedidoFulfillment.PagamentosSimulados` no padrão de módulos (FR-012), mantendo migrations e `obj/` fora; conferir localmente que `--collect "Code Coverage;Format=cobertura,xml" --settings coverage.runsettings` gera `*.cobertura.xml` e `*.xml` com os seis módulos (R-05).
 
 ### Phase 2: User Story 1 - Todo PR é analisado e o resultado aparece no PR (P1) 🎯 MVP
 
@@ -56,9 +56,9 @@ da cobertura no painel).
 
 **Independent Test**: o próprio PR 1 recebe a verificação `SonarCloud Code Analysis` e o resumo.
 
-- [ ] T003 [US1] Em `.github/workflows/build-testes.yml`, gatilhos e jobs (R-02): acrescentar `push` na `main`; `cancel-in-progress` só em `pull_request`; job `Demonstração` com `if: github.event_name == 'pull_request'`; remover o passo `API de pagamento simulada` duplicado no job de demonstração (sobra do REQ-19); atualizar o comentário do topo (deixa de dizer que não roda no push da `main`).
-- [ ] T004 [US1] No job `Build e testes` do mesmo arquivo, a sequência do [contrato](./contracts/analise-no-ci.md#workflow-build-testes): checkout com `fetch-depth: 0`; cache de `~/.sonar/cache` (`actions/cache` no SHA já usado); `dotnet tool restore`; um passo `id: sonar` que só grava `ativo=${{ secrets.SONAR_TOKEN != '' }}` em `$GITHUB_OUTPUT` (vira `true` ou `false`, nunca o valor); `dotnet sonarscanner begin` **antes do `dotnet restore`**, com `/k`, `/o`, `sonar.host.url`, `sonar.cs.vscoveragexml.reportsPaths=resultados/**/*.xml`, `sonar.cs.vstest.reportsPaths=resultados/**/*.trx`, `sonar.exclusions=specs/**,.specify/**,**/Persistencia/Migracoes/**,**/obj/**,**/bin/**` e `sonar.coverage.exclusions=**/Persistencia/Migracoes/**` (FR-009, FR-011); testes com `Format=cobertura,xml`; depois do resumo, mover os `*.cobertura.xml` para `resultados-cobertura/`; `dotnet sonarscanner end`. Os passos `begin` e `end` com `if: steps.sonar.outputs.ativo == 'true'` e o token **só no `env:` deles**, na variável `SONARQUBE_SCANNER_PARAMS: '{"sonar.token":"${{ secrets.SONAR_TOKEN }}"}'` (a 11.3.0 não lê `SONAR_TOKEN`; verificado com um token falso: a autenticação falhou e o valor não apareceu na saída), sem argumento `/d:sonar.token` (FR-004, FR-005; analyze S1 e A1). O token não fica no `env:` do job: o `dotnet test`, que roda o código da aplicação e dos testes, não o vê.
-- [ ] T005 [US1] No mesmo job, o artefato `resultados-testes` publica `resultados` e `resultados-cobertura` (o resumo continua lendo os Cobertura antes da mudança de pasta); conferir que `.github/scripts/resumo-testes.sh` não precisa mudar.
+- [X] T003 [US1] Em `.github/workflows/build-testes.yml`, gatilhos e jobs (R-02): acrescentar `push` na `main`; `cancel-in-progress` só em `pull_request`; job `Demonstração` com `if: github.event_name == 'pull_request'`; remover o passo `API de pagamento simulada` duplicado no job de demonstração (sobra do REQ-19); atualizar o comentário do topo (deixa de dizer que não roda no push da `main`).
+- [X] T004 [US1] No job `Build e testes` do mesmo arquivo, a sequência do [contrato](./contracts/analise-no-ci.md#workflow-build-testes): checkout com `fetch-depth: 0`; cache de `~/.sonar/cache` (`actions/cache` no SHA já usado); `dotnet tool restore`; um passo `id: sonar` que só grava `ativo=${{ secrets.SONAR_TOKEN != '' }}` em `$GITHUB_OUTPUT` (vira `true` ou `false`, nunca o valor); `dotnet sonarscanner begin` **antes do `dotnet restore`**, com `/k`, `/o`, `sonar.host.url`, `sonar.cs.vscoveragexml.reportsPaths=resultados/**/*.xml`, `sonar.cs.vstest.reportsPaths=resultados/**/*.trx`, `sonar.exclusions=specs/**,.specify/**,**/Persistencia/Migracoes/**,**/obj/**,**/bin/**` e `sonar.coverage.exclusions=**/Persistencia/Migracoes/**` (FR-009, FR-011); testes com `Format=cobertura,xml`; depois do resumo, mover os `*.cobertura.xml` para `resultados-cobertura/`; `dotnet sonarscanner end`. Os passos `begin` e `end` com `if: steps.sonar.outputs.ativo == 'true'` e o token **só no `env:` deles**, na variável `SONARQUBE_SCANNER_PARAMS: '{"sonar.token":"${{ secrets.SONAR_TOKEN }}"}'` (a 11.3.0 não lê `SONAR_TOKEN`; verificado com um token falso: a autenticação falhou e o valor não apareceu na saída), sem argumento `/d:sonar.token` (FR-004, FR-005; analyze S1 e A1). O token não fica no `env:` do job: o `dotnet test`, que roda o código da aplicação e dos testes, não o vê.
+- [X] T005 [US1] No mesmo job, o artefato `resultados-testes` publica `resultados` e `resultados-cobertura` (o resumo continua lendo os Cobertura antes da mudança de pasta); conferir que `.github/scripts/resumo-testes.sh` não precisa mudar.
 
 **Checkpoint**: o workflow analisa nos PRs do repositório e na `main`, e pula a análise sem o token.
 
@@ -66,17 +66,17 @@ da cobertura no painel).
 
 **Goal**: proteção da `main` versionada e PRs de forks tratados.
 
-- [ ] T006 [P] [US2] `.github/rulesets/protecao-main.json` com o estado atual do ruleset 26400051 (sem os campos de leitura `id`, `node_id`, `created_at`, `updated_at`, `_links`, `source*`, `current_user_can_bypass`): exclusão e force push bloqueados, histórico linear, PR com 0 aprovações e merge só por rebase, verificações `Build e testes` e `Demonstração` com a branch atualizada, sem contorno (FR-014, FR-015, FR-015a). Conferir com `gh api` que o JSON aplicado (`PUT`) não muda nada.
-- [ ] T007 [P] [US2] `.github/workflows/prs-de-fork.yml` (R-07, FR-004a): `pull_request_target` com `types: [opened, reopened]`, job só com `if: github.event.pull_request.head.repo.full_name != github.repository`, `permissions: pull-requests: write`, um passo `gh pr close <número> --comment "<política>"` com `GH_TOKEN: ${{ github.token }}`; **sem checkout** e sem usar nenhum dado do PR além do número.
+- [X] T006 [P] [US2] `.github/rulesets/protecao-main.json` com o estado atual do ruleset 26400051 (sem os campos de leitura `id`, `node_id`, `created_at`, `updated_at`, `_links`, `source*`, `current_user_can_bypass`): exclusão e force push bloqueados, histórico linear, PR com 0 aprovações e merge só por rebase, verificações `Build e testes` e `Demonstração` com a branch atualizada, sem contorno (FR-014, FR-015, FR-015a). Conferir com `gh api` que o JSON aplicado (`PUT`) não muda nada.
+- [X] T007 [P] [US2] `.github/workflows/prs-de-fork.yml` (R-07, FR-004a): `pull_request_target` com `types: [opened, reopened]`, job só com `if: github.event.pull_request.head.repo.full_name != github.repository`, `permissions: pull-requests: write`, um passo `gh pr close <número> --comment "<política>"` com `GH_TOKEN: ${{ github.token }}`; **sem checkout** e sem usar nenhum dado do PR além do número.
 
 ### Phase 4: User Story 5 - Documentação (P3), parte 1
 
-- [ ] T008 [P] [US5] `README.md`: seção "Análise estática" (FR-019, FR-020): painel do projeto (`https://sonarcloud.io/project/overview?id=LucasFrenhan_Order-Management-System`), organização e projeto, onde ver a análise de um PR, o que fazer com um Quality Gate reprovado (corrigir; falso positivo ou ponto de segurança justificado no painel), o Quality Gate "Sonar way", a política de PRs de forks, o merge por rebase e o comando `gh api` para conferir e reaplicar o ruleset; recomendação opcional do SonarQube for IDE em modo conectado. Atualizar a seção "Integração contínua" (push na `main` só com testes e análise; comando local com `Format=cobertura,xml`) e a estrutura (`.github/rulesets/`, `prs-de-fork.yml`).
-- [ ] T009 [P] [US5] `docs/estado-atual.md` (linha do REQ-20, parte 1) e `docs/proximos-passos.md` (REQ-20 em andamento; fila depois dele).
+- [X] T008 [P] [US5] `README.md`: seção "Análise estática" (FR-019, FR-020): painel do projeto (`https://sonarcloud.io/project/overview?id=LucasFrenhan_Order-Management-System`), organização e projeto, onde ver a análise de um PR, o que fazer com um Quality Gate reprovado (corrigir; falso positivo ou ponto de segurança justificado no painel), o Quality Gate "Sonar way", a política de PRs de forks, o merge por rebase e o comando `gh api` para conferir e reaplicar o ruleset; recomendação opcional do SonarQube for IDE em modo conectado. Atualizar a seção "Integração contínua" (push na `main` só com testes e análise; comando local com `Format=cobertura,xml`) e a estrutura (`.github/rulesets/`, `prs-de-fork.yml`).
+- [X] T009 [P] [US5] `docs/estado-atual.md` (linha do REQ-20, parte 1) e `docs/proximos-passos.md` (REQ-20 em andamento; fila depois dele).
 
 ### Phase 5: Polish do PR 1
 
-- [ ] T010 `dotnet build`, `dotnet test` (suíte inteira com Docker, zero ignorados) e `dotnet format --verify-no-changes`; varredura do diff (nenhum token, só os valores públicos de organização e projeto); registrar em Notes.
+- [X] T010 `dotnet build`, `dotnet test` (suíte inteira com Docker, zero ignorados) e `dotnet format --verify-no-changes`; varredura do diff (nenhum token, só os valores públicos de organização e projeto); registrar em Notes.
 - [ ] T011 Push e PR 1 em português (Resumo, Pontos de atenção, Validação) com **`Refs #18`**, dizendo em Validação que nenhum documento de fluxo muda. Acompanhar `Build e testes` e `Demonstração` até ficarem verdes, inclusive depois de cada push. Conferir no PR: verificação `SonarCloud Code Analysis` e comentário do Quality Gate (US1, SC-001); no log do job, o token mascarado e nenhum valor dele (SC-005); a duração do job contra o último PR (SC-007); o nome exato do check e o `app.id` dele (`gh api repos/:owner/:repo/commits/<sha>/check-runs`) para a T016; e, pelos logs do scanner, que uma falha de autenticação apareceria sem o valor do token (caso de borda da credencial inválida, analyze D1). Registrar em Notes. O merge (rebase) é do dono.
 
 ---
@@ -153,3 +153,18 @@ versionada e os PRs de forks tratados.
   segunda conta do GitHub (o dono não consegue fazer fork do próprio repositório); a T007 é
   verificada pela revisão do workflow (sem checkout, permissão mínima) e pela condição do `if`.
 - Lição do REQ-10: depois de cada push, acompanhar o CI de novo.
+- **T001 (2026-11-02)**: `dotnet-sonarscanner` 11.3.0 instalado pelo manifesto. A 11.3.0 **não**
+  lê a variável `SONAR_TOKEN`; lê `SONARQUBE_SCANNER_PARAMS` (JSON). Verificado com um token
+  falso: o `begin` falhou na autenticação, sem mostrar o valor; sem token, o `begin` passa
+  (projeto público). Os documentos foram corrigidos para esse mecanismo.
+- **T002**: `Format=cobertura,xml` gera os dois arquivos; o XML traz os módulos carregados por
+  cada suíte (Application, Domain, Infrastructure e PagamentosSimulados na unitária; API e
+  Worker entram com a integração).
+- **T006**: o ruleset tinha ganhado `require_extra_approval_for_unattributed_changes: true` numa
+  atualização que omitia o campo; o JSON versionado o devolve a `false` (o valor que o dono
+  criou) e foi reaplicado.
+- **T010 (2026-11-02)**: `dotnet build -c Release` sem avisos; `dotnet format
+  --verify-no-changes` limpo; suíte local com o mesmo comando do CI: 895 unitários e 578 de
+  integração, 0 ignorados; cobertura do resumo **97,1%** (5332 de 5490 linhas, agora com Worker e
+  API simulada). Varredura do diff: nenhum token, só a organização e o projeto. `resultados/`,
+  `resultados-cobertura/` e `.sonarqube/` passaram a ser ignorados pelo Git.
