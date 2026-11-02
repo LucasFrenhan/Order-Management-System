@@ -37,7 +37,10 @@ public sealed class FabricaPagamentos : WebApplicationFactory<ProgramaPagamentos
     public static FabricaPagamentos Iniciar(IReadOnlyDictionary<string, string?>? configuracoes = null)
     {
         var fabrica = new FabricaPagamentos { Configuracoes = configuracoes ?? new Dictionary<string, string?>() };
-        fabrica.UseKestrel(0);
+        // Porta livre no loopback, escolhida pelo próprio Kestrel. UseKestrel(0) fazia a fábrica
+        // reescrever os endereços depois da partida, o que às vezes falhava com "Addresses cannot
+        // be modified after the server has started" (CI do REQ-20).
+        fabrica.UseKestrel(kestrel => kestrel.Listen(IPAddress.Loopback, 0));
         fabrica.StartServer();
         var endereco = fabrica.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First();
         fabrica.UrlBase = endereco.EndsWith('/') ? endereco : endereco + "/";
