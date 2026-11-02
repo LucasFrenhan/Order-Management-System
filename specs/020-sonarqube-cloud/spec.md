@@ -12,6 +12,10 @@
 
 ## Contexto
 
+> Atualização (clarify, 2026-11-02): a `main` passou a ter proteção antes do plano (ruleset
+> "Proteção da main"); veja FR-014, FR-015 e as Assumptions. O texto abaixo descreve a
+> situação na abertura da issue.
+
 O projeto prova a qualidade por testes automatizados (Princípio V) e pela compatibilidade do
 contrato v1. Não existe uma análise estática que acompanhe, ao longo do tempo, bugs,
 vulnerabilidades, pontos sensíveis de segurança, código duplicado e a cobertura dos testes, nem
@@ -37,6 +41,18 @@ credencial de análise guardada como segredo do repositório.
   `Build e testes`, `Demonstração` e o Quality Gate, só por PR, sem contorno nem para o dono;
   numa queda do serviço de análise, a regra é desligada temporariamente de forma registrada
   (FR-014, FR-015).
+
+### Session 2026-11-02 (clarify)
+
+- Q: Com o histórico linear, os PRs entram na `main` por rebase ou por squash? → A: Rebase:
+  os commits de etapa e de fase (`tipo(escopo): descrição [REQ-NN]`) entram em sequência na
+  `main`; o ruleset aceita só rebase (FR-015).
+- Q: O que acontece com um PR vindo de um fork, que nunca recebe a verificação do Quality
+  Gate exigida pela `main`? → A: O repositório não aceita PRs de forks. Como o GitHub não
+  permite desativá-los num repositório público, a política é declarada no README, o PR de
+  fork nunca pode ser mergeado (o ruleset exige o Quality Gate, que não roda para forks) e é
+  fechado pelo dono; o CI continua seguro para eles (sem acesso à credencial) (FR-004,
+  FR-004a).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -64,8 +80,9 @@ cobertura e duplicação do código novo.
 2. **Given** um PR atualizado com um novo push, **When** o CI roda de novo, **Then** a análise
    e o resumo refletem o código mais recente.
 3. **Given** um PR vindo de um fork, sem acesso à credencial de análise, **When** o CI roda,
-   **Then** compila e testa normalmente, e só a etapa de análise é pulada, sem quebrar a
-   verificação.
+   **Then** compila e testa normalmente, e só a etapa de análise é pulada, sem expor a
+   credencial; o PR continua impossível de mergear (o Quality Gate é exigido) e é fechado,
+   porque o repositório não aceita PRs de forks.
 
 ---
 
@@ -184,8 +201,9 @@ atual e o caminho para corrigir um Quality Gate vermelho.
   falha com uma mensagem clara, sem expor a credencial, e o Quality Gate não aparece; o merge
   fica bloqueado.
 - **PR de fork**: build e testes rodam; a análise é pulada sem falhar (a credencial não está
-  disponível para forks). O merge desses PRs fica a critério do dono, que pode analisar depois
-  numa branch própria.
+  disponível para forks). O PR nunca pode ser mergeado, porque o Quality Gate exigido não roda
+  para ele, e é fechado: o repositório não aceita PRs de forks (clarify). O GitHub não permite
+  desativar forks num repositório público, então a política fica no README.
 - **Testes de integração sem Docker no CI**: continuam falhando como hoje (REQ-07), e a análise
   não roda sobre uma cobertura incompleta.
 - **Código gerado na compilação** (mensagens de log, OpenAPI): fora da análise e da cobertura,
@@ -210,7 +228,11 @@ atual e o caminho para corrigir um Quality Gate vermelho.
 - **FR-003**: A análise MUST usar os resultados de compilação e de testes da mesma execução do
   CI, sem depender de uma análise automática separada do serviço.
 - **FR-004**: Em PRs vindos de forks, sem a credencial de análise, o CI MUST compilar e testar
-  normalmente e pular só a análise, sem falhar.
+  normalmente e pular só a análise, sem expor a credencial.
+- **FR-004a**: O repositório MUST NOT aceitar PRs de forks: a política MUST estar declarada no
+  README, e esses PRs MUST NOT poder ser mergeados (garantido pela verificação do Quality Gate
+  exigida, que não roda para eles); o dono os fecha, podendo fazê-lo de forma automática com
+  uma mensagem que explica a política.
 - **FR-005**: A credencial de análise MUST vir só do segredo do repositório e MUST NOT aparecer
   em logs, arquivos versionados ou artefatos do CI.
 - **FR-006**: A análise MUST conhecer o histórico completo do repositório, para identificar o
@@ -242,7 +264,12 @@ atual e o caminho para corrigir um Quality Gate vermelho.
   análise, a regra só pode ser desligada temporariamente nas configurações do repositório, de
   forma registrada.
 - **FR-015**: Mudanças na `main` MUST entrar só por PR (sem push direto), com as verificações
-  exigidas aprovadas.
+  exigidas aprovadas e a branch do PR atualizada com a `main`; a `main` MUST NOT aceitar
+  exclusão nem reescrita de histórico (force push), e o histórico MUST ser linear (sem merge
+  commits); o PR MUST entrar por rebase, preservando os commits de etapa e de fase.
+- **FR-015a**: A regra de proteção MUST ficar registrada no repositório de forma reproduzível
+  (as regras e as verificações exigidas), para ser conferida e recriada sem depender da
+  memória de quem a criou.
 
 **Situação de partida**
 
@@ -289,7 +316,8 @@ atual e o caminho para corrigir um Quality Gate vermelho.
 - **SC-004**: Ao fim do requisito, há 0 pontos de segurança pendentes de revisão, 0 bugs e 0
   vulnerabilidades abertos no painel da `main`.
 - **SC-005**: A credencial de análise aparece em 0 logs e 0 arquivos versionados.
-- **SC-006**: Um PR de fork completa build e testes sem falha por falta da credencial.
+- **SC-006**: Um PR de fork completa build e testes sem falha por falta da credencial e sem
+  acesso a ela, e não pode ser mergeado.
 - **SC-007**: O tempo total da verificação de um PR cresce no máximo 5 minutos em relação a
   hoje.
 - **SC-008**: Uma pessoa que não conhece o projeto encontra, só pelo README, o painel da
@@ -314,8 +342,14 @@ atual e o caminho para corrigir um Quality Gate vermelho.
   integração com o GitHub já instalada na organização.
 - Os problemas de manutenção (code smells) não bloqueiam este requisito; só bugs,
   vulnerabilidades e pontos de segurança da situação de partida bloqueiam.
-- A regra de proteção da `main` só pode exigir a verificação do Quality Gate depois que ela
-  rodar pela primeira vez; por isso a proteção é ligada no fim do requisito.
+- A regra de proteção da `main` já existe desde 2026-11-02 (ruleset "Proteção da main", id
+  26400051, ativo, sem contorno): bloqueia exclusão e force push, exige histórico linear (merge
+  só por rebase, decidido no clarify), PR com 0 aprovações (projeto com um único desenvolvedor, que não
+  pode aprovar o próprio PR) e as verificações `Build e testes` e `Demonstração`, com a branch
+  atualizada. Falta só acrescentar a verificação do Quality Gate, que só pode ser exigida
+  depois de rodar pela primeira vez; por isso entra no fim do requisito. A verificação
+  `Compatibilidade do contrato` não é exigida: ela só roda quando o contrato muda, e uma
+  verificação exigida que não roda bloquearia todos os outros PRs.
 - Fora do escopo: SonarQube Server auto-hospedado, varredura de dependências vulneráveis
   (Dependabot) e CodeQL, correção de todos os code smells da situação de partida e qualquer
   mudança de comportamento do sistema.
