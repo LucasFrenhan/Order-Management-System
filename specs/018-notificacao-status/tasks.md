@@ -280,7 +280,7 @@ entregas.
   - linha do fluxo 13 no índice `docs/fluxos/README.md`; o diagrama de estados não muda.
 - [X] T048 [P] Documentação do projeto: `README.md` e `docs/` (estado atual, próximos passos com a #18, mensageria com o evento novo) e a seção de eventos do contrato apontando o schema novo.
 - [X] T049 Varredura de segredos (nenhuma chave real no diff, só a de desenvolvimento), `dotnet build`, `dotnet format --verify-no-changes` e a suíte local inteira com Docker (zero ignorados); registrar a contagem em Notes.
-- [ ] T050 Executar o [quickstart](./quickstart.md) (§2 a §6) com API e Worker locais e registrar em Notes o que chegou ao receptor e ao `curl`, corrigindo o quickstart onde divergir.
+- [X] T050 Executar o [quickstart](./quickstart.md) (§2 a §6) com API e Worker locais e registrar em Notes o que chegou ao receptor e ao `curl`, corrigindo o quickstart onde divergir.
 - [ ] T051 Push e PR em português (Resumo, Pontos de atenção, Validação) com `Closes #43`, citando em Validação os documentos de fluxo atualizados e, em Pontos de atenção, a revisão do R-05 (webhooks sem consumidor) e a decisão de a API ler o banco. Acompanhar `build-testes` e `contrato-compatibilidade` até ficarem verdes, **inclusive depois de cada push posterior**, e registrar em Notes.
 
 ---
@@ -401,3 +401,16 @@ o broker.
   o `Destino_fora_do_ar_nao_atrasa_o_outro` falhou por medir um prazo absoluto que incluía a
   partida do Worker; passou a comparar o instante de chegada dos dois receptores. Outra rodada
   foi descartada: a máquina dormiu no meio, e o banco de teste ficou inacessível por horas.
+- **T050 (2026-11-02, local)**: compose no ar, API e Worker com `dotnet run` em Development e um
+  receptor `HttpListener` em PowerShell na porta 5099. §3: cadastro `201` com `whsec_…`, lista
+  sem o segredo; pedido criado pelo Cliente chegou a `ProntoParaEnvio` e o receptor recebeu os
+  dois avisos (`Pendente → Processando` e `Processando → ProntoParaEnvio`) com `webhook-id`,
+  `webhook-timestamp`, `webhook-signature`, `User-Agent: OMS-Webhooks/1` e sem `traceparent`;
+  `GET …/entregas` com as duas `Entregue/204`. §4: a conexão SSE recebeu `conectado` (GUID zero,
+  tabela vazia) e os dois avisos, com `id` = `idNotificacao`; a quarta conexão do mesmo usuário
+  recebeu `429`; com `docker compose stop rabbitmq`, o despacho pela API respondeu 200 e o
+  webhook chegou mesmo assim. §5: `200` com `ETag` e, com `If-None-Match`, `304` sem corpo.
+  Os passos 3.4 a 3.6 (receptor fora do ar, `410`, endereço interno) ficaram com os testes de
+  integração, que os cobrem com receptor real. Quickstart corrigido: o campo do token é
+  `tokenAcesso`, o receptor não depende de Node, e o passo 3.6 exige
+  `Notificacoes__PermitirRedeLocal=false`.

@@ -36,13 +36,14 @@ dotnet run --project src/PedidoFulfillment.Worker --launch-profile http   # term
 Em Development, `Notificacoes:ChaveCifra` vem do `appsettings.Development.json` e
 `Notificacoes:PermitirRedeLocal` é `true`, para o receptor local da seção 3.
 
-Pegue um token de Cliente e um de Admin em `POST /api/v1/auth/login`, como nos REQs
-anteriores.
+Pegue um token de Cliente e um de Admin em `POST /api/v1/auth/login` (campo `tokenAcesso` da
+resposta), como nos REQs anteriores.
 
 ## 3. Webhook (US2)
 
-1. Suba um receptor que mostre o que chega, por exemplo `npx http-echo-server 5099` (ou
-   qualquer servidor que responda `200` e imprima cabeçalhos e corpo).
+1. Suba um receptor que mostre o que chega, em `http://localhost:5099/`: qualquer servidor que
+   responda `2xx` e imprima cabeçalhos e corpo. Sem Node, um `System.Net.HttpListener` em
+   PowerShell, num laço com `GetContext()`, serve.
 2. Como Cliente: `POST /api/v1/notificacoes/destinos` com
    `{ "url": "http://localhost:5099/oms" }`. **Esperado**: `201` com `segredo`; um
    `GET /api/v1/notificacoes/destinos` em seguida não mostra o segredo.
@@ -56,8 +57,9 @@ anteriores.
    e a entrega vira `Entregue` na tentativa seguinte.
 5. Faça o receptor responder `410`. **Esperado**: o destino fica `ativo: false` com o motivo;
    `POST /api/v1/notificacoes/destinos/{id}/reativacao` o reativa.
-6. Tente cadastrar `https://127.0.0.1/x` com `PermitirRedeLocal` = `false`. **Esperado**: `400`
-   `NOTIFICACAO_DESTINO_ENDERECO_PROIBIDO`.
+6. Tente cadastrar `https://127.0.0.1/x` com a API iniciada com
+   `Notificacoes__PermitirRedeLocal=false` (em Development o padrão do `appsettings` é `true`).
+   **Esperado**: `400` `NOTIFICACAO_DESTINO_ENDERECO_PROIBIDO`.
 
 ## 4. SSE (US3)
 
