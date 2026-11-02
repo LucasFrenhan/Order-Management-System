@@ -14,9 +14,10 @@
 - **Gatilhos**: PRs como hoje e, de novo, o push na `main`, só com o job de testes e a análise
   (R-02). Em PRs de forks, a análise é pulada; um workflow `prs-de-fork` comenta a política e
   fecha esses PRs, sem rodar código deles (R-07).
-- **Cobertura sem pacote novo**: o coletor atual passa a gerar Cobertura (resumo do job) e XML
-  (Sonar) na mesma execução, verificado localmente; a cobertura passa a incluir o Worker e a
-  API de pagamento simulada (R-05). Exclusões de migrations, `obj/`, `specs/` e `.specify/`
+- **Cobertura sem pacote novo nos projetos**: o coletor atual continua gerando o Cobertura, e o
+  ReportGenerator junta as suítes no formato do SonarQube, linha a linha e com branches (revisto
+  no PR 2: o XML do Visual Studio perdia as linhas de instruções em várias linhas); a cobertura
+  passa a incluir o Worker e a API de pagamento simulada (R-05). Exclusões de migrations, `obj/`, `specs/` e `.specify/`
   (R-06).
 - **Quality Gate** "Sonar way" e decoração pelo app do SonarQube Cloud (R-08). A proteção da
   `main` (ruleset 26400051, já ativo) fica versionada em `.github/rulesets/` e ganha a
@@ -34,7 +35,9 @@ compilação analisada; JSON do ruleset
 **Primary Dependencies**:
 - **novo**: `dotnet-sonarscanner` 11.3.0 (ferramenta local, `.config/dotnet-tools.json`),
   justificado em R-03;
-- já existentes: coletor `Code Coverage` do `Microsoft.NET.Test.Sdk` (agora também em XML),
+- **novo** (PR 2): `dotnet-reportgenerator-globaltool` 5.5.11 (ferramenta local), justificado
+  em R-05;
+- já existentes: coletor `Code Coverage` do `Microsoft.NET.Test.Sdk` (Cobertura),
   `actions/checkout`, `actions/setup-dotnet`, `actions/cache`, `actions/upload-artifact`
   (fixadas por SHA), `gh` no runner para o `prs-de-fork`.
 
@@ -73,7 +76,7 @@ pela situação de partida.
 | IV. Desacoplamento assíncrono | ✅ | Não se aplica: nada muda no sistema |
 | V. Qualidade verificável | ✅ | Quality Gate automático em todo PR, com cobertura medida (unitários e integração) |
 | RabbitMQ.Client nativo | ✅ | Não se aplica |
-| Dependências justificadas | ✅ | `dotnet-sonarscanner` justificado em R-03; nenhum pacote NuGet novo nos projetos (cobertura com o coletor existente, R-05) |
+| Dependências justificadas | ✅ | `dotnet-sonarscanner` (R-03) e `dotnet-reportgenerator-globaltool` (R-05) justificados; nenhum pacote NuGet novo nos projetos |
 | Qualidade e conformidade (revisão) | ✅ | A revisão ganha evidência objetiva: Quality Gate e cobertura no PR |
 | Branch dedicada | ✅ | `feature/req-20-sonarqube`, a partir da `main` sincronizada após o PR #47 |
 
@@ -113,7 +116,7 @@ no PR 2, se a situação de partida apontar bugs ou vulnerabilidades.
 | Risco | Mitigação |
 |-------|-----------|
 | Análise sobe o tempo do PR | Mesmo job, sem recompilar; cache do Sonar; meta de no máximo 5 min (SC-007) |
-| `*.cobertura.xml` lido como XML do Visual Studio | Os Cobertura saem da pasta lida pelo Sonar depois do resumo (R-05) |
+| Cobertura do código novo errada no Sonar | O XML do Visual Studio perdia as linhas de instruções em várias linhas; o Cobertura convertido pelo ReportGenerator vai linha a linha, com branches (R-05) |
 | Push na `main` volta a gastar CI | Só o job de testes, uma vez por merge; a demonstração não roda |
 | `pull_request_target` com permissão de escrita | Nenhum checkout nem execução do código do PR; só `gh pr close` com comentário fixo |
 | Check exigido inexistente bloquearia todos os PRs | O check do Quality Gate só entra no ruleset no PR 2, depois de rodar; o `Compatibilidade do contrato` não é exigido (só roda com contrato alterado) |

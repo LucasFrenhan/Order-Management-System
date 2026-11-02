@@ -18,17 +18,18 @@ Passos do job `Build e testes`, em ordem:
 
 1. checkout com `fetch-depth: 0` (código novo e autoria das linhas);
 2. setup do .NET (`global.json`), cache do NuGet e cache de `~/.sonar/cache`;
-3. `dotnet tool restore` (`dotnet-ef` e `dotnet-sonarscanner` 11.3.0);
+3. `dotnet tool restore` (`dotnet-ef`, `dotnet-sonarscanner` 11.3.0 e `dotnet-reportgenerator-globaltool` 5.5.11);
 4. passo `sonar`: grava só `ativo=true|false` (se o segredo existe), sem o valor;
 5. **`dotnet sonarscanner begin`** *(só com `ativo == true`)* com os parâmetros abaixo, antes
    do restore;
 6. `dotnet restore` e `dotnet build -c Release` (avisos como erros, como hoje);
 7. `dotnet test` com `OMS_EXIGIR_DOCKER=true`, `.trx` e
-   `--collect "Code Coverage;Format=cobertura,xml" --settings coverage.runsettings`;
+   `--collect "Code Coverage;Format=cobertura" --settings coverage.runsettings`;
 8. resumo dos testes e da cobertura (script atual, lê os `*.cobertura.xml`);
-9. move os `*.cobertura.xml` para `resultados-cobertura/`;
+9. `dotnet reportgenerator` junta os `*.cobertura.xml` no formato do SonarQube
+   (`resultados-sonar/SonarQube.xml`) *(só com `ativo == true`)*;
 10. **`dotnet sonarscanner end`** *(só com `ativo == true`)*;
-11. publica os artefatos (`resultados` e `resultados-cobertura`).
+11. publica os artefatos (`resultados` e `resultados-sonar`).
 
 O `SONAR_TOKEN` entra só por `env:` nos passos 5 e 10, dentro de
 `SONARQUBE_SCANNER_PARAMS: '{"sonar.token":"<segredo>"}'`, que o scanner lê (sem `/d:sonar.token`). Ele não está no `env:` do job: o passo 7, que roda código da
@@ -41,7 +42,7 @@ aplicação e dos testes, não o vê.
 | `/k:` | `LucasFrenhan_Order-Management-System` |
 | `/o:` | `lucasfrenhan` |
 | `/d:sonar.host.url` | `https://sonarcloud.io` |
-| `/d:sonar.cs.vscoveragexml.reportsPaths` | `resultados/**/*.xml` |
+| `/d:sonar.coverageReportPaths` | `resultados-sonar/SonarQube.xml` |
 | `/d:sonar.cs.vstest.reportsPaths` | `resultados/**/*.trx` |
 | `/d:sonar.exclusions` | `specs/**,.specify/**,**/Persistencia/Migracoes/**,**/obj/**,**/bin/**` |
 | `/d:sonar.coverage.exclusions` | `**/Persistencia/Migracoes/**` |

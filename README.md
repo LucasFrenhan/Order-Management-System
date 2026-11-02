@@ -216,8 +216,8 @@ O workflow [`build-testes`](.github/workflows/build-testes.yml) roda em todo PR 
   (Testcontainers e Kestrel). O resumo da execução mostra as contagens por projeto, os testes
   que falharam e a cobertura de linhas, sem as migrations nem o código gerado. A análise
   estática do SonarQube Cloud envolve esse build e esses testes (veja
-  [Análise estática](#análise-estática)). Os resultados (TRX, Cobertura e o XML de cobertura)
-  ficam 14 dias no artefato `resultados-testes`.
+  [Análise estática](#análise-estática)). Os resultados (TRX, Cobertura e o relatório de
+  cobertura enviado ao SonarQube) ficam 14 dias no artefato `resultados-testes`.
 - **Demonstração**: só nos PRs; sobe o perfil `demo` e confere a prontidão da API, do Worker e
   da API de pagamento simulada e o login do administrador de desenvolvimento.
 
@@ -236,7 +236,7 @@ em vez de serem ignorados. Para reproduzir localmente:
 
 ```powershell
 $env:OMS_EXIGIR_DOCKER = "true"
-dotnet test PedidoFulfillment.sln -c Release --logger "trx;LogFilePrefix=resultado" --results-directory resultados --collect "Code Coverage;Format=cobertura,xml" --settings coverage.runsettings
+dotnet test PedidoFulfillment.sln -c Release --logger "trx;LogFilePrefix=resultado" --results-directory resultados --collect "Code Coverage;Format=cobertura" --settings coverage.runsettings
 bash .github/scripts/resumo-testes.sh resultados
 ```
 

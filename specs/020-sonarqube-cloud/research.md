@@ -55,29 +55,37 @@ Java 17. Cache de `~/.sonar/cache` com `actions/cache`, fixado por SHA como as o
 **Motivo**: menos uma ação de terceiros e menos uma versão para manter; o cache evita baixar
 o JRE e os plugins a cada execução (SC-007).
 
-## R-05. Cobertura: o mesmo coletor, também em XML
+## R-05. Cobertura: o Cobertura de sempre, convertido pelo ReportGenerator
 
-**Decisão**: o coletor `Code Coverage` (do `Microsoft.NET.Test.Sdk`, já usado desde o REQ-07)
-passa a gerar dois formatos na mesma execução: `--collect "Code Coverage;Format=cobertura,xml"`.
-O XML (formato "Visual Studio Coverage") vai para o Sonar em
-`sonar.cs.vscoveragexml.reportsPaths`; o Cobertura continua alimentando o resumo do job
-(`.github/scripts/resumo-testes.sh`). Os resultados dos testes (`.trx`) vão em
+**Decisão (revista no PR 2)**: os testes continuam gerando só o Cobertura
+(`--collect "Code Coverage;Format=cobertura"`), que alimenta o resumo do job
+(`.github/scripts/resumo-testes.sh`). Depois do resumo, o **ReportGenerator**
+(`dotnet-reportgenerator-globaltool` **5.5.11**, ferramenta local) junta os Cobertura dos testes
+unitários e de integração no formato genérico do SonarQube (`resultados-sonar/SonarQube.xml`),
+lido em `sonar.coverageReportPaths`. Os resultados dos testes (`.trx`) vão em
 `sonar.cs.vstest.reportsPaths`.
 
-**Verificado em 2026-11-02**: com `Format=cobertura,xml`, a suíte unitária gerou
-`*.cobertura.xml` e `*.xml` (raiz `<results>`, com `line_coverage` por módulo), sem pacote
-novo.
+**Por que a revisão**: o PR 1 enviava o XML do Visual Studio (`Format=cobertura,xml`,
+`sonar.cs.vscoveragexml.reportsPaths`). No PR 2, a cobertura do código novo apareceu com 18,2%
+num validador 100% coberto: nesse XML, uma instrução que ocupa várias linhas é um único trecho
+(`start_line` 38, `end_line` 47), e o importador do SonarQube só marca a primeira linha. Toda
+instrução em várias linhas (comum no projeto) baixaria a cobertura do código novo à toa e
+reprovaria o Quality Gate. O Cobertura registra cada linha (38 a 47 com `hits="1"`), e a conversão
+do ReportGenerator manteve as dez linhas cobertas, com as branches (`branchesToCover` e
+`coveredBranches`), verificado localmente em 2026-11-02.
 
-**Separação dos arquivos**: o padrão `*.xml` também casaria com `*.cobertura.xml`. Depois do
-resumo, um passo move os `*.cobertura.xml` para fora da pasta lida pelo Sonar, antes do
-`sonarscanner end`.
+**Justificativa da dependência** (constituição, Restrições técnicas; escolha do dono do
+repositório entre esta e um script próprio): ferramenta de build de uso amplo para juntar
+relatórios de cobertura e gerar o formato do SonarQube; não entra em nenhum assembly do OMS;
+versão fixa no manifesto. A 5.5.12 tinha menos de duas semanas.
 
 **Módulos**: o `coverage.runsettings` passa a incluir `PedidoFulfillment.Worker` e
 `PedidoFulfillment.PagamentosSimulados` (FR-012), além de Domain, Application, Infrastructure
 e API. As migrations e `obj/` continuam fora.
 
-**Alternativas**: `coverlet.collector` (pacote novo, sem ganho); converter o Cobertura com uma
-ferramenta (`dotnet-coverage merge`, mais uma ferramenta).
+**Alternativas**: o XML do Visual Studio (rejeitado: perde as linhas de instruções em várias
+linhas); script próprio em bash/awk (sem dependência, mas código a manter e sem branches);
+`coverlet.collector` com OpenCover (pacote novo nos projetos de teste e troca de coletor).
 
 ## R-06. Escopo da análise
 

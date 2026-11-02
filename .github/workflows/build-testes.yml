@@ -76,7 +76,7 @@ jobs:
           /k:"LucasFrenhan_Order-Management-System"
           /o:"lucasfrenhan"
           /d:sonar.host.url="https://sonarcloud.io"
-          /d:sonar.cs.vscoveragexml.reportsPaths="resultados/**/*.xml"
+          /d:sonar.coverageReportPaths="resultados-sonar/SonarQube.xml"
           /d:sonar.cs.vstest.reportsPaths="resultados/**/*.trx"
           /d:sonar.exclusions="specs/**,.specify/**,**/Persistencia/Migracoes/**,**/obj/**,**/bin/**"
           /d:sonar.coverage.exclusions="**/Persistencia/Migracoes/**"
@@ -87,30 +87,28 @@ jobs:
       - name: Compilar
         run: dotnet build PedidoFulfillment.sln -c Release --no-restore
 
-      # Cobertura em Cobertura (resumo do job) e em XML do Visual Studio (SonarQube Cloud), na
-      # mesma execução e com o coletor que já vem no SDK de testes (REQ-20, research R-05).
       - name: Testar
         run: >-
           dotnet test PedidoFulfillment.sln -c Release --no-build
           --logger "trx;LogFilePrefix=resultado"
           --results-directory resultados
-          --collect "Code Coverage;Format=cobertura,xml"
+          --collect "Code Coverage;Format=cobertura"
           --settings coverage.runsettings
 
       - name: Resumo dos testes
         if: always()
         run: bash .github/scripts/resumo-testes.sh resultados
 
-      # O padrão "resultados/**/*.xml" do Sonar também pegaria os *.cobertura.xml. Cada projeto de
-      # teste grava a sua pasta, e os nomes podem se repetir: a pasta de origem é mantida.
-      - name: Separar a cobertura do resumo
-        if: always()
-        run: |
-          find resultados -name '*.cobertura.xml' -print0 | while IFS= read -r -d '' arquivo; do
-            destino="resultados-cobertura/$(dirname "${arquivo#resultados/}")"
-            mkdir -p "$destino"
-            mv "$arquivo" "$destino/"
-          done
+      # Junta a cobertura unitária e a de integração no formato genérico do SonarQube, linha a
+      # linha e com branches. O XML do Visual Studio fazia o Sonar contar só a primeira linha de
+      # cada instrução em várias linhas (REQ-20, research R-05).
+      - name: Converter a cobertura para o SonarQube
+        if: steps.sonar.outputs.ativo == 'true'
+        run: >-
+          dotnet reportgenerator
+          "-reports:resultados/**/*.cobertura.xml"
+          "-targetdir:resultados-sonar"
+          "-reporttypes:SonarQube"
 
       - name: Encerrar a análise
         if: steps.sonar.outputs.ativo == 'true'
@@ -125,7 +123,7 @@ jobs:
           name: resultados-testes
           path: |
             resultados
-            resultados-cobertura
+            resultados-sonar
           retention-days: 14
           if-no-files-found: warn
 

@@ -100,7 +100,7 @@ Depois do merge do PR 1: sync (nenhum PR aberto, `main` igual à remota) e a bra
 ### Phase 7: User Story 2 (P1), parte 2 — Quality Gate exigido
 
 - [X] T016 [US2] Acrescentar ao `.github/rulesets/protecao-main.json` a verificação do Quality Gate com o nome conferido na T011 e o `integration_id` do app do SonarQube Cloud (R-09), e aplicar com `gh api -X PUT`; conferir em `rules/branches/main`.
-- [ ] T017 [US2] Validar o bloqueio (SC-002, quickstart §3): PR descartável com uma possível referência nula num serviço do Application e outro com um método público sem testes; os dois com o Quality Gate reprovado e o merge bloqueado; fechar os dois sem merge e apagar as branches. Conferir também que `git push origin HEAD:main` é recusado (FR-015). Registrar em Notes (links dos PRs fechados).
+- [X] T017 [US2] Validar o bloqueio (SC-002, quickstart §3): PR descartável com uma possível referência nula num serviço do Application e outro com um método público sem testes; os dois com o Quality Gate reprovado e o merge bloqueado; fechar os dois sem merge e apagar as branches. Conferir também que `git push origin HEAD:main` é recusado (FR-015). Registrar em Notes (links dos PRs fechados).
 
 ### Phase 8: User Story 3 (P1) e User Story 5 (P3), parte 2
 
@@ -187,3 +187,19 @@ versionada e os PRs de forks tratados.
 - **T018**: cobertura do painel 97,0% contra 97,1% do resumo do job; `ArmazenamentoPedidos`
   (coberto pela integração) com 92,4% e `ConsultaEstornosPendentes` com 100%; migrations fora da
   análise.
+- **T017 (2026-11-02)**: PRs descartáveis [#50](https://github.com/LucasFrenhan/Order-Management-System/pull/50)
+  (condição sempre falsa, S2583, com teste; a possível referência nula do quickstart não passaria
+  pelo compilador com avisos como erros) e [#51](https://github.com/LucasFrenhan/Order-Management-System/pull/51)
+  (método novo sem testes): os dois com `Build e testes` e `Demonstração` verdes e
+  **`SonarCloud Code Analysis` reprovado** (#50: confiabilidade abaixo de A e 75% de cobertura do
+  código novo; #51: 0% de cobertura do código novo) e **merge bloqueado** (`mergeStateStatus:
+  BLOCKED`). Fechados sem merge, com as branches apagadas. O push direto na `main` não foi tentado (se a regra
+  falhasse, levaria commits para a `main` sem PR): a recusa vem da regra `pull_request` ativa e sem
+  contorno, conferida em `rules/branches/main`.
+- **Achado do PR 2 (#49)**: o próprio PR reprovou com 18,2% de cobertura do código novo num
+  validador 100% coberto. Causa: o XML do Visual Studio guarda uma instrução em várias linhas como
+  um trecho só, e o importador do SonarQube marca só a primeira linha. Decisão do dono: converter o
+  Cobertura com o **ReportGenerator** 5.5.11 (ferramenta local) para o formato genérico do
+  SonarQube (`sonar.coverageReportPaths`), linha a linha e com branches; os testes voltam a gerar só
+  o Cobertura, e o passo de separar arquivos saiu (research R-05 revisto; T002, T004 e T005
+  ajustados no PR 2).
