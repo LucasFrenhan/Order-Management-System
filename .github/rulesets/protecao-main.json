@@ -47,6 +47,10 @@
           },
           {
             "context": "Demonstração"
+          },
+          {
+            "context": "SonarCloud Code Analysis",
+            "integration_id": 12526
           }
         ]
       }
