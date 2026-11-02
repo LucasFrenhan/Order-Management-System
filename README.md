@@ -12,10 +12,11 @@ estão em [`docs/fluxos/`](docs/fluxos/README.md).
 
 ## Estado atual
 
-Os REQ-01 a REQ-17 estão entregues: o pedido vai da criação ao despacho com rastreio, com
+Os REQ-01 a REQ-18 estão entregues: o pedido vai da criação ao despacho com rastreio, com
 estoque, pagamento e entrega assíncronos, publicação garantida, estorno, limpeza e reenvio da
-DLQ, rastreabilidade de ponta a ponta e recuperação dos consumidores. O que cada REQ entregou,
-com o link para a spec, está em [Estado atual](docs/estado-atual.md).
+DLQ, rastreabilidade de ponta a ponta, recuperação dos consumidores e notificação de mudança de
+status por webhooks e SSE. O que cada REQ entregou, com o link para a spec, está em
+[Estado atual](docs/estado-atual.md).
 
 ## Demonstração rápida
 
@@ -50,7 +51,7 @@ catálogo inicial (`CAT-001` a `CAT-010`).
 ## Próximos passos
 
 As issues de negócio do roteiro original (#1 a #11) já foram entregues, e o próximo trabalho
-começa no REQ-18. A fila de requisitos, o que os REQs anteriores deixaram pronto para
+começa no REQ-19. A fila de requisitos, o que os REQs anteriores deixaram pronto para
 reaproveitar e as decisões já tomadas estão em [Próximos passos](docs/proximos-passos.md).
 
 ## Pré-requisitos

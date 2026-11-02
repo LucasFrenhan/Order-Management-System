@@ -8,15 +8,15 @@ REQ-13 garante que o Cliente nunca fica cobrado por um pedido cancelado. O REQ-1
 dados de mensageria que cresciam sem limite e trocou o painel do broker por um reenvio da DLQ
 controlado, e o REQ-15 tornou os cancelamentos e os estornos visíveis para outros sistemas. O
 REQ-16 trouxe a rastreabilidade de ponta a ponta do pedido, com métricas da mensageria, e o
-REQ-17 fez os consumidores voltarem sozinhos depois de o broker reiniciar (issue #41).
+REQ-17 fez os consumidores voltarem sozinhos depois de o broker reiniciar (issue #41). O REQ-18
+avisa quem acompanha um pedido quando o status muda, por webhooks e por SSE (issue #43).
 Cada trabalho novo segue o fluxo SDD (`/speckit-specify` → `/speckit-clarify` →
 `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`), em uma
-branch `feature/req-XX-...`, com a numeração a partir do REQ-18.
+branch `feature/req-XX-...`, com a numeração a partir do REQ-19.
 
 | Ordem | Requisito | Origem | Escopo |
 |-------|-----------|--------|--------|
 | 1 | a numerar | [#18](https://github.com/LucasFrenhan/Order-Management-System/issues/18) — SonarQube Cloud | Análise estática de código no CI |
-| 2 | a numerar | [#43](https://github.com/LucasFrenhan/Order-Management-System/issues/43) — notificação de mudança de status | Estudo de webhooks ou push (custo de cada abordagem) e, depois, a implementação |
 
 
 ## O que já está pronto para os próximos REQs
@@ -59,6 +59,11 @@ branch `feature/req-XX-...`, com a numeração a partir do REQ-18.
   `pedido.cancelado` de qualquer caminho, a partir do `ResultadoCancelamento`; um caminho novo
   de cancelamento precisa adicioná-lo, ou a guarda do `ArmazenamentoPedidos` recusa a gravação
   ([contrato](../specs/015-visibilidade-cancelamentos/contracts/eventos-cancelamento-e-estorno.md)).
+- **Avisos de mudança de status** (REQ-18): o `ArmazenamentoPedidos.SalvarAsync` gera o
+  `pedido.status-alterado` e o aviso de toda entrada nova do histórico; um caminho novo que muda
+  status só precisa gravar por ele (a base de consumo recusa o que não passou por lá). A
+  `LeituraAvisos` lê qualquer tabela de avisos por cursor de `rowversion` sem lacunas
+  ([research R-13](../specs/018-notificacao-status/research.md#r-13-tabela-de-avisos-e-leitura-sem-lacunas-com-min_active_rowversion)).
 - **Recuperação do consumo** (REQ-17): cada consumidor registrado com `AdicionarConsumidor`
   ganha um `SupervisorInscricao`, que refaz a inscrição depois de qualquer perda, e entra na
   prontidão `consumidores` do Worker; a conexão não usa a recuperação automática do cliente

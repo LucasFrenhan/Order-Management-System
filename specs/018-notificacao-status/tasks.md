@@ -148,19 +148,19 @@ tentativas e o esgotamento.
 
 ### Testes da US2
 
-- [ ] T019 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Notificacoes/EnderecosProibidosTestes.cs`: recusa loopback (`127.0.0.0/8`, `::1`), `10/8`, `172.16/12`, `192.168/16`, `169.254/16` (inclusive `169.254.169.254`), `100.64/10`, `0.0.0.0/8`, multicast, `fc00::/7`, `fe80::/10` e IPv4 mapeado em IPv6 (`::ffff:10.0.0.1`); aceita endereços públicos (`8.8.8.8`, `2606:4700::1111`); com `PermitirRedeLocal`, aceita loopback.
-- [ ] T020 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Notificacoes/CifraSegredosTestes.cs`: ida e volta; nonce diferente a cada cifra; resultado com 60 bytes; tag ou texto adulterado lança `CryptographicException`; chave diferente não decifra.
-- [ ] T021 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Notificacoes/AssinaturaWebhookTestes.cs`: com o vetor de teste publicado pelo Standard Webhooks (segredo, `webhook-id`, timestamp e corpo conhecidos), a assinatura `v1,…` bate com a esperada; o segredo é gerado como `whsec_` + Base64 de 32 bytes.
-- [ ] T022 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Notificacoes/EsperaEntregasTestes.cs` e `EntregaNotificacaoTestes.cs`: espera de 30 s, 2 min, 10 min, 30 min, 1 h e depois 2 h; falha com 24 h desde a primeira tentativa esgota; `410` esgota e desativa o destino; sucesso zera as falhas seguidas; `Descartar` só a partir de `Pendente`; `FinalizadaEm` preenchido ao sair de `Pendente`.
-- [ ] T023 [US2] Receptor de teste em `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/ReceptorWebhookTeste.cs`: Kestrel em `127.0.0.1` com porta livre, que grava cabeçalhos e corpo de cada requisição e responde conforme um roteiro configurável por teste (200, 500, 410, 302, atraso acima de 10 s); `IAsyncDisposable`.
-- [ ] T024 [US2] Em `tests/PedidoFulfillment.Testes.Integracao/Notificacoes/DestinosCadastroTestes.cs` (FR-007 a FR-010, FR-026), API real:
+- [X] T019 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Notificacoes/EnderecosProibidosTestes.cs`: recusa loopback (`127.0.0.0/8`, `::1`), `10/8`, `172.16/12`, `192.168/16`, `169.254/16` (inclusive `169.254.169.254`), `100.64/10`, `0.0.0.0/8`, multicast, `fc00::/7`, `fe80::/10` e IPv4 mapeado em IPv6 (`::ffff:10.0.0.1`); aceita endereços públicos (`8.8.8.8`, `2606:4700::1111`); com `PermitirRedeLocal`, aceita loopback.
+- [X] T020 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Notificacoes/CifraSegredosTestes.cs`: ida e volta; nonce diferente a cada cifra; resultado com 60 bytes; tag ou texto adulterado lança `CryptographicException`; chave diferente não decifra.
+- [X] T021 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Notificacoes/AssinaturaWebhookTestes.cs`: com o vetor de teste publicado pelo Standard Webhooks (segredo, `webhook-id`, timestamp e corpo conhecidos), a assinatura `v1,…` bate com a esperada; o segredo é gerado como `whsec_` + Base64 de 32 bytes.
+- [X] T022 [P] [US2] Em `tests/PedidoFulfillment.Testes.Unitarios/Notificacoes/EsperaEntregasTestes.cs` e `EntregaNotificacaoTestes.cs`: espera de 30 s, 2 min, 10 min, 30 min, 1 h e depois 2 h; falha com 24 h desde a primeira tentativa esgota; `410` esgota e desativa o destino; sucesso zera as falhas seguidas; `Descartar` só a partir de `Pendente`; `FinalizadaEm` preenchido ao sair de `Pendente`.
+- [X] T023 [US2] Receptor de teste em `tests/PedidoFulfillment.Testes.Integracao/Infraestrutura/ReceptorWebhookTeste.cs`: Kestrel em `127.0.0.1` com porta livre, que grava cabeçalhos e corpo de cada requisição e responde conforme um roteiro configurável por teste (200, 500, 410, 302, atraso acima de 10 s); `IAsyncDisposable`.
+- [X] T024 [US2] Em `tests/PedidoFulfillment.Testes.Integracao/Notificacoes/DestinosCadastroTestes.cs` (FR-007 a FR-010, FR-026), API real:
   - Cliente e Admin cadastram (`201`, `Location`, `segredo` com `whsec_`); o `GET` em seguida não traz o segredo; o destino do Admin sai `global: true`;
   - sem token `401`; OperadorLogistica `403`;
   - URL relativa, `http` sem `PermitirRedeLocal`, com usuário e senha ou acima de 2048 caracteres: `400`;
   - host que resolve para endereço interno, com `PermitirRedeLocal` = `false` numa fábrica própria: `400` `NOTIFICACAO_DESTINO_ENDERECO_PROIBIDO`;
   - sexto destino do Cliente e sexto global: `409` `NOTIFICACAO_DESTINO_LIMITE`; dois cadastros simultâneos com 4 existentes deixam exatamente 5;
   - o segredo fica cifrado no banco (a coluna não contém os bytes do segredo).
-- [ ] T025 [US2] Em `tests/PedidoFulfillment.Testes.Integracao/Notificacoes/EntregaWebhookTestes.cs` (US2, cenários 2 a 8; FR-012 a FR-017), API e Worker reais, envio ligado com intervalo curto e o receptor da T023:
+- [X] T025 [US2] Em `tests/PedidoFulfillment.Testes.Integracao/Notificacoes/EntregaWebhookTestes.cs` (US2, cenários 2 a 8; FR-012 a FR-017), API e Worker reais, envio ligado com intervalo curto e o receptor da T023:
   - pedido do Cliente dono chega ao destino dele com os três cabeçalhos e assinatura válida (conferida com a `AssinaturaWebhook` e o segredo do cadastro); o corpo bate byte a byte com o `Conteudo` do aviso; a entrega fica `Entregue`;
   - pedido de outro Cliente não chega; o destino global recebe os dois;
   - `500` e depois `200`: duas tentativas, mesmo `webhook-id`, `Entregue` no fim;
@@ -173,18 +173,18 @@ tentativas e o esgotamento.
   - com o broker parado, o aviso de uma mudança pela API chega mesmo assim;
   - o receptor nunca recebe `traceparent`;
   - segredo gravado com outra chave: a entrega falha com "segredo ilegível" e o receptor não recebe nada.
-- [ ] T026 [US2] Em `tests/PedidoFulfillment.Testes.Integracao/Notificacoes/SsrfEnvioTestes.cs`: com `PermitirRedeLocal` = `false`, um destino gravado direto no banco com host que resolve para `127.0.0.1` não recebe chamada; a entrega registra falha "endereço recusado" e o log 10009 sai.
+- [X] T026 [US2] Em `tests/PedidoFulfillment.Testes.Integracao/Notificacoes/SsrfEnvioTestes.cs`: com `PermitirRedeLocal` = `false`, um destino gravado direto no banco com host que resolve para `127.0.0.1` não recebe chamada; a entrega registra falha "endereço recusado" e o log 10009 sai.
 
 ### Implementação da US2
 
-- [ ] T027 [P] [US2] `src/PedidoFulfillment.Infrastructure/Notificacoes/EnderecosProibidos.cs` (faixas da T019) e `VerificadorEndereco.cs` (resolve o host com `Dns.GetHostAddressesAsync` e recusa se **qualquer** endereço for proibido; implementa `IVerificadorEndereco` do Application). T019 deve passar.
-- [ ] T028 [P] [US2] `src/PedidoFulfillment.Infrastructure/Notificacoes/CifraSegredos.cs` (`AesGcm`, nonce 12 + cifrado 32 + tag 16; implementa `ICifraSegredos`) e `AssinaturaWebhook.cs` (geração do segredo e HMAC-SHA256 de `{id}.{timestamp}.{corpo}`). T020 e T021 devem passar.
-- [ ] T029 [P] [US2] `src/PedidoFulfillment.Application/Notificacoes/EsperaEntregas.cs` com a tabela de espera e o limite configurável. T022 deve passar.
-- [ ] T030 [US2] `src/PedidoFulfillment.Application/Notificacoes/ServicoDestinosNotificacao.cs` (cadastro e lista) com `IArmazenamentoNotificacoes`, DTOs em `Contratos/Notificacoes/` (`CadastrarDestinoRequestDTO`, `DestinoNotificacaoResponseDTO`, `DestinoCadastradoResponseDTO` com `segredo`), validador do DTO e códigos novos em `CodigosErro`. Escopo: Admin (perfil de operação) cadastra global; Cliente, o próprio; quem tem os dois perfis cadastra como Admin, global (research R-15; analyze U5). Limite conferido sob lock de aplicação por dono (`oms-destinos:{dono}` ou `oms-destinos:global`) na transação do cadastro (research R-15). Log 10001.
-- [ ] T031 [US2] `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoNotificacoes.cs`: destinos por escopo, contagem para o limite, gravação, e o que o processador precisa (destinos ativos para um Cliente e globais, entregas vencidas com no máximo uma por destino via `ROW_NUMBER() OVER (PARTITION BY DestinoId ORDER BY ProximaTentativaEm)`, descarte das pendentes de um destino).
-- [ ] T032 [US2] `src/PedidoFulfillment.API/Endpoints/EndpointsNotificacoes.cs` com `POST` e `GET /api/v1/notificacoes/destinos` (contrato), `PoliticaDestinosNotificacao` em `Seguranca/PoliticasAutorizacao.cs`, registro em `Program.cs`, e as duas rotas no `openapi-v1.yaml`. T024 deve passar.
-- [ ] T033 [US2] `src/PedidoFulfillment.Infrastructure/Notificacoes/EnviadorWebhook.cs`: cliente nomeado do `IHttpClientFactory` com `SocketsHttpHandler` (`AllowAutoRedirect = false`, `ConnectCallback` que resolve o host, confere cada IP com `EnderecosProibidos` e conecta só a um permitido), tempo limite de `Envio:TempoLimiteSegundos`, `User-Agent: OMS-Webhooks/1`, os três cabeçalhos e o corpo do aviso como bytes; devolve o resultado (código, tipo do erro) sem ler o corpo da resposta. Sem `traceparent`: desligar a propagação no cliente (`DistributedContextPropagator` nulo para ele, ou remover o cabeçalho num `DelegatingHandler`).
-- [ ] T034 [US2] `src/PedidoFulfillment.Infrastructure/Notificacoes/ProcessadorNotificacoes.cs` (research R-05 revista), no molde do `ProcessadorEstornos`: lock `oms-notificacoes`; rodada a cada `Envio:IntervaloSegundos`; **distribuição** (lê avisos depois do `CursorNotificacoes` com a `LeituraAvisos`, cria entregas para os destinos ativos do Cliente dono e globais com `CriadoEm` do destino ≤ `CriadoEm` do aviso, avança o cursor, tudo numa transação; log 10005); **envio** (entregas vencidas, `Parallel.ForEachAsync` com `Envio:Paralelismo`, um escopo por entrega, decifra o segredo (se não decifrar, por chave trocada, a entrega falha com "segredo ilegível" sem enviar nada e segue o caminho normal até esgotar e desativar o destino, com teste em T025; analyze U2), envia, aplica `EsperaEntregas`, desativa o destino e descarta as pendentes dele em `410` ou esgotamento; logs 10006 a 10010; span `notificacao enviar` com link para o `ContextoRastreio`; métricas de entregas e latência). Registro em `ExtensoesNotificacoes.AdicionarProcessamentoNotificacoes()` e em `ProgramaWorker.cs`; `FabricaWorker` desliga por padrão. T025 e T026 devem passar.
+- [X] T027 [P] [US2] `src/PedidoFulfillment.Infrastructure/Notificacoes/EnderecosProibidos.cs` (faixas da T019) e `VerificadorEndereco.cs` (resolve o host com `Dns.GetHostAddressesAsync` e recusa se **qualquer** endereço for proibido; implementa `IVerificadorEndereco` do Application). T019 deve passar.
+- [X] T028 [P] [US2] `src/PedidoFulfillment.Infrastructure/Notificacoes/CifraSegredos.cs` (`AesGcm`, nonce 12 + cifrado 32 + tag 16; implementa `ICifraSegredos`) e `AssinaturaWebhook.cs` (geração do segredo e HMAC-SHA256 de `{id}.{timestamp}.{corpo}`). T020 e T021 devem passar.
+- [X] T029 [P] [US2] `src/PedidoFulfillment.Application/Notificacoes/EsperaEntregas.cs` com a tabela de espera e o limite configurável. T022 deve passar.
+- [X] T030 [US2] `src/PedidoFulfillment.Application/Notificacoes/ServicoDestinosNotificacao.cs` (cadastro e lista) com `IArmazenamentoNotificacoes`, DTOs em `Contratos/Notificacoes/` (`CadastrarDestinoRequestDTO`, `DestinoNotificacaoResponseDTO`, `DestinoCadastradoResponseDTO` com `segredo`), validador do DTO e códigos novos em `CodigosErro`. Escopo: Admin (perfil de operação) cadastra global; Cliente, o próprio; quem tem os dois perfis cadastra como Admin, global (research R-15; analyze U5). Limite conferido sob lock de aplicação por dono (`oms-destinos:{dono}` ou `oms-destinos:global`) na transação do cadastro (research R-15). Log 10001.
+- [X] T031 [US2] `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoNotificacoes.cs`: destinos por escopo, contagem para o limite, gravação, e o que o processador precisa (destinos ativos para um Cliente e globais, entregas vencidas com no máximo uma por destino via `ROW_NUMBER() OVER (PARTITION BY DestinoId ORDER BY ProximaTentativaEm)`, descarte das pendentes de um destino).
+- [X] T032 [US2] `src/PedidoFulfillment.API/Endpoints/EndpointsNotificacoes.cs` com `POST` e `GET /api/v1/notificacoes/destinos` (contrato), `PoliticaDestinosNotificacao` em `Seguranca/PoliticasAutorizacao.cs`, registro em `Program.cs`, e as duas rotas no `openapi-v1.yaml`. T024 deve passar.
+- [X] T033 [US2] `src/PedidoFulfillment.Infrastructure/Notificacoes/EnviadorWebhook.cs`: cliente nomeado do `IHttpClientFactory` com `SocketsHttpHandler` (`AllowAutoRedirect = false`, `ConnectCallback` que resolve o host, confere cada IP com `EnderecosProibidos` e conecta só a um permitido), tempo limite de `Envio:TempoLimiteSegundos`, `User-Agent: OMS-Webhooks/1`, os três cabeçalhos e o corpo do aviso como bytes; devolve o resultado (código, tipo do erro) sem ler o corpo da resposta. Sem `traceparent`: desligar a propagação no cliente (`DistributedContextPropagator` nulo para ele, ou remover o cabeçalho num `DelegatingHandler`).
+- [X] T034 [US2] `src/PedidoFulfillment.Infrastructure/Notificacoes/ProcessadorNotificacoes.cs` (research R-05 revista), no molde do `ProcessadorEstornos`: lock `oms-notificacoes`; rodada a cada `Envio:IntervaloSegundos`; **distribuição** (lê avisos depois do `CursorNotificacoes` com a `LeituraAvisos`, cria entregas para os destinos ativos do Cliente dono e globais com `CriadoEm` do destino ≤ `CriadoEm` do aviso, avança o cursor, tudo numa transação; log 10005); **envio** (entregas vencidas, `Parallel.ForEachAsync` com `Envio:Paralelismo`, um escopo por entrega, decifra o segredo (se não decifrar, por chave trocada, a entrega falha com "segredo ilegível" sem enviar nada e segue o caminho normal até esgotar e desativar o destino, com teste em T025; analyze U2), envia, aplica `EsperaEntregas`, desativa o destino e descarta as pendentes dele em `410` ou esgotamento; logs 10006 a 10010; span `notificacao enviar` com link para o `ContextoRastreio`; métricas de entregas e latência). Registro em `ExtensoesNotificacoes.AdicionarProcessamentoNotificacoes()` e em `ProgramaWorker.cs`; `FabricaWorker` desliga por padrão. T025 e T026 devem passar.
 
 **Checkpoint**: um sistema de fora integra por webhook, com assinatura, novas tentativas e
 desativação.
@@ -202,8 +202,8 @@ conferir que só o primeiro chega, em até 12 s.
 
 ### Testes da US3
 
-- [ ] T035 [P] [US3] Em `tests/PedidoFulfillment.Testes.Unitarios/Notificacoes/DistribuidorAvisosTestes.cs`: o filtro entrega ao Cliente só os avisos dele, à operação todos, e à conexão de um pedido só os desse pedido; o limite por usuário recusa a quarta conexão e libera a vaga quando uma fecha; fila cheia encerra a conexão com `ClienteLento`; aviso com `Posicao` menor ou igual à última enviada é descartado (sem repetição entre reenvio e ao vivo).
-- [ ] T036 [US3] Em `tests/PedidoFulfillment.Testes.Integracao/Notificacoes/SseTestes.cs` (US3, cenários 1 a 14; FR-019 a FR-024), API real com `Sse:IntervaloLeituraSegundos` = 1 e `SinalDeVidaSegundos` = 5, lendo o stream com `HttpClient` (`HttpCompletionOption.ResponseHeadersRead`) e um leitor SSE de teste:
+- [X] T035 [P] [US3] Em `tests/PedidoFulfillment.Testes.Unitarios/Notificacoes/DistribuidorAvisosTestes.cs`: o filtro entrega ao Cliente só os avisos dele, à operação todos, e à conexão de um pedido só os desse pedido; o limite por usuário recusa a quarta conexão e libera a vaga quando uma fecha; fila cheia encerra a conexão com `ClienteLento`; aviso com `Posicao` menor ou igual à última enviada é descartado (sem repetição entre reenvio e ao vivo).
+- [X] T036 [US3] Em `tests/PedidoFulfillment.Testes.Integracao/Notificacoes/SseTestes.cs` (US3, cenários 1 a 14; FR-019 a FR-024), API real com `Sse:IntervaloLeituraSegundos` = 1 e `SinalDeVidaSegundos` = 5, lendo o stream com `HttpClient` (`HttpCompletionOption.ResponseHeadersRead`) e um leitor SSE de teste:
   - sem token `401`; token sem perfil `403` (padrão do `ObterPedidoTestes`); `pedidoId` inválido `400`; de outro Cliente `404`;
   - primeiro evento `conectado` com `id`; com a tabela vazia, o GUID zero;
   - Cliente recebe o aviso do pedido dele, não o de outro Cliente; Admin e OperadorLogistica recebem os dois; a conexão de um pedido só recebe esse pedido;
@@ -219,9 +219,9 @@ conferir que só o primeiro chega, em até 12 s.
 
 ### Implementação da US3
 
-- [ ] T037 [US3] `src/PedidoFulfillment.Infrastructure/Notificacoes/DistribuidorAvisos.cs` (singleton): registro de conexões com filtro (usuário, perfis de operação, pedido opcional), `Channel` limitado a 100 por conexão, limite `Sse:ConexoesPorUsuario` por usuário, descarte por `Posicao`, gauge `oms.notificacoes.sse.conexoes`, logs 10011 a 10013. T035 deve passar.
-- [ ] T038 [US3] `src/PedidoFulfillment.Infrastructure/Notificacoes/LeitorAvisos.cs` (`BackgroundService` registrado só na API): cursor em memória iniciado pela `UltimaConfirmadaAsync`, leitura a cada `Sse:IntervaloLeituraSegundos` com a `LeituraAvisos`, publicação no distribuidor; falha da leitura vira log 10014 e nova tentativa no ciclo seguinte, sem derrubar a API.
-- [ ] T039 [US3] SSE em duas partes (constituição: o endpoint só roteia; analyze C1):
+- [X] T037 [US3] `src/PedidoFulfillment.Infrastructure/Notificacoes/DistribuidorAvisos.cs` (singleton): registro de conexões com filtro (usuário, perfis de operação, pedido opcional), `Channel` limitado a 100 por conexão, limite `Sse:ConexoesPorUsuario` por usuário, descarte por `Posicao`, gauge `oms.notificacoes.sse.conexoes`, logs 10011 a 10013. T035 deve passar.
+- [X] T038 [US3] `src/PedidoFulfillment.Infrastructure/Notificacoes/LeitorAvisos.cs` (`BackgroundService` registrado só na API): cursor em memória iniciado pela `UltimaConfirmadaAsync`, leitura a cada `Sse:IntervaloLeituraSegundos` com a `LeituraAvisos`, publicação no distribuidor; falha da leitura vira log 10014 e nova tentativa no ciclo seguinte, sem derrubar a API.
+- [X] T039 [US3] SSE em duas partes (constituição: o endpoint só roteia; analyze C1):
   - `src/PedidoFulfillment.Infrastructure/Notificacoes/FluxoEventosTempoReal.cs`: recebe usuário, perfis, `pedidoId` opcional, `Last-Event-ID` e o instante do `exp`; confere o limite (resultado `LimiteAtingido`, sem abrir nada) e devolve um `IAsyncEnumerable<SseItem<string>>` que registra a conexão no distribuidor, envia `conectado` ou o reenvio (`LerDoPedidoAsync` com `pedidoId`, `LerDoClienteAsync` para Cliente, `LerAsync` para operação, até `Sse:MaximoReenvio`) e depois a fila ao vivo, intercalando `sinal` a cada `Sse:SinalDeVidaSegundos`, e termina no `exp`, no cancelamento ou com a fila cheia;
   - rota `GET /api/v1/notificacoes/eventos` em `EndpointsNotificacoes.cs`: política de consulta; para `pedidoId`, conferência de existência e dono pelo `IServicoPedidos` (`404` como no `GET`); `429` com `ProblemDetails` quando o fluxo devolve `LimiteAtingido`; senão, `TypedResults.ServerSentEvents` do enumerável; declarar `.Produces(200, contentType: "text/event-stream")` e conferir o documento gerado antes de editar o `openapi-v1.yaml` (analyze U4).
   Os nomes e o `data` dos eventos seguem o [contrato](./contracts/api-notificacoes.md). T036 deve passar.
@@ -240,20 +240,20 @@ um destino; outro usuário recebe `404`; outro Admin gerencia o global.
 
 ### Testes da US4
 
-- [ ] T040 [P] [US4] Em `tests/PedidoFulfillment.Testes.Integracao/Notificacoes/DestinosGestaoTestes.cs` (US4, cenários 1 a 7; FR-011):
+- [X] T040 [P] [US4] Em `tests/PedidoFulfillment.Testes.Integracao/Notificacoes/DestinosGestaoTestes.cs` (US4, cenários 1 a 7; FR-011):
   - Cliente lista só os dele; Admin lista só os globais, inclusive os de outro Admin, e não vê os de Clientes;
   - `DELETE` `204`, pendentes viram `Descartada`, nada mais é enviado;
   - reativação de destino inativo: `200`, `ativo: true`, falhas zeradas, entregas esgotadas não reenviadas; de destino ativo: `200` sem mudança;
   - `GET /entregas` com `limite` padrão 50, máximo 200 (`201` → `400`), da mais nova para a mais antiga, sem URL completa nem corpo de resposta;
   - outro Cliente ou um Cliente num destino global: `404` nas três rotas; outro Admin num destino global: sucesso;
   - sem token `401`; OperadorLogistica `403`.
-- [ ] T041 [P] [US4] Em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/LimpezaMensageriaTestes.cs` (ou o teste da limpeza existente): avisos acima de `RetencaoAvisosHoras` sem entrega pendente são apagados, e com entrega pendente ficam; entregas finalizadas acima de `RetencaoEntregasHoras` são apagadas, e pendentes nunca.
+- [X] T041 [P] [US4] Em `tests/PedidoFulfillment.Testes.Integracao/Mensageria/LimpezaMensageriaTestes.cs` (ou o teste da limpeza existente): avisos acima de `RetencaoAvisosHoras` sem entrega pendente são apagados, e com entrega pendente ficam; entregas finalizadas acima de `RetencaoEntregasHoras` são apagadas, e pendentes nunca.
 
 ### Implementação da US4
 
-- [ ] T042 [US4] `ServicoDestinosNotificacao`: remover (descarta pendentes, apaga o destino; log 10002), reativar (log 10003) e listar entregas (DTO `EntregaNotificacaoResponseDTO` do contrato); rotas `DELETE /destinos/{id}`, `POST /destinos/{id}/reativacao` e `GET /destinos/{id}/entregas` em `EndpointsNotificacoes.cs` e no `openapi-v1.yaml`. T040 deve passar.
-- [ ] T043 [US4] Limpeza (research R-18) em `src/PedidoFulfillment.Infrastructure/Configuracao/OpcoesLimpeza.cs` (`RetencaoAvisosHoras` e `RetencaoEntregasHoras`, padrão 168, faixa 24–8760) e `Mensageria/LimpezaMensageria.cs` (dois alvos novos em lotes, com `oms.limpeza.alvo`). T041 deve passar.
-- [ ] T044 [US4] Gauges `oms.notificacoes.pendentes` e `oms.notificacoes.destinos_desativados` no Worker, lidos como os do outbox (amostragem periódica só com a telemetria ligada), com teste em `tests/PedidoFulfillment.Testes.Integracao/Observabilidade/` no padrão dos testes de métricas do REQ-16.
+- [X] T042 [US4] `ServicoDestinosNotificacao`: remover (descarta pendentes, apaga o destino; log 10002), reativar (log 10003) e listar entregas (DTO `EntregaNotificacaoResponseDTO` do contrato); rotas `DELETE /destinos/{id}`, `POST /destinos/{id}/reativacao` e `GET /destinos/{id}/entregas` em `EndpointsNotificacoes.cs` e no `openapi-v1.yaml`. T040 deve passar.
+- [X] T043 [US4] Limpeza (research R-18) em `src/PedidoFulfillment.Infrastructure/Configuracao/OpcoesLimpeza.cs` (`RetencaoAvisosHoras` e `RetencaoEntregasHoras`, padrão 168, faixa 24–8760) e `Mensageria/LimpezaMensageria.cs` (dois alvos novos em lotes, com `oms.limpeza.alvo`). T041 deve passar.
+- [X] T044 [US4] Gauges `oms.notificacoes.pendentes` e `oms.notificacoes.destinos_desativados` no Worker, lidos como os do outbox (amostragem periódica só com a telemetria ligada), com teste em `tests/PedidoFulfillment.Testes.Integracao/Observabilidade/` no padrão dos testes de métricas do REQ-16.
 
 **Checkpoint**: o dono recupera um destino desativado sozinho, e a operação enxerga a saúde das
 entregas.
@@ -267,18 +267,18 @@ entregas.
 **Independent Test**: consultar, repetir com o `ETag` e receber `304`; mudar o pedido e receber
 `200` com outro `ETag`.
 
-- [ ] T045 [P] [US5] Em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/EtagPedidoTestes.cs` (US5, cenários 1 a 3; FR-025): `200` com `ETag` forte; `If-None-Match` igual → `304` sem corpo e com o mesmo `ETag`; depois de mudança de status, de rastreio e de estorno, `200` com outro `ETag`; `If-None-Match` malformado → `200`; pedido de outro Cliente → `404` com e sem `If-None-Match`.
-- [ ] T046 [US5] `IServicoPedidos.ObterAsync` devolve também a versão (`rowversion` lido pelo armazenamento), sem mudar o `PedidoResponseDTO`; em `EndpointsPedidos.cs`, o `GET` escreve `ETag: "<Base64Url>"` e responde `304` com `If-None-Match` igual (research R-17); `304` e o cabeçalho no `openapi-v1.yaml`. T045 deve passar, e o `ConformidadeOpenApiTestes` continuar verde.
+- [X] T045 [P] [US5] Em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/EtagPedidoTestes.cs` (US5, cenários 1 a 3; FR-025): `200` com `ETag` forte; `If-None-Match` igual → `304` sem corpo e com o mesmo `ETag`; depois de mudança de status, de rastreio e de estorno, `200` com outro `ETag`; `If-None-Match` malformado → `200`; pedido de outro Cliente → `404` com e sem `If-None-Match`.
+- [X] T046 [US5] `IServicoPedidos.ObterAsync` devolve também a versão (`rowversion` lido pelo armazenamento), sem mudar o `PedidoResponseDTO`; em `EndpointsPedidos.cs`, o `GET` escreve `ETag: "<Base64Url>"` e responde `304` com `If-None-Match` igual (research R-17); `304` e o cabeçalho no `openapi-v1.yaml`. T045 deve passar, e o `ConformidadeOpenApiTestes` continuar verde.
 
 ---
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T047 [P] Documentos de fluxo (regra do `CLAUDE.md`, research R-20), conferindo mensagens, códigos, limites, IDs de log e links relativos no código:
+- [X] T047 [P] Documentos de fluxo (regra do `CLAUDE.md`, research R-20), conferindo mensagens, códigos, limites, IDs de log e links relativos no código:
   - `docs/fluxos/13-notificacao-de-status.md` novo, no formato dos demais: caminho feliz (aviso, webhook e SSE), erros tratados com resposta e exemplo, concorrência (transação lenta, várias instâncias), falhas externas (receptor, broker, banco), logs 10001–10014, métricas e limitações;
   - fluxo 3 (`ETag`/304 e aviso nas mudanças pela API), 7 (aviso no despacho; a pendência do `pedido.despachado` resolvida pelo `pedido.status-alterado`), 10 (aviso do estorno), 11 (limpeza de avisos e entregas), 12 (logs, métricas e span novos);
   - linha do fluxo 13 no índice `docs/fluxos/README.md`; o diagrama de estados não muda.
-- [ ] T048 [P] Documentação do projeto: `README.md` e `docs/` (estado atual, próximos passos com a #18, mensageria com o evento novo) e a seção de eventos do contrato apontando o schema novo.
+- [X] T048 [P] Documentação do projeto: `README.md` e `docs/` (estado atual, próximos passos com a #18, mensageria com o evento novo) e a seção de eventos do contrato apontando o schema novo.
 - [ ] T049 Varredura de segredos (nenhuma chave real no diff, só a de desenvolvimento), `dotnet build`, `dotnet format --verify-no-changes` e a suíte local inteira com Docker (zero ignorados); registrar a contagem em Notes.
 - [ ] T050 Executar o [quickstart](./quickstart.md) (§2 a §6) com API e Worker locais e registrar em Notes o que chegou ao receptor e ao `curl`, corrigindo o quickstart onde divergir.
 - [ ] T051 Push e PR em português (Resumo, Pontos de atenção, Validação) com `Closes #43`, citando em Validação os documentos de fluxo atualizados e, em Pontos de atenção, a revisão do R-05 (webhooks sem consumidor) e a decisão de a API ler o banco. Acompanhar `build-testes` e `contrato-compatibilidade` até ficarem verdes, **inclusive depois de cada push posterior**, e registrar em Notes.
@@ -372,3 +372,25 @@ o broker.
   `pedido.status-alterado` (`CancelamentoPedidoPagoTestes`, dois casos de `EsgotamentoTestes`); o
   helper do esgotamento passou a conferir a origem `Worker` do aviso da reconciliação. O caso do
   Admin que também é Cliente usa um usuário com os dois perfis e sai com origem `Operacao`.
+- **US2 a US5 (T019 a T046)**: o endpoint, o registro de serviços e o `openapi-v1.yaml` são
+  comuns às quatro histórias, então o código saiu num commit só (`014373e`), e não em um por
+  fase. Achados:
+  - o Worker dos testes de webhook roda só o `ProcessadorNotificacoes`: com os consumidores, o
+    pedido seguia o fluxo e gerava avisos que o teste não esperava;
+  - os testes esperam a entrega com `ISNULL(MAX(Tentativas), 0)`: antes da distribuição a linha
+    não existe;
+  - a resposta 200 do SSE fica sem `content` no documento gerado, mesmo com
+    `.Produces(200, contentType: "text/event-stream")`; o contrato segue o gerado e descreve o
+    tipo no texto (analyze U4);
+  - o `ParaProblema` ganhou um status opcional, para o 429 do limite de conexões;
+  - o `ConsultarAsync` (versão + pedido) e o `ObterVersaoAsync` têm implementação padrão na
+    interface, e os falsos dos testes continuam como estavam; a versão é lida antes do pedido;
+  - a limpeza (T043) mudou o texto do log 5013 (duas contagens a mais), e o teste de trace da
+    limpeza passou a esperar os alvos `entregas_notificacao` e `avisos_pedido`; o contrato de
+    telemetria do REQ-16 registra os valores e as métricas novas;
+  - a US5 não testa o `ETag` depois do estorno: a confirmação muda `AtualizadoEm` do pedido,
+    como o rastreio, que é testado.
+- **T047 e T048**: fluxo 13 novo; fluxos 3, 7, 10, 11 e 12, o índice (com o 429 e o parágrafo
+  das notificações) e o diagrama de estados sem mudança. README, `docs/estado-atual.md`,
+  `docs/mensageria.md` e `docs/proximos-passos.md` (fila a partir do REQ-19, só a #18). Links
+  relativos conferidos por script.

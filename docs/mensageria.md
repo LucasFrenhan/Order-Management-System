@@ -81,6 +81,11 @@ Os eventos de domínio trafegam pelo RabbitMQ ([spec](../specs/006-mensageria/sp
   `EstoqueInsuficiente` ou `ReconciliacaoEsgotada`, com a etapa) e o que foi desfeito junto, e
   toda confirmação de estorno grava `pagamento.estornado`. Nenhum consumidor interno os recebe:
   um sistema de fora liga a própria fila a `oms.eventos` com essas chaves.
+- **Mudanças de status para outros sistemas** (REQ-18, [schema](../specs/018-notificacao-status/contracts/eventos/pedido.status-alterado.v1.schema.json),
+  [fluxo](fluxos/13-notificacao-de-status.md)): toda mudança de status, por qualquer caminho,
+  grava `pedido.status-alterado`, com os status anterior e novo, a sequência no histórico e a
+  origem (`Worker`, `Cliente` ou `Operacao`); sem consumidor interno, como os do REQ-15. Os
+  webhooks e o SSE do REQ-18 não passam pelo broker: leem os avisos do banco.
 
 Para rodar localmente, com o [ambiente local](../README.md#ambiente-local) no ar e a API já iniciada
 (é ela que aplica as migrations):

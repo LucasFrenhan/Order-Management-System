@@ -4,7 +4,8 @@
 executa os reenvios, limpa os dados antigos e confere o tamanho das DLQs.
 **Origem**: REQ-14 ([spec](../../specs/014-limpeza-e-dlq/spec.md),
 [contrato](../../specs/014-limpeza-e-dlq/contracts/limpeza-e-reenvio.md),
-[research](../../specs/014-limpeza-e-dlq/research.md)), issue #30.
+[research](../../specs/014-limpeza-e-dlq/research.md)), issue #30, e REQ-18
+([spec](../../specs/018-notificacao-status/spec.md), limpeza dos avisos e das entregas de webhook).
 
 ## Limpeza
 
@@ -18,6 +19,8 @@ cada rodada; o resto fica para a seguinte):
 | `EventosProcessados` | Registros de processado mais antigos que a retenção | 7 dias (mínimo 24 h) | — |
 | `ChavesIdempotencia` | Chaves de idempotência do REQ-05 | 48 h (mínimo 24 h) | Chave com menos de 24 h: o Cliente que repete a criação recebe o mesmo pedido |
 | `PedidosReenvioDlq` | Pedidos de reenvio concluídos ou com falha | 90 dias | Pedido pendente ou em execução |
+| `EntregasNotificacao` | Entregas de webhook finalizadas (entregues, esgotadas ou descartadas) (REQ-18, FR-018) | 7 dias (mínimo 24 h) | Entrega pendente |
+| `AvisosPedido` | Avisos de notificação que nenhuma entrega usa (REQ-18, R-18); a retenção também limita o reenvio do SSE | 7 dias (mínimo 24 h) | Aviso de uma entrega ainda guardada |
 
 **Por que não atrapalha o resto**: o despachante só lê os pendentes, os consumidores só
 inserem processados novos e a API só lê chaves recentes. Cada lote é um `DELETE TOP` curto,
@@ -30,7 +33,7 @@ processada com sucesso por aquele consumidor, então o reenvio não depende do r
 Exemplo de rodada:
 
 ```text
-info: LimpezaMensageria[5013] Limpeza: 1240 evento(s) enviado(s), 1188 registro(s) de processado, 37 chave(s) de idempotência e 0 pedido(s) de reenvio apagados.
+info: LimpezaMensageria[5013] Limpeza: 1240 evento(s) enviado(s), 1188 registro(s) de processado, 37 chave(s) de idempotência, 0 pedido(s) de reenvio, 310 entrega(s) de webhook e 655 aviso(s) apagados.
 ```
 
 ## Reenvio da DLQ
@@ -156,6 +159,8 @@ Seção `Limpeza` (validada na partida):
 | `RetencaoProcessadosHoras` | 168 | 24 a 8 760 |
 | `RetencaoChavesHoras` | 48 | 24 a 8 760 |
 | `RetencaoPedidosReenvioHoras` | 2 160 | 24 a 87 600 |
+| `RetencaoEntregasHoras` | 168 | 24 a 8 760 |
+| `RetencaoAvisosHoras` | 168 | 24 a 8 760 |
 
 Seção `ReenvioDlq`:
 

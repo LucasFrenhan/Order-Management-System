@@ -4,7 +4,8 @@
 **Origem**: REQ-01 ([ciclo de vida](../../specs/001-contratos-api/data-model.md#ciclo-de-vida-do-pedido-fr-020)),
 REQ-05 ([spec](../../specs/005-criacao-pedidos/spec.md)), REQ-08 (devolução do estoque),
 REQ-11 (histórico e entrega na resposta), REQ-13 ([spec](../../specs/013-cancelamento-com-estorno/spec.md),
-estorno e cancelamento da ordem) e REQ-15 ([spec](../../specs/015-visibilidade-cancelamentos/spec.md), evento `pedido.cancelado`).
+estorno e cancelamento da ordem), REQ-15 ([spec](../../specs/015-visibilidade-cancelamentos/spec.md), evento `pedido.cancelado`)
+e REQ-18 ([spec](../../specs/018-notificacao-status/spec.md), `pedido.status-alterado`, avisos e `ETag`).
 
 ## Consulta
 
@@ -31,11 +32,15 @@ HTTP/1.1 200 OK
   quando a ordem é cancelada junto com o pedido (REQ-13).
 - O pagamento e o estorno não aparecem na consulta: as situações de estorno são internas
   (REQ-13, clarify).
+- O `ETag` muda a cada alteração que aparece na resposta (status, ordem de entrega, rastreio,
+  inclusive a correção, e estorno); `If-None-Match` diferente ou malformado devolve 200
+  (REQ-18, research R-17).
 
 | Situação | Resposta | Por quê |
 |----------|----------|---------|
-| Cliente dono, Admin ou OperadorLogistica | 200 | — |
-| Cliente consultando pedido de outro | 404, o mesmo corpo de um pedido inexistente | Não revela que o pedido existe (FR-015) |
+| Cliente dono, Admin ou OperadorLogistica | 200, com `ETag` forte da versão do pedido | — |
+| `If-None-Match` igual ao `ETag` atual | 304, sem corpo, com o mesmo `ETag` | Quem continua consultando (ou confirma um aviso) não baixa o pedido de novo (REQ-18, FR-025) |
+| Cliente consultando pedido de outro | 404, o mesmo corpo de um pedido inexistente, com ou sem `If-None-Match` | Não revela que o pedido existe (FR-015); a autorização vem antes do `ETag` |
 | Pedido inexistente | 404 "Pedido não encontrado." | — |
 | `{id}` que não é UUID | 400 | — |
 | Sem token | 401 | — |
@@ -73,6 +78,7 @@ Tudo na mesma gravação do cancelamento, sem chamar o gateway de pagamento (#28
 | Pagamento `Aprovado` | O pagamento passa a `EstornoPendente`; o Worker estorna depois (fluxo 10) | 7005, origem `Operacao` |
 | Ordem de entrega sem despacho | A ordem ganha `canceladaEm` e não pode mais ser despachada | 8004 |
 | Qualquer situação | Grava no outbox um `pedido.cancelado`, com o motivo `Operacao` (Admin ou OperadorLogistica) ou `Cliente` e o que foi desfeito junto (REQ-15) | — |
+| Qualquer situação | Grava também o `pedido.status-alterado` e o aviso de notificação, como toda mudança de status (REQ-18, fluxo 13) | — |
 
 Exemplo: cancelar um pedido em `ProntoParaEnvio` responde 200 com
 `"entrega": { …, "despachadoEm": null, "canceladaEm": "2026-10-24T15:20:00+00:00" }`; o estorno
@@ -123,7 +129,7 @@ fora do ar, o pedido é cancelado e o estorno espera (decisão do specify do REQ
 | Falha | Comportamento |
 |-------|---------------|
 | Banco fora do ar | 500 genérico; nenhuma mudança fica gravada pela metade, nem o `pedido.cancelado` |
-| Broker fora do ar | Não afeta a resposta: o `pedido.cancelado` fica pendente no outbox e sai quando o broker volta (fluxo 8). As outras mudanças de status não publicam evento |
+| Broker fora do ar | Não afeta a resposta: o `pedido.cancelado` e o `pedido.status-alterado` ficam pendentes no outbox e saem quando o broker volta (fluxo 8). Os webhooks e o SSE não dependem do broker (fluxo 13) |
 | Gateway de pagamento ou Worker fora do ar | Não afeta o cancelamento: o estorno fica pendente até o Worker conseguir estornar (fluxo 10) |
 
 ## Observabilidade
@@ -134,9 +140,9 @@ entrega cancelada).
 
 ## Limitações
 
-- As mudanças de status que não são cancelamento (por exemplo, o despacho) não publicam evento.
-  O cancelamento e o estorno passaram a publicar `pedido.cancelado` e `pagamento.estornado`
-  (#29, REQ-15).
+- Toda mudança de status passou a publicar `pedido.status-alterado` e a avisar por webhook e
+  SSE (#43, REQ-18, fluxo 13); o cancelamento e o estorno também publicam `pedido.cancelado` e
+  `pagamento.estornado` (#29, REQ-15).
 - Pedidos cancelados com pagamento aprovado **antes do REQ-13** não são estornados
   automaticamente; a consulta para encontrá-los está no
   [quickstart do REQ-13](../../specs/013-cancelamento-com-estorno/quickstart.md#5-pedidos-pagos-e-cancelados-antes-do-req-13).

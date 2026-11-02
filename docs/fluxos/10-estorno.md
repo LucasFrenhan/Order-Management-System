@@ -6,7 +6,8 @@ pagamento (fluxo 5).
 **Origem**: REQ-13 ([spec](../../specs/013-cancelamento-com-estorno/spec.md),
 [contrato](../../specs/013-cancelamento-com-estorno/contracts/estorno-e-cancelamento.md),
 [research](../../specs/013-cancelamento-com-estorno/research.md)), issue #28, e REQ-15
-([spec](../../specs/015-visibilidade-cancelamentos/spec.md), `pagamento.estornado`), issue #29.
+([spec](../../specs/015-visibilidade-cancelamentos/spec.md), `pagamento.estornado`), issue #29, e
+REQ-18 ([spec](../../specs/018-notificacao-status/spec.md), aviso do estorno), issue #43.
 
 ## Para que serve
 
@@ -76,6 +77,10 @@ A cobrança aprovada para um pedido já cancelado (fluxo 5) não gera `pagamento
 `pedido.cancelado` desse pedido saiu com `estornoPendente: false`, e o caso aparece só no
 `pagamento.estornado`, que traz o valor e a transação da cobrança. Para conciliar dinheiro, a
 fonte é o `pagamento.estornado`.
+
+Na mesma gravação sai também o aviso `pedido.estorno-confirmado` para os webhooks e o SSE, com
+o mesmo identificador do `pagamento.estornado` e só o pedido, o número e o link da consulta, sem
+valores nem identificadores do gateway (REQ-18, FR-004, [fluxo 13](13-notificacao-de-status.md)).
 
 ## Ordem da fila
 
