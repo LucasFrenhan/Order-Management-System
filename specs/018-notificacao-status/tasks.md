@@ -281,7 +281,7 @@ entregas.
 - [X] T048 [P] Documentação do projeto: `README.md` e `docs/` (estado atual, próximos passos com a #18, mensageria com o evento novo) e a seção de eventos do contrato apontando o schema novo.
 - [X] T049 Varredura de segredos (nenhuma chave real no diff, só a de desenvolvimento), `dotnet build`, `dotnet format --verify-no-changes` e a suíte local inteira com Docker (zero ignorados); registrar a contagem em Notes.
 - [X] T050 Executar o [quickstart](./quickstart.md) (§2 a §6) com API e Worker locais e registrar em Notes o que chegou ao receptor e ao `curl`, corrigindo o quickstart onde divergir.
-- [ ] T051 Push e PR em português (Resumo, Pontos de atenção, Validação) com `Closes #43`, citando em Validação os documentos de fluxo atualizados e, em Pontos de atenção, a revisão do R-05 (webhooks sem consumidor) e a decisão de a API ler o banco. Acompanhar `build-testes` e `contrato-compatibilidade` até ficarem verdes, **inclusive depois de cada push posterior**, e registrar em Notes.
+- [X] T051 Push e PR em português (Resumo, Pontos de atenção, Validação) com `Closes #43`, citando em Validação os documentos de fluxo atualizados e, em Pontos de atenção, a revisão do R-05 (webhooks sem consumidor) e a decisão de a API ler o banco. Acompanhar `build-testes` e `contrato-compatibilidade` até ficarem verdes, **inclusive depois de cada push posterior**, e registrar em Notes.
 
 ---
 
@@ -414,3 +414,6 @@ o broker.
   integração, que os cobrem com receptor real. Quickstart corrigido: o campo do token é
   `tokenAcesso`, o receptor não depende de Node, e o passo 3.6 exige
   `Notificacoes__PermitirRedeLocal=false`.
+- **T051 (2026-11-02)**: PR #45 aberto com `Closes #43`. CI verde: `Build e testes` (7 min
+  11 s), `Demonstração` (1 min 27 s) e `breaking-changes` do `contrato-compatibilidade` (o
+  `oasdiff` aceitou as rotas novas e o `ETag`/304 como acréscimos).
