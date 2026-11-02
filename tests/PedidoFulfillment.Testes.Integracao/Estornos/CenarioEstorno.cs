@@ -64,7 +64,7 @@ internal static class CenarioEstorno
     /// </summary>
     public static FabricaWorker WorkerEstornando(
         MensageriaTeste mensageria, string stringConexao, CapturaLogs? logs = null,
-        IReadOnlyDictionary<string, string?>? configuracoes = null, Action<IServiceCollection>? servicos = null)
+        IReadOnlyDictionary<string, string?>? configuracoes = null, Action<IServiceCollection>? servicos = null, FabricaPagamentos? apiPagamentos = null)
     {
         var todas = new Dictionary<string, string?>
         {
@@ -82,6 +82,7 @@ internal static class CenarioEstorno
             StringConexao = stringConexao,
             ConfiguracoesBroker = mensageria.ConfiguracoesBroker,
             Configuracoes = todas,
+            ApiPagamentos = apiPagamentos,
             Servicos = colecao =>
             {
                 CenarioEstoque.RemoverConsumidor<ReservaEstoque, PedidoCriado>(colecao);
@@ -142,6 +143,9 @@ internal sealed class GatewayEstornoControlado : IGatewayPagamento
 
     public Task<ResultadoCobranca> CobrarAsync(Guid pedidoId, decimal valor, CancellationToken cancellationToken) =>
         Task.FromResult(ResultadoCobranca.Aprovada($"SIM-{pedidoId:N}"));
+
+    public Task<ConsultaCobranca> ConsultarCobrancaAsync(Guid pedidoId, CancellationToken cancellationToken) =>
+        Task.FromResult(ConsultaCobranca.NaoEncontrada);
 
     public Task<ResultadoEstorno> EstornarAsync(Guid pedidoId, string identificadorTransacao, decimal valor, CancellationToken cancellationToken)
     {

@@ -50,7 +50,8 @@ public sealed class WorkerTestes(MensageriaTeste mensageria)
     [Theory]
     [InlineData("RabbitMQ:Senha", "", "RabbitMQ:Senha", null)]
     [InlineData("Mensageria:TamanhoLote", "0", "Mensageria:TamanhoLote", null)]
-    [InlineData("GatewayPagamento:TaxaAprovacaoPercentual", "150", "GatewayPagamento:TaxaAprovacaoPercentual", "150")]
+    [InlineData("GatewayPagamento:TempoTentativaMs", "31337", "GatewayPagamento:TempoTentativaMs", "31337")]
+    [InlineData("GatewayPagamento:ChaveApi", "chave-curta-ab", "GatewayPagamento:ChaveApi", "chave-curta-ab")]
     public void Configuracao_invalida_impede_o_Worker_de_subir_sem_mostrar_valores(string chave, string valor, string esperado, string? oculto)
     {
         var broker = new Dictionary<string, string?>

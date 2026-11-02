@@ -248,4 +248,36 @@ public sealed class ServicoEstornosTestes
         Gravado().Pagamento!.TentativasEstorno.Should().Be(0);
         logger.Eventos.Should().NotContain(e => e.Id.Id == 7007);
     }
+
+    [Fact]
+    public async Task Circuito_aberto_adia_o_estorno_sem_gravar_nem_contar_tentativa()
+    {
+        // REQ-19, FR-016a: com o circuito aberto, o estorno fica pendente e a rodada termina.
+        armazenamento.GuardarPedido(PedidoId, () => MontarPendente(falhasAnteriores: 1));
+        var disponivelEm = Cancelamento.AddMinutes(2);
+        gateway.FalhaEstorno = new GatewayPagamentoIndisponivelException(disponivelEm);
+        var servico = Servico(Cancelamento.AddMinutes(1));
+
+        var resultado = await servico.EstornarAsync(PedidoId, Alerta, Token);
+
+        resultado.Should().Be(ResultadoRodadaEstorno.Adiado);
+        servico.AdiadoAte.Should().Be(disponivelEm);
+        armazenamento.Gravacoes.Should().Be(0);
+        Gravado().Pagamento!.TentativasEstorno.Should().Be(1, "a tentativa não é contada");
+        Gravado().Pagamento!.Situacao.Should().Be(SituacaoPagamento.EstornoPendente);
+        logger.Eventos.Should().NotContain(e => e.Id.Id == 7007 || e.Id.Id == 7008);
+    }
+
+    [Fact]
+    public async Task Falha_do_gateway_por_HTTP_sem_resultado_conta_a_tentativa_como_hoje()
+    {
+        // REQ-19, FR-011: esgotadas as tentativas da chamada, a rodada seguinte tenta de novo.
+        armazenamento.GuardarPedido(PedidoId, () => MontarPendente());
+        gateway.FalhaEstorno = new FalhaGatewayPagamentoException(TipoFalhaGateway.Passageira, OperacaoGateway.Estorno, "HTTP 503 (indisponivel).");
+
+        var resultado = await Servico(Cancelamento.AddMinutes(1)).EstornarAsync(PedidoId, Alerta, Token);
+
+        resultado.Should().Be(ResultadoRodadaEstorno.Falhou);
+        Gravado().Pagamento!.TentativasEstorno.Should().Be(1);
+    }
 }

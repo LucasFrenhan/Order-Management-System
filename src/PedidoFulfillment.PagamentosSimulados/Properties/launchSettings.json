@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "PedidoFulfillment.PagamentosSimulados": {
+      "commandName": "Project",
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5232",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

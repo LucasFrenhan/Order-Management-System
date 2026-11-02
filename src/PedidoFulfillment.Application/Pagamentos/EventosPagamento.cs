@@ -58,4 +58,10 @@ public static partial class EventosPagamento
     [LoggerMessage(EventId = 7012, EventName = "ResumoEstornos",
         Message = "Rodada de estornos: {Confirmados} confirmado(s) e {Falhas} falha(s).")]
     public static partial void ResumoEstornos(ILogger logger, LogLevel level, int confirmados, int falhas);
+
+    // Gateway por HTTP (REQ-19, R-12): os demais (7013 a 7018 e 7020) ficam no Infrastructure.
+
+    [LoggerMessage(EventId = 7019, EventName = "ConsultaCobranca", Level = LogLevel.Information,
+        Message = "Cobrança do pedido cancelado {PedidoId} consultada pela chave: {Resultado}.")]
+    public static partial void ConsultaCobranca(ILogger logger, Guid pedidoId, SituacaoConsultaCobranca resultado);
 }

@@ -19,6 +19,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\PedidoFulfillment.Application\PedidoFulfillment.Application.csproj" />
     <ProjectReference Include="..\..\src\PedidoFulfillment.Infrastructure\PedidoFulfillment.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\PedidoFulfillment.PagamentosSimulados\PedidoFulfillment.PagamentosSimulados.csproj" />
   </ItemGroup>
 
 </Project>

@@ -2,7 +2,8 @@
 
 Transversal: roda na API e no Worker. Spec: [REQ-16](../../specs/016-observabilidade-opentelemetry/spec.md);
 as métricas de inscrição dos consumidores são do [REQ-17](../../specs/017-recuperacao-consumidores/contracts/recuperacao-consumo.md),
-e as das notificações, do [REQ-18](../../specs/018-notificacao-status/research.md#r-19-observabilidade-complementa-r-12) ([fluxo 13](13-notificacao-de-status.md)).
+as das notificações, do [REQ-18](../../specs/018-notificacao-status/research.md#r-19-observabilidade-complementa-r-12) ([fluxo 13](13-notificacao-de-status.md)),
+e as do gateway de pagamento e o HTTP de saída, do [REQ-19](../../specs/019-gateway-pagamento-http/research.md) ([fluxo 14](14-gateway-de-pagamento.md)).
 Nomes estáveis (spans, atributos, métricas): [contrato de telemetria](../../specs/016-observabilidade-opentelemetry/contracts/telemetria.md).
 Decisões: [research](../../specs/016-observabilidade-opentelemetry/research.md).
 
@@ -52,6 +53,26 @@ POST /api/v1/pedidos/                               (API, user.id, oms.pedido.id
 
 As consultas ao banco feitas dentro de cada passo aparecem como filhas, com o texto
 parametrizado (`... WHERE [p].[Id] = @id`) e nunca com os valores (clarify 4).
+
+**Chamada ao gateway de pagamento (REQ-19, [fluxo 14](14-gateway-de-pagamento.md)).** Dentro do
+`deliver oms.pagamento` (ou do `reconciliar pedido` e do `estornar pedido`):
+
+```text
+deliver oms.pagamento
+└─ cobrar pagamento        (oms.pedido.id, oms.pagamento.operacao=cobranca, oms.resultado=aprovado, oms.pagamento.tentativas=2)
+   ├─ POST                 (cliente HTTP, http.response.status_code=503, oms.pagamento.tentativa=1)
+   └─ POST                 (cliente HTTP, http.response.status_code=201, oms.pagamento.tentativa=2)
+```
+
+- O span interno é `cobrar pagamento`, `estornar pagamento` ou `consultar cobranca`, com o
+  resultado final (`aprovado`, `recusado`, `confirmado`, `estorno_recusado`, `nao_encontrada`,
+  `falha_passageira`, `incerto`, `erro_permanente`, `circuito_aberto`).
+- Cada tentativa é um span de cliente HTTP nativo do .NET (fonte `System.Net.Http`), com
+  `oms.pagamento.tentativa`. O `traceparent` vai no cabeçalho da requisição até a API simulada,
+  que só o põe no escopo dos logs dela e não exporta spans.
+- A mesma fonte gera o span de saída dos **webhooks** do REQ-18 (fluxo 13): o `notificacao
+  enviar` passa a ter um filho `POST` com o status do receptor. Nos dois casos, `url.full` sai
+  com a query oculta pelo .NET, e nenhum cabeçalho nem corpo entra no span.
 
 ## Novas tentativas, DLQ e duplicado
 
@@ -111,8 +132,15 @@ Meter `PedidoFulfillment`, emitidas pelo Worker:
 | `oms.notificacoes.pendentes` | gauge | `{entrega}` | — | A cada rodada de webhooks, só com a telemetria ligada (REQ-18) |
 | `oms.notificacoes.destinos_desativados` | gauge | `{destino}` | — | Idem (REQ-18) |
 | `oms.notificacoes.sse.conexoes` | gauge | `{conexao}` | — | Conexões SSE abertas na instância da API (REQ-18) |
+| `oms.pagamentos.chamadas` | contador | `{chamada}` | `oms.pagamento.operacao`, `oms.resultado`, `oms.pagamento.tipo_falha` (só nas falhas passageiras) | A cada chamada ao gateway, com o resultado final (REQ-19) |
+| `oms.pagamentos.duracao` | histograma | `s` | `oms.pagamento.operacao`, `oms.resultado` | Duração da chamada, com as tentativas e esperas (REQ-19) |
+| `oms.pagamentos.circuito` | gauge | `{estado}` | — | Estado em memória do circuito: 0 fechado, 1 aberto, 2 meio-aberto (REQ-19) |
 
-Também saem as métricas nativas do .NET (`System.Runtime`) e do ASP.NET Core.
+Também saem as métricas nativas do .NET (`System.Runtime` e, desde o REQ-19, `System.Net.Http`,
+com a duração das requisições de saída) e do ASP.NET Core. Um consumidor pausado por
+dependência indisponível (REQ-19, fluxo 8) continua com `oms.mensageria.consumidor.inscrito`
+em 1, e a mensagem devolvida à fila conta em `oms.mensageria.mensagens` com
+`oms.resultado = pausado`.
 
 - **Atraso de ponta a ponta**: leitura mais envio. O envio é a cada 30 s
   (`OTEL_METRIC_EXPORT_INTERVAL` muda). Com os padrões, um outbox parado aparece no destino em
@@ -198,4 +226,6 @@ token). Um teste varre a telemetria exportada em busca desses dados (SC-006).
   próprios pedidos (o `ParentBased` respeita a flag). Não expõe dados.
 - O painel local não tem autenticação e guarda tudo em memória: serve só para
   desenvolvimento e demonstração.
-- Não há instrumentação de HTTP de saída: os gateways de pagamento e de estorno são simulados.
+- Resolvida pela #46 (REQ-19): o HTTP de saída (gateway de pagamento e webhooks) aparece no
+  trace e nas métricas nativas do .NET. A API de pagamento simulada não exporta telemetria
+  própria.

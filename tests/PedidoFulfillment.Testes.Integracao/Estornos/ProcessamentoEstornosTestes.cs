@@ -221,7 +221,7 @@ public sealed class ProcessamentoEstornosTestes(MensageriaTeste mensageria)
         // REQ-13, US4 cenário 3: o gateway simulado é idempotente por pedido.
         Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
         var (stringConexao, pedidoId) = await CanceladoPagoAsync();
-        var gateway = new GatewayQuePerdeAPrimeiraResposta(new GatewayPagamentoSimulado(Options.Create(new OpcoesGatewayPagamento())));
+        var gateway = new GatewayQuePerdeAPrimeiraResposta(new GatewayPagamentoMemoria(90));
 
         await using var worker = WorkerEstornando(mensageria, stringConexao, servicos: Com(gateway));
         worker.CreateClient().Dispose();
@@ -242,6 +242,9 @@ public sealed class ProcessamentoEstornosTestes(MensageriaTeste mensageria)
 
         public Task<ResultadoCobranca> CobrarAsync(Guid pedidoId, decimal valor, CancellationToken cancellationToken) =>
             interno.CobrarAsync(pedidoId, valor, cancellationToken);
+
+        public Task<ConsultaCobranca> ConsultarCobrancaAsync(Guid pedidoId, CancellationToken cancellationToken) =>
+            interno.ConsultarCobrancaAsync(pedidoId, cancellationToken);
 
         public async Task<ResultadoEstorno> EstornarAsync(Guid pedidoId, string identificadorTransacao, decimal valor, CancellationToken cancellationToken)
         {

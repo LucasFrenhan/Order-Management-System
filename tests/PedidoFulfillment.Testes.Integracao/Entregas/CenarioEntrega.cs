@@ -30,7 +30,7 @@ internal static class CenarioEntrega
         {
             StringConexao = stringConexao,
             ConfiguracoesBroker = mensageria.ConfiguracoesBroker,
-            Configuracoes = new Dictionary<string, string?> { ["GatewayPagamento:TaxaAprovacaoPercentual"] = "100" },
+            Configuracoes = new Dictionary<string, string?> { [GatewayPagamentoMemoria.ChaveTaxa] = "100" },
             Servicos = logs is null ? null : servicos => servicos.AddSingleton<ILoggerProvider>(logs)
         };
         worker.CreateClient().Dispose();

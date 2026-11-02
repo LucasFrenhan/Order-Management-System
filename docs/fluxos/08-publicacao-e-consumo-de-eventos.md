@@ -8,9 +8,11 @@ a cada consumidor.
 [contrato](../../specs/012-publicacao-garantida/contracts/publicacao-e-reconciliacao.md)), REQ-14
 ([spec](../../specs/014-limpeza-e-dlq/spec.md), mensagem reenviada da DLQ), REQ-15
 ([spec](../../specs/015-visibilidade-cancelamentos/spec.md), [contrato e schemas](../../specs/015-visibilidade-cancelamentos/contracts/eventos-cancelamento-e-estorno.md) de `pedido.cancelado` e `pagamento.estornado`)
-e REQ-17 ([spec](../../specs/017-recuperacao-consumidores/spec.md),
+, REQ-17 ([spec](../../specs/017-recuperacao-consumidores/spec.md),
 [contrato](../../specs/017-recuperacao-consumidores/contracts/recuperacao-consumo.md), recuperação
-dos consumidores depois de o broker reiniciar).
+dos consumidores depois de o broker reiniciar) e REQ-19
+([contrato do cliente](../../specs/019-gateway-pagamento-http/contracts/cliente-gateway-pagamento.md#pausa-do-consumo-com-o-circuito-aberto-fr-016a),
+pausa do consumo com uma dependência fora do ar).
 
 ## Eventos
 
@@ -110,6 +112,7 @@ a DLQ `oms.C.dlq`.
 | Exceção, até a terceira vez | Vai para a fila de espera do próximo intervalo (1 s, 2 s, 4 s) e volta sozinho; log 5003 | Falhas passageiras não bloqueiam a fila |
 | Exceção na quarta execução | Vai para a DLQ, com os cabeçalhos `x-tentativas`, `x-ultimo-erro`, `x-motivo` e `x-falhou-em`; log 5004 | Uma falha permanente não fica em loop |
 | Corpo inválido, tipo ou versão desconhecidos, campo obrigatório ausente | Direto para a DLQ, sem tentativa | Repetir não corrige a mensagem |
+| `DependenciaIndisponivelException` (hoje, o circuito do gateway de pagamento aberto) | Volta para a fila com `nack` e `requeue`, sem `x-tentativas` novo e sem DLQ; a sessão termina com o motivo `pausa`, e o consumo pausa (abaixo) | A mensagem não tem defeito: a dependência está fora do ar (REQ-19, FR-016a) |
 
 Exemplo: o banco cai enquanto o consumidor de estoque processa um `pedido.criado`. O evento
 é tentado de novo após 1 s, 2 s e 4 s. Se o banco ainda não voltou, a mensagem vai para
@@ -167,12 +170,24 @@ então cada fila tem no máximo um consumidor por Worker.
 | 5017 `FalhaReinscricao` | Warning | Tentativa que falha depois de uma perda, com a próxima espera em ms |
 | 5018 `ConsumidorReinscrito` | Information | Volta, com o tempo sem inscrição em ms |
 | 5019 `ConexaoBrokerFechada` | Warning | A conexão fechou sem o processo pedir (iniciador, código e motivo) |
+| 5020 `ConsumoPausado` | Warning | Consumo pausado por dependência indisponível, com até quando (REQ-19) |
+| 5021 `ConsumoRetomado` | Information | Consumo retomado depois da pausa, com a duração em ms (REQ-19) |
 
 Nenhum deles traz credenciais nem a cadeia de conexão.
 
+**Pausa por dependência indisponível (REQ-19).** Quando o manipulador lança
+`DependenciaIndisponivelException` (o consumidor de pagamento com o circuito do gateway aberto,
+[fluxo 14](14-gateway-de-pagamento.md)), a mensagem volta para a fila e a sessão termina com o
+motivo `pausa`. O supervisor marca o consumidor como **pausado** (log 5020), espera até o
+`DisponivelEm` da exceção (no mínimo 200 ms) e reabre a inscrição (log 5021). As mensagens que
+chegam à sessão já pausada voltam para a fila sem serem tratadas. A pausa não é perda de
+inscrição: não gera 5016 nem 5018, não conta em `oms.mensageria.consumidor.reinscricoes`, e o
+consumidor pausado conta como inscrito na prontidão e na métrica de inscrição. Se a reabertura
+falhar (broker fora), vira perda de inscrição de verdade. Os outros consumidores não pausam.
+
 **Prontidão do Worker.** `/health/pronto` do Worker tem a entrada `consumidores`: `Healthy` só
-com todos os consumidores inscritos, `Unhealthy` na hora em que algum perde a inscrição (e antes
-da primeira), sem tolerância. Com ela, o Worker responde 503 durante uma queda do broker, e o
+com todos os consumidores inscritos (ou pausados, REQ-19), `Unhealthy` na hora em que algum perde
+a inscrição (e antes da primeira), sem tolerância. Com ela, o Worker responde 503 durante uma queda do broker, e o
 healthcheck do compose o mostra `unhealthy`, sem reiniciar nada. A prontidão da API não muda.
 
 ```json

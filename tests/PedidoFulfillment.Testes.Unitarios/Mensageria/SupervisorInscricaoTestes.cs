@@ -170,6 +170,84 @@ public sealed class SupervisorInscricaoTestes
         logger.Eventos.Should().NotContain(e => e.Id.Id == 5016 || e.Id.Id == 5018);
     }
 
+    [Fact]
+    public async Task Pausa_fecha_a_sessao_espera_ate_disponivel_e_reabre_sem_contar_reinscricao()
+    {
+        // REQ-19, FR-016a e R-09: dependência fora do ar não é perda de inscrição.
+        var execucao = Executar(_ => Abrir());
+        await EsperarAsync(() => sessoes.Count == 1 && estado.TodosInscritos);
+
+        sessoes[0].Pausar(Relogio.GetUtcNow() + TimeSpan.FromSeconds(30));
+
+        await EsperarAsync(() => sessoes.Count == 2 && estado.PausadoAte(Consumidor) is null && estado.TodosInscritos);
+        sessoes[0].Descartada.Should().BeTrue();
+        lock (esperas)
+        {
+            esperas.Should().Equal(TimeSpan.FromSeconds(30));
+        }
+
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 5020).Which.Propriedades["Consumidor"].Should().Be(Consumidor);
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 5021);
+        logger.Eventos.Should().NotContain(e => e.Id.Id == 5016 || e.Id.Id == 5018, "a pausa não é perda de inscrição nem reinscrição");
+        parar.Cancel();
+        await execucao.WaitAsync(Prazo, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task Durante_a_pausa_o_consumidor_conta_como_pronto()
+    {
+        var liberar = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var execucao = Task.Run(() => new SupervisorInscricao(
+            Consumidor, _ => Abrir(), async (_, token) => await liberar.Task.WaitAsync(token), estado, Relogio, logger)
+            .ExecutarAsync(parar.Token), TestContext.Current.CancellationToken);
+        await EsperarAsync(() => sessoes.Count == 1 && estado.TodosInscritos);
+
+        sessoes[0].Pausar(Relogio.GetUtcNow() + TimeSpan.FromSeconds(30));
+
+        await EsperarAsync(() => estado.PausadoAte(Consumidor) is not null);
+        estado.TodosInscritos.Should().BeTrue("pausado conta como saudável na prontidão (R-09)");
+        liberar.SetResult();
+        await EsperarAsync(() => sessoes.Count == 2 && estado.PausadoAte(Consumidor) is null);
+        parar.Cancel();
+        await execucao.WaitAsync(Prazo, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task Pausa_ja_vencida_espera_o_minimo_e_nao_reabre_em_laco()
+    {
+        var execucao = Executar(_ => Abrir());
+        await EsperarAsync(() => sessoes.Count == 1 && estado.TodosInscritos);
+
+        sessoes[0].Pausar(Relogio.GetUtcNow() - TimeSpan.FromSeconds(5));
+
+        await EsperarAsync(() => sessoes.Count == 2);
+        lock (esperas)
+        {
+            esperas.Should().Equal(SupervisorInscricao.PausaMinima);
+        }
+
+        parar.Cancel();
+        await execucao.WaitAsync(Prazo, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task Se_a_retomada_falha_o_consumidor_deixa_de_contar_como_pausado()
+    {
+        var tentativas = 0;
+        var execucao = Executar(_ => ++tentativas == 2 ? throw new InvalidOperationException("broker fora") : Abrir());
+        await EsperarAsync(() => sessoes.Count == 1 && estado.TodosInscritos);
+
+        sessoes[0].Pausar(Relogio.GetUtcNow() + TimeSpan.FromSeconds(1));
+
+        await EsperarAsync(() => tentativas >= 2);
+        await EsperarAsync(() => sessoes.Count == 2 && estado.TodosInscritos);
+        estado.PausadoAte(Consumidor).Should().BeNull();
+        logger.Eventos.Should().Contain(e => e.Id.Id == 5017, "a falha depois da pausa é perda de inscrição de verdade");
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 5018);
+        parar.Cancel();
+        await execucao.WaitAsync(Prazo, TestContext.Current.CancellationToken);
+    }
+
     private static readonly RelogioFixo Relogio = new(new DateTimeOffset(2026, 10, 28, 12, 0, 0, TimeSpan.Zero));
 
     private static TimeSpan[] Segundos(params int[] valores) => [.. valores.Select(v => TimeSpan.FromSeconds(v))];
@@ -221,6 +299,8 @@ public sealed class SupervisorInscricaoTestes
         public bool Descartada { get; private set; }
 
         public void Perder(string origem) => perda.TrySetResult(new MotivoPerda(origem, "teste"));
+
+        public void Pausar(DateTimeOffset disponivelEm) => perda.TrySetResult(new MotivoPerda(MotivoPerda.Pausa, "teste", disponivelEm));
 
         public ValueTask DisposeAsync()
         {

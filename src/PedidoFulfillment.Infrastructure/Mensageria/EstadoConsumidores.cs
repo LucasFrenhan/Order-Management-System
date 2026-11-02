@@ -29,14 +29,30 @@ internal sealed class EstadoConsumidores
         });
     }
 
-    /// <summary>Pronto só com pelo menos um consumidor e todos inscritos (FR-013).</summary>
-    public bool TodosInscritos => !inscricoes.Value.IsEmpty && inscricoes.Value.Values.All(i => i.Inscrito);
+    /// <summary>
+    /// Pronto só com pelo menos um consumidor e todos inscritos (FR-013); um consumidor pausado
+    /// por dependência indisponível conta como saudável (REQ-19, R-09).
+    /// </summary>
+    public bool TodosInscritos => !inscricoes.Value.IsEmpty && inscricoes.Value.Values.All(i => i.Inscrito || i.PausadoAte is not null);
 
     public void MarcarInscrito(string consumidor)
     {
         inscricoes.Value[consumidor] = new Inscricao(true, null);
         EstadoMetricas.RegistrarInscricao(consumidor, inscrito: true);
     }
+
+    /// <summary>
+    /// Consumo pausado até <paramref name="ate"/> (REQ-19, FR-016a): sem sessão aberta, mas não é
+    /// perda de inscrição; a métrica de inscrição continua 1.
+    /// </summary>
+    public void MarcarPausado(string consumidor, DateTimeOffset ate)
+    {
+        inscricoes.Value[consumidor] = new Inscricao(false, null, ate);
+        EstadoMetricas.RegistrarInscricao(consumidor, inscrito: true);
+    }
+
+    public DateTimeOffset? PausadoAte(string consumidor) =>
+        inscricoes.Value.TryGetValue(consumidor, out var inscricao) ? inscricao.PausadoAte : null;
 
     /// <summary>Guarda o instante só na primeira perda: as tentativas seguintes não o adiam.</summary>
     public void MarcarSemInscricao(string consumidor, DateTimeOffset instante)
@@ -51,5 +67,5 @@ internal sealed class EstadoConsumidores
     public DateTimeOffset? SemInscricaoDesde(string consumidor) =>
         inscricoes.Value.TryGetValue(consumidor, out var inscricao) ? inscricao.SemInscricaoDesde : null;
 
-    private sealed record Inscricao(bool Inscrito, DateTimeOffset? SemInscricaoDesde);
+    private sealed record Inscricao(bool Inscrito, DateTimeOffset? SemInscricaoDesde, DateTimeOffset? PausadoAte = null);
 }

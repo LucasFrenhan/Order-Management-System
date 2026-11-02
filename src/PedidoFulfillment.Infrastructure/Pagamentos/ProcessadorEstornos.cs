@@ -93,9 +93,10 @@ internal sealed class ProcessadorEstornos(
 
         var parametros = new ParametrosAlertaEstorno(configuracao.LimiteAlerta, configuracao.TentativasAlerta);
         int confirmados = 0, falhas = 0;
-        foreach (var pendente in lote)
+        for (var i = 0; i < lote.Count; i++)
         {
-            switch (await EstornarAsync(pendente, parametros, cancellationToken))
+            var (resultado, adiadoAte) = await EstornarAsync(lote[i], parametros, cancellationToken);
+            switch (resultado)
             {
                 case ResultadoRodadaEstorno.Confirmado:
                     confirmados++;
@@ -103,6 +104,11 @@ internal sealed class ProcessadorEstornos(
                 case ResultadoRodadaEstorno.Falhou:
                     falhas++;
                     break;
+                case ResultadoRodadaEstorno.Adiado:
+                    // Circuito aberto (REQ-19, FR-016a): os demais nem chamam o gateway.
+                    EventosGatewayPagamento.EstornosAdiados(logger, lote.Count - i, adiadoAte ?? relogio.GetUtcNow());
+                    EventosPagamento.ResumoEstornos(logger, LogLevel.Information, confirmados, falhas);
+                    return;
             }
         }
 
@@ -111,7 +117,8 @@ internal sealed class ProcessadorEstornos(
     }
 
     /// <summary>Um escopo por pedido: a falha de um não interrompe os demais.</summary>
-    private async Task<ResultadoRodadaEstorno> EstornarAsync(EstornoPendente pendente, ParametrosAlertaEstorno parametros, CancellationToken cancellationToken)
+    private async Task<(ResultadoRodadaEstorno Resultado, DateTimeOffset? AdiadoAte)> EstornarAsync(
+        EstornoPendente pendente, ParametrosAlertaEstorno parametros, CancellationToken cancellationToken)
     {
         var pedidoId = pendente.PedidoId;
         // Passo da rodada, ligado ao trace de criação do pedido (REQ-16, R-05).
@@ -120,10 +127,13 @@ internal sealed class ProcessadorEstornos(
             links: TelemetriaOms.LigacaoPara(pendente.ContextoRastreio));
         span?.SetTag(TelemetriaOms.Atributos.PedidoId, pedidoId.ToString());
         ResultadoRodadaEstorno resultado;
+        DateTimeOffset? adiadoAte = null;
         try
         {
             await using var escopo = escopos.CreateAsyncScope();
-            resultado = await escopo.ServiceProvider.GetRequiredService<ServicoEstornos>().EstornarAsync(pedidoId, parametros, cancellationToken);
+            var servico = escopo.ServiceProvider.GetRequiredService<ServicoEstornos>();
+            resultado = await servico.EstornarAsync(pedidoId, parametros, cancellationToken);
+            adiadoAte = servico.AdiadoAte;
         }
         catch (Exception excecao) when (excecao is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
@@ -137,6 +147,7 @@ internal sealed class ProcessadorEstornos(
         {
             ResultadoRodadaEstorno.Confirmado => TelemetriaOms.Resultados.Confirmado,
             ResultadoRodadaEstorno.Falhou => TelemetriaOms.Resultados.Falhou,
+            ResultadoRodadaEstorno.Adiado => TelemetriaOms.Resultados.CircuitoAberto,
             _ => null
         };
         if (valor is not null)
@@ -145,7 +156,7 @@ internal sealed class ProcessadorEstornos(
             TelemetriaOms.ContarItem(TelemetriaOms.Rotinas.Estornos, valor);
         }
 
-        return resultado;
+        return (resultado, adiadoAte);
     }
 
     private static async Task<bool> AdquirirLockAsync(SqlConnection conexao, CancellationToken cancellationToken)

@@ -42,6 +42,13 @@ internal static class EstadoMetricas
         Volatile.Write(ref notificacoes, new LeituraNotificacoes(entregasPendentes, destinosDesativados));
 
     public static void SomarConexoesSse(int variacao) => Interlocked.Add(ref conexoesSse, variacao);
+
+    private static long circuitoGateway = -1;
+
+    /// <summary>Estado do circuito do gateway de pagamento (REQ-19, R-12): 0 fechado, 1 aberto, 2 meio-aberto; -1 sem gateway HTTP.</summary>
+    public static long CircuitoGateway => Interlocked.Read(ref circuitoGateway);
+
+    public static void RegistrarCircuitoGateway(long estado) => Interlocked.Exchange(ref circuitoGateway, estado);
 }
 
 internal sealed record LeituraOutbox(long Pendentes, double IdadeSegundos);

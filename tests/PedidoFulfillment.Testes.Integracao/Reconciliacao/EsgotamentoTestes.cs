@@ -273,5 +273,8 @@ public sealed class EsgotamentoTestes(MensageriaTeste mensageria)
 
         public Task<ResultadoEstorno> EstornarAsync(Guid pedidoId, string identificadorTransacao, decimal valor, CancellationToken cancellationToken) =>
             throw new TimeoutException("Gateway de pagamento sem resposta.");
+
+        public Task<ConsultaCobranca> ConsultarCobrancaAsync(Guid pedidoId, CancellationToken cancellationToken) =>
+            Task.FromResult(ConsultaCobranca.NaoEncontrada);
     }
 }

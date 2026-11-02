@@ -176,5 +176,8 @@ public sealed class PedidoIgnoradoNoPagamentoTestes(MensageriaTeste mensageria)
 
         public Task<ResultadoEstorno> EstornarAsync(Guid pedidoId, string identificadorTransacao, decimal valor, CancellationToken cancellationToken) =>
             Task.FromResult(ResultadoEstorno.Confirmar("SIM-EST-FIXO"));
+
+        public Task<ConsultaCobranca> ConsultarCobrancaAsync(Guid pedidoId, CancellationToken cancellationToken) =>
+            Task.FromResult(ConsultaCobranca.NaoEncontrada);
     }
 }

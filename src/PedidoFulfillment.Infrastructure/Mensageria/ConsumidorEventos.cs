@@ -93,6 +93,13 @@ internal sealed partial class ConsumidorEventos<TManipulador, TDados>(
 
     private async Task TratarAsync(SessaoConsumo sessao, BasicDeliverEventArgs entrega, CancellationToken cancellationToken)
     {
+        if (sessao.Pausada)
+        {
+            // Pausa já pedida nesta sessão (REQ-19, R-09): a mensagem volta à fila sem ser tratada.
+            await sessao.CanalConsumo.BasicNackAsync(entrega.DeliveryTag, multiple: false, requeue: true, cancellationToken);
+            return;
+        }
+
         // O corpo só vale durante o callback: copia antes de qualquer espera.
         var corpo = entrega.Body.ToArray();
         var tentativas = PoliticaNovaTentativa.TentativasFeitas(entrega.BasicProperties.Headers);
@@ -125,6 +132,16 @@ internal sealed partial class ConsumidorEventos<TManipulador, TDados>(
                 DuplicadoDescartado(logger, envelope.IdEvento, consumidor);
                 Registrar(span, TelemetriaOms.Resultados.Duplicado);
             }
+        }
+        catch (DependenciaIndisponivelException excecao) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Dependência fora do ar (REQ-19, FR-016a, R-09): a mensagem volta à fila sem contar
+            // nova tentativa nem ir para a DLQ, e a sessão termina para o supervisor pausar o consumo.
+            await sessao.CanalConsumo.BasicNackAsync(entrega.DeliveryTag, multiple: false, requeue: true, cancellationToken);
+            sessao.Pausar(excecao.DisponivelEm);
+            Registrar(span, TelemetriaOms.Resultados.Pausado);
+            span.MarcarErro(excecao.GetType().Name);
+            return;
         }
         catch (Exception excecao) when (!cancellationToken.IsCancellationRequested)
         {

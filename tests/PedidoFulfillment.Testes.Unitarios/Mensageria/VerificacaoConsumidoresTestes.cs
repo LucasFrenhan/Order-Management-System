@@ -40,6 +40,21 @@ public sealed class VerificacaoConsumidoresTestes
     }
 
     [Fact]
+    public async Task Um_consumidor_pausado_continua_pronto()
+    {
+        // REQ-19, FR-016a e R-09: a pausa por dependência indisponível não é perda de inscrição.
+        InscreverTodos();
+
+        estado.MarcarPausado("pagamento", T0.AddSeconds(30));
+
+        DeveSerSemDetalhes(await VerificarAsync(), HealthStatus.Healthy);
+        estado.PausadoAte("pagamento").Should().Be(T0.AddSeconds(30));
+        estado.MarcarSemInscricao("pagamento", T0);
+        DeveSerSemDetalhes(await VerificarAsync(), HealthStatus.Unhealthy);
+        estado.PausadoAte("pagamento").Should().BeNull();
+    }
+
+    [Fact]
     public async Task Sem_consumidores_registrados_nao_esta_pronta()
     {
         var vazio = new VerificacaoConsumidores(new EstadoConsumidores([]));
