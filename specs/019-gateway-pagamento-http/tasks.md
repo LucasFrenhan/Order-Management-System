@@ -263,7 +263,7 @@ Commit `feat(observabilidade): spans e metricas das chamadas ao gateway de pagam
 - [X] T049 [P] Documentação do projeto: `README.md` (serviço `pagamentos` na porta 5232, variáveis `OMS_PAGAMENTOS_*`, `GatewayPagamento:*`) e `docs/proximos-passos.md` (REQ-19 entregue; a #18 continua a numerar).
 - [X] T050 Varredura de segredos (nenhuma chave real no diff, só as de desenvolvimento), `dotnet build`, `dotnet format --verify-no-changes` e a suíte local inteira com Docker (zero ignorados); registrar a contagem em Notes.
 - [X] T051 Executar o [quickstart](./quickstart.md) (§1 a §8) com o compose e registrar em Notes o que foi visto nos logs, no painel do RabbitMQ e no Aspire, corrigindo o quickstart onde divergir. Com as chances padrão, registrar também quantos pedidos de uma carga de demonstração tiveram desfecho de pagamento (SC-001, esperado 100%) e o p95 de "criado → entrega criada" (SC-006, até 10 s), pela métrica ou pelo job de demonstração do REQ-10.
-- [ ] T052 Push e PR em português (Resumo, Pontos de atenção, Validação) com `Closes #46`, citando em Validação os documentos de fluxo atualizados e, em Pontos de atenção, o pacote novo, a chamada dentro da transação, a pausa do consumo, o circuito por instância e o span de saída dos webhooks. Acompanhar `build-testes` e `contrato-compatibilidade` até ficarem verdes, **inclusive depois de cada push posterior**, e registrar em Notes.
+- [X] T052 Push e PR em português (Resumo, Pontos de atenção, Validação) com `Closes #46`, citando em Validação os documentos de fluxo atualizados e, em Pontos de atenção, o pacote novo, a chamada dentro da transação, a pausa do consumo, o circuito por instância e o span de saída dos webhooks. Acompanhar `build-testes` e `contrato-compatibilidade` até ficarem verdes, **inclusive depois de cada push posterior**, e registrar em Notes.
 
 ---
 
@@ -346,3 +346,6 @@ comportamento de negócio de hoje e as chaves guardadas fora do Worker.
   - §8: estorno com o circuito aberto → três 7020 e nenhum 7007 (tentativa não contada);
     desfeito o modo, estorno confirmado uma vez. O quickstart passou a explicar que as cobranças
     abrem o circuito (as rodadas de estorno sozinhas não atingem o mínimo de chamadas).
+- **T052 (2026-11-02)**: PR #47 (`Closes #46`). CI do primeiro push verde: `Build e testes`
+  (8 min 14 s) e `Demonstração` (1 min 36 s, com o `/health` da API simulada). O
+  `contrato-compatibilidade` não rodou: o contrato v1 não mudou.
