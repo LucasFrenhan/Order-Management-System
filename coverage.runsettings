@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Cobertura do CI (specs/007-ci-demo, research R-04): só o código de produção, sem as
+<!-- Cobertura do CI (specs/007-ci-demo, research R-04; specs/020-sonarqube-cloud, R-05: também o
+     Worker e a API de pagamento simulada, e em XML para o SonarQube Cloud): só o código de produção, sem as
      migrations do EF Core nem o código gerado em obj/ (LoggerMessage, OpenAPI). O coletor
      vem com o Microsoft.NET.Test.Sdk. -->
 <RunSettings>
@@ -11,7 +12,7 @@
           <CodeCoverage>
             <ModulePaths>
               <Include>
-                <ModulePath>.*PedidoFulfillment\.(Domain|Application|Infrastructure|API)\.dll$</ModulePath>
+                <ModulePath>.*PedidoFulfillment\.(Domain|Application|Infrastructure|API|Worker|PagamentosSimulados)\.dll$</ModulePath>
               </Include>
             </ModulePaths>
             <Sources>
