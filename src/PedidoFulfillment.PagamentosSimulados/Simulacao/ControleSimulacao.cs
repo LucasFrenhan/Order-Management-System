@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Options;
 using PedidoFulfillment.PagamentosSimulados.Operacoes;
 
@@ -19,6 +20,9 @@ public sealed class ControleSimulacao
     private Comportamento? modoForcado;
     private long chamadasRecebidas;
 
+    [SuppressMessage("Security", "S2245:Using pseudorandom number generators (PRNGs) is security-sensitive",
+        Justification = "Sorteia o comportamento de uma simulação, sem uso de segurança, e precisa aceitar a semente " +
+            "Simulacao:Semente para os testes serem reproduzíveis; um gerador criptográfico não aceita semente (REQ-20).")]
     public ControleSimulacao(IOptions<OpcoesSimulacao> opcoes)
     {
         configuracao = opcoes.Value.Copiar();

@@ -28,7 +28,8 @@ public sealed class FabricaPagamentos : WebApplicationFactory<ProgramaPagamentos
     /// <summary>Valores aplicados depois dos padrões de teste.</summary>
     public IReadOnlyDictionary<string, string?> Configuracoes { get; init; } = new Dictionary<string, string?>();
 
-    public string ChaveApi => ChaveApiTeste;
+    /// <summary>A chave que o Worker usa para chamar esta API (instância, como o <see cref="UrlBase"/>).</summary>
+    public string ChaveApi { get; } = ChaveApiTeste;
 
     /// <summary>O endereço em que a API está ouvindo, com a barra final.</summary>
     public string UrlBase { get; private set; } = "";
