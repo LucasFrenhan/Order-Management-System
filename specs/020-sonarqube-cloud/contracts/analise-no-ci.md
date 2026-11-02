@@ -30,8 +30,8 @@ Passos do job `Build e testes`, em ordem:
 10. **`dotnet sonarscanner end`** *(só com `ativo == true`)*;
 11. publica os artefatos (`resultados` e `resultados-cobertura`).
 
-O `SONAR_TOKEN` entra só por `env:` nos passos 5 e 10, e o scanner o lê da variável de
-ambiente (sem `/d:sonar.token`). Ele não está no `env:` do job: o passo 7, que roda código da
+O `SONAR_TOKEN` entra só por `env:` nos passos 5 e 10, dentro de
+`SONARQUBE_SCANNER_PARAMS: '{"sonar.token":"<segredo>"}'`, que o scanner lê (sem `/d:sonar.token`). Ele não está no `env:` do job: o passo 7, que roda código da
 aplicação e dos testes, não o vê.
 
 ### Parâmetros do `begin`

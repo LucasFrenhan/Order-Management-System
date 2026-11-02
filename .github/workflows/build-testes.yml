@@ -1,11 +1,15 @@
 # Verificação de todo PR para a main (REQ-07, specs/007-ci-demo): build com avisos como
 # erros, testes unitários e de integração com Docker obrigatório, e a demonstração no ar.
-# Não roda no push da main: o merge leva o mesmo código que o PR já verificou, e rodar de
-# novo só gastaria processamento.
+# Análise estática no SonarQube Cloud (REQ-20, specs/020-sonarqube-cloud): o scanner envolve
+# o build e os testes do job "Build e testes", nos PRs e no push da main. A análise da main é
+# a referência de comparação dos PRs e do badge do README; no push da main, a demonstração não
+# roda de novo.
 name: build-testes
 
 on:
   pull_request:
+    branches: [main]
+  push:
     branches: [main]
 
 permissions:
@@ -13,13 +17,14 @@ permissions:
 
 concurrency:
   group: build-testes-${{ github.ref }}
-  cancel-in-progress: true
+  # Nos PRs, um push novo cancela a execução anterior; na main, cada merge é analisado até o fim.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   testes:
     name: Build e testes
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
       # Sem Docker, os testes com banco e broker reais falham em vez de serem ignorados.
       OMS_EXIGIR_DOCKER: "true"
@@ -27,6 +32,9 @@ jobs:
       DOTNET_CLI_TELEMETRY_OPTOUT: "true"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Histórico completo: o Sonar identifica o código novo e a autoria das linhas.
+          fetch-depth: 0
 
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
@@ -39,35 +47,88 @@ jobs:
           key: nuget-${{ runner.os }}-${{ hashFiles('global.json', 'Directory.Packages.props', '**/*.csproj') }}
           restore-keys: nuget-${{ runner.os }}-
 
+      - name: Cache do SonarQube
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.sonar/cache
+          key: sonar-${{ runner.os }}-${{ hashFiles('.config/dotnet-tools.json') }}
+          restore-keys: sonar-${{ runner.os }}-
+
+      - name: Ferramentas locais
+        run: dotnet tool restore
+
+      # Só "true" ou "false", nunca o valor: em PRs de forks, sem acesso aos segredos, a análise
+      # é pulada e build e testes rodam normalmente (REQ-20, FR-004).
+      - name: Análise disponível
+        id: sonar
+        run: echo "ativo=${{ secrets.SONAR_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
+
+      # O token fica só no env deste passo e do "Encerrar a análise", dentro de
+      # SONARQUBE_SCANNER_PARAMS, que o scanner lê; nunca na linha de comando nem no env do job
+      # (os testes, que rodam código da aplicação, não o veem). Parâmetros e exclusões:
+      # specs/020-sonarqube-cloud/contracts/analise-no-ci.md.
+      - name: Iniciar a análise
+        if: steps.sonar.outputs.ativo == 'true'
+        env:
+          SONARQUBE_SCANNER_PARAMS: '{"sonar.token":"${{ secrets.SONAR_TOKEN }}"}'
+        run: >-
+          dotnet sonarscanner begin
+          /k:"LucasFrenhan_Order-Management-System"
+          /o:"lucasfrenhan"
+          /d:sonar.host.url="https://sonarcloud.io"
+          /d:sonar.cs.vscoveragexml.reportsPaths="resultados/**/*.xml"
+          /d:sonar.cs.vstest.reportsPaths="resultados/**/*.trx"
+          /d:sonar.exclusions="specs/**,.specify/**,**/Persistencia/Migracoes/**,**/obj/**,**/bin/**"
+          /d:sonar.coverage.exclusions="**/Persistencia/Migracoes/**"
+
       - name: Restaurar
         run: dotnet restore PedidoFulfillment.sln
 
       - name: Compilar
         run: dotnet build PedidoFulfillment.sln -c Release --no-restore
 
+      # Cobertura em Cobertura (resumo do job) e em XML do Visual Studio (SonarQube Cloud), na
+      # mesma execução e com o coletor que já vem no SDK de testes (REQ-20, research R-05).
       - name: Testar
         run: >-
           dotnet test PedidoFulfillment.sln -c Release --no-build
           --logger "trx;LogFilePrefix=resultado"
           --results-directory resultados
-          --collect "Code Coverage;Format=cobertura"
+          --collect "Code Coverage;Format=cobertura,xml"
           --settings coverage.runsettings
 
       - name: Resumo dos testes
         if: always()
         run: bash .github/scripts/resumo-testes.sh resultados
 
+      # O padrão "resultados/**/*.xml" do Sonar também pegaria os *.cobertura.xml.
+      - name: Separar a cobertura do resumo
+        if: always()
+        run: |
+          mkdir -p resultados-cobertura
+          find resultados -name '*.cobertura.xml' -exec mv -t resultados-cobertura {} +
+
+      - name: Encerrar a análise
+        if: steps.sonar.outputs.ativo == 'true'
+        env:
+          SONARQUBE_SCANNER_PARAMS: '{"sonar.token":"${{ secrets.SONAR_TOKEN }}"}'
+        run: dotnet sonarscanner end
+
       - name: Publicar resultados
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: resultados-testes
-          path: resultados
+          path: |
+            resultados
+            resultados-cobertura
           retention-days: 14
           if-no-files-found: warn
 
   demo:
     name: Demonstração
+    # Só nos PRs: o push da main leva o código que o PR já subiu e conferiu.
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -92,9 +153,6 @@ jobs:
         run: curl -fsS http://localhost:5231/health/pronto
 
       # REQ-19: a API de pagamento simulada, que o Worker chama pela rede.
-      - name: API de pagamento simulada
-        run: curl -fsS http://localhost:5232/health
-
       - name: API de pagamento simulada
         run: curl -fsS http://localhost:5232/health
 

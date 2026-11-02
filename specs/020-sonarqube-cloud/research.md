@@ -95,7 +95,7 @@ Os parâmetros ficam no comando `begin` do workflow (o scanner para .NET não us
 ## R-07. Credencial e PRs de forks
 
 **Decisão**: o `SONAR_TOKEN` entra só no `env:` dos dois passos do scanner (`begin` e `end`),
-que o lê da variável de ambiente; nunca em linha de comando (`/d:sonar.token`), em arquivo ou
+na variável `SONARQUBE_SCANNER_PARAMS` (JSON com `sonar.token`), que o scanner lê; a 11.3.0 não lê `SONAR_TOKEN`, verificado com um token falso. Nunca em linha de comando (`/d:sonar.token`), em arquivo ou
 no `env:` do job. Como o `if:` de um passo não enxerga o `env:` do próprio passo, um passo
 anterior grava só `ativo=${{ secrets.SONAR_TOKEN != '' }}` (`true` ou `false`) na saída, e os
 passos do scanner rodam com `if: steps.sonar.outputs.ativo == 'true'`. Assim o `dotnet test`,
