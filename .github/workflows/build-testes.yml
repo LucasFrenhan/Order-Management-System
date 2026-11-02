@@ -101,12 +101,16 @@ jobs:
         if: always()
         run: bash .github/scripts/resumo-testes.sh resultados
 
-      # O padrão "resultados/**/*.xml" do Sonar também pegaria os *.cobertura.xml.
+      # O padrão "resultados/**/*.xml" do Sonar também pegaria os *.cobertura.xml. Cada projeto de
+      # teste grava a sua pasta, e os nomes podem se repetir: a pasta de origem é mantida.
       - name: Separar a cobertura do resumo
         if: always()
         run: |
-          mkdir -p resultados-cobertura
-          find resultados -name '*.cobertura.xml' -exec mv -t resultados-cobertura {} +
+          find resultados -name '*.cobertura.xml' -print0 | while IFS= read -r -d '' arquivo; do
+            destino="resultados-cobertura/$(dirname "${arquivo#resultados/}")"
+            mkdir -p "$destino"
+            mv "$arquivo" "$destino/"
+          done
 
       - name: Encerrar a análise
         if: steps.sonar.outputs.ativo == 'true'
