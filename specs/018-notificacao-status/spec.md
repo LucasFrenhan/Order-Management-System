@@ -282,8 +282,11 @@ identificador.
 - **Transação lenta**: um aviso gravado por uma transação que terminou depois de avisos mais
   novos não é pulado pela leitura periódica nem entregue duas vezes na mesma conexão.
 - **Cliente com várias abas**: cada conexão recebe os avisos, até o limite por usuário.
-- **Chave de cifra dos segredos trocada ou ausente**: o processo que precisa dela não sobe
+- **Chave de cifra dos segredos ausente ou inválida**: o processo que precisa dela não sobe
   (mesma regra da chave do JWT), em vez de enviar sem assinatura.
+- **Chave de cifra trocada**: os segredos gravados com a chave antiga não decifram; as
+  entregas desses destinos falham sem enviar nada ("segredo ilegível") até esgotar, e os
+  destinos são desativados. O dono recadastra o destino.
 - **Pedido que muda de status antes da implantação**: não gera aviso retroativo.
 - **Admin que também é Cliente**: o destino do Admin é global; a origem do aviso segue o
   perfil usado na mudança, como no REQ-15.
@@ -463,7 +466,7 @@ identificador.
   front-end no projeto; a demonstração e os testes usam um cliente HTTP.
 - O token tem a duração atual do REQ-03 (60 minutos); a conexão SSE não dura mais que ele.
 - A API lê os avisos do banco, que ela já usa; nenhuma dependência nova entre a API e o
-  broker. Se a leitura vem do outbox ou de uma tabela própria de avisos é decisão do plano.
+  broker. A leitura é feita numa tabela própria de avisos (plano, research R-13).
   Alternativas descartadas no clarify: a API consumir do broker (revia o REQ-14), notificação
   de mudança do próprio SQL Server, chamada do processo de workers para a API e Redis.
 - Novas tentativas e esgotamento das entregas de webhook ficam no banco, e não em filas por

@@ -136,7 +136,8 @@ src/
 │   │   ├── EnviadorWebhook.cs, AssinaturaWebhook.cs
 │   │   ├── EnderecosProibidos.cs, VerificadorEndereco.cs    # SSRF
 │   │   ├── CifraSegredos.cs                                 # AES-GCM
-│   │   ├── LeitorAvisos.cs, DistribuidorAvisos.cs           # SSE (API)
+│   │   ├── LeitorAvisos.cs, DistribuidorAvisos.cs           # SSE (API): leitura e distribuição
+│   │   ├── FluxoEventosTempoReal.cs                         # SSE: conexão, reenvio, sinal; o endpoint só roteia
 │   │   ├── EventosNotificacao.cs                            # logs 10001–10014
 │   │   └── ExtensoesNotificacoes.cs
 │   ├── Configuracao/OpcoesNotificacoes.cs, OpcoesLimpeza.cs

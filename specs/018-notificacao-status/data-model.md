@@ -29,8 +29,8 @@ Só de inclusão. Lida pela API (SSE) e pelo Worker (webhooks).
 | `CriadoEm` | `datetimeoffset` | = `ocorridoEm` do corpo |
 | `ContextoRastreio` | `varchar` (sombra) | contexto W3C de quem gravou (REQ-16), preenchido pelo interceptor existente |
 
-Índices: `Posicao` (único, leitura por cursor); `(ClienteId, Posicao)` para o reenvio do SSE de
-um Cliente; `CriadoEm` para a limpeza.
+Índices: `Posicao` (único, leitura por cursor); `(ClienteId, Posicao)` e `(PedidoId, Posicao)` para o reenvio do SSE
+de um Cliente ou de um pedido; `CriadoEm` para a limpeza.
 
 **Limpeza** (REQ-14): apaga avisos com mais de `RetencaoAvisosHoras` (168) que não têm entrega
 `Pendente`.

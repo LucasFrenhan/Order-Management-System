@@ -8,7 +8,8 @@ implementação. Nenhuma rota existente muda; o `GET /api/v1/pedidos/{id}` só g
 
 Política `PoliticaDestinosNotificacao`: perfil Cliente ou Admin. OperadorLogistica: `403`. Sem
 token: `401`. O usuário com perfil de operação (Admin) gerencia os destinos **globais**, de
-qualquer Admin; o Cliente, só os próprios. Destino fora do escopo: `404`.
+qualquer Admin; o Cliente, só os próprios. Quem tem os dois perfis cadastra e gerencia como
+Admin (destinos globais). Destino fora do escopo: `404`.
 
 ### `POST /api/v1/notificacoes/destinos`
 

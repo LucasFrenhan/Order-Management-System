@@ -478,8 +478,11 @@ atrasado.
     `00000000-0000-0000-0000-000000000000` com a tabela vazia, que quer dizer "antes do
     primeiro aviso");
   - com `Last-Event-ID`: procura a `Posicao` desse aviso e reenvia até 500 avisos visíveis ao
-    usuário; se o aviso não existir mais (limpeza de 7 dias) ou houver mais de 500, envia
+    usuário (só os do pedido, numa conexão de um pedido: leitura pelo índice `(PedidoId, Posicao)`); se o aviso não existir mais (limpeza de 7 dias) ou houver mais de 500, envia
     `sincronizacao-necessaria` e segue com os novos.
+- **Onde fica**: o endpoint só valida e devolve `TypedResults.ServerSentEvents`; o registro, o
+  reenvio, o sinal de vida e o fim no `exp` ficam no `FluxoEventosTempoReal` (Infrastructure),
+  pela regra da constituição de o endpoint não acessar o banco (analyze C1).
 - **Sinal de vida**: evento `sinal` a cada 30 s sem aviso.
 - **Fim do token**: a conexão termina no `exp` do token.
 - **Limite**: 3 conexões por usuário por instância (`Notificacoes:Sse:ConexoesPorUsuario`);
@@ -503,7 +506,7 @@ Seção nova `Notificacoes`, com validador (`FaixasOpcoes`), padrões:
 | Chave | Padrão | Faixa |
 |-------|--------|-------|
 | `ChaveCifra` | (obrigatória) | Base64 de 32 bytes |
-| `PermitirRedeLocal` | `false` | só aceito `true` em Development e nos testes |
+| `PermitirRedeLocal` | `false` | só aceito `true` nos ambientes `Development` e `Testes` |
 | `DestinosPorCliente` / `DestinosGlobais` | 5 / 5 | 1–50 |
 | `Envio:Habilitado` | `true` (testes: `false`, como os estornos) | — |
 | `Envio:IntervaloSegundos` | 5 | 1–300 |
