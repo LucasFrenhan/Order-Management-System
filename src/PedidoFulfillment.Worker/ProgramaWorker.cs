@@ -28,7 +28,7 @@ public sealed class ProgramaWorker
         builder.Services.AdicionarAmostradorOutbox();
         builder.Services.AdicionarMensageria();
         builder.Services.AdicionarConsumidor<ReservaEstoque, PedidoCriado>();
-        builder.Services.AdicionarGatewayPagamentoSimulado();
+        builder.Services.AdicionarGatewayPagamento();
         builder.Services.AdicionarConsumidor<ProcessamentoPagamento, EstoqueReservado>();
         builder.Services.AdicionarProcessamentoEstornos();
         builder.Services.AdicionarConsumidor<CriacaoOrdemEntrega, PagamentoAprovado>();

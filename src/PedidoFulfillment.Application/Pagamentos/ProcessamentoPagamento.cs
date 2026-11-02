@@ -56,7 +56,7 @@ public sealed class ProcessamentoPagamento(
 
                 if (!Apto(idOrigem, pedido))
                 {
-                    return false;
+                    return await ConsultarCobrancaSemRespostaAsync(pedido, cancellationToken);
                 }
 
                 resultado ??= await gateway.CobrarAsync(pedido.Id, pedido.ValorTotal, cancellationToken);
@@ -89,6 +89,30 @@ public sealed class ProcessamentoPagamento(
         // Cancelado antes da cobrança, em status final ou já pago por outro evento: nada a fazer (FR-002).
         EventosPagamento.PedidoIgnoradoNoPagamento(logger, idOrigem, pedido.Id, pedido.Status, pedido.EstoqueReservado, pedido.Pagamento is not null);
         return false;
+    }
+
+    /// <summary>
+    /// Pedido cancelado sem pagamento e com o estoque devolvido (REQ-19, FR-015, research R-08): uma
+    /// cobrança anterior pode ter sido efetivada sem a resposta chegar. Consulta pela chave; se
+    /// houve aprovação, registra o pagamento com o estorno pendente (REQ-13, R-07); senão, nada.
+    /// Uma falha na consulta propaga e segue o caminho de falha, sem gravar nada.
+    /// </summary>
+    private async Task<bool> ConsultarCobrancaSemRespostaAsync(Pedido pedido, CancellationToken cancellationToken)
+    {
+        if (pedido is not { Status: StatusPedido.Cancelado, Pagamento: null, EstoqueReservado: false })
+        {
+            return false;
+        }
+
+        var consulta = await gateway.ConsultarCobrancaAsync(pedido.Id, cancellationToken);
+        EventosPagamento.ConsultaCobranca(logger, pedido.Id, consulta.Situacao);
+        if (consulta.Situacao != SituacaoConsultaCobranca.Aprovada)
+        {
+            return false;
+        }
+
+        await RegistrarCobrancaAposCancelamentoAsync(pedido, consulta.IdentificadorTransacao!, cancellationToken);
+        return true;
     }
 
     /// <summary>Pagamento com estorno pendente, sem evento de saída: o pedido está cancelado (R-07).</summary>

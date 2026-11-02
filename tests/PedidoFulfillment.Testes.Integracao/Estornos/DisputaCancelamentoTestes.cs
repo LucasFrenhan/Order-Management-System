@@ -205,5 +205,8 @@ public sealed class DisputaCancelamentoTestes(MensageriaTeste mensageria)
 
         public Task<ResultadoEstorno> EstornarAsync(Guid pedidoId, string identificadorTransacao, decimal valor, CancellationToken cancellationToken) =>
             Task.FromResult(ResultadoEstorno.Confirmar($"SIM-EST-{pedidoId:N}"));
+
+        public Task<ConsultaCobranca> ConsultarCobrancaAsync(Guid pedidoId, CancellationToken cancellationToken) =>
+            Task.FromResult(ConsultaCobranca.NaoEncontrada);
     }
 }

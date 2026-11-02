@@ -82,6 +82,20 @@ internal static class TelemetriaOms
     public static readonly ObservableGauge<long> ConexoesSse = Medidor.CreateObservableGauge(
         "oms.notificacoes.sse.conexoes", () => EstadoMetricas.ConexoesSse, "{conexao}", "Conexões de eventos (SSE) abertas.");
 
+    /// <summary>Métrica 14 (REQ-19, R-12): chamadas ao gateway de pagamento, por operação e resultado final.</summary>
+    public static readonly Counter<long> ChamadasPagamento = Medidor.CreateCounter<long>(
+        "oms.pagamentos.chamadas", "{chamada}", "Chamadas ao gateway de pagamento, por operação e resultado.");
+
+    /// <summary>Métrica 15 (REQ-19, R-12): duração de cada chamada, com todas as tentativas e esperas.</summary>
+    public static readonly Histogram<double> DuracaoPagamento = Medidor.CreateHistogram<double>(
+        "oms.pagamentos.duracao", "s", "Duração das chamadas ao gateway de pagamento, com as tentativas.");
+
+    /// <summary>Métrica 16 (REQ-19, R-12), do <see cref="EstadoMetricas"/>: 0 fechado, 1 aberto, 2 meio-aberto.</summary>
+    public static readonly ObservableGauge<long> CircuitoPagamento = Medidor.CreateObservableGauge(
+        "oms.pagamentos.circuito",
+        () => EstadoMetricas.CircuitoGateway is >= 0 and var estado ? [new Measurement<long>(estado)] : Array.Empty<Measurement<long>>(),
+        "{estado}", "Estado do circuito do gateway de pagamento: 0 fechado, 1 aberto, 2 meio-aberto.");
+
     /// <summary>Atributos dos spans e das métricas (prefixo <c>oms.</c> para os de domínio).</summary>
     public static class Atributos
     {
@@ -99,6 +113,10 @@ internal static class TelemetriaOms
         public const string LimpezaAlvo = "oms.limpeza.alvo";
         public const string LimpezaLinhasApagadas = "oms.limpeza.linhas_apagadas";
         public const string OutboxEsperaMs = "oms.outbox.espera_ms";
+        public const string PagamentoOperacao = "oms.pagamento.operacao";
+        public const string PagamentoTentativa = "oms.pagamento.tentativa";
+        public const string PagamentoTentativas = "oms.pagamento.tentativas";
+        public const string PagamentoTipoFalha = "oms.pagamento.tipo_falha";
         public const string UsuarioId = "user.id";
         public const string MensagemId = "messaging.message.id";
         public const string TipoErro = "error.type";
@@ -120,6 +138,19 @@ internal static class TelemetriaOms
         public const string Entregue = "entregue";
         public const string Falha = "falha";
         public const string Esgotada = "esgotada";
+
+        // Gateway de pagamento (REQ-19, R-12).
+        public const string Aprovado = "aprovado";
+        public const string Recusado = "recusado";
+        public const string EstornoRecusado = "estorno_recusado";
+        public const string NaoEncontrada = "nao_encontrada";
+        public const string FalhaPassageira = "falha_passageira";
+        public const string Incerto = "incerto";
+        public const string ErroPermanente = "erro_permanente";
+        public const string CircuitoAberto = "circuito_aberto";
+
+        /// <summary>Mensagem devolvida à fila porque o consumo pausou (REQ-19, R-09).</summary>
+        public const string Pausado = "pausado";
     }
 
     /// <summary>Valores de <c>oms.rotina</c>.</summary>
@@ -142,6 +173,9 @@ internal static class TelemetriaOms
         public const string Limpar = "limpar";
         public const string ProcessarNotificacoes = "processar_notificacoes";
         public const string EnviarNotificacao = "notificacao enviar";
+        public const string CobrarPagamento = "cobrar pagamento";
+        public const string EstornarPagamento = "estornar pagamento";
+        public const string ConsultarCobranca = "consultar cobranca";
 
         public static string OutboxPublicar(string tipo) => $"outbox publicar {tipo}";
 

@@ -129,7 +129,7 @@ public sealed class ReconciliacaoEtapasTestes(MensageriaTeste mensageria)
         try
         {
             await using var worker = WorkerReconciliando(mensageria, stringConexao,
-                configuracoes: new Dictionary<string, string?> { ["GatewayPagamento:TaxaAprovacaoPercentual"] = taxa.ToString(System.Globalization.CultureInfo.InvariantCulture) });
+                configuracoes: new Dictionary<string, string?> { [GatewayPagamentoMemoria.ChaveTaxa] = taxa.ToString(System.Globalization.CultureInfo.InvariantCulture) });
             worker.CreateClient().Dispose();
 
             (await EsperarStatusAsync(stringConexao, pedidoId, status, Prazo)).Should().BeTrue();
@@ -153,7 +153,7 @@ public sealed class ReconciliacaoEtapasTestes(MensageriaTeste mensageria)
         var (cliente, _, _) = await ClienteAsync(api);
         var pedidoId = await ParadoNoPagamentoAsync(mensageria, stringConexao, cliente);
         await EnvelhecerAsync(stringConexao, pedidoId, UmaHora);
-        var gateway = new GatewayPagamentoSimulado(Options.Create(new OpcoesGatewayPagamento { TaxaAprovacaoPercentual = 100 }));
+        var gateway = new GatewayPagamentoMemoria();
         var perdida = await gateway.CobrarAsync(pedidoId, 0m, TestContext.Current.CancellationToken);
 
         try

@@ -32,7 +32,7 @@ internal static class CenarioReconciliacao
     /// </summary>
     public static FabricaWorker WorkerReconciliando(
         MensageriaTeste mensageria, string stringConexao, CapturaLogs? logs = null,
-        IReadOnlyDictionary<string, string?>? configuracoes = null, Action<IServiceCollection>? servicos = null, bool comConsumidores = false)
+        IReadOnlyDictionary<string, string?>? configuracoes = null, Action<IServiceCollection>? servicos = null, bool comConsumidores = false, FabricaPagamentos? apiPagamentos = null)
     {
         var todas = new Dictionary<string, string?>
         {
@@ -51,6 +51,7 @@ internal static class CenarioReconciliacao
             StringConexao = stringConexao,
             ConfiguracoesBroker = mensageria.ConfiguracoesBroker,
             Configuracoes = todas,
+            ApiPagamentos = apiPagamentos,
             Servicos = colecao =>
             {
                 if (!comConsumidores)

@@ -1,23 +1,21 @@
 using FluentAssertions;
-using Microsoft.Extensions.Options;
-using PedidoFulfillment.Infrastructure.Configuracao;
-using PedidoFulfillment.Infrastructure.Pagamentos;
+using PedidoFulfillment.Application.Pagamentos;
 
-namespace PedidoFulfillment.Testes.Unitarios.Pagamentos;
+namespace PedidoFulfillment.Testes.Integracao.Infraestrutura;
 
-/// <summary>Gateway simulado (REQ-09, R-02), com semente fixa: nenhum teste depende de sorte.</summary>
-public sealed class GatewayPagamentoSimuladoTestes
+/// <summary>Gateway em memória dos testes (REQ-09, R-02; REQ-19, R-11), com semente fixa: nenhum teste depende de sorte.</summary>
+public sealed class GatewayPagamentoMemoriaTestes
 {
     private const int Semente = 20261023;
 
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;
 
-    private static GatewayPagamentoSimulado Gateway(double? taxa = null) =>
-        new(Options.Create(taxa is { } valor ? new OpcoesGatewayPagamento { TaxaAprovacaoPercentual = valor } : new OpcoesGatewayPagamento()), new Random(Semente));
+    private static GatewayPagamentoMemoria Gateway(double? taxa = null) =>
+        new(taxa ?? 90, new Random(Semente));
 
-    private static async Task<List<Application.Pagamentos.ResultadoCobranca>> CobrarAsync(GatewayPagamentoSimulado gateway, int vezes)
+    private static async Task<List<ResultadoCobranca>> CobrarAsync(GatewayPagamentoMemoria gateway, int vezes)
     {
-        var resultados = new List<Application.Pagamentos.ResultadoCobranca>(vezes);
+        var resultados = new List<ResultadoCobranca>(vezes);
         for (var i = 0; i < vezes; i++)
         {
             resultados.Add(await gateway.CobrarAsync(Guid.CreateVersion7(), 100m, Cancelamento));
@@ -27,10 +25,8 @@ public sealed class GatewayPagamentoSimuladoTestes
     }
 
     [Fact]
-    public async Task Com_a_taxa_padrao_cerca_de_90_por_cento_sao_aprovadas()
+    public async Task Com_a_taxa_de_90_cerca_de_90_por_cento_sao_aprovadas()
     {
-        new OpcoesGatewayPagamento().TaxaAprovacaoPercentual.Should().Be(90);
-
         var resultados = await CobrarAsync(Gateway(), 10_000);
 
         var aprovadas = resultados.Count(r => r.Aprovado) / 10_000d;
@@ -63,7 +59,7 @@ public sealed class GatewayPagamentoSimuladoTestes
         var resultado = await Gateway(0).CobrarAsync(Guid.CreateVersion7(), 10m, Cancelamento);
 
         resultado.Aprovado.Should().BeFalse();
-        resultado.Motivo.Should().Be(GatewayPagamentoSimulado.MotivoRecusa).And.Be("Pagamento recusado pelo emissor.");
+        resultado.Motivo.Should().Be(GatewayPagamentoMemoria.MotivoRecusa).And.Be("Pagamento recusado pelo emissor.");
         resultado.IdentificadorTransacao.Should().BeNull();
     }
 
@@ -73,7 +69,7 @@ public sealed class GatewayPagamentoSimuladoTestes
         // REQ-13, FR-014: o pedido é a chave de idempotência da cobrança.
         var gateway = Gateway(50);
         var pedidos = Enumerable.Range(0, 200).Select(_ => Guid.CreateVersion7()).ToList();
-        var primeiras = new List<Application.Pagamentos.ResultadoCobranca>();
+        var primeiras = new List<ResultadoCobranca>();
         foreach (var pedidoId in pedidos)
         {
             primeiras.Add(await gateway.CobrarAsync(pedidoId, 10m, Cancelamento));
@@ -105,7 +101,7 @@ public sealed class GatewayPagamentoSimuladoTestes
     [Fact]
     public async Task Chamadas_simultaneas_para_o_mesmo_pedido_devolvem_um_unico_resultado()
     {
-        var gateway = new GatewayPagamentoSimulado(Options.Create(new OpcoesGatewayPagamento { TaxaAprovacaoPercentual = 100 }));
+        var gateway = new GatewayPagamentoMemoria();
         var pedidoId = Guid.CreateVersion7();
 
         var cobrancas = await Task.WhenAll(Enumerable.Range(0, 50).Select(_ => Task.Run(() => gateway.CobrarAsync(pedidoId, 10m, Cancelamento), Cancelamento)));
@@ -113,6 +109,22 @@ public sealed class GatewayPagamentoSimuladoTestes
 
         cobrancas.Select(c => c.IdentificadorTransacao).Distinct().Should().ContainSingle();
         estornos.Select(e => e.IdentificadorEstorno).Distinct().Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task A_consulta_devolve_a_cobranca_guardada_ou_nao_encontrada()
+    {
+        // REQ-19, FR-015: a mesma consulta pela chave que o gateway por HTTP oferece.
+        var aprovadora = Gateway(100);
+        var recusadora = Gateway(0);
+        var pedidoId = Guid.CreateVersion7();
+
+        (await aprovadora.ConsultarCobrancaAsync(pedidoId, Cancelamento)).Should().Be(ConsultaCobranca.NaoEncontrada);
+        var cobranca = await aprovadora.CobrarAsync(pedidoId, 10m, Cancelamento);
+        await recusadora.CobrarAsync(pedidoId, 10m, Cancelamento);
+
+        (await aprovadora.ConsultarCobrancaAsync(pedidoId, Cancelamento)).Should().Be(ConsultaCobranca.Aprovada(cobranca.IdentificadorTransacao!));
+        (await recusadora.ConsultarCobrancaAsync(pedidoId, Cancelamento)).Situacao.Should().Be(SituacaoConsultaCobranca.Recusada);
     }
 
     [Fact]

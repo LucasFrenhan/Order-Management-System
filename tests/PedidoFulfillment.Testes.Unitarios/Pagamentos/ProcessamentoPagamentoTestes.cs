@@ -291,7 +291,66 @@ public sealed class ProcessamentoPagamentoTestes
 
         gravou.Should().BeFalse();
         gateway.Chamadas.Should().BeEmpty();
+        gateway.Consultas.Should().ContainSingle("REQ-19, FR-015: consulta a cobrança pela chave antes de ignorar");
         armazenamento.Gravacoes.Should().Be(0);
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 7019).Which.Propriedades["Resultado"]!.ToString().Should().Be("NaoEncontrada");
+    }
+
+    [Fact]
+    public async Task Pedido_cancelado_com_cobranca_aprovada_sem_resposta_fica_com_estorno_pendente()
+    {
+        // REQ-19, FR-015 e R-08: a cobrança foi efetivada, a resposta não chegou e o pedido foi cancelado.
+        PedidoEm(StatusPedido.Cancelado, reservado: false);
+        gateway.ProximaConsulta = ConsultaCobranca.Aprovada("PAG-0199f6b12c3d7e4f8a5b6c7d8e9f0a12");
+
+        var gravou = await Consumidor().AplicarAsync(Guid.CreateVersion7(), PedidoId, CancellationToken.None);
+
+        gravou.Should().BeTrue();
+        gateway.Chamadas.Should().BeEmpty("consultar não cobra");
+        armazenamento.Gravacoes.Should().Be(1);
+        armazenamento.EventosGravados.Should().BeEmpty();
+        var gravado = (await armazenamento.ObterPedidoAsync(PedidoId, false, CancellationToken.None))!;
+        gravado.Pagamento!.Situacao.Should().Be(SituacaoPagamento.EstornoPendente);
+        gravado.Pagamento.IdentificadorTransacao.Should().Be("PAG-0199f6b12c3d7e4f8a5b6c7d8e9f0a12");
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 7019).Which.Propriedades["Resultado"]!.ToString().Should().Be("Aprovada");
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 7005);
+    }
+
+    [Fact]
+    public async Task Pedido_cancelado_com_cobranca_recusada_nao_grava_nada()
+    {
+        PedidoEm(StatusPedido.Cancelado, reservado: false);
+        gateway.ProximaConsulta = ConsultaCobranca.Recusada(MotivoRecusa);
+
+        (await Consumidor().AplicarAsync(Guid.CreateVersion7(), PedidoId, CancellationToken.None)).Should().BeFalse();
+
+        armazenamento.Gravacoes.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Falha_na_consulta_propaga_sem_gravar()
+    {
+        // FR-015: a falha da consulta é falha passageira; a mensagem segue o caminho de falha.
+        PedidoEm(StatusPedido.Cancelado, reservado: false);
+        gateway.FalhaConsulta = new FalhaGatewayPagamentoException(TipoFalhaGateway.Passageira, OperacaoGateway.Consulta, "teste");
+
+        var acao = () => Consumidor().AplicarAsync(Guid.CreateVersion7(), PedidoId, CancellationToken.None);
+
+        await acao.Should().ThrowAsync<FalhaGatewayPagamentoException>();
+        armazenamento.Gravacoes.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(StatusPedido.Cancelado, true, false)]
+    [InlineData(StatusPedido.PagamentoRejeitado, false, false)]
+    [InlineData(StatusPedido.Processando, true, true)]
+    public async Task So_o_pedido_cancelado_sem_pagamento_e_com_estoque_devolvido_consulta(StatusPedido status, bool reservado, bool pago)
+    {
+        PedidoEm(status, reservado, pago);
+
+        await Consumidor().AplicarAsync(Guid.CreateVersion7(), PedidoId, CancellationToken.None);
+
+        gateway.Consultas.Should().BeEmpty();
     }
 
     [Fact]
@@ -363,5 +422,18 @@ public sealed class GatewayPagamentoFalso : IGatewayPagamento
     {
         Estornos.Add((pedidoId, identificadorTransacao, valor));
         return FalhaEstorno is { } falha ? Task.FromException<ResultadoEstorno>(falha) : Task.FromResult(ProximoEstorno);
+    }
+
+    /// <summary>Resultado da próxima consulta (REQ-19, FR-015); com <see cref="FalhaConsulta"/> preenchida, lança a exceção.</summary>
+    public ConsultaCobranca ProximaConsulta { get; set; } = ConsultaCobranca.NaoEncontrada;
+
+    public Exception? FalhaConsulta { get; set; }
+
+    public List<Guid> Consultas { get; } = [];
+
+    public Task<ConsultaCobranca> ConsultarCobrancaAsync(Guid pedidoId, CancellationToken cancellationToken)
+    {
+        Consultas.Add(pedidoId);
+        return FalhaConsulta is { } falha ? Task.FromException<ConsultaCobranca>(falha) : Task.FromResult(ProximaConsulta);
     }
 }

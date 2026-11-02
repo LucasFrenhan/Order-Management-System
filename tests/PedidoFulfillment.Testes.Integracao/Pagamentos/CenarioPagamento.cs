@@ -33,7 +33,7 @@ internal static class CenarioPagamento
             ConfiguracoesBroker = mensageria.ConfiguracoesBroker,
             Configuracoes = new Dictionary<string, string?>
             {
-                ["GatewayPagamento:TaxaAprovacaoPercentual"] = taxaAprovacao.ToString(CultureInfo.InvariantCulture)
+                [GatewayPagamentoMemoria.ChaveTaxa] = taxaAprovacao.ToString(CultureInfo.InvariantCulture)
             },
             Servicos = servicos =>
             {

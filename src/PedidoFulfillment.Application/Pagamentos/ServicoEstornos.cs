@@ -17,7 +17,13 @@ public enum ResultadoRodadaEstorno
     NadaAFazer,
 
     /// <summary>Recusa ou falha do gateway; o estorno continua pendente.</summary>
-    Falhou
+    Falhou,
+
+    /// <summary>
+    /// Circuito do gateway aberto (REQ-19, FR-016a): nada gravado, tentativa não contada; a rodada
+    /// termina e o estorno é tentado na seguinte.
+    /// </summary>
+    Adiado
 }
 
 /// <summary>Quando a falha de um estorno vira erro para a operação (REQ-13, FR-003).</summary>
@@ -35,6 +41,9 @@ public sealed class ServicoEstornos(
     /// <summary>Como os consumidores (REQ-09, R-05).</summary>
     private const int Reavaliacoes = 3;
 
+    /// <summary>Quando o gateway volta a ser testado, se o último estorno ficou <see cref="ResultadoRodadaEstorno.Adiado"/>.</summary>
+    public DateTimeOffset? AdiadoAte { get; private set; }
+
     public async Task<ResultadoRodadaEstorno> EstornarAsync(Guid pedidoId, ParametrosAlertaEstorno parametros, CancellationToken cancellationToken)
     {
         if (await LerPendenteAsync(pedidoId, cancellationToken) is not { } pedido)
@@ -47,6 +56,13 @@ public sealed class ServicoEstornos(
         try
         {
             resultado = await gateway.EstornarAsync(pedidoId, pagamento.IdentificadorTransacao!, pagamento.Valor, cancellationToken);
+        }
+        catch (GatewayPagamentoIndisponivelException excecao)
+        {
+            // Sem chamada e sem contar tentativa (REQ-19, FR-016a).
+            armazenamento.DescartarAlteracoes();
+            AdiadoAte = excecao.DisponivelEm;
+            return ResultadoRodadaEstorno.Adiado;
         }
         catch (Exception excecao) when (excecao is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
