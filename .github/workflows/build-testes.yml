@@ -91,9 +91,16 @@ jobs:
       - name: Prontidão do Worker
         run: curl -fsS http://localhost:5231/health/pronto
 
+      # REQ-19: a API de pagamento simulada, que o Worker chama pela rede.
+      - name: API de pagamento simulada
+        run: curl -fsS http://localhost:5232/health
+
+      - name: API de pagamento simulada
+        run: curl -fsS http://localhost:5232/health
+
       - name: Registros da API
         if: failure()
-        run: docker compose --profile demo logs api worker sqlserver
+        run: docker compose --profile demo logs api worker pagamentos sqlserver
 
       - name: Encerrar
         if: always()
