@@ -25,7 +25,14 @@ public static class ExtensoesObservabilidade
     private static readonly string[] FontesRabbitMQ = ["RabbitMQ.Client.Publisher", "RabbitMQ.Client.Subscriber"];
 
     private static readonly string[] MedidoresNativos =
-        ["System.Runtime", "Microsoft.AspNetCore.Hosting", "Microsoft.AspNetCore.Server.Kestrel"];
+        ["System.Runtime", "Microsoft.AspNetCore.Hosting", "Microsoft.AspNetCore.Server.Kestrel", "System.Net.Http"];
+
+    /// <summary>
+    /// Span de cliente HTTP nativo do .NET (REQ-19, R-12): um por tentativa ao gateway de pagamento
+    /// (e aos webhooks do REQ-18), com o <c>traceparent</c> propagado; a query de <c>url.full</c> sai
+    /// oculta, e nem cabeçalhos nem corpo entram no span.
+    /// </summary>
+    private const string FonteHttpCliente = "System.Net.Http";
 
     /// <summary>Envio das métricas a cada 30 s, se a variável padrão não disser outro (FR-017, analyze I1).</summary>
     private const string ChaveIntervaloMetricas = "OTEL_METRIC_EXPORT_INTERVAL";
@@ -63,6 +70,7 @@ public static class ExtensoesObservabilidade
             .WithTracing(traces => traces
                 .AddSource(TelemetriaOms.Nome)
                 .AddSource(FontesRabbitMQ)
+                .AddSource(FonteHttpCliente)
                 .AddAspNetCoreInstrumentation(opcoes =>
                     // Saúde fica fora (FR-001); corpo e cabeçalhos nunca são gravados (FR-023).
                     opcoes.Filter = contexto => !contexto.Request.Path.StartsWithSegments("/health"))
