@@ -3,11 +3,13 @@ using Microsoft.EntityFrameworkCore;
 using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Contratos.Eventos;
 using PedidoFulfillment.Application.Mensageria;
+using PedidoFulfillment.Application.Notificacoes;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Domain.Entregas;
 using PedidoFulfillment.Domain.Pagamentos;
 using PedidoFulfillment.Domain.Pedidos;
 using PedidoFulfillment.Domain.Produtos;
+using PedidoFulfillment.Domain.Usuarios;
 
 namespace PedidoFulfillment.Infrastructure.Persistencia;
 
@@ -22,6 +24,9 @@ internal sealed class ArmazenamentoPedidos(ContextoBancoDados contexto) : IArmaz
 
     /// <summary>Índice único da ordem por pedido (REQ-04).</summary>
     private const string IndiceOrdemPorPedido = "IX_OrdensEntrega_PedidoId";
+
+    /// <summary>Entradas do histórico e pagamentos que já geraram aviso nesta unidade de trabalho (REQ-18).</summary>
+    private readonly HashSet<object> avisados = new(ReferenceEqualityComparer.Instance);
 
     public async Task<IReadOnlyList<Produto>> ObterProdutosAsync(IReadOnlyCollection<Guid> ids, bool paraAlterar, CancellationToken cancellationToken)
     {
@@ -57,6 +62,7 @@ internal sealed class ArmazenamentoPedidos(ContextoBancoDados contexto) : IArmaz
     public async Task SalvarAsync(CancellationToken cancellationToken)
     {
         ExigirEventosDeCancelamentoEEstorno();
+        await AdicionarAvisosAsync(cancellationToken);
         try
         {
             await contexto.SaveChangesAsync(cancellationToken);
@@ -140,11 +146,102 @@ internal sealed class ArmazenamentoPedidos(ContextoBancoDados contexto) : IArmaz
         }
     }
 
+    /// <summary>
+    /// Avisos do REQ-18 (R-14): cada entrada nova do histórico com status anterior vira um
+    /// <c>pedido.status-alterado</c> no outbox e um aviso; cada estorno confirmado vira um aviso com
+    /// o identificador do <c>pagamento.estornado</c> da mesma gravação (a guarda acima garante que ele
+    /// existe). Num conflito, o <see cref="DescartarAlteracoes"/> leva tudo junto, e a nova tentativa
+    /// gera de novo.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">O histórico do pedido que mudou não foi carregado.</exception>
+    private async Task AdicionarAvisosAsync(CancellationToken cancellationToken)
+    {
+        // Uma gravação que falhou sem descarte e é tentada de novo não gera o aviso duas vezes.
+        var mudancas = contexto.ChangeTracker.Entries<HistoricoStatusPedido>()
+            .Where(e => e.State == EntityState.Added && e.Entity.StatusAnterior is not null)
+            .Select(e => e.Entity)
+            .Where(avisados.Add)
+            .ToList();
+        var estornados = contexto.ChangeTracker.Entries<Pagamento>()
+            .Where(e => e.State == EntityState.Modified
+                && e.Property(p => p.Situacao).OriginalValue == SituacaoPagamento.EstornoPendente
+                && e.Property(p => p.Situacao).CurrentValue == SituacaoPagamento.Estornado)
+            .Where(e => avisados.Add(e.Entity))
+            .Select(e => e.Entity.PedidoId)
+            .ToList();
+        if (mudancas.Count == 0 && estornados.Count == 0)
+        {
+            return;
+        }
+
+        var operacao = await AutoresDeOperacaoAsync(mudancas, cancellationToken);
+        foreach (var entrada in mudancas)
+        {
+            var pedido = PedidoRastreado(entrada.PedidoId);
+            if (!contexto.Entry(pedido).Collection(p => p.Historico).IsLoaded)
+            {
+                throw new InvalidOperationException($"O pedido {pedido.Numero} muda de status sem o histórico carregado (REQ-18).");
+            }
+
+            var sequencia = pedido.Historico.ToList().IndexOf(entrada) + 1;
+            var origem = entrada.AutorId switch
+            {
+                null => OrigemMudancaStatus.Worker,
+                { } autor when operacao.Contains(autor) => OrigemMudancaStatus.Operacao,
+                _ => OrigemMudancaStatus.Cliente
+            };
+            var (evento, aviso) = FabricaAvisos.StatusAlterado(pedido, entrada, sequencia, origem);
+            contexto.EventosSaida.Add(evento);
+            contexto.AvisosPedido.Add(aviso);
+        }
+
+        foreach (var pedidoId in estornados)
+        {
+            var estornado = contexto.ChangeTracker.Entries<EventoSaida>()
+                .Where(e => e.State == EntityState.Added && e.Entity.Tipo == TiposEvento.PagamentoEstornado)
+                .Select(e => e.Entity)
+                .First(e => IdCorrelacao(e.Conteudo) == pedidoId);
+            contexto.AvisosPedido.Add(FabricaAvisos.EstornoConfirmado(PedidoRastreado(pedidoId), estornado.IdEvento, estornado.CriadoEm));
+        }
+    }
+
+    /// <summary>
+    /// Os autores com perfil de operação (Admin ou OperadorLogistica): a mesma regra do
+    /// <c>ServicoPedidos</c> no REQ-15, que cobre quem também é Cliente. Só consulta com autor, ou
+    /// seja, nos caminhos da API.
+    /// </summary>
+    private async Task<HashSet<Guid>> AutoresDeOperacaoAsync(IReadOnlyCollection<HistoricoStatusPedido> mudancas, CancellationToken cancellationToken)
+    {
+        var autores = mudancas.Where(m => m.AutorId is not null).Select(m => m.AutorId!.Value).Distinct().ToList();
+        if (autores.Count == 0)
+        {
+            return [];
+        }
+
+        string[] perfisOperacao = [nameof(PerfilUsuario.Admin), nameof(PerfilUsuario.OperadorLogistica)];
+        var deOperacao = await (
+                from vinculo in contexto.UserRoles
+                join perfil in contexto.Roles on vinculo.RoleId equals perfil.Id
+                where autores.Contains(vinculo.UserId) && perfisOperacao.Contains(perfil.Name!)
+                select vinculo.UserId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        return [.. deOperacao];
+    }
+
+    private Pedido PedidoRastreado(Guid pedidoId) =>
+        contexto.ChangeTracker.Entries<Pedido>().Select(e => e.Entity).FirstOrDefault(p => p.Id == pedidoId)
+        ?? throw new InvalidOperationException($"O pedido {pedidoId} muda sem estar carregado (REQ-18).");
+
     private static Guid IdCorrelacao(string conteudo)
     {
         using var documento = JsonDocument.Parse(conteudo);
         return documento.RootElement.GetProperty("idCorrelacao").GetGuid();
     }
 
-    public void DescartarAlteracoes() => contexto.ChangeTracker.Clear();
+    public void DescartarAlteracoes()
+    {
+        contexto.ChangeTracker.Clear();
+        avisados.Clear();
+    }
 }

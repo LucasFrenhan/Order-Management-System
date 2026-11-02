@@ -21,7 +21,7 @@ internal static class CenarioPedidos
     public static readonly Guid Cat009 = Catalogo(9);
     public static readonly Guid Cat010 = Catalogo(10);
 
-    private const string Senha = "SenhaForte1";
+    internal const string Senha = "SenhaForte1";
 
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;
 

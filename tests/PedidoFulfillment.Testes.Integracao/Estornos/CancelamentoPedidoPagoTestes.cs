@@ -41,8 +41,8 @@ public sealed class CancelamentoPedidoPagoTestes(MensageriaTeste mensageria)
         (await EstoqueAsync(stringConexao, Cat001), await EstoqueAsync(stringConexao, Cat002)).Should().Be(estoqueAntes);
         (await SituacaoAsync(stringConexao, pedidoId)).Should().Be("EstornoPendente");
         (await TentativasAsync(stringConexao, pedidoId)).Should().Be(0);
-        // REQ-15, US1 cenário 2: um único evento novo, o pedido.cancelado da mesma gravação.
-        (await EventosSaidaAsync(stringConexao)).Should().Be(eventosAntes + 1);
+        // REQ-15, US1 cenário 2: o pedido.cancelado da mesma gravação; REQ-18: e o pedido.status-alterado.
+        (await EventosSaidaAsync(stringConexao)).Should().Be(eventosAntes + 2);
         var cancelado = await EventosOutbox.CanceladoAsync(stringConexao, pedidoId);
         (cancelado.Motivo, cancelado.EtapaEsgotada).Should().Be((MotivoCancelamento.Operacao, (EtapaEsgotada?)null));
         (cancelado.EstoqueDevolvido, cancelado.EstornoPendente, cancelado.OrdemEntregaCancelada).Should().Be((true, true, false));

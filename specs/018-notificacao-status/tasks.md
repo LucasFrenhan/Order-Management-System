@@ -106,8 +106,8 @@ na correção do rastreio.
 
 ### Testes da US1
 
-- [ ] T013 [P] [US1] Em `tests/PedidoFulfillment.Testes.Unitarios/Notificacoes/FabricaAvisosTestes.cs`: a fábrica monta o evento e o aviso de uma mudança com o mesmo identificador (`IdEvento` = `IdNotificacao`), a sequência e a origem recebidas e o corpo `notificacao.v1`; monta o aviso do estorno com o identificador do `pagamento.estornado`; nenhum campo proibido (FR-002) aparece no evento nem no corpo, mesmo com o histórico tendo um motivo com texto livre.
-- [ ] T014 [P] [US1] Em `tests/PedidoFulfillment.Testes.Integracao/Notificacoes/AvisosPorCaminhoTestes.cs`, com banco e broker reais, um caso por caminho (spec US1, cenários 1 a 7), conferindo outbox e `AvisosPedido` do pedido (reaproveitar `Infraestrutura/EventosOutbox.cs`):
+- [X] T013 [P] [US1] Em `tests/PedidoFulfillment.Testes.Unitarios/Notificacoes/FabricaAvisosTestes.cs`: a fábrica monta o evento e o aviso de uma mudança com o mesmo identificador (`IdEvento` = `IdNotificacao`), a sequência e a origem recebidas e o corpo `notificacao.v1`; monta o aviso do estorno com o identificador do `pagamento.estornado`; nenhum campo proibido (FR-002) aparece no evento nem no corpo, mesmo com o histórico tendo um motivo com texto livre.
+- [X] T014 [P] [US1] Em `tests/PedidoFulfillment.Testes.Integracao/Notificacoes/AvisosPorCaminhoTestes.cs`, com banco e broker reais, um caso por caminho (spec US1, cenários 1 a 7), conferindo outbox e `AvisosPedido` do pedido (reaproveitar `Infraestrutura/EventosOutbox.cs`):
   - pagamento aprovado (`Pendente → Processando`, origem `Worker`, sequência 2) e recusado (`→ PagamentoRejeitado`);
   - ordem de entrega criada (`Processando → ProntoParaEnvio`, `Worker`);
   - despacho com rastreio pela operação (`→ Despachado`, `Operacao`) e a correção do rastreio depois, **sem** aviso;
@@ -119,18 +119,18 @@ na correção do rastreio.
   - gravação recusada (conflito persistente) sem evento nem aviso;
   - os eventos novos válidos pelo schema `pedido.status-alterado.v1` e os corpos pelo `notificacao.v1`;
   - numa fila de teste ligada a `oms.eventos` com a chave `pedido.status-alterado`, o evento chega publicado pelo despachante (Independent Test da US1; analyze I2).
-- [ ] T015 [P] [US1] Em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/ConsumidorEventosTestes.cs` (ou no teste da base existente): um manipulador que muda o status de um pedido sem passar pelo `SalvarAsync` faz a base recusar a gravação (nada é confirmado; a mensagem segue para novas tentativas), e o histórico gravado pelo `SalvarAsync` passa normalmente (research R-14).
+- [X] T015 [P] [US1] Em `tests/PedidoFulfillment.Testes.Unitarios/Mensageria/ConsumidorEventosTestes.cs` (ou no teste da base existente): um manipulador que muda o status de um pedido sem passar pelo `SalvarAsync` faz a base recusar a gravação (nada é confirmado; a mensagem segue para novas tentativas), e o histórico gravado pelo `SalvarAsync` passa normalmente (research R-14).
 
 ### Implementação da US1
 
-- [ ] T016 [US1] `src/PedidoFulfillment.Application/Notificacoes/FabricaAvisos.cs`: a partir de pedido, entrada do histórico, sequência, origem e instante, monta o `EventoSaida` `pedido.status-alterado` e o `AvisoPedido`; a partir do pagamento estornado e do `IdEvento` do `pagamento.estornado`, monta o aviso `pedido.estorno-confirmado`. T013 deve passar.
-- [ ] T017 [US1] Em `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoPedidos.cs`, depois da guarda do REQ-15 e antes do `SaveChangesAsync` (research R-14):
+- [X] T016 [US1] `src/PedidoFulfillment.Application/Notificacoes/FabricaAvisos.cs`: a partir de pedido, entrada do histórico, sequência, origem e instante, monta o `EventoSaida` `pedido.status-alterado` e o `AvisoPedido`; a partir do pagamento estornado e do `IdEvento` do `pagamento.estornado`, monta o aviso `pedido.estorno-confirmado`. T013 deve passar.
+- [X] T017 [US1] Em `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoPedidos.cs`, depois da guarda do REQ-15 e antes do `SaveChangesAsync` (research R-14):
   - para cada `HistoricoStatusPedido` `Added` com `StatusAnterior` não nulo, exigir o histórico do pedido carregado (`Navigation(...).IsLoaded`, senão `InvalidOperationException` citando o REQ-18), calcular a sequência (posição na coleção do pedido) e a origem, e adicionar o evento e o aviso da `FabricaAvisos`;
   - origem: `AutorId` nulo → `Worker`; senão, uma consulta a `UserRoles`/`Roles` para os autores da gravação → `Operacao` se tiver Admin ou OperadorLogistica, `Cliente` nos demais (mesma regra do `EhOperacao` do `ServicoPedidos`);
   - para cada `Pagamento` de `EstornoPendente` a `Estornado`, o aviso do estorno com o `IdEvento` do `pagamento.estornado` já adicionado;
   - num conflito, o `DescartarAlteracoes` leva evento e aviso junto (sem mudança: eles estão no mesmo `ChangeTracker`).
   Conferir os caminhos do R-01 que carregam o pedido sem `Include(Historico)` (reconciliação, consumidores, estornos) e incluir o histórico onde faltar.
-- [ ] T018 [US1] Em `src/PedidoFulfillment.Infrastructure/Mensageria/ConsumidorEventos.cs`, antes do `SaveChangesAsync` do `EventoProcessado`: se houver `HistoricoStatusPedido` `Added` no `ChangeTracker`, lançar `InvalidOperationException` ("mudança de status gravada fora do SalvarAsync, REQ-18"). T014 e T015 devem passar, e a suíte inteira continuar verde.
+- [X] T018 [US1] Em `src/PedidoFulfillment.Infrastructure/Mensageria/ConsumidorEventos.cs`, antes do `SaveChangesAsync` do `EventoProcessado`: se houver `HistoricoStatusPedido` `Added` no `ChangeTracker`, lançar `InvalidOperationException` ("mudança de status gravada fora do SalvarAsync, REQ-18"). T014 e T015 devem passar, e a suíte inteira continuar verde.
 
 **Checkpoint**: MVP. Todo caminho de mudança gera evento e aviso; os outros sistemas já recebem
 `pedido.status-alterado` pelo broker.
@@ -365,3 +365,10 @@ o broker.
   compose usa Development, como a chave do JWT), sem mudança no `docker-compose.yml`. Os logs
   10001 a 10003 ficam no `ServicoDestinosNotificacao` (Application), e não no
   `EventosNotificacao` (Infrastructure, interno).
+- **US1 (T013 a T018)**: a T015 virou teste de integração (`Persistencia/GuardaMudancaStatusTestes`),
+  porque a guarda olha o `ChangeTracker` do EF; ele também cobre a gravação repetida sem descarte,
+  que não duplica o aviso (o `ArmazenamentoPedidos` guarda o que já avisou). Três testes do
+  REQ-12/13/15 contavam os eventos do outbox no cancelamento e passaram a esperar também o
+  `pedido.status-alterado` (`CancelamentoPedidoPagoTestes`, dois casos de `EsgotamentoTestes`); o
+  helper do esgotamento passou a conferir a origem `Worker` do aviso da reconciliação. O caso do
+  Admin que também é Cliente usa um usuário com os dois perfis e sai com origem `Operacao`.
