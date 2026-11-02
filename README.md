@@ -207,39 +207,88 @@ telemetria fica desligada e nada muda.
 ## Integração contínua
 
 O workflow [`build-testes`](.github/workflows/build-testes.yml) roda em todo PR para a
-`main`, e não de novo no merge, porque o código que entra na `main` é o mesmo que o PR já
-verificou. São dois jobs em paralelo:
+`main` e no push da `main` (o merge). São dois jobs:
 
 - **Build e testes**: compila em Release, com avisos como erros, e roda os testes unitários
-  e de integração com SQL Server e RabbitMQ reais (Testcontainers). O resumo da execução
-  mostra as contagens por projeto, os testes que falharam e a cobertura de linhas, que é
-  só informativa e não conta as migrations nem o código gerado. Os resultados (TRX e
-  Cobertura) ficam 14 dias no artefato `resultados-testes`.
-- **Demonstração**: sobe o perfil `demo` e confere a prontidão e o login do administrador
-  de desenvolvimento.
+  e de integração com SQL Server, RabbitMQ e a API de pagamento simulada reais
+  (Testcontainers e Kestrel). O resumo da execução mostra as contagens por projeto, os testes
+  que falharam e a cobertura de linhas, sem as migrations nem o código gerado. A análise
+  estática do SonarQube Cloud envolve esse build e esses testes (veja
+  [Análise estática](#análise-estática)). Os resultados (TRX, Cobertura e o XML de cobertura)
+  ficam 14 dias no artefato `resultados-testes`.
+- **Demonstração**: só nos PRs; sobe o perfil `demo` e confere a prontidão da API, do Worker e
+  da API de pagamento simulada e o login do administrador de desenvolvimento.
+
+No push da `main`, só o job de testes roda: a análise da `main` é a referência de comparação
+dos PRs e do estado mostrado na análise estática.
 
 O check fica vermelho com:
 - erro ou aviso de compilação;
 - teste falhando ou **ignorado**;
 - falta de Docker;
-- demonstração que não fica pronta.
+- demonstração que não fica pronta;
+- falha da análise (por exemplo, credencial inválida).
 
 No CI, `OMS_EXIGIR_DOCKER=true` faz os testes com banco e broker reais falharem sem Docker,
 em vez de serem ignorados. Para reproduzir localmente:
 
 ```powershell
 $env:OMS_EXIGIR_DOCKER = "true"
-dotnet test PedidoFulfillment.sln -c Release --logger "trx;LogFilePrefix=resultado" --results-directory resultados --collect "Code Coverage;Format=cobertura" --settings coverage.runsettings
+dotnet test PedidoFulfillment.sln -c Release --logger "trx;LogFilePrefix=resultado" --results-directory resultados --collect "Code Coverage;Format=cobertura,xml" --settings coverage.runsettings
 bash .github/scripts/resumo-testes.sh resultados
 ```
 
-**Proteção da `main`** (configuração manual, feita por quem administra o repositório):
+### Proteção da `main`
 
-1. Abra Settings → Branches → Add branch ruleset (ou "Add rule") para `main`.
-2. Marque "Require status checks to pass".
-3. Adicione os checks **Build e testes** e **Demonstração**. Eles só aparecem na busca
-   depois que o workflow roda pela primeira vez.
-4. Se quiser, marque também "Require branches to be up to date before merging" e salve.
+A `main` tem o ruleset **Proteção da main**, versionado em
+[`.github/rulesets/protecao-main.json`](.github/rulesets/protecao-main.json) e válido para
+todos, inclusive o dono do repositório (REQ-20):
+
+- mudanças só por PR, mergeado **por rebase** (histórico linear; os commits de etapa e de fase
+  entram em sequência na `main`);
+- verificações exigidas, com a branch atualizada: **Build e testes** e **Demonstração** (e,
+  ao fim do REQ-20, o Quality Gate do SonarQube Cloud);
+- push direto, force push e exclusão da `main` recusados.
+
+Para conferir ou reaplicar a regra a partir do arquivo versionado:
+
+```bash
+gh api repos/LucasFrenhan/Order-Management-System/rules/branches/main
+gh api -X PUT repos/LucasFrenhan/Order-Management-System/rulesets/26400051 --input .github/rulesets/protecao-main.json
+```
+
+Uma verificação exigida só pode ser cadastrada depois de rodar uma vez, e uma que não roda
+num PR o bloqueia: por isso a **Compatibilidade do contrato**, que só roda quando o contrato
+muda, não é exigida. Numa indisponibilidade do SonarQube Cloud, o merge espera; se for
+preciso, a regra é desligada temporariamente em Settings → Rules, de forma registrada.
+
+## Análise estática
+
+O código é analisado pelo SonarQube Cloud em todo PR e no push da `main`:
+[painel do projeto](https://sonarcloud.io/project/overview?id=LucasFrenhan_Order-Management-System)
+(organização `lucasfrenhan`, projeto `LucasFrenhan_Order-Management-System`; não são
+segredos). A credencial de análise é o segredo `SONAR_TOKEN` do repositório e só chega aos
+passos do scanner.
+
+- **Onde ver**: no PR, a verificação do SonarQube Cloud e o comentário com o Quality Gate,
+  os problemas novos, a cobertura e a duplicação do código novo, com link para o detalhe.
+- **Quality Gate** ("Sonar way", só sobre o código novo): nenhum bug nem vulnerabilidade
+  novos, todos os pontos de segurança (security hotspots) revisados, nota A de
+  manutenibilidade, cobertura de pelo menos 80% e no máximo 3% de duplicação.
+- **Quality Gate reprovado**: abra o detalhe pelo comentário do PR e corrija o problema no
+  mesmo PR (para cobertura, acrescente testes ao código novo). Um falso positivo, ou um ponto
+  de segurança que é seguro (como uma credencial só de desenvolvimento), é marcado no painel
+  com a justificativa, sem desligar a regra.
+- **Fora da análise**: as migrations, o código gerado, `specs/` e `.specify/`; os projetos de
+  `tests/` contam como teste. A cobertura soma os testes unitários e os de integração.
+- **No editor** (opcional): o SonarQube for IDE, em modo conectado ao projeto, mostra os
+  mesmos problemas antes do push.
+
+**Pull requests de forks não são aceitos.** O GitHub não permite desativá-los num repositório
+público, e eles não poderiam ser mergeados (a análise não roda sem acesso ao segredo, e a
+`main` a exige). O workflow [`prs-de-fork`](.github/workflows/prs-de-fork.yml) comenta a
+política e fecha esses PRs, sem fazer checkout do código deles. Para sugerir uma mudança,
+abra uma issue.
 
 ## Estrutura
 
@@ -247,7 +296,8 @@ bash .github/scripts/resumo-testes.sh resultados
 docker-compose.yml                   ambiente local: SQL Server + RabbitMQ + API de pagamento simulada; perfil demo com a API
 .env.example                         variáveis OMS_* para trocar portas e credenciais locais
 .config/dotnet-tools.json            ferramenta local dotnet-ef (migrations)
-.github/workflows/                   build-testes (CI) e compatibilidade do contrato
+.github/workflows/                   build-testes (CI e análise do SonarQube Cloud), compatibilidade do contrato e prs-de-fork
+.github/rulesets/protecao-main.json  ruleset da main (PR por rebase, verificações exigidas)
 .github/scripts/resumo-testes.sh     resumo de testes e cobertura do CI
 coverage.runsettings                 o que entra na cobertura
 .dockerignore                        contexto da imagem da API
