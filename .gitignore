@@ -480,3 +480,9 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Resultados e cobertura do CI rodado localmente (REQ-07, REQ-20) e pasta de trabalho do
+# scanner do SonarQube
+resultados/
+resultados-cobertura/
+.sonarqube/
