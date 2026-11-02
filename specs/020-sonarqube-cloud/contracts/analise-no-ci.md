@@ -19,16 +19,20 @@ Passos do job `Build e testes`, em ordem:
 1. checkout com `fetch-depth: 0` (código novo e autoria das linhas);
 2. setup do .NET (`global.json`), cache do NuGet e cache de `~/.sonar/cache`;
 3. `dotnet tool restore` (`dotnet-ef` e `dotnet-sonarscanner` 11.3.0);
-4. **`dotnet sonarscanner begin`** *(só com `SONAR_TOKEN`)* com os parâmetros abaixo;
-5. `dotnet restore` e `dotnet build -c Release` (avisos como erros, como hoje);
-6. `dotnet test` com `OMS_EXIGIR_DOCKER=true`, `.trx` e
+4. passo `sonar`: grava só `ativo=true|false` (se o segredo existe), sem o valor;
+5. **`dotnet sonarscanner begin`** *(só com `ativo == true`)* com os parâmetros abaixo, antes
+   do restore;
+6. `dotnet restore` e `dotnet build -c Release` (avisos como erros, como hoje);
+7. `dotnet test` com `OMS_EXIGIR_DOCKER=true`, `.trx` e
    `--collect "Code Coverage;Format=cobertura,xml" --settings coverage.runsettings`;
-7. resumo dos testes e da cobertura (script atual, lê os `*.cobertura.xml`);
-8. move os `*.cobertura.xml` para fora de `resultados/`;
-9. **`dotnet sonarscanner end`** *(só com `SONAR_TOKEN`)*;
-10. publica os artefatos, como hoje.
+8. resumo dos testes e da cobertura (script atual, lê os `*.cobertura.xml`);
+9. move os `*.cobertura.xml` para `resultados-cobertura/`;
+10. **`dotnet sonarscanner end`** *(só com `ativo == true`)*;
+11. publica os artefatos (`resultados` e `resultados-cobertura`).
 
-O `SONAR_TOKEN` entra só por `env:` nos passos 4 e 9.
+O `SONAR_TOKEN` entra só por `env:` nos passos 5 e 10, e o scanner o lê da variável de
+ambiente (sem `/d:sonar.token`). Ele não está no `env:` do job: o passo 7, que roda código da
+aplicação e dos testes, não o vê.
 
 ### Parâmetros do `begin`
 

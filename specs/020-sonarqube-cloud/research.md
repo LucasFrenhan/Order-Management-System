@@ -94,10 +94,14 @@ Os parâmetros ficam no comando `begin` do workflow (o scanner para .NET não us
 
 ## R-07. Credencial e PRs de forks
 
-**Decisão**: o `SONAR_TOKEN` entra só como variável de ambiente dos passos do scanner
-(`${{ secrets.SONAR_TOKEN }}`), nunca em linha de comando nem em arquivo. Os passos do
-scanner rodam com `if: env.SONAR_TOKEN != ''`: em PRs de forks (sem acesso a segredos), são
-pulados e build e testes rodam como hoje (FR-004, FR-005).
+**Decisão**: o `SONAR_TOKEN` entra só no `env:` dos dois passos do scanner (`begin` e `end`),
+que o lê da variável de ambiente; nunca em linha de comando (`/d:sonar.token`), em arquivo ou
+no `env:` do job. Como o `if:` de um passo não enxerga o `env:` do próprio passo, um passo
+anterior grava só `ativo=${{ secrets.SONAR_TOKEN != '' }}` (`true` ou `false`) na saída, e os
+passos do scanner rodam com `if: steps.sonar.outputs.ativo == 'true'`. Assim o `dotnet test`,
+que roda código da aplicação e dos testes, nunca vê o token. Em PRs de forks (sem acesso a
+segredos), a saída é `false`: os passos do scanner são pulados, e build e testes rodam como
+hoje (FR-004, FR-005; analyze S1 e A1).
 
 **Fechamento dos PRs de forks** (FR-004a): workflow novo `prs-de-fork.yml`, no evento
 `pull_request_target` (`opened`, `reopened`), só quando a branch de origem é de um fork.

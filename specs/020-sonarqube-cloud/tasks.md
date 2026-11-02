@@ -47,7 +47,7 @@ da cobertura no painel).
 
 ### Phase 1: Setup
 
-- [ ] T001 [P] Acrescentar `dotnet-sonarscanner` **11.3.0** (`rollForward: false`, comando `dotnet-sonarscanner`) em `.config/dotnet-tools.json`, ao lado do `dotnet-ef`; conferir com `dotnet tool restore` e `dotnet sonarscanner --version` localmente.
+- [ ] T001 [P] Acrescentar `dotnet-sonarscanner` **11.3.0** (`rollForward: false`, comando `dotnet-sonarscanner`) em `.config/dotnet-tools.json`, ao lado do `dotnet-ef`; conferir com `dotnet tool restore` e `dotnet sonarscanner --help` localmente, inclusive que a 11.3.0 lê o token da variável de ambiente `SONAR_TOKEN` (analyze A1).
 - [ ] T002 [P] Em `coverage.runsettings`, incluir `PedidoFulfillment.Worker` e `PedidoFulfillment.PagamentosSimulados` no padrão de módulos (FR-012), mantendo migrations e `obj/` fora; conferir localmente que `--collect "Code Coverage;Format=cobertura,xml" --settings coverage.runsettings` gera `*.cobertura.xml` e `*.xml` com os seis módulos (R-05).
 
 ### Phase 2: User Story 1 - Todo PR é analisado e o resultado aparece no PR (P1) 🎯 MVP
@@ -57,7 +57,7 @@ da cobertura no painel).
 **Independent Test**: o próprio PR 1 recebe a verificação `SonarCloud Code Analysis` e o resumo.
 
 - [ ] T003 [US1] Em `.github/workflows/build-testes.yml`, gatilhos e jobs (R-02): acrescentar `push` na `main`; `cancel-in-progress` só em `pull_request`; job `Demonstração` com `if: github.event_name == 'pull_request'`; remover o passo `API de pagamento simulada` duplicado no job de demonstração (sobra do REQ-19); atualizar o comentário do topo (deixa de dizer que não roda no push da `main`).
-- [ ] T004 [US1] No job `Build e testes` do mesmo arquivo, a sequência do [contrato](./contracts/analise-no-ci.md#workflow-build-testes): checkout com `fetch-depth: 0`; cache de `~/.sonar/cache` (`actions/cache` no SHA já usado); `dotnet tool restore`; `dotnet sonarscanner begin` com `/k`, `/o`, `sonar.host.url`, `sonar.cs.vscoveragexml.reportsPaths=resultados/**/*.xml`, `sonar.cs.vstest.reportsPaths=resultados/**/*.trx`, `sonar.exclusions=specs/**,.specify/**,**/Persistencia/Migracoes/**,**/obj/**,**/bin/**` e `sonar.coverage.exclusions=**/Persistencia/Migracoes/**` (FR-009, FR-011); testes com `Format=cobertura,xml`; depois do resumo, mover os `*.cobertura.xml` para `resultados-cobertura/`; `dotnet sonarscanner end`. Os passos `begin` e `end` com `env: SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}` e `if: env.SONAR_TOKEN != ''` (FR-004, FR-005; o `env` do job expõe o segredo só para o teste do `if`, sem imprimi-lo).
+- [ ] T004 [US1] No job `Build e testes` do mesmo arquivo, a sequência do [contrato](./contracts/analise-no-ci.md#workflow-build-testes): checkout com `fetch-depth: 0`; cache de `~/.sonar/cache` (`actions/cache` no SHA já usado); `dotnet tool restore`; um passo `id: sonar` que só grava `ativo=${{ secrets.SONAR_TOKEN != '' }}` em `$GITHUB_OUTPUT` (vira `true` ou `false`, nunca o valor); `dotnet sonarscanner begin` **antes do `dotnet restore`**, com `/k`, `/o`, `sonar.host.url`, `sonar.cs.vscoveragexml.reportsPaths=resultados/**/*.xml`, `sonar.cs.vstest.reportsPaths=resultados/**/*.trx`, `sonar.exclusions=specs/**,.specify/**,**/Persistencia/Migracoes/**,**/obj/**,**/bin/**` e `sonar.coverage.exclusions=**/Persistencia/Migracoes/**` (FR-009, FR-011); testes com `Format=cobertura,xml`; depois do resumo, mover os `*.cobertura.xml` para `resultados-cobertura/`; `dotnet sonarscanner end`. Os passos `begin` e `end` com `if: steps.sonar.outputs.ativo == 'true'` e o token **só no `env:` deles** (`SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}`), lido pelo scanner da variável de ambiente, sem argumento `/d:sonar.token` (FR-004, FR-005; analyze S1 e A1). O token não fica no `env:` do job: o `dotnet test`, que roda o código da aplicação e dos testes, não o vê.
 - [ ] T005 [US1] No mesmo job, o artefato `resultados-testes` publica `resultados` e `resultados-cobertura` (o resumo continua lendo os Cobertura antes da mudança de pasta); conferir que `.github/scripts/resumo-testes.sh` não precisa mudar.
 
 **Checkpoint**: o workflow analisa nos PRs do repositório e na `main`, e pula a análise sem o token.
@@ -77,7 +77,7 @@ da cobertura no painel).
 ### Phase 5: Polish do PR 1
 
 - [ ] T010 `dotnet build`, `dotnet test` (suíte inteira com Docker, zero ignorados) e `dotnet format --verify-no-changes`; varredura do diff (nenhum token, só os valores públicos de organização e projeto); registrar em Notes.
-- [ ] T011 Push e PR 1 em português (Resumo, Pontos de atenção, Validação) com **`Refs #18`**, dizendo em Validação que nenhum documento de fluxo muda. Acompanhar `Build e testes` e `Demonstração` até ficarem verdes, inclusive depois de cada push. Conferir no PR: verificação `SonarCloud Code Analysis` e comentário do Quality Gate (US1, SC-001); no log do job, o token mascarado e nenhum valor dele (SC-005); a duração do job contra o último PR (SC-007); o nome exato do check e o `app.id` dele (`gh api repos/:owner/:repo/commits/<sha>/check-runs`) para a T016. Registrar em Notes. O merge (rebase) é do dono.
+- [ ] T011 Push e PR 1 em português (Resumo, Pontos de atenção, Validação) com **`Refs #18`**, dizendo em Validação que nenhum documento de fluxo muda. Acompanhar `Build e testes` e `Demonstração` até ficarem verdes, inclusive depois de cada push. Conferir no PR: verificação `SonarCloud Code Analysis` e comentário do Quality Gate (US1, SC-001); no log do job, o token mascarado e nenhum valor dele (SC-005); a duração do job contra o último PR (SC-007); o nome exato do check e o `app.id` dele (`gh api repos/:owner/:repo/commits/<sha>/check-runs`) para a T016; e, pelos logs do scanner, que uma falha de autenticação apareceria sem o valor do token (caso de borda da credencial inválida, analyze D1). Registrar em Notes. O merge (rebase) é do dono.
 
 ---
 
@@ -92,7 +92,7 @@ Depois do merge do PR 1: sync (nenhum PR aberto, `main` igual à remota) e a bra
 
 **Independent Test**: painel da `main` com 0 bugs, 0 vulnerabilidades e 0 pontos de segurança "To review" (SC-004), e a baseline no research.
 
-- [ ] T012 [US4] Conferir que o push do merge rodou a análise da `main` e registrar a **situação de partida** em `specs/020-sonarqube-cloud/research.md` (R-10), com a data, pelas APIs públicas do projeto: `api/measures/component` (`bugs`, `vulnerabilities`, `security_hotspots`, `code_smells`, `coverage`, `duplicated_lines_density`, `ncloc`), `api/qualitygates/project_status` e as condições do Quality Gate em uso (FR-016, R-08). Conferir também a lista de arquivos analisados: nada de `Persistencia/Migracoes`, `specs/`, `.specify/`; `tests/` como teste (FR-009 a FR-011).
+- [ ] T012 [US4] Conferir que o push do merge rodou a análise da `main` e registrar a **situação de partida** em `specs/020-sonarqube-cloud/research.md` (R-10), com a data, pelas APIs públicas do projeto: `api/measures/component` (`bugs`, `vulnerabilities`, `security_hotspots`, `code_smells`, `coverage`, `duplicated_lines_density`, `ncloc`), `api/qualitygates/project_status`, as condições do Quality Gate em uso e a definição de "código novo" em vigor no projeto (FR-016, R-08; analyze N1: se a definição deixar o badge da `main` sem sentido, propor ao dono trocá-la no painel). Conferir também a lista de arquivos analisados: nada de `Persistencia/Migracoes`, `specs/`, `.specify/`; `tests/` como teste (FR-009 a FR-011).
 - [ ] T013 [US4] Bugs e vulnerabilidades da baseline (`api/issues/search` com `types=BUG,VULNERABILITY`): corrigir cada um em `src/` com os testes existentes verdes, ou, se for falso positivo, preparar a justificativa para o dono marcar no painel; registrar o resultado na baseline (FR-018).
 - [ ] T014 [US4] Pontos de segurança (`api/hotspots/search`): tabela em `research.md` com arquivo, linha, regra, decisão e justificativa (credenciais só de desenvolvimento dos contêineres locais e dos testes; R-10). **Tarefa do dono**: marcar cada um como "Safe" no painel com a justificativa da tabela (a credencial não passa pela sessão). Conferir depois pela API: 0 "To review" (FR-017, SC-004).
 - [ ] T015 [P] [US4] Code smells da baseline que não forem corrigidos: seção "Dívida técnica" no `research.md` (contagem por regra e por projeto) e um item em `docs/proximos-passos.md` (FR-018).
@@ -104,7 +104,7 @@ Depois do merge do PR 1: sync (nenhum PR aberto, `main` igual à remota) e a bra
 
 ### Phase 8: User Story 3 (P1) e User Story 5 (P3), parte 2
 
-- [ ] T018 [US3] Conferir no painel a cobertura diferente de 0% e a no máximo 2 pontos da cobertura do resumo do job da mesma execução (SC-003), com um trecho coberto só por teste de integração (por exemplo, `ArmazenamentoPedidos`) aparecendo como coberto; registrar em Notes.
+- [ ] T018 [US3] Conferir no painel a cobertura diferente de 0% e a no máximo 2 pontos da cobertura do resumo do job **da mesma execução** (SC-003; os módulos medidos mudaram na T002), com um trecho coberto só por teste de integração (por exemplo, `ArmazenamentoPedidos`) aparecendo como coberto; registrar em Notes.
 - [ ] T019 [P] [US5] `README.md`: badges do Quality Gate e da cobertura (`https://sonarcloud.io/api/project_badges/measure?project=LucasFrenhan_Order-Management-System&metric=alert_status` e `...&metric=coverage`, com link para o painel); `docs/estado-atual.md` e `docs/proximos-passos.md` com o REQ-20 entregue e a #18 fechada.
 
 ### Phase 9: Polish do PR 2
@@ -118,7 +118,7 @@ Depois do merge do PR 1: sync (nenhum PR aberto, `main` igual à remota) e a bra
 
 - **PR 1**: T001 e T002 → T003 → T004 → T005; T006, T007, T008 e T009 em paralelo com T003 a T005; T010 → T011.
 - **Merge do PR 1** (rebase, pelo dono) → análise da `main`.
-- **PR 2**: T012 → T013 e T014 (T014 depende do dono no painel) → T016 (só depois de 0 pontos de segurança pendentes, senão o próprio PR 2 seria bloqueado) → T017; T015, T018 e T019 em paralelo com T013; T020 → T021.
+- **PR 2**: T012 → T013 e T014 (T014 depende do dono no painel) → T016 (só depois de 0 pontos de segurança pendentes e 0 bugs e vulnerabilidades: a `main` só passa a exigir o Quality Gate depois de limpa; os achados antigos não bloqueariam o PR 2, porque o gate do PR olha só o código novo) → T017; T015, T018 e T019 em paralelo com T013; T020 → T021.
 
 ### Parallel Opportunities
 
