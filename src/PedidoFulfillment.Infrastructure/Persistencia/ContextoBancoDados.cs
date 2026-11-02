@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Mensageria;
+using PedidoFulfillment.Application.Notificacoes;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Domain.Entregas;
 using PedidoFulfillment.Domain.Pagamentos;
@@ -10,6 +11,7 @@ using PedidoFulfillment.Domain.Pedidos;
 using PedidoFulfillment.Domain.Produtos;
 using PedidoFulfillment.Infrastructure.Identidade;
 using PedidoFulfillment.Infrastructure.Mensageria;
+using PedidoFulfillment.Infrastructure.Notificacoes;
 using PedidoFulfillment.Infrastructure.Observabilidade;
 
 namespace PedidoFulfillment.Infrastructure.Persistencia;
@@ -60,6 +62,14 @@ public sealed class ContextoBancoDados(DbContextOptions<ContextoBancoDados> opti
     internal DbSet<EventoProcessado> EventosProcessados => Set<EventoProcessado>();
 
     public DbSet<PedidoReenvioDlq> PedidosReenvioDlq => Set<PedidoReenvioDlq>();
+
+    public DbSet<AvisoPedido> AvisosPedido => Set<AvisoPedido>();
+
+    public DbSet<DestinoNotificacao> DestinosNotificacao => Set<DestinoNotificacao>();
+
+    public DbSet<EntregaNotificacao> EntregasNotificacao => Set<EntregaNotificacao>();
+
+    internal DbSet<CursorNotificacoes> CursorNotificacoes => Set<CursorNotificacoes>();
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {

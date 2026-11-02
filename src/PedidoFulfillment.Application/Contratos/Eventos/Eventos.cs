@@ -1,3 +1,5 @@
+using PedidoFulfillment.Domain.Pedidos;
+
 namespace PedidoFulfillment.Application.Contratos.Eventos;
 
 // Conteúdo dos eventos v1 (REQ-06, FR-002). Mudanças seguem o Princípio II: na mesma versão,
@@ -183,4 +185,44 @@ public sealed record PagamentoEstornado
     public required string IdentificadorEstorno { get; init; }
 
     public required DateTimeOffset EstornadoEm { get; init; }
+}
+
+/// <summary>
+/// Quem fez a mudança de status no <c>pedido.status-alterado</c> (REQ-18, R-14). Faz parte do
+/// contrato: acrescentar um valor muda o contrato e exige decisão (Princípio II).
+/// </summary>
+public enum OrigemMudancaStatus
+{
+    /// <summary>O processo de workers (sem autor na entrada do histórico).</summary>
+    Worker = 1,
+
+    /// <summary>O dono do pedido, sem perfil de operação, pela API.</summary>
+    Cliente,
+
+    /// <summary>Admin ou OperadorLogistica, pela API.</summary>
+    Operacao
+}
+
+/// <summary>
+/// <c>pedido.status-alterado</c>: publicado em toda mudança de status de um pedido, por qualquer
+/// caminho, na mesma gravação da mudança (REQ-18, FR-001 e FR-002). Não sai na criação do pedido
+/// nem na correção do rastreio. Sem cliente, autor, valores ou o texto do motivo.
+/// </summary>
+public sealed record PedidoStatusAlterado
+{
+    public required Guid PedidoId { get; init; }
+
+    public required string Numero { get; init; }
+
+    public required StatusPedido StatusAnterior { get; init; }
+
+    public required StatusPedido StatusNovo { get; init; }
+
+    /// <summary>Posição da mudança no histórico do pedido; a criação é 1.</summary>
+    public required int Sequencia { get; init; }
+
+    public required OrigemMudancaStatus Origem { get; init; }
+
+    /// <summary>O instante gravado no histórico de status.</summary>
+    public required DateTimeOffset AlteradoEm { get; init; }
 }

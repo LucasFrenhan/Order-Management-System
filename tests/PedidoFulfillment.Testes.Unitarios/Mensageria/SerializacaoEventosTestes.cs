@@ -1,10 +1,11 @@
 using System.Text.Json;
 using FluentAssertions;
 using PedidoFulfillment.Application.Contratos.Eventos;
+using PedidoFulfillment.Domain.Pedidos;
 
 namespace PedidoFulfillment.Testes.Unitarios.Mensageria;
 
-/// <summary>Serialização dos contratos de evento v1 (REQ-06, FR-001 a FR-004; REQ-08, FR-012 e FR-013; REQ-10, FR-008 e FR-009; REQ-15, R-04).</summary>
+/// <summary>Serialização dos contratos de evento v1 (REQ-06, FR-001 a FR-004; REQ-08, FR-012 e FR-013; REQ-10, FR-008 e FR-009; REQ-15, R-04; REQ-18, R-02).</summary>
 public sealed class SerializacaoEventosTestes
 {
     internal static readonly DateTimeOffset Instante = new(2026, 10, 22, 15, 30, 0, TimeSpan.Zero);
@@ -72,6 +73,17 @@ public sealed class SerializacaoEventosTestes
             OrdemEntregaCancelada = false
         }, Instante);
 
+    internal static EnvelopeEvento<PedidoStatusAlterado> PedidoStatusAlterado() => EnvelopeEvento.Criar(PedidoId, new PedidoStatusAlterado
+    {
+        PedidoId = PedidoId,
+        Numero = "PED-20261022-000001",
+        StatusAnterior = StatusPedido.ProntoParaEnvio,
+        StatusNovo = StatusPedido.Despachado,
+        Sequencia = 4,
+        Origem = OrigemMudancaStatus.Operacao,
+        AlteradoEm = Instante
+    }, Instante);
+
     internal static EnvelopeEvento<PagamentoEstornado> PagamentoEstornado() => EnvelopeEvento.Criar(PedidoId, new PagamentoEstornado
     {
         PedidoId = PedidoId,
@@ -113,11 +125,13 @@ public sealed class SerializacaoEventosTestes
         TiposEvento.PedidoCancelado.Should().Be("pedido.cancelado");
         PagamentoEstornado().Tipo.Should().Be(TiposEvento.PagamentoEstornado);
         TiposEvento.PagamentoEstornado.Should().Be("pagamento.estornado");
-        TiposEvento.TipoDados.Should().HaveCount(8);
+        PedidoStatusAlterado().Tipo.Should().Be(TiposEvento.PedidoStatusAlterado);
+        TiposEvento.PedidoStatusAlterado.Should().Be("pedido.status-alterado");
+        TiposEvento.TipoDados.Should().HaveCount(9);
     }
 
     [Fact]
-    public void Ida_e_volta_preserva_os_valores_dos_oito_eventos()
+    public void Ida_e_volta_preserva_os_valores_dos_nove_eventos()
     {
         DeveVoltarIgual(PedidoCriado());
         DeveVoltarIgual(EstoqueReservado());
@@ -128,6 +142,7 @@ public sealed class SerializacaoEventosTestes
         DeveVoltarIgual(PedidoCancelado());
         DeveVoltarIgual(PedidoCancelado(MotivoCancelamento.ReconciliacaoEsgotada, EtapaEsgotada.Entrega));
         DeveVoltarIgual(PagamentoEstornado());
+        DeveVoltarIgual(PedidoStatusAlterado());
     }
 
     [Fact]
@@ -191,6 +206,21 @@ public sealed class SerializacaoEventosTestes
         item.GetProperty("quantidadeSolicitada").GetInt32().Should().Be(2);
         item.GetProperty("quantidadeDisponivel").GetInt32().Should().Be(1);
         item.GetProperty("inativo").GetBoolean().Should().BeFalse();
+    }
+
+    [Fact]
+    public void Pedido_status_alterado_traz_os_status_e_a_origem_como_texto()
+    {
+        using var json = JsonDocument.Parse(SerializacaoEventos.Serializar(PedidoStatusAlterado()));
+        var dados = json.RootElement.GetProperty("dados");
+
+        json.RootElement.GetProperty("tipo").GetString().Should().Be("pedido.status-alterado");
+        dados.EnumerateObject().Select(p => p.Name).Should().Equal(
+            "pedidoId", "numero", "statusAnterior", "statusNovo", "sequencia", "origem", "alteradoEm");
+        dados.GetProperty("statusAnterior").GetString().Should().Be("ProntoParaEnvio");
+        dados.GetProperty("statusNovo").GetString().Should().Be("Despachado");
+        dados.GetProperty("sequencia").GetInt32().Should().Be(4);
+        dados.GetProperty("origem").GetString().Should().Be("Operacao");
     }
 
     private static void DeveVoltarIgual<T>(EnvelopeEvento<T> envelope)

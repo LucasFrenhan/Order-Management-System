@@ -10,6 +10,7 @@ using PedidoFulfillment.Application.Autenticacao;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Infrastructure;
+using PedidoFulfillment.Infrastructure.Notificacoes;
 using PedidoFulfillment.Infrastructure.Observabilidade;
 using PedidoFulfillment.Infrastructure.Saude;
 
@@ -29,6 +30,8 @@ builder.Services.AdicionarProblemDetails();
 builder.Services.AdicionarAutenticacaoJwt();
 builder.Services.AdicionarPoliticasAutorizacao();
 builder.Services.AdicionarInfraestrutura(builder.Configuration);
+// Destinos de webhook e eventos em tempo real (REQ-18).
+builder.Services.AdicionarNotificacoes();
 // Traces, métricas e logs por OTLP, só com destino configurado (REQ-16).
 builder.AdicionarObservabilidade("oms-api");
 builder.Services.AddOpenApi("v1", opcoes =>

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using PedidoFulfillment.Application.Mensageria;
+using PedidoFulfillment.Application.Notificacoes;
 using PedidoFulfillment.Domain.Pedidos;
 using PedidoFulfillment.Infrastructure.Persistencia;
 
@@ -8,7 +9,7 @@ namespace PedidoFulfillment.Infrastructure.Observabilidade;
 
 /// <summary>
 /// Grava o contexto de rastreamento ativo nas linhas novas de <c>EventosSaida</c>,
-/// <c>Pedidos</c> e <c>PedidosReenvioDlq</c> (REQ-16, R-03, data-model). Só nas linhas
+/// <c>Pedidos</c>, <c>PedidosReenvioDlq</c> (REQ-16, R-03, data-model) e <c>AvisosPedido</c> (REQ-18, R-19). Só nas linhas
 /// <c>Added</c>: o contexto é o da criação e nunca é trocado. Assim nenhuma fábrica do Domain
 /// ou do Application precisa conhecer rastreamento, e nenhum ponto que grava evento muda.
 /// </summary>
@@ -39,7 +40,7 @@ internal sealed class InterceptorContextoRastreio : SaveChangesInterceptor
 
         foreach (var entrada in contexto.ChangeTracker.Entries())
         {
-            if (entrada.State == EntityState.Added && entrada.Entity is EventoSaida or Pedido or PedidoReenvioDlq)
+            if (entrada.State == EntityState.Added && entrada.Entity is EventoSaida or Pedido or PedidoReenvioDlq or AvisoPedido)
             {
                 entrada.Property(ContextoBancoDados.ContextoRastreio).CurrentValue = atual;
             }

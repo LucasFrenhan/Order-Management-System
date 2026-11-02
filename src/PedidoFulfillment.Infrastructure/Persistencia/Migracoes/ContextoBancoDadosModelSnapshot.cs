@@ -256,6 +256,195 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                         });
                 });
 
+            modelBuilder.Entity("PedidoFulfillment.Application.Notificacoes.AvisoPedido", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<Guid>("ClienteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Conteudo")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ContextoRastreio")
+                        .HasMaxLength(55)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(55)");
+
+                    b.Property<DateTimeOffset>("CriadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("IdNotificacao")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PedidoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("Posicao")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CriadoEm");
+
+                    b.HasIndex("IdNotificacao")
+                        .IsUnique();
+
+                    b.HasIndex("Posicao")
+                        .IsUnique()
+                        .HasDatabaseName("IX_AvisosPedido_Posicao")
+                        .HasFilter("[Posicao] IS NOT NULL");
+
+                    b.HasIndex("ClienteId", "Posicao")
+                        .HasDatabaseName("IX_AvisosPedido_ClienteId_Posicao");
+
+                    b.HasIndex("PedidoId", "Posicao")
+                        .HasDatabaseName("IX_AvisosPedido_PedidoId_Posicao");
+
+                    b.ToTable("AvisosPedido", (string)null);
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Application.Notificacoes.DestinoNotificacao", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Ativo")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset>("AtualizadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("ClienteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CriadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CriadoPor")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("DesativadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("FalhasSeguidas")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MotivoDesativacao")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<byte[]>("SegredoCifrado")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("varbinary(60)");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.Property<byte[]>("Versao")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Ativo");
+
+                    b.HasIndex("ClienteId")
+                        .HasFilter("[ClienteId] IS NOT NULL");
+
+                    b.ToTable("DestinosNotificacao", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_DestinosNotificacao_FalhasNaoNegativas", "[FalhasSeguidas] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Application.Notificacoes.EntregaNotificacao", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("AvisoId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ContextoRastreio")
+                        .HasMaxLength(55)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(55)");
+
+                    b.Property<DateTimeOffset>("CriadaEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("DestinoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("FinalizadaEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("PrimeiraTentativaEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("ProximaTentativaEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Situacao")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("Tentativas")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UltimoCodigoHttp")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UltimoErro")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AvisoId");
+
+                    b.HasIndex("FinalizadaEm")
+                        .HasDatabaseName("IX_EntregasNotificacao_Finalizadas")
+                        .HasFilter("[FinalizadaEm] IS NOT NULL");
+
+                    b.HasIndex("DestinoId", "AvisoId")
+                        .IsUnique()
+                        .HasFilter("[DestinoId] IS NOT NULL");
+
+                    b.HasIndex("Situacao", "ProximaTentativaEm")
+                        .HasDatabaseName("IX_EntregasNotificacao_Pendentes")
+                        .HasFilter("[Situacao] = N'Pendente'");
+
+                    b.ToTable("EntregasNotificacao", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_EntregasNotificacao_SituacaoValida", "[Situacao] IN (N'Pendente', N'Entregue', N'Esgotada', N'Descartada')");
+
+                            t.HasCheckConstraint("CK_EntregasNotificacao_TentativasNaoNegativas", "[Tentativas] >= 0");
+                        });
+                });
+
             modelBuilder.Entity("PedidoFulfillment.Application.Pedidos.RegistroIdempotencia", b =>
                 {
                     b.Property<Guid>("ClienteId")
@@ -716,6 +905,30 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                     b.ToTable("EventosProcessados", (string)null);
                 });
 
+            modelBuilder.Entity("PedidoFulfillment.Infrastructure.Notificacoes.CursorNotificacoes", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("Posicao")
+                        .IsRequired()
+                        .HasColumnType("binary(8)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CursorNotificacoes", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_CursorNotificacoes_LinhaUnica", "[Id] = 1");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Posicao = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0 }
+                        });
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.HasOne("PedidoFulfillment.Infrastructure.Identidade.Perfil", null)
@@ -765,6 +978,29 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Application.Notificacoes.AvisoPedido", b =>
+                {
+                    b.HasOne("PedidoFulfillment.Domain.Pedidos.Pedido", null)
+                        .WithMany()
+                        .HasForeignKey("PedidoId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Application.Notificacoes.EntregaNotificacao", b =>
+                {
+                    b.HasOne("PedidoFulfillment.Application.Notificacoes.AvisoPedido", null)
+                        .WithMany()
+                        .HasForeignKey("AvisoId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("PedidoFulfillment.Application.Notificacoes.DestinoNotificacao", null)
+                        .WithMany()
+                        .HasForeignKey("DestinoId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("PedidoFulfillment.Application.Pedidos.RegistroIdempotencia", b =>

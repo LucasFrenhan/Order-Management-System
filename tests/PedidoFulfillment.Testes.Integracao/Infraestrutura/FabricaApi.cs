@@ -21,6 +21,9 @@ namespace PedidoFulfillment.Testes.Integracao.Infraestrutura;
 public class FabricaApi : WebApplicationFactory<Program>
 {
     public const string ChaveTeste = "chave-de-teste-somente-para-testes-automatizados";
+
+    /// <summary>Chave AES-GCM dos segredos dos webhooks nos testes (REQ-18), igual na API e no Worker.</summary>
+    public const string ChaveCifraTeste = "Y2hhdmUtZGUtdGVzdGUtYXV0b21hdGl6YWRvLTMyYnk=";
     public const string EmissorTeste = "PedidoFulfillment";
     public const string AudienciaTeste = "PedidoFulfillment";
     public const string RotaExcecaoTeste = "/_teste/excecao";
@@ -71,6 +74,9 @@ public class FabricaApi : WebApplicationFactory<Program>
         builder.UseSetting("Jwt:Emissor", EmissorTeste);
         builder.UseSetting("Jwt:Audiencia", AudienciaTeste);
         builder.UseSetting("Banco:PrepararNaInicializacao", PrepararBanco ? "true" : "false");
+        // REQ-18: a mesma chave do Worker; a rede local só onde o validador a aceita.
+        builder.UseSetting("Notificacoes:ChaveCifra", ChaveCifraTeste);
+        builder.UseSetting("Notificacoes:PermitirRedeLocal", Ambiente is "Testes" or "Development" ? "true" : "false");
         if (ComConfiguracaoInfraestrutura)
         {
             builder.UseSetting("ConnectionStrings:SqlServer", StringConexao ?? StringConexaoTeste);
