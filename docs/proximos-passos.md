@@ -12,14 +12,15 @@ REQ-17 fez os consumidores voltarem sozinhos depois de o broker reiniciar (issue
 avisa quem acompanha um pedido quando o status muda, por webhooks e por SSE (issue #43), e o
 REQ-19 tirou o pagamento do processo de workers: a cobrança e o estorno vão pela rede a uma API
 de pagamento simulada, com latência, falhas, novas tentativas seguras, circuito e pausa do
-consumo (issue #46).
+consumo (issue #46). O REQ-20 pôs a análise estática do SonarQube Cloud em todo PR e na
+`main`, com o Quality Gate exigido para o merge e a `main` protegida por um ruleset (issue #18).
 Cada trabalho novo segue o fluxo SDD (`/speckit-specify` → `/speckit-clarify` →
 `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`), em uma
-branch `feature/req-XX-...`, com a numeração a partir do REQ-20.
+branch `feature/req-XX-...`, com a numeração a partir do REQ-21.
 
 | Ordem | Requisito | Origem | Escopo |
 |-------|-----------|--------|--------|
-| 1 | REQ-20 (em andamento, [spec](../specs/020-sonarqube-cloud/spec.md)) | [#18](https://github.com/LucasFrenhan/Order-Management-System/issues/18) — SonarQube Cloud | Análise estática de código no CI, com Quality Gate exigido na `main`. Em dois PRs: a integração e, depois da primeira análise da `main`, a situação de partida |
+| 1 | a abrir | Dívida técnica da análise estática ([situação de partida do REQ-20](../specs/020-sonarqube-cloud/research.md#dívida-técnica-code-smells-da-situação-de-partida)) | Os 63 code smells da primeira análise (nenhum crítico): log com argumento caro, IPs da proteção contra SSRF (intencionais), ajustes de desempenho e scripts de shell. Tratar quando um REQ mexer no código afetado, ou num REQ próprio |
 
 
 ## O que já está pronto para os próximos REQs

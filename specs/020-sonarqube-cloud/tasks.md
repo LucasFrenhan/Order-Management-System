@@ -77,7 +77,7 @@ da cobertura no painel).
 ### Phase 5: Polish do PR 1
 
 - [X] T010 `dotnet build`, `dotnet test` (suíte inteira com Docker, zero ignorados) e `dotnet format --verify-no-changes`; varredura do diff (nenhum token, só os valores públicos de organização e projeto); registrar em Notes.
-- [ ] T011 Push e PR 1 em português (Resumo, Pontos de atenção, Validação) com **`Refs #18`**, dizendo em Validação que nenhum documento de fluxo muda. Acompanhar `Build e testes` e `Demonstração` até ficarem verdes, inclusive depois de cada push. Conferir no PR: verificação `SonarCloud Code Analysis` e comentário do Quality Gate (US1, SC-001); no log do job, o token mascarado e nenhum valor dele (SC-005); a duração do job contra o último PR (SC-007); o nome exato do check e o `app.id` dele (`gh api repos/:owner/:repo/commits/<sha>/check-runs`) para a T016; e, pelos logs do scanner, que uma falha de autenticação apareceria sem o valor do token (caso de borda da credencial inválida, analyze D1). Registrar em Notes. O merge (rebase) é do dono.
+- [X] T011 Push e PR 1 em português (Resumo, Pontos de atenção, Validação) com **`Refs #18`**, dizendo em Validação que nenhum documento de fluxo muda. Acompanhar `Build e testes` e `Demonstração` até ficarem verdes, inclusive depois de cada push. Conferir no PR: verificação `SonarCloud Code Analysis` e comentário do Quality Gate (US1, SC-001); no log do job, o token mascarado e nenhum valor dele (SC-005); a duração do job contra o último PR (SC-007); o nome exato do check e o `app.id` dele (`gh api repos/:owner/:repo/commits/<sha>/check-runs`) para a T016; e, pelos logs do scanner, que uma falha de autenticação apareceria sem o valor do token (caso de borda da credencial inválida, analyze D1). Registrar em Notes. O merge (rebase) é do dono.
 
 ---
 
@@ -92,20 +92,20 @@ Depois do merge do PR 1: sync (nenhum PR aberto, `main` igual à remota) e a bra
 
 **Independent Test**: painel da `main` com 0 bugs, 0 vulnerabilidades e 0 pontos de segurança "To review" (SC-004), e a baseline no research.
 
-- [ ] T012 [US4] Conferir que o push do merge rodou a análise da `main` e registrar a **situação de partida** em `specs/020-sonarqube-cloud/research.md` (R-10), com a data, pelas APIs públicas do projeto: `api/measures/component` (`bugs`, `vulnerabilities`, `security_hotspots`, `code_smells`, `coverage`, `duplicated_lines_density`, `ncloc`), `api/qualitygates/project_status`, as condições do Quality Gate em uso e a definição de "código novo" em vigor no projeto (FR-016, R-08; analyze N1: se a definição deixar o badge da `main` sem sentido, propor ao dono trocá-la no painel). Conferir também a lista de arquivos analisados: nada de `Persistencia/Migracoes`, `specs/`, `.specify/`; `tests/` como teste (FR-009 a FR-011).
-- [ ] T013 [US4] Bugs e vulnerabilidades da baseline (`api/issues/search` com `types=BUG,VULNERABILITY`): corrigir cada um em `src/` com os testes existentes verdes, ou, se for falso positivo, preparar a justificativa para o dono marcar no painel; registrar o resultado na baseline (FR-018).
-- [ ] T014 [US4] Pontos de segurança (`api/hotspots/search`): tabela em `research.md` com arquivo, linha, regra, decisão e justificativa (credenciais só de desenvolvimento dos contêineres locais e dos testes; R-10). **Tarefa do dono**: marcar cada um como "Safe" no painel com a justificativa da tabela (a credencial não passa pela sessão). Conferir depois pela API: 0 "To review" (FR-017, SC-004).
-- [ ] T015 [P] [US4] Code smells da baseline que não forem corrigidos: seção "Dívida técnica" no `research.md` (contagem por regra e por projeto) e um item em `docs/proximos-passos.md` (FR-018).
+- [X] T012 [US4] Conferir que o push do merge rodou a análise da `main` e registrar a **situação de partida** em `specs/020-sonarqube-cloud/research.md` (R-10), com a data, pelas APIs públicas do projeto: `api/measures/component` (`bugs`, `vulnerabilities`, `security_hotspots`, `code_smells`, `coverage`, `duplicated_lines_density`, `ncloc`), `api/qualitygates/project_status`, as condições do Quality Gate em uso e a definição de "código novo" em vigor no projeto (FR-016, R-08; analyze N1: se a definição deixar o badge da `main` sem sentido, propor ao dono trocá-la no painel). Conferir também a lista de arquivos analisados: nada de `Persistencia/Migracoes`, `specs/`, `.specify/`; `tests/` como teste (FR-009 a FR-011).
+- [X] T013 [US4] Bugs e vulnerabilidades da baseline (`api/issues/search` com `types=BUG,VULNERABILITY`): corrigir cada um em `src/` com os testes existentes verdes, ou, se for falso positivo, preparar a justificativa para o dono marcar no painel; registrar o resultado na baseline (FR-018).
+- [X] T014 [US4] Pontos de segurança (`api/hotspots/search`): tabela em `research.md` com arquivo, linha, regra, decisão e justificativa (credenciais só de desenvolvimento dos contêineres locais e dos testes; R-10). **Tarefa do dono**: marcar cada um como "Safe" no painel com a justificativa da tabela (a credencial não passa pela sessão). Conferir depois pela API: 0 "To review" (FR-017, SC-004).
+- [X] T015 [P] [US4] Code smells da baseline que não forem corrigidos: seção "Dívida técnica" no `research.md` (contagem por regra e por projeto) e um item em `docs/proximos-passos.md` (FR-018).
 
 ### Phase 7: User Story 2 (P1), parte 2 — Quality Gate exigido
 
-- [ ] T016 [US2] Acrescentar ao `.github/rulesets/protecao-main.json` a verificação do Quality Gate com o nome conferido na T011 e o `integration_id` do app do SonarQube Cloud (R-09), e aplicar com `gh api -X PUT`; conferir em `rules/branches/main`.
+- [X] T016 [US2] Acrescentar ao `.github/rulesets/protecao-main.json` a verificação do Quality Gate com o nome conferido na T011 e o `integration_id` do app do SonarQube Cloud (R-09), e aplicar com `gh api -X PUT`; conferir em `rules/branches/main`.
 - [ ] T017 [US2] Validar o bloqueio (SC-002, quickstart §3): PR descartável com uma possível referência nula num serviço do Application e outro com um método público sem testes; os dois com o Quality Gate reprovado e o merge bloqueado; fechar os dois sem merge e apagar as branches. Conferir também que `git push origin HEAD:main` é recusado (FR-015). Registrar em Notes (links dos PRs fechados).
 
 ### Phase 8: User Story 3 (P1) e User Story 5 (P3), parte 2
 
-- [ ] T018 [US3] Conferir no painel a cobertura diferente de 0% e a no máximo 2 pontos da cobertura do resumo do job **da mesma execução** (SC-003; os módulos medidos mudaram na T002), com um trecho coberto só por teste de integração (por exemplo, `ArmazenamentoPedidos`) aparecendo como coberto; registrar em Notes.
-- [ ] T019 [P] [US5] `README.md`: badges do Quality Gate e da cobertura (`https://sonarcloud.io/api/project_badges/measure?project=LucasFrenhan_Order-Management-System&metric=alert_status` e `...&metric=coverage`, com link para o painel); `docs/estado-atual.md` e `docs/proximos-passos.md` com o REQ-20 entregue e a #18 fechada.
+- [X] T018 [US3] Conferir no painel a cobertura diferente de 0% e a no máximo 2 pontos da cobertura do resumo do job **da mesma execução** (SC-003; os módulos medidos mudaram na T002), com um trecho coberto só por teste de integração (por exemplo, `ArmazenamentoPedidos`) aparecendo como coberto; registrar em Notes.
+- [X] T019 [P] [US5] `README.md`: badges do Quality Gate e da cobertura (`https://sonarcloud.io/api/project_badges/measure?project=LucasFrenhan_Order-Management-System&metric=alert_status` e `...&metric=coverage`, com link para o painel); `docs/estado-atual.md` e `docs/proximos-passos.md` com o REQ-20 entregue e a #18 fechada.
 
 ### Phase 9: Polish do PR 2
 
@@ -168,3 +168,22 @@ versionada e os PRs de forks tratados.
   integração, 0 ignorados; cobertura do resumo **97,1%** (5332 de 5490 linhas, agora com Worker e
   API simulada). Varredura do diff: nenhum token, só a organização e o projeto. `resultados/`,
   `resultados-cobertura/` e `.sonarqube/` passaram a ser ignorados pelo Git.
+- **T011 (2026-11-02)**: PR #48. Primeira execução falhou no passo que separa a cobertura (dois
+  `*.cobertura.xml` com o mesmo nome em pastas diferentes): corrigido mantendo a pasta. A
+  segunda falhou num teste intermitente do REQ-19 (`UseKestrel(0)` na `FabricaPagamentos`:
+  "Addresses cannot be modified after the server has started"): o Kestrel passou a ouvir no
+  loopback com porta escolhida por ele (5 rodadas locais verdes). Terceira execução: `Build e
+  testes`, `Demonstração` e **`SonarCloud Code Analysis`** (app id **12526**) verdes, comentário
+  "Quality Gate passed" com 1 code smell novo (CA1822 em teste, corrigido no PR 2). Token
+  mascarado no log (`{"sonar.token":"***"}`); o `begin` autenticou. Duração do `Build e testes`:
+  8 min 51 s, contra 8 min 14 s e 10 min 49 s nos PRs do REQ-19 (dentro do SC-007). Merge por
+  rebase pelo auto-merge do GitHub (ligado a pedido do dono) às 22h53.
+- **T012 a T015 (2026-11-02)**: situação de partida, decisões dos bugs e das vulnerabilidades e
+  dívida técnica no research R-10. 0 pontos de segurança: a triagem do dono no painel não teve
+  item. Branch do PR 2: `feature/req-20-sonarqube-baseline` (a do PR 1 continua no remoto, com
+  os commits de antes do rebase; uma branch nova evita force push).
+- **T016**: ruleset com `SonarCloud Code Analysis` (`integration_id` 12526), aplicado e
+  versionado.
+- **T018**: cobertura do painel 97,0% contra 97,1% do resumo do job; `ArmazenamentoPedidos`
+  (coberto pela integração) com 92,4% e `ConsultaEstornosPendentes` com 100%; migrations fora da
+  análise.

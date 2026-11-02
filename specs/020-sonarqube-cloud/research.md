@@ -153,7 +153,66 @@ contêineres locais, documentados como de desenvolvimento no README e nos coment
 
 ### Situação de partida
 
-_A preencher no PR 2, com a data da primeira análise da `main`._
+Primeira análise completa da `main`: **2026-11-02 23:00 UTC**, commit `eb76ba8` (merge por
+rebase do PR #48), lida pelas APIs públicas do projeto.
+
+| Medida | Valor |
+|--------|-------|
+| Linhas de código (`ncloc`) | 11.008 |
+| Testes | 1.473 |
+| Cobertura de linhas | **97,0%** (o resumo do job da mesma execução deu 97,1%: diferença de 0,1 ponto, SC-003) |
+| Bugs | 1 (nota C de confiabilidade) |
+| Vulnerabilidades | 2 (nota C de segurança) |
+| Pontos de segurança (security hotspots) | **0** |
+| Code smells | 63 (nota A de manutenibilidade; dívida de 405 min) |
+| Duplicação | 0,5% |
+| Quality Gate da `main` | Aprovado |
+
+**Quality Gate em uso**: "Sonar way" (padrão da organização), sobre o código novo:
+`new_reliability_rating > 1`, `new_security_rating > 1`, `new_maintainability_rating > 1`,
+`new_coverage < 80`, `new_duplicated_lines_density > 3` e `new_security_hotspots_reviewed < 100`
+reprovam. Atende ao FR-013 (R-08).
+
+**Código novo**: a organização usa "versão anterior" (`previous_version`); como o projeto não
+informa versão, o período começa na primeira análise (2026-11-02 21:06, a análise automática
+antes de ser desativada). O badge da `main` reflete as mudanças desde então; nos PRs, o código
+novo é sempre o do PR. Fica como está (analyze N1).
+
+**Pontos de segurança**: nenhum. As credenciais só de desenvolvimento ficam em JSON, YAML e
+`.env.example`, que a regra de senha fixa do C# (S2068) não analisa; nos testes, as constantes
+de teste não foram sinalizadas. A triagem do FR-017 não teve item a revisar; a regra continua
+ativa, e uma credencial nova no código C# bloqueia o PR até ser revisada.
+
+**Bugs e vulnerabilidades** (FR-018), os três corrigidos no PR 2:
+
+| Regra | Onde | Decisão |
+|-------|------|---------|
+| S2583 (bug: condição sempre verdadeira) | `Infrastructure/Configuracao/OpcoesEstornos.cs:41` | Falso positivo do analisador: a função local acumulava as falhas numa lista capturada, e ele não acompanha esse efeito. Reescrito com a função local devolvendo a mensagem (ou nulo), fluxo explícito; os testes de `OpcoesEstornos` continuam verdes |
+| S2245 (vulnerabilidade: gerador aleatório sem segurança criptográfica), 2 ocorrências | `PagamentosSimulados/Simulacao/ControleSimulacao.cs:25` | O `Random` sorteia o comportamento da simulação e precisa aceitar a semente `Simulacao:Semente` (testes reproduzíveis); um gerador criptográfico não aceita semente. Supressão só nesse construtor, com `[SuppressMessage]` e a justificativa no código; a regra continua ativa no projeto |
+
+### Dívida técnica (code smells da situação de partida)
+
+Não bloqueiam este requisito (spec, FR-018). 63 no total: 44 informativos, 13 menores, 6
+maiores, nenhum crítico ou bloqueador.
+
+| Qtde | Regra | Do que se trata | Observação |
+|-----:|-------|-----------------|------------|
+| 20 | CA1873 | Argumento de log calculado mesmo com o nível desligado | Desempenho; pequeno nos volumes do projeto |
+| 13 | S1313 | Endereço IP fixo no código | Intencional: são as faixas privadas e reservadas da proteção contra SSRF dos webhooks (REQ-18); candidatos a "Won't fix" com justificativa |
+| 6 | CA1859 | Tipo de interface onde o concreto evitaria indireção | Desempenho |
+| 6 | CA1861 | Array constante como argumento repetido | Desempenho |
+| 5 | S7688 (shell) | `[` em vez de `[[` em script bash | `.github/scripts/resumo-testes.sh` e `docker/rabbitmq/iniciar.sh` |
+| 4 | CA1822 | Membro que poderia ser `static` | Um deles (`FabricaPagamentos.ChaveApi`, apontado no PR #48) já corrigido no PR 2 |
+| 2 | CA1826 | `Enumerable` sobre coleção indexável | Desempenho |
+| 2 | CA1869 | `JsonSerializerOptions` criado a cada uso | Desempenho |
+| 1 | S6966 | `RunAsync` em vez de `Run` | Programa da API |
+| 1 | ASP0027 | `public partial class Program` não é mais necessário | API |
+| 1 | CA2263 | Sobrecarga genérica de `CreateLogger` | Infrastructure |
+| 2 | xUnit1044/1045 | Tipo de dado de teste não serializável | Só afeta a listagem no Test Explorer |
+
+Por projeto: Infrastructure 24, testes de integração 10, API de pagamento simulada 9, testes
+unitários 8, Application 5, scripts de shell 5, API 2. Registrado em `docs/proximos-passos.md`
+como dívida a tratar quando um REQ mexer no código afetado.
 
 ## R-11. README e editor
 
