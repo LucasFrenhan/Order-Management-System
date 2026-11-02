@@ -279,7 +279,7 @@ entregas.
   - fluxo 3 (`ETag`/304 e aviso nas mudanças pela API), 7 (aviso no despacho; a pendência do `pedido.despachado` resolvida pelo `pedido.status-alterado`), 10 (aviso do estorno), 11 (limpeza de avisos e entregas), 12 (logs, métricas e span novos);
   - linha do fluxo 13 no índice `docs/fluxos/README.md`; o diagrama de estados não muda.
 - [X] T048 [P] Documentação do projeto: `README.md` e `docs/` (estado atual, próximos passos com a #18, mensageria com o evento novo) e a seção de eventos do contrato apontando o schema novo.
-- [ ] T049 Varredura de segredos (nenhuma chave real no diff, só a de desenvolvimento), `dotnet build`, `dotnet format --verify-no-changes` e a suíte local inteira com Docker (zero ignorados); registrar a contagem em Notes.
+- [X] T049 Varredura de segredos (nenhuma chave real no diff, só a de desenvolvimento), `dotnet build`, `dotnet format --verify-no-changes` e a suíte local inteira com Docker (zero ignorados); registrar a contagem em Notes.
 - [ ] T050 Executar o [quickstart](./quickstart.md) (§2 a §6) com API e Worker locais e registrar em Notes o que chegou ao receptor e ao `curl`, corrigindo o quickstart onde divergir.
 - [ ] T051 Push e PR em português (Resumo, Pontos de atenção, Validação) com `Closes #43`, citando em Validação os documentos de fluxo atualizados e, em Pontos de atenção, a revisão do R-05 (webhooks sem consumidor) e a decisão de a API ler o banco. Acompanhar `build-testes` e `contrato-compatibilidade` até ficarem verdes, **inclusive depois de cada push posterior**, e registrar em Notes.
 
@@ -394,3 +394,10 @@ o broker.
   das notificações) e o diagrama de estados sem mudança. README, `docs/estado-atual.md`,
   `docs/mensageria.md` e `docs/proximos-passos.md` (fila a partir do REQ-19, só a #18). Links
   relativos conferidos por script.
+- **T049 (2026-11-02)**: nenhum segredo no diff (só o vetor público do Standard Webhooks num
+  exemplo e as chaves marcadas como de desenvolvimento e de teste); `dotnet build` sem avisos;
+  `dotnet format --verify-no-changes` limpo; suíte local inteira com Docker: 769 unitários e 511
+  de integração, zero ignorados (1.280 no total; 1.129 na linha de base). Numa rodada sob carga,
+  o `Destino_fora_do_ar_nao_atrasa_o_outro` falhou por medir um prazo absoluto que incluía a
+  partida do Worker; passou a comparar o instante de chegada dos dois receptores. Outra rodada
+  foi descartada: a máquina dormiu no meio, e o banco de teste ficou inacessível por horas.

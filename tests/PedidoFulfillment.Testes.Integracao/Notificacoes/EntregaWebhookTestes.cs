@@ -168,15 +168,21 @@ public sealed class EntregaWebhookTestes(MensageriaTeste mensageria)
         var (cliente, _, _) = await ClienteAsync(api);
         var operador = await OperadorAsync(api);
         await using var lento = await ReceptorWebhookTeste.IniciarAsync();
-        lento.Roteiro = _ => (200, TimeSpan.FromSeconds(10));
+        lento.Roteiro = _ => (200, TimeSpan.FromSeconds(8));
         await using var rapido = await ReceptorWebhookTeste.IniciarAsync();
         await DestinoAsync(cliente, lento.Url());
         await DestinoAsync(cliente, rapido.Url());
         await PedidoComAvisoAsync(cliente, operador);
-        await using var worker = WorkerEnviando(mensageria, stringConexao);
+        // Tempo limite acima do atraso do lento: em série, o rápido só seria chamado 8 s depois.
+        await using var worker = WorkerEnviando(mensageria, stringConexao,
+            configuracoes: new Dictionary<string, string?> { ["Notificacoes:Envio:TempoLimiteSegundos"] = "15" });
         worker.CreateClient().Dispose();
 
-        (await EsperarRecebidasAsync(rapido, 1, TimeSpan.FromSeconds(8))).Should().BeTrue();
+        (await EsperarRecebidasAsync(lento, 1)).Should().BeTrue();
+        (await EsperarRecebidasAsync(rapido, 1)).Should().BeTrue();
+        // Relativo, e não absoluto: a partida do Worker sob carga não entra na conta.
+        (rapido.Recebidas.First().RecebidaEm - lento.Recebidas.First().RecebidaEm).Duration()
+            .Should().BeLessThan(TimeSpan.FromSeconds(4), "os dois destinos são chamados na mesma rodada, em paralelo");
     }
 
     [Fact]
