@@ -312,7 +312,7 @@ atual e o caminho para corrigir um Quality Gate vermelho.
 - **SC-002**: Um PR com um bug introduzido de propósito e um PR com código novo sem testes
   ficam ambos com o Quality Gate reprovado e com o merge bloqueado.
 - **SC-003**: A cobertura do projeto no painel é diferente de 0% e fica a no máximo 2 pontos
-  percentuais da cobertura que o CI já mede hoje para o mesmo código.
+  percentuais da cobertura mostrada no resumo do CI na mesma execução.
 - **SC-004**: Ao fim do requisito, há 0 pontos de segurança pendentes de revisão, 0 bugs e 0
   vulnerabilidades abertos no painel da `main`.
 - **SC-005**: A credencial de análise aparece em 0 logs e 0 arquivos versionados.
