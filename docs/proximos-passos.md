@@ -18,9 +18,56 @@ Cada trabalho novo segue o fluxo SDD (`/speckit-specify` → `/speckit-clarify` 
 `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`), em uma
 branch `feature/req-XX-...`, com a numeração a partir do REQ-21.
 
+A fila abaixo saiu do levantamento das pendências de todas as specs (2026-11-02). A ordem é
+uma sugestão; o número do REQ é dado quando o trabalho começa.
+
 | Ordem | Requisito | Origem | Escopo |
 |-------|-----------|--------|--------|
-| 1 | a abrir | Dívida técnica da análise estática ([situação de partida do REQ-20](../specs/020-sonarqube-cloud/research.md#dívida-técnica-code-smells-da-situação-de-partida)) | Os 63 code smells da primeira análise (nenhum crítico): log com argumento caro, IPs da proteção contra SSRF (intencionais), ajustes de desempenho e scripts de shell. Tratar quando um REQ mexer no código afetado, ou num REQ próprio |
+| 1 | a numerar | [#52](https://github.com/LucasFrenhan/Order-Management-System/issues/52) — Listagem de pedidos | `GET /api/v1/pedidos` paginado, com o escopo de cada perfil e filtros |
+| 2 | a numerar | [#53](https://github.com/LucasFrenhan/Order-Management-System/issues/53) — Catálogo de produtos | Cadastro, preço, estoque e ativação de produtos pela API |
+| 3 | a numerar | [#58](https://github.com/LucasFrenhan/Order-Management-System/issues/58) — Rate limiting | Limite de requisições no login e no registro |
+| 4 | a numerar | [#59](https://github.com/LucasFrenhan/Order-Management-System/issues/59) — Dependabot e CodeQL | Dependências vulneráveis e análise do CodeQL na cadeia de build |
+| 5 | a numerar | [#54](https://github.com/LucasFrenhan/Order-Management-System/issues/54) — Gestão de usuários | Usuários internos e perfis pelo Admin |
+| 6 | a numerar | [#55](https://github.com/LucasFrenhan/Order-Management-System/issues/55) — Ciclo da autenticação | Refresh token, logout, troca e recuperação de senha, confirmação de e-mail |
+| 7 | a numerar | [#60](https://github.com/LucasFrenhan/Order-Management-System/issues/60) — Rotação da chave JWT | Várias chaves com `kid` e rotação sem derrubar sessões |
+| 8 | a numerar | [#57](https://github.com/LucasFrenhan/Order-Management-System/issues/57) — Estornos pela operação | Forçar tentativa, dar baixa manual e evento de estorno travado |
+| 9 | a numerar | [#56](https://github.com/LucasFrenhan/Order-Management-System/issues/56) — Evolução do pagamento | Estudo: nova cobrança após recusa, estorno parcial, devolução, pagamento em análise e gateway real |
+| contínua | sem REQ | [#61](https://github.com/LucasFrenhan/Order-Management-System/issues/61) — Dívida técnica de code smells | Sem prazo: todo PR que corrigir code smells referencia a #61 (`Refs #61`) e atualiza a tabela dela |
+
+### Para análise futura (sem issue)
+
+Itens do mesmo levantamento que ficaram anotados, sem issue, para decidir depois:
+
+- **Negócio**
+  - Rastreio não validado com a transportadora; a correção do rastreio não gera aviso nem
+    evento (REQ-11, REQ-18).
+  - Notificações: SignalR, push, e-mail e SMS, reenvio manual de entrega esgotada, troca do
+    segredo sem recadastro e avisos retroativos (REQ-18).
+  - Pedidos pagos e cancelados antes do REQ-13 não foram estornados (passivo de dados; consulta
+    no [quickstart do REQ-13](../specs/013-cancelamento-com-estorno/quickstart.md#5-pedidos-pagos-e-cancelados-antes-do-req-13)).
+- **Segurança**: a demonstração roda em HTTP, sem certificado (REQ-07; só local).
+- **Operação e infraestrutura**
+  - Ambientes de homologação e produção, deploy e publicação de imagem (REQ-02, REQ-07).
+  - Alertas sobre as métricas que já existem (REQ-14, REQ-16).
+  - Purga da DLQ (apagar sem reenviar) pela API; hoje é pelo painel do RabbitMQ (REQ-14).
+  - Métrica de latência por etapa do pedido (REQ-16, R-07).
+  - Arquivamento dos dados apagados pela limpeza (REQ-14).
+  - Evento sem consumidor interno, publicado antes de um sistema de fora ligar a fila, é
+    descartado (REQ-15).
+  - Garantia de ordem do reenvio da DLQ só para filas clássicas; filas quorum exigiriam rever
+    (REQ-14).
+  - Pagamento: consumidor sequencial numa rajada de pedidos, circuito por instância e chamada
+    dentro da transação (REQ-19).
+  - SSE: reenvio limitado a 500 avisos e 7 dias; limite de conexões por instância (REQ-18).
+  - Chaves da API de pagamento simulada perdidas ao recriar o contêiner (REQ-19; aceito).
+- **Registro e processo**
+  - A data de ratificação da constituição está como `TODO(RATIFICATION_DATE)`.
+  - A T038 do `tasks.md` do REQ-13 está desmarcada, mas o PR foi mergeado.
+  - O fechamento de PRs de forks não foi testado de ponta a ponta (exige uma segunda conta), e o
+    push direto na `main` não foi tentado (REQ-20).
+  - Branches `feature/req-*` antigas acumuladas, locais e remotas.
+  - Nos testes, `RemoverConsumidor` deixa o descritor do consumidor, e a prontidão fica 503.
+  - O "código novo" do SonarQube usa "versão anterior", sem versão informada (REQ-20, mantido).
 
 
 ## O que já está pronto para os próximos REQs
