@@ -65,6 +65,9 @@ valendo, e a aplicação que reconecta recebe o que perdeu (FR-021).
 - Q: Ao abrir a conexão pela primeira vez, a aplicação recebe algo do estado atual? → A: Um
   evento de controle `conectado`, com o identificador do último aviso gravado como ponto de
   partida para o `Last-Event-ID`; depois, só os avisos novos (FR-021a).
+- Q: Qual o intervalo da leitura periódica do banco pela API? → A: 10 segundos (configurável),
+  por decisão do usuário no início do plan; a meta do SSE no SC-002 passou a 12 segundos
+  (FR-024, SC-002).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -159,7 +162,7 @@ aplicação reconecta e confirma o estado pelo `GET`.
 2026-11-01), mas depende do aviso da US1 e não tem a garantia de entrega do webhook.
 
 **Independent Test**: Abrir a conexão como Cliente, mudar o status de um pedido dele e de um
-pedido de outro Cliente, e conferir que só o primeiro aviso chega, em até 10 segundos.
+pedido de outro Cliente, e conferir que só o primeiro aviso chega, em até 12 segundos.
 
 **Acceptance Scenarios**:
 
@@ -265,14 +268,13 @@ identificador.
 - **Destino removido no meio de uma entrega**: o envio em andamento termina, e nada mais é
   tentado.
 - **Destino cadastrado depois do aviso**: não recebe avisos anteriores ao cadastro.
-- **Reentrega da mensagem ao processo de workers**: não cria entrega repetida para o mesmo
+- **Rodada de distribuição repetida ou interrompida**: não cria entrega repetida para o mesmo
   destino e o mesmo aviso.
 - **Receptor recebe duas vezes**: se o `2xx` se perde, o mesmo aviso chega de novo com o mesmo
   identificador; o receptor deduplica.
 - **Broker fora do ar**: as mudanças de status gravam normalmente; os avisos ficam no outbox e
-  saem quando o broker volta, e os webhooks atrasam junto. O SSE não depende do broker: as
-  conexões continuam recebendo os avisos, que a API lê do banco. As rotas da API não são
-  afetadas.
+  saem quando o broker volta. Os webhooks e o SSE não dependem do broker: os avisos são lidos
+  do banco, e continuam chegando. As rotas da API não são afetadas.
 - **Banco fora do ar**: as mudanças de status também não gravam, então não há aviso a perder;
   as conexões SSE continuam abertas com sinais de vida e voltam a receber quando o banco volta.
 - **Conexão SSE que cai**: a aplicação reconecta informando o último aviso recebido e recebe os
@@ -378,7 +380,7 @@ identificador.
 - **FR-023**: Cada usuário MUST ter no máximo 3 conexões abertas por instância da API
   (configurável); acima disso, `429` com `ProblemDetails`.
 - **FR-024**: Para levar os avisos até as conexões, cada instância da API MUST ler
-  periodicamente do banco, no máximo a cada 2 segundos (configurável), os avisos gravados
+  periodicamente do banco, a cada 10 segundos (configurável), os avisos gravados
   desde a última leitura, sem acesso ao broker; a API continua sem nenhuma permissão no broker
   (REQ-14). Cada instância lê por conta própria, sem coordenação com as outras. A leitura MUST
   NOT pular um aviso gravado por uma transação mais lenta nem entregar o mesmo aviso duas vezes
@@ -434,8 +436,9 @@ identificador.
 - **SC-001**: 100% das mudanças de status depois da implantação têm exatamente um
   `pedido.status-alterado`, inclusive o despacho e as mudanças pela API, que hoje não têm
   evento.
-- **SC-002**: Com o broker e o receptor no ar, o receptor do webhook e a conexão SSE recebem o
-  aviso em até 10 segundos depois da mudança, no ambiente de demonstração.
+- **SC-002**: Com o broker e o receptor no ar, o receptor do webhook recebe o aviso em até 10
+  segundos depois da mudança, e a conexão SSE em até 12 segundos (o intervalo de leitura de
+  10 segundos do FR-024 mais a consulta), no ambiente de demonstração.
 - **SC-003**: Com um receptor fora do ar, 100% das entregas são tentadas de novo até darem
   certo ou completarem 24 horas, e os outros destinos continuam recebendo no prazo do SC-002.
 - **SC-004**: 100% das notificações enviadas nos testes têm assinatura válida e passam no
@@ -464,8 +467,8 @@ identificador.
   Alternativas descartadas no clarify: a API consumir do broker (revia o REQ-14), notificação
   de mudança do próprio SQL Server, chamada do processo de workers para a API e Redis.
 - Novas tentativas e esgotamento das entregas de webhook ficam no banco, e não em filas por
-  destino no broker; a DLQ do consumidor de notificação (REQ-06) e o reenvio do REQ-14 seguem
-  valendo para a etapa que cria as entregas.
+  destino no broker; a criação das entregas também lê os avisos do banco, sem consumidor de
+  mensageria (plano, research R-05 revista), e a entrega `Esgotada` faz o papel da DLQ.
 - Nenhum pacote NuGet novo é esperado; se o plano precisar de algum, ele será justificado no
   `plan.md`.
 - Ficam fora do escopo: SignalR, push móvel e de navegador, e-mail e SMS, notificação da

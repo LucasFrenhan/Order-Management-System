@@ -7,6 +7,11 @@ quem acompanha um pedido quando o status dele muda, com as alternativas e o cust
 Se a decisão for aprovada, ele vira a base do `/speckit-specify` do REQ-18, e o `plan.md`
 herda as decisões R-01 a R-12.
 
+> **Revisões do plano (2026-11-01)**: o SSE entrou no escopo (specify), lendo os avisos do
+> banco, sem broker na API (clarify). Com isso, R-05 e R-11 foram revistas, e as decisões novas
+> R-13 a R-20 estão em [Revisões do plano](#revisões-do-plano-2026-11-01), no fim do documento.
+> Onde houver conflito, vale a revisão.
+
 ## Decisão proposta
 
 **Webhooks para sistemas, `ETag` no `GET` como linha de base, e nada de tempo real por
@@ -318,3 +323,229 @@ desenvolvedor, cadastro de dispositivos e um aplicativo que não existe.
 3. Escopo dos destinos: Cliente e Admin (proposta do R-04), ou só Admin?
 4. O `ETag` entra neste REQ ou fica para outro? Recomendação: neste, como história de
    prioridade menor.
+
+Respostas (specify, 2026-11-01): 1 sim, 2 não, 3 Cliente e Admin, 4 sim.
+
+## Revisões do plano (2026-11-01)
+
+Decisões tomadas no `/speckit-plan`, depois do specify (SSE incluído) e do clarify (SSE lendo
+do banco, reconexão limitada a 500 avisos, destinos globais da operação, evento `conectado`,
+leitura a cada 10 s). Código conferido na branch `feature/req-18-notificacao-status`
+(`57c3011`).
+
+### R-11 (revista) Tempo real: SSE lendo do banco
+
+**Decisão**: adotar SSE (spec, US3) e manter SignalR e push fora. A API **não** fala com o
+broker: cada instância lê periodicamente a tabela de avisos (R-13) e distribui para as conexões
+abertas (R-16). A decisão do REQ-14 continua valendo (o usuário `oms-api` sem permissões).
+
+**Por que não pelo broker**: a API dependeria do RabbitMQ, ganharia permissão de leitura e uma
+fila exclusiva por instância, e a reconexão não teria como reenviar o que se perdeu. Lendo do
+banco, a API usa só a dependência que já tem, e o reenvio com `Last-Event-ID` sai de graça.
+
+**Alternativas descartadas no clarify**: a API consumir do broker; `SqlDependency`/Service
+Broker ou CDC do SQL Server (frágeis com várias instâncias, difíceis de testar com
+Testcontainers); o Worker chamar a API por HTTP (precisa conhecer cada instância); Redis
+(contêiner e pacote novos).
+
+### R-13 Tabela de avisos e leitura sem lacunas com `MIN_ACTIVE_ROWVERSION()`
+
+**Decisão**: tabela nova `AvisosPedido` (data-model), uma linha por notificação, gravada pelo
+`ArmazenamentoPedidos.SalvarAsync` na mesma gravação da mudança (R-14). Ela guarda o **corpo
+pronto** da notificação (`notificacao.v1`), o pedido e o Cliente dono, e uma coluna
+`rowversion` (`Posicao`). Quem lê (a API, para o SSE, e o Worker, para os webhooks) usa:
+
+```sql
+SELECT TOP (@lote) ... FROM AvisosPedido
+WHERE Posicao > @cursor AND Posicao < MIN_ACTIVE_ROWVERSION()
+ORDER BY Posicao
+```
+
+**Motivo**: o `Id` `IDENTITY` é atribuído no `INSERT`, mas a linha só aparece no `COMMIT`; uma
+transação lenta pode gravar o `Id` 101 depois de o leitor já ter passado do 102 (caso de borda
+"transação lenta" da spec). O `rowversion` também é atribuído antes do commit, mas
+`MIN_ACTIVE_ROWVERSION()` devolve o menor valor ainda não confirmado do banco: lendo só abaixo
+dele, nenhuma linha confirmada depois pode aparecer atrás do cursor. Sem janela de releitura,
+sem deduplicação em memória e sem depender de relógio.
+
+**Por que não ler do outbox (`EventosSaida`)**: o conteúdo é o envelope do evento, não o corpo
+da notificação; o Cliente dono não está numa coluna (filtrar exigiria `JSON_VALUE` ou um `JOIN`
+com `Pedidos`); e a API passaria a depender do formato interno do outbox. A tabela própria
+custa um `INSERT` a mais por mudança, na mesma transação.
+
+**Alternativas**: janela de releitura de N segundos com deduplicação por `Id` (depende do
+tempo máximo de transação e guarda estado); ler só linhas com alguns segundos de idade (atrasa
+todo aviso e ainda falha com transação mais longa que a margem).
+
+### R-14 Geração dos avisos e do evento no `SalvarAsync`
+
+**Decisão**: ao lado da guarda do REQ-15, o `SalvarAsync` percorre o `ChangeTracker` antes do
+`SaveChangesAsync`:
+
+- cada `HistoricoStatusPedido` **adicionado** com `StatusAnterior` não nulo gera um
+  `EventoSaida` `pedido.status-alterado` (R-02) e um `AvisoPedido` do tipo
+  `pedido.status-alterado`, com o mesmo identificador (`IdEvento` = `IdNotificacao`);
+- cada `Pagamento` que passa de `EstornoPendente` a `Estornado` gera um `AvisoPedido` do tipo
+  `pedido.estorno-confirmado`, com o identificador do `pagamento.estornado` da mesma gravação
+  (a guarda do REQ-15 garante que ele existe).
+
+**Sequência**: posição da entrada no histórico do pedido (a criação é 1). O `SalvarAsync` exige
+o histórico carregado (`Navigation(...).IsLoaded`) e lança `InvalidOperationException` se não
+estiver, como a guarda do REQ-15: é erro de programação, não de dados. O `rowversion` do pedido
+impede duas gravações concorrentes da mesma sequência.
+
+**Origem**: `AutorId` nulo → `Worker`; autor com o perfil Admin ou OperadorLogistica →
+`Operacao`; senão → `Cliente`. Os perfis vêm de uma consulta a `AspNetUserRoles` (o contexto já
+é o do Identity), feita só quando há entrada com autor, ou seja, só nos caminhos da API. É a
+mesma regra do `EhOperacao` do `ServicoPedidos` (REQ-15), e cobre o Admin que também é Cliente.
+
+**Conferência dos caminhos** (R-02, "a conferir no plano"): todos os serviços que mudam pedido
+gravam pelo `SalvarAsync` (a guarda do REQ-15 já depende disso). A base de consumo
+(`ConsumidorEventos`) chama `SaveChangesAsync` direto só para o `EventoProcessado`; para pegar
+um manipulador futuro que esqueça o `SalvarAsync`, a base passa a recusar a gravação se houver
+`HistoricoStatusPedido` adicionado no `ChangeTracker` (a mensagem vai para novas tentativas e
+DLQ, e o teste da base cobre o caso).
+
+### R-05 (revista) Webhooks: distribuição pela tabela de avisos, sem consumidor
+
+**Decisão**: o Worker **não** cria um consumidor `notificacao`. O `ProcessadorNotificacoes`
+(rotina periódica, no molde do `ProcessadorEstornos`, com lock de aplicação `oms-notificacoes`)
+faz, a cada rodada:
+
+1. **Distribuição**: lê os avisos depois do cursor (R-13, mesma consulta do SSE), cria uma
+   `EntregaNotificacao` por destino ativo que deve receber cada aviso (globais + do Cliente
+   dono) e avança o cursor (`CursorNotificacoes`, uma linha) **na mesma transação**. Índice
+   único `(DestinoId, AvisoId)` contra repetição.
+2. **Envio**: pega as entregas vencidas, no máximo uma por destino, até 8 em paralelo, faz o
+   `POST` (R-06, R-08) e grava o resultado de cada uma.
+
+**Motivo da revisão**: com a tabela de avisos, o consumidor só repetiria o que ela já tem (o
+corpo, o Cliente dono) e exigiria dois manipuladores, um por tipo de evento de origem, pois a
+base de consumo trabalha com um tipo de dados por manipulador. Lendo a tabela, os webhooks e o
+SSE usam a mesma fonte, e os webhooks deixam de depender do broker: com o RabbitMQ fora do ar,
+continuam saindo. A falha na distribuição é de banco (não há chamada externa nela) e é tentada
+de novo na próxima rodada, sem avançar o cursor; o equivalente da DLQ para o envio continua
+sendo a entrega `Esgotada` (R-05 original). A spec foi ajustada nos dois pontos que citavam o
+consumidor (caso de borda do broker fora do ar e premissa da DLQ).
+
+**Intervalo**: 5 s (configurável), para o primeiro envio caber nos 10 s do SC-002.
+
+**Desativação**: ao esgotar uma entrega ou receber `410`, o destino fica inativo com o motivo,
+e as entregas pendentes dele viram `Descartada`. Enquanto inativo, a distribuição não cria
+entregas para ele (a spec: a reativação vale para os avisos novos).
+
+**Destino novo**: recebe só os avisos gravados depois do cadastro (`AvisoPedido.CriadoEm` maior
+ou igual ao `CriadoEm` do destino), o que cobre o caso de borda da spec mesmo com o cursor
+atrasado.
+
+### R-15 Rotas, segredo e chave de cifra
+
+- Rotas em `/api/v1/notificacoes` (contrato em `contracts/api-notificacoes.md`), num
+  `EndpointsNotificacoes` que só roteia, com o `ServicoDestinosNotificacao` no Application.
+- Política nova `PoliticaDestinosNotificacao` (Cliente ou Admin). OperadorLogistica: `403`.
+- Escopo: o Cliente vê os destinos com `ClienteId` igual ao dele; o Admin vê os globais
+  (`ClienteId` nulo), cadastrados por qualquer Admin (clarify). O resto responde `404`. Um
+  usuário com os dois perfis cadastra como Admin (global), pela mesma regra de operação do
+  REQ-15.
+- Limites (FR-010): 5 por Cliente, 5 globais no total, conferidos sob lock de aplicação por
+  dono (`oms-destinos:{dono}`) na transação do cadastro, para dois cadastros simultâneos não
+  passarem do limite.
+- Segredo: 32 bytes de `RandomNumberGenerator`, devolvido como `whsec_` + Base64 (formato do
+  Standard Webhooks). Cifrado com `AesGcm` (nonce de 12 bytes por segredo, tag de 16), com a
+  chave `Notificacoes:ChaveCifra` (Base64 de 32 bytes), lida pela API (cifra) e pelo Worker
+  (decifra). Sem a chave, ou com tamanho errado, o processo não sobe (validação de opções na
+  partida, como a chave do JWT). No compose e nos testes a chave vem da configuração.
+- SSRF no cadastro (R-08): o host é resolvido com `Dns.GetHostAddressesAsync`; qualquer
+  endereço proibido recusa o cadastro com `400`. A lista de faixas fica numa classe só
+  (`EnderecosProibidos`), usada no cadastro e no `ConnectCallback` do envio.
+
+### R-16 SSE na API
+
+- Rota `GET /api/v1/notificacoes/eventos` (opcional `?pedidoId=`), política de consulta
+  (todos os perfis), resposta `text/event-stream` com `TypedResults.ServerSentEvents` e
+  `SseItem<T>` do .NET 10 (sem pacote).
+- **`LeitorAvisos`** (`BackgroundService` da API, um por instância): a cada 10 s
+  (`Notificacoes:Sse:IntervaloLeituraSegundos`) lê os avisos depois do cursor em memória (R-13)
+  e publica para o **`DistribuidorAvisos`** (singleton), que entrega a cada conexão registrada
+  cujo filtro aceita o aviso (Cliente dono, operação, ou o pedido da conexão). Na partida o
+  cursor começa no último aviso confirmado: a instância não relê avisos antigos.
+- Cada conexão tem um `Channel` limitado (100 avisos); se encher (cliente lento), a conexão
+  recebe `sincronizacao-necessaria` e é encerrada, para não segurar memória.
+- **Abertura**: registra a conexão no distribuidor **antes** de ler o ponto de partida, e
+  descarta da fila os avisos com `Posicao` menor ou igual ao último já enviado, para não haver
+  lacuna nem repetição entre o reenvio e os avisos ao vivo.
+  - sem `Last-Event-ID`: envia `conectado` com o `id` do último aviso confirmado (ou
+    `00000000-0000-0000-0000-000000000000` com a tabela vazia, que quer dizer "antes do
+    primeiro aviso");
+  - com `Last-Event-ID`: procura a `Posicao` desse aviso e reenvia até 500 avisos visíveis ao
+    usuário; se o aviso não existir mais (limpeza de 7 dias) ou houver mais de 500, envia
+    `sincronizacao-necessaria` e segue com os novos.
+- **Sinal de vida**: evento `sinal` a cada 30 s sem aviso.
+- **Fim do token**: a conexão termina no `exp` do token.
+- **Limite**: 3 conexões por usuário por instância (`Notificacoes:Sse:ConexoesPorUsuario`);
+  acima disso, `429` com `ProblemDetails`, antes de abrir o stream.
+- **Falha da leitura**: log e nova tentativa no próximo ciclo; as conexões continuam com o sinal
+  de vida.
+
+### R-17 `ETag` no `GET`
+
+O `ServicoPedidos.ObterAsync` passa a devolver também a versão do pedido (o `rowversion`
+`Versao`, sombra no contexto, lido pelo armazenamento). O endpoint escreve
+`ETag: "<Base64Url da versão>"` (forte) e, com `If-None-Match` igual, responde `304` sem corpo.
+A autorização roda antes: pedido de outro Cliente continua `404`, com ou sem `If-None-Match`.
+`If-None-Match: *` não é tratado (sem semântica útil num `GET` de recurso existente). O `304`
+e o cabeçalho entram no `openapi-v1.yaml`; acréscimo de resposta não é quebra no `oasdiff`.
+
+### R-18 Configuração
+
+Seção nova `Notificacoes`, com validador (`FaixasOpcoes`), padrões:
+
+| Chave | Padrão | Faixa |
+|-------|--------|-------|
+| `ChaveCifra` | (obrigatória) | Base64 de 32 bytes |
+| `PermitirRedeLocal` | `false` | só aceito `true` em Development e nos testes |
+| `DestinosPorCliente` / `DestinosGlobais` | 5 / 5 | 1–50 |
+| `Envio:Habilitado` | `true` (testes: `false`, como os estornos) | — |
+| `Envio:IntervaloSegundos` | 5 | 1–300 |
+| `Envio:TempoLimiteSegundos` | 10 | 1–60 |
+| `Envio:Paralelismo` | 8 | 1–64 |
+| `Envio:LimiteHoras` | 24 | 1–168 |
+| `Sse:IntervaloLeituraSegundos` | 10 | 1–60 |
+| `Sse:ConexoesPorUsuario` | 3 | 1–100 |
+| `Sse:SinalDeVidaSegundos` | 30 | 5–300 |
+| `Sse:MaximoReenvio` | 500 | 1–10000 |
+
+A espera entre tentativas (30 s, 2 min, 10 min, 30 min, 1 h e depois 2 h) fica no código, como a
+do outbox. A limpeza do REQ-14 ganha `RetencaoAvisosHoras` (168) e `RetencaoEntregasHoras`
+(168): apaga avisos e entregas finalizadas mais antigos; aviso com entrega pendente não é
+apagado.
+
+### R-19 Observabilidade (complementa R-12)
+
+- Logs 10001 a 10014: 10001 destino cadastrado, 10002 removido, 10003 reativado, 10004
+  desativado (motivo), 10005 entregas criadas (resumo da distribuição), 10006 entregue, 10007
+  falha (código ou tipo do erro, próxima tentativa), 10008 esgotada, 10009 endereço recusado,
+  10010 resumo da rodada de envio, 10011 conexão SSE aberta, 10012 encerrada (motivo), 10013
+  recusada pelo limite, 10014 falha na leitura dos avisos. URL só com esquema e host.
+- Métricas novas: `oms.notificacoes.entregas` (contador, `oms.resultado`),
+  `oms.notificacoes.latencia` (histograma, s), `oms.notificacoes.pendentes` e
+  `oms.notificacoes.destinos_desativados` (gauges, Worker), `oms.notificacoes.sse.conexoes`
+  (gauge, API).
+- Trace: o `AvisoPedido` guarda o `ContextoRastreio` de quem gravou (REQ-16, interceptor já
+  existente); a entrega o copia, e o span `notificacao enviar` liga-se a ele por link.
+
+### R-20 Testes e documentos de fluxo
+
+- Unitários: geração dos avisos e da sequência, origem, assinatura (vetor conhecido do
+  Standard Webhooks), `EnderecosProibidos` (IPv4, IPv6, mapeado), cifra (ida e volta, tag
+  adulterada), espera entre tentativas, desativação, filtro do distribuidor, validador de
+  opções.
+- Integração (banco e broker reais): cada caminho de mudança do R-01; transação lenta (uma
+  transação aberta segurando um aviso enquanto outro é confirmado); receptor HTTP de teste com
+  Kestrel em porta local (`PermitirRedeLocal`), respondendo 200, 500, 410, lento e com
+  redirecionamento; SSE com `HttpClient` lendo o stream (autorização, filtro, `conectado`,
+  reconexão, `sincronizacao-necessaria`, limite, broker parado); rotas com 401, 403 e 404;
+  `ETag`/304; schemas.
+- Documentos de fluxo (Polish): fluxo novo `13-notificacao-de-status.md`, atualização dos
+  fluxos 3 (`ETag`, aviso nas mudanças pela API), 7 (aviso no despacho), 10 (aviso do estorno),
+  11 (limpeza de avisos e entregas), 12 (logs e métricas novos) e do índice.

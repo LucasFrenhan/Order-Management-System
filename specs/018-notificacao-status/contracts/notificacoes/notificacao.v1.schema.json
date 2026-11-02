@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/LucasFrenhan/Order-Management-System/specs/018-notificacao-status/contracts/notificacoes/notificacao.v1.schema.json",
+  "title": "notificacao v1",
+  "description": "Corpo do webhook e campo data do evento SSE (REQ-18). Sem dados pessoais, valores, itens, dados de pagamento, transportadora nem código de rastreio (FR-002, FR-004): o detalhe se consulta no link, com o próprio token.",
+  "type": "object",
+  "required": ["idNotificacao", "tipo", "versao", "ocorridoEm", "dados"],
+  "properties": {
+    "idNotificacao": { "type": "string", "format": "uuid" },
+    "tipo": { "enum": ["pedido.status-alterado", "pedido.estorno-confirmado"] },
+    "versao": { "const": 1 },
+    "ocorridoEm": { "type": "string", "format": "date-time" },
+    "dados": { "type": "object" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "tipo": { "const": "pedido.status-alterado" } } },
+      "then": { "properties": { "dados": { "$ref": "#/$defs/statusAlterado" } } }
+    },
+    {
+      "if": { "properties": { "tipo": { "const": "pedido.estorno-confirmado" } } },
+      "then": { "properties": { "dados": { "$ref": "#/$defs/estornoConfirmado" } } }
+    }
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "status": { "enum": ["Pendente", "Processando", "ProntoParaEnvio", "Despachado", "Cancelado", "PagamentoRejeitado"] },
+    "pedidoId": { "type": "string", "format": "uuid" },
+    "numero": { "type": "string", "pattern": "^PED-\\d{8}-\\d{6}$" },
+    "link": { "type": "string", "pattern": "^/api/v1/pedidos/[0-9a-fA-F-]{36}$" },
+    "statusAlterado": {
+      "type": "object",
+      "required": ["pedidoId", "numero", "statusAnterior", "statusNovo", "sequencia", "link"],
+      "properties": {
+        "pedidoId": { "$ref": "#/$defs/pedidoId" },
+        "numero": { "$ref": "#/$defs/numero" },
+        "statusAnterior": { "$ref": "#/$defs/status" },
+        "statusNovo": { "$ref": "#/$defs/status" },
+        "sequencia": { "type": "integer", "minimum": 2 },
+        "link": { "$ref": "#/$defs/link" }
+      },
+      "additionalProperties": false
+    },
+    "estornoConfirmado": {
+      "type": "object",
+      "required": ["pedidoId", "numero", "link"],
+      "properties": {
+        "pedidoId": { "$ref": "#/$defs/pedidoId" },
+        "numero": { "$ref": "#/$defs/numero" },
+        "link": { "$ref": "#/$defs/link" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

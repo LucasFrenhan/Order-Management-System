@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/LucasFrenhan/Order-Management-System/specs/018-notificacao-status/contracts/eventos/pedido.status-alterado.v1.schema.json",
+  "title": "pedido.status-alterado v1",
+  "description": "Publicado em toda mudança de status de um pedido, por qualquer caminho (REQ-18, FR-001), na mesma gravação da mudança. Não é publicado na criação do pedido nem na correção do rastreio.",
+  "type": "object",
+  "required": ["idEvento", "tipo", "versao", "ocorridoEm", "idCorrelacao", "dados"],
+  "properties": {
+    "idEvento": { "type": "string", "format": "uuid" },
+    "tipo": { "const": "pedido.status-alterado" },
+    "versao": { "const": 1 },
+    "ocorridoEm": { "type": "string", "format": "date-time" },
+    "idCorrelacao": { "type": "string", "format": "uuid" },
+    "dados": {
+      "type": "object",
+      "required": ["pedidoId", "numero", "statusAnterior", "statusNovo", "sequencia", "origem", "alteradoEm"],
+      "properties": {
+        "pedidoId": { "type": "string", "format": "uuid" },
+        "numero": { "type": "string", "pattern": "^PED-\\d{8}-\\d{6}$" },
+        "statusAnterior": { "$ref": "#/$defs/status" },
+        "statusNovo": { "$ref": "#/$defs/status" },
+        "sequencia": { "type": "integer", "minimum": 2 },
+        "origem": { "enum": ["Worker", "Cliente", "Operacao"] },
+        "alteradoEm": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "status": { "enum": ["Pendente", "Processando", "ProntoParaEnvio", "Despachado", "Cancelado", "PagamentoRejeitado"] }
+  }
+}
