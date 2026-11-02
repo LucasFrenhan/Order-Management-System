@@ -4,8 +4,9 @@
 **Origem**: REQ-12 ([spec](../../specs/012-publicacao-garantida/spec.md),
 [contrato](../../specs/012-publicacao-garantida/contracts/publicacao-e-reconciliacao.md),
 [research](../../specs/012-publicacao-garantida/research.md)), REQ-13
-([spec](../../specs/013-cancelamento-com-estorno/spec.md), esgotamento da etapa de entrega) e REQ-15
-([spec](../../specs/015-visibilidade-cancelamentos/spec.md), `pedido.cancelado` no esgotamento).
+([spec](../../specs/013-cancelamento-com-estorno/spec.md), esgotamento da etapa de entrega), REQ-15
+([spec](../../specs/015-visibilidade-cancelamentos/spec.md), `pedido.cancelado` no esgotamento) e
+REQ-19 ([spec](../../specs/019-gateway-pagamento-http/spec.md), cobrança pela rede e circuito).
 
 ## Para que serve
 
@@ -87,7 +88,7 @@ cancelado sem uma última tentativa.
 |-------|---------------|
 | Banco fora do ar | O ciclo termina com o log 9005 e é tentado no próximo intervalo, sem derrubar o Worker |
 | Broker fora do ar | Não afeta: a reconciliação só grava no banco. Os eventos de saída esperam no outbox |
-| Gateway fora do ar | Falha do pedido na etapa de pagamento; contagem e esgotamento como acima. O esgotamento da entrega não chama o gateway: o pedido é cancelado e só o estorno espera |
+| Gateway fora do ar | Falha do pedido na etapa de pagamento (log 9003); contagem e esgotamento como acima. A cobrança vai pela rede, com a mesma chave do pedido e as mesmas novas tentativas do consumidor ([fluxo 14](14-gateway-de-pagamento.md)); com o circuito aberto, a API nem é chamada, e o pedido também conta falha do ciclo (`GatewayPagamentoIndisponivelException`, REQ-19). O esgotamento da entrega não chama o gateway: o pedido é cancelado e só o estorno espera |
 
 ## Configuração (seção `Reconciliacao`, validada na partida)
 

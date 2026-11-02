@@ -11,15 +11,16 @@ verdade: estes documentos as consolidam por fluxo, de ponta a ponta.
 | 2 | [Criação de pedido](02-criacao-de-pedido.md) | API | 01, 04, 05, 16 |
 | 3 | [Consulta e mudança de status](03-consulta-e-mudanca-de-status.md) | API | 05, 08, 11, 13, 15, 18 |
 | 4 | [Reserva de estoque](04-reserva-de-estoque.md) | Worker | 08, 15 |
-| 5 | [Pagamento](05-pagamento.md) | Worker | 09, 13, 15 |
+| 5 | [Pagamento](05-pagamento.md) | Worker | 09, 13, 15, 19 |
 | 6 | [Ordem de entrega](06-ordem-de-entrega.md) | Worker | 10, 13, 15 |
 | 7 | [Despacho e rastreio](07-despacho-e-rastreio.md) | API | 11, 18 |
-| 8 | [Publicação de eventos e consumo](08-publicacao-e-consumo-de-eventos.md) | Worker | 06, 12, 14, 15, 16 |
-| 9 | [Reconciliação de pedidos parados](09-reconciliacao.md) | Worker | 12, 13, 15, 16 |
-| 10 | [Estorno](10-estorno.md) | Worker | 13, 15, 16, 18 |
+| 8 | [Publicação de eventos e consumo](08-publicacao-e-consumo-de-eventos.md) | Worker | 06, 12, 14, 15, 16, 17, 19 |
+| 9 | [Reconciliação de pedidos parados](09-reconciliacao.md) | Worker | 12, 13, 15, 16, 19 |
+| 10 | [Estorno](10-estorno.md) | Worker | 13, 15, 16, 18, 19 |
 | 11 | [Limpeza e reenvio da DLQ](11-limpeza-e-reenvio-da-dlq.md) | Worker e API (Admin) | 14, 16, 18 |
-| 12 | [Rastreabilidade e métricas](12-rastreabilidade-e-metricas.md) | API e Worker (transversal) | 16, 18 |
+| 12 | [Rastreabilidade e métricas](12-rastreabilidade-e-metricas.md) | API e Worker (transversal) | 16, 18, 19 |
 | 13 | [Notificação de mudança de status](13-notificacao-de-status.md) | API (destinos e SSE) e Worker (webhooks) | 18 |
+| 14 | [Gateway de pagamento por HTTP](14-gateway-de-pagamento.md) | Worker e API de pagamento simulada | 19 |
 
 ## O pedido de ponta a ponta
 
@@ -30,6 +31,7 @@ sequenceDiagram
     participant DB as SQL Server
     participant W as Worker
     participant MQ as RabbitMQ
+    participant P as API de pagamento
     actor O as Operação
     C->>API: POST /api/v1/pedidos
     API->>DB: pedido Pendente + chave de idempotência + pedido.criado (outbox)
@@ -39,6 +41,8 @@ sequenceDiagram
     MQ->>W: consumidor estoque
     W->>DB: reserva estoque + estoque.reservado (outbox)
     MQ->>W: consumidor pagamento
+    W->>P: POST /v1/cobrancas (Idempotency-Key: pedido)
+    P-->>W: 201 aprovada (PAG-…)
     W->>DB: pagamento Aprovado, Processando + pagamento.aprovado (outbox)
     MQ->>W: consumidor entrega
     W->>DB: ordem de entrega, ProntoParaEnvio + entrega.criada (outbox)
@@ -114,7 +118,7 @@ SQL, dados de conexão ou senhas.
 | SQL Server (Worker) | O Worker sobe; o despacho, o consumo e a reconciliação falham por ciclo e são tentados de novo | Despacho e reconciliação tentam no próximo ciclo; a mensagem consumida vai para as novas tentativas e, no fim, para a DLQ |
 | RabbitMQ (API) | Não afeta: a API só confere a prontidão do broker, com o usuário próprio `oms-api`, sem permissões (REQ-14) | Não afeta: os eventos ficam pendentes no outbox, e os pedidos de reenvio da DLQ, pendentes no banco |
 | RabbitMQ (Worker) | O Worker sobe; a prontidão (`/health/pronto`) mostra o broker e os consumidores indisponíveis; consumidores e despachante se conectam quando ele voltar | Os eventos ficam pendentes no outbox, com espera crescente até 10 s entre tentativas; os consumidores voltam sozinhos em até 1 min depois de o broker voltar, e a prontidão do Worker mostra `consumidores: Unhealthy` enquanto isso (REQ-17) |
-| Gateway de pagamento | — | A cobrança falha: novas tentativas, DLQ e, se o pedido continuar parado, a reconciliação. O estorno fica pendente e é tentado a cada rodada; o cancelamento não depende do gateway |
+| API de pagamento (REQ-19) | O Worker sobe; sem `GatewayPagamento:UrlBase` ou `ChaveApi` válidas, não sobe | Falhas passageiras são repetidas na mesma chamada, com a mesma chave. Sem resultado, a cobrança segue as novas tentativas, a DLQ e a reconciliação. Numa queda, o circuito abre: o consumo de pagamento pausa sem DLQ e retoma sozinho, e os estornos ficam adiados. O cancelamento não depende do gateway (fluxo 14) |
 | Destino da telemetria (REQ-16) | Não afeta: sem destino, a telemetria fica desligada | Não afeta: a exportação é em segundo plano e descarta o que não consegue enviar |
 
 Cada documento detalha a sua parte.

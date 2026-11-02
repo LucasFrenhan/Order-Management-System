@@ -12,15 +12,17 @@ estão em [`docs/fluxos/`](docs/fluxos/README.md).
 
 ## Estado atual
 
-Os REQ-01 a REQ-18 estão entregues: o pedido vai da criação ao despacho com rastreio, com
+Os REQ-01 a REQ-19 estão entregues: o pedido vai da criação ao despacho com rastreio, com
 estoque, pagamento e entrega assíncronos, publicação garantida, estorno, limpeza e reenvio da
-DLQ, rastreabilidade de ponta a ponta, recuperação dos consumidores e notificação de mudança de
-status por webhooks e SSE. O que cada REQ entregou, com o link para a spec, está em
+DLQ, rastreabilidade de ponta a ponta, recuperação dos consumidores, notificação de mudança de
+status por webhooks e SSE e o pagamento feito pela rede, numa API de pagamento simulada com
+latência, falhas e circuito. O que cada REQ entregou, com o link para a spec, está em
 [Estado atual](docs/estado-atual.md).
 
 ## Demonstração rápida
 
-Só com Docker (sem o SDK do .NET), um comando sobe banco, broker, API e Worker:
+Só com Docker (sem o SDK do .NET), um comando sobe banco, broker, a API de pagamento simulada,
+a API e o Worker:
 
 ```powershell
 docker compose --profile demo up -d --wait --build   # primeira vez constrói as imagens
@@ -33,6 +35,7 @@ docker compose --profile demo down                   # para; os dados continuam 
 | Prontidão | <http://localhost:5230/health/pronto> |
 | Contrato navegável | <http://localhost:5230/scalar/v1> |
 | Prontidão do Worker | <http://localhost:5231/health/pronto> |
+| API de pagamento simulada (REQ-19) | <http://localhost:5232/health>; rota de controle com `X-Chave-Controle: controle-dev-local-2026` ([fluxo 14](docs/fluxos/14-gateway-de-pagamento.md)) |
 | Painel do RabbitMQ | <http://localhost:15672> (`oms` / `oms-dev-local`) |
 | Painel de telemetria (traces, métricas e logs) | <http://localhost:18888> (sem login; só local) |
 
@@ -51,7 +54,7 @@ catálogo inicial (`CAT-001` a `CAT-010`).
 ## Próximos passos
 
 As issues de negócio do roteiro original (#1 a #11) já foram entregues, e o próximo trabalho
-começa no REQ-19. A fila de requisitos, o que os REQs anteriores deixaram pronto para
+começa no REQ-20. A fila de requisitos, o que os REQs anteriores deixaram pronto para
 reaproveitar e as decisões já tomadas estão em [Próximos passos](docs/proximos-passos.md).
 
 ## Pré-requisitos
@@ -63,13 +66,14 @@ Roteiros de validação: [ambiente](specs/002-setup-infraestrutura/quickstart.md
 
 ## Ambiente local
 
-O banco (SQL Server 2022) e o broker (RabbitMQ) rodam em contêineres; a API roda pelo SDK.
+O banco (SQL Server 2022), o broker (RabbitMQ) e a API de pagamento simulada (REQ-19) rodam em
+contêineres; a API e o Worker rodam pelo SDK.
 Pré-requisito: Docker com Compose v2 (`docker compose version`; no Windows,
 `winget install Docker.DockerDesktop`).
 
 ```powershell
-docker compose up -d --wait   # retorna só quando os dois serviços estão saudáveis
-docker compose ps             # sqlserver e rabbitmq aparecem como "healthy"
+docker compose up -d --wait --build   # retorna só quando os três serviços estão saudáveis
+docker compose ps                     # sqlserver, rabbitmq e pagamentos aparecem como "healthy"
 docker compose down           # para; os dados continuam nos volumes
 docker compose down -v        # para e apaga os dados locais (recomeçar do zero)
 ```
@@ -80,6 +84,7 @@ docker compose down -v        # para e apaga os dados locais (recomeçar do zero
 | RabbitMQ (AMQP), Worker | `localhost:5672` | usuário `oms`, senha `oms-dev-local` |
 | RabbitMQ (AMQP), API | `localhost:5672` | usuário `oms-api`, senha `oms-api-dev-local`; só conecta para a prontidão (REQ-14) |
 | Painel do RabbitMQ | <http://localhost:15672> | usuário `oms`, senha `oms-dev-local` |
+| API de pagamento simulada | <http://localhost:5232> | `X-Api-Key: oms-pagamentos-dev-local-2026` (a do Worker em Development) e `X-Chave-Controle: controle-dev-local-2026` (rota de controle); trocáveis por `OMS_PAGAMENTOS_CHAVE_API` e `OMS_PAGAMENTOS_CHAVE_CONTROLE` |
 
 Essas credenciais valem **só para os contêineres locais** e não são segredos reais. O broker
 sobe pelo script `docker/rabbitmq/iniciar.sh`, que cria o usuário `oms-api` com permissões
@@ -167,7 +172,9 @@ Roteiro completo de validação: [`quickstart.md`](specs/001-contratos-api/quick
 
 Os eventos de domínio trafegam pelo RabbitMQ, publicados por outbox e consumidos pelo
 processo `PedidoFulfillment.Worker` (estoque, pagamento, entrega, reconciliação, estorno,
-limpeza e reenvio da DLQ). A topologia, as regras de cada consumidor, as seções de
+limpeza e reenvio da DLQ). O pagamento e o estorno chamam a API de pagamento simulada pela rede
+(seção `GatewayPagamento`; em Development, `http://localhost:5232`), com novas tentativas,
+circuito e pausa do consumo numa queda ([fluxo 14](docs/fluxos/14-gateway-de-pagamento.md)). A topologia, as regras de cada consumidor, as seções de
 configuração e os logs estão em [Mensageria](docs/mensageria.md).
 
 Para rodar o Worker localmente, com o [ambiente local](#ambiente-local) no ar e a API já
@@ -237,7 +244,7 @@ bash .github/scripts/resumo-testes.sh resultados
 ## Estrutura
 
 ```text
-docker-compose.yml                   ambiente local: SQL Server + RabbitMQ; perfil demo com a API
+docker-compose.yml                   ambiente local: SQL Server + RabbitMQ + API de pagamento simulada; perfil demo com a API
 .env.example                         variáveis OMS_* para trocar portas e credenciais locais
 .config/dotnet-tools.json            ferramenta local dotnet-ef (migrations)
 .github/workflows/                   build-testes (CI) e compatibilidade do contrato
@@ -259,11 +266,14 @@ src/
                                      pedido, migrations, preparação e catálogo inicial),
                                      mensageria (Mensageria/: conexão, topologia, despachante
                                      do outbox, base de consumo), gateway de pagamento
-                                     simulado (Pagamentos/), configuração e saúde
+                                     por HTTP com resiliência (Pagamentos/), configuração e saúde
   PedidoFulfillment.API/             Minimal APIs (só roteamento), segurança (validação e
                                      emissão de JWT), erros, OpenAPI; Dockerfile da demonstração
   PedidoFulfillment.Worker/          processo dos consumidores (estoque e pagamento) e do despachante do outbox
                                      (só /health e /health/pronto); Dockerfile
+  PedidoFulfillment.PagamentosSimulados/  API de pagamento simulada (REQ-19): cobrança, estorno e
+                                     consulta pela chave, em memória, com latência, falhas e
+                                     rota de controle; sem referência ao OMS; Dockerfile
 tests/
   PedidoFulfillment.Testes.Unitarios/   DTOs, configurações, regras de autenticação, de pedidos,
                                         de estoque, de pagamento e de mensageria, e entidades do domínio
@@ -277,4 +287,6 @@ specs/                               especificações SDD (spec, plano, tarefas,
 
 Direção de dependências, garantida pelo teste de arquitetura: Domain não depende de nenhum
 projeto; Application depende de Domain; Infrastructure depende de Application e Domain; API
-e Worker dependem de Application, Infrastructure e Domain, e não se referenciam.
+e Worker dependem de Application, Infrastructure e Domain, e não se referenciam. A API de
+pagamento simulada não referencia nenhum projeto do OMS, e nenhum projeto do OMS a referencia:
+o Worker a chama só pela rede.

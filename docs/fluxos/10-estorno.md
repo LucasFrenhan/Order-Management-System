@@ -7,7 +7,9 @@ pagamento (fluxo 5).
 [contrato](../../specs/013-cancelamento-com-estorno/contracts/estorno-e-cancelamento.md),
 [research](../../specs/013-cancelamento-com-estorno/research.md)), issue #28, e REQ-15
 ([spec](../../specs/015-visibilidade-cancelamentos/spec.md), `pagamento.estornado`), issue #29, e
-REQ-18 ([spec](../../specs/018-notificacao-status/spec.md), aviso do estorno), issue #43.
+REQ-18 ([spec](../../specs/018-notificacao-status/spec.md), aviso do estorno), issue #43, e REQ-19
+([spec](../../specs/019-gateway-pagamento-http/spec.md), estorno pela rede e adiamento com o
+circuito aberto), issue #46. A chamada ao gateway está no [fluxo 14](14-gateway-de-pagamento.md).
 
 ## Para que serve
 
@@ -69,7 +71,7 @@ pedido, com os identificadores do gateway, que continuam fora dos logs:
 ```json
 { "tipo": "pagamento.estornado", "versao": 1, "idCorrelacao": "0199f1a2-…",
   "dados": { "pedidoId": "0199f1a2-…", "numero": "PED-20261024-000001", "valor": 149.70,
-             "identificadorTransacao": "SIM-0199f1a1…", "identificadorEstorno": "SIM-EST-0199f1a3…",
+             "identificadorTransacao": "PAG-0199f1a1…", "identificadorEstorno": "EST-0199f1a3…",
              "estornadoEm": "2026-10-24T15:21:00+00:00" } }
 ```
 
@@ -93,8 +95,9 @@ novos de saírem (índice filtrado `IX_Pagamentos_EstornoPendente`).
 | Situação | Resultado | Por quê |
 |----------|-----------|---------|
 | Gateway confirma | `Estornado`, com `IdentificadorEstorno` e `EstornadoEm` | — |
-| Gateway recusa (resposta válida, negativa) | Conta como falha: continua `EstornoPendente`, log 7007 com "Recusado: …" | O dinheiro do Cliente precisa voltar; a recusa não encerra o estorno |
-| Gateway lança exceção ou não responde | Continua `EstornoPendente`, `TentativasEstorno + 1`, log 7007 | Tenta na próxima rodada |
+| Gateway recusa (resposta válida, negativa: `"Cobrança desconhecida."` ou `"Valor diferente do cobrado."`) | Conta como falha: continua `EstornoPendente`, log 7007 com "Recusado: …" | O dinheiro do Cliente precisa voltar; a recusa não encerra o estorno |
+| Gateway sem resultado depois das tentativas da chamada (fluxo 14) | Continua `EstornoPendente`, `TentativasEstorno + 1`, log 7007 | Tenta na próxima rodada. Uma falha passageira isolada é resolvida dentro da chamada, sem contar tentativa |
+| Circuito do gateway aberto (REQ-19) | **Adiado**: continua `EstornoPendente`, sem gravar nada e **sem** contar tentativa; a rodada termina ali (log 7020) | A API está fora do ar: chamá-la de novo para cada estorno não adianta, e contar tentativa anteciparia o alerta 7008 |
 | Mais de `LimiteAlertaSegundos` desde o pedido de estorno **e** pelo menos `TentativasAlerta` tentativas | Log 7008 (Error) a cada nova falha; continua sendo tentado | Sinal para a operação agir fora do sistema; o estorno **nunca desiste** |
 | O estorno já não está pendente quando a rodada o relê | Nada a fazer | Outra instância já confirmou |
 
@@ -103,7 +106,7 @@ novos de saírem (índice filtrado `IX_Pagamentos_EstornoPendente`).
 | Caso | Resultado | Por quê |
 |------|-----------|---------|
 | Dois Workers ao mesmo tempo | Um só estorno no gateway; o outro Worker pula a rodada (log 7011) | `sp_getapplock 'oms-estornos'`, liberado com `sp_releaseapplock` no fim da rodada |
-| Gateway confirma e o Worker cai antes de gravar | A rodada seguinte pede de novo e recebe **o mesmo estorno** | O pedido é a chave de idempotência do estorno (FR-013) |
+| Gateway confirma e o Worker cai antes de gravar, ou a resposta não chega | A rodada seguinte (ou a nova tentativa da mesma chamada) pede de novo e recebe **o mesmo estorno** | O pedido é a chave de idempotência do estorno (FR-013), guardada na API (REQ-19) |
 | Conflito de concorrência ao gravar a confirmação | Relê e grava de novo, sem chamar o gateway, até 3 vezes; esgotadas, log 7007 sem contar tentativa, e a rodada seguinte recebe o mesmo estorno | O gateway confirmou: não é falha do estorno |
 | Conflito ao gravar a falha | A tentativa não é contada; a rodada seguinte trata o pedido de novo | Nada é gravado sobre um estado antigo |
 | Dois cancelamentos do mesmo pedido | Um só `EstornoPendente` (o segundo cancelamento responde 409) | Concorrência otimista no pedido |
@@ -112,7 +115,8 @@ novos de saírem (índice filtrado `IX_Pagamentos_EstornoPendente`).
 
 | Falha | Comportamento |
 |-------|---------------|
-| Gateway fora do ar | Os cancelamentos continuam; os estornos ficam pendentes e são tentados a cada rodada, com 7008 depois de 24 h e 3 tentativas |
+| Gateway fora do ar | Os cancelamentos continuam; os estornos ficam pendentes. Enquanto o circuito não abre, cada rodada conta tentativa (7008 depois de 24 h e 3 tentativas); com o circuito aberto, a rodada adia sem contar (7020) |
+| API de pagamento recriada (chaves apagadas) | O estorno de uma cobrança que a API não conhece é recusado com `"Cobrança desconhecida."` e continua pendente, com 7007 e, depois do limite, 7008 (fluxo 14) |
 | Worker fora do ar | Os cancelamentos continuam pela API; os estornos esperam até o Worker voltar e saem na primeira rodada |
 | Banco fora do ar | A rodada termina com o log 7010 e é tentada no próximo intervalo, sem derrubar o Worker. Um erro num pedido também vai para o 7010, com o id do pedido, e os demais seguem |
 | Broker fora do ar | Não afeta o estorno: o `pagamento.estornado` fica pendente no outbox e sai quando o broker volta (fluxo 8) |
@@ -143,12 +147,14 @@ processador por padrão.
 | 7010 `FalhaRodadaEstornos` | Warning | Falha da rodada inteira, ou erro inesperado num pedido |
 | 7011 `RodadaEstornosIgnorada` | Debug | Outra instância tem o lock |
 | 7012 `ResumoEstornos` | Information se tratou algo; Debug se não | Fim de cada rodada |
+| 7020 `EstornosAdiados` | Warning | Rodada encerrada com o circuito do gateway aberto (quantidade adiada e até quando, REQ-19) |
 
 Nenhum log traz o identificador da transação ou do estorno, nem dado pessoal.
 
 Com a telemetria ligada (REQ-16), cada rodada que pega o lock é um trace `processar_estornos`,
 e cada estorno é um passo `estornar pedido`, com `oms.pedido.id`, `oms.resultado` (`confirmado`,
-`falhou`) e um link para o trace de criação do pedido. A métrica `oms.rotinas.itens`
+`falhou`, `circuito_aberto`) e um link para o trace de criação do pedido; dentro dele, o span
+`estornar pagamento` com um span HTTP por tentativa (REQ-19). A métrica `oms.rotinas.itens`
 (`oms.rotina = estornos`) conta os resultados. A rodada ignorada (7011) não gera trace.
 Detalhes no [fluxo 12](12-rastreabilidade-e-metricas.md).
 
@@ -160,7 +166,7 @@ Detalhes no [fluxo 12](12-rastreabilidade-e-metricas.md).
   fora do sistema.
 - Estorno sempre do valor total; estorno parcial e devolução de pedido despachado ficam fora do
   escopo.
-- O gateway simulado guarda as chaves de idempotência em memória, e elas se perdem quando o
-  Worker reinicia; um gateway real guarda as chaves do lado dele.
+- Resolvida pela #46 (REQ-19): as chaves de idempotência ficam na API de pagamento, e não se
+  perdem mais quando o Worker reinicia. Recriar a própria API simulada ainda as apaga (fluxo 14).
 - Pedidos cancelados com pagamento aprovado antes do REQ-13 não são estornados
   automaticamente ([quickstart, §5](../../specs/013-cancelamento-com-estorno/quickstart.md#5-pedidos-pagos-e-cancelados-antes-do-req-13)).

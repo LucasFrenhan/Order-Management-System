@@ -25,9 +25,9 @@ Os eventos de domínio trafegam pelo RabbitMQ ([spec](../specs/006-mensageria/sp
   reservado devolve o estoque na mesma gravação.
 - **Pagamento** (REQ-09, [consumidor de pagamento](../specs/009-pagamento/contracts/consumidor-pagamento.md)):
   o consumidor `pagamento` (fila `oms.pagamento`) recebe `estoque.reservado` e cobra o valor
-  total num gateway simulado, que aprova com a chance de
-  `GatewayPagamento:TaxaAprovacaoPercentual` (padrão 90, de 0 a 100; fora disso o Worker não
-  sobe). Aprovado, o pedido vai de `Pendente` para `Processando` e sai `pagamento.aprovado`.
+  total na API de pagamento simulada, pela rede (REQ-19, [fluxo 14](fluxos/14-gateway-de-pagamento.md)),
+  que aprova 90% por padrão; falhas passageiras são repetidas com a mesma chave, e uma queda
+  abre o circuito e pausa o consumo de pagamento, sem DLQ. Aprovado, o pedido vai de `Pendente` para `Processando` e sai `pagamento.aprovado`.
   Recusado, o pedido vai para `PagamentoRejeitado` (final), o estoque volta na mesma
   gravação e sai `pagamento.recusado`. Pedido cancelado, em status final ou já pago é
   ignorado.

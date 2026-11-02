@@ -35,9 +35,13 @@ curl -s -o /dev/null -w '%{http_code}\n' $PAG/controle/comportamento \
 ## 3. Caminho feliz com latência variável
 
 1. Com o comportamento padrão, criar 20 pedidos pela API do OMS (login do Cliente e
-   `POST /api/v1/pedidos`, como no [quickstart do REQ-09](../009-pagamento/quickstart.md)).
-2. Esperar até 15 s e consultar: cada pedido está em `Processando` (identificador `PAG-…` no
-   evento `pagamento.aprovado`) ou em `PagamentoRejeitado`.
+   `POST /api/v1/pedidos`, como no [quickstart do REQ-09](../009-pagamento/quickstart.md)), um
+   a cada meio segundo. O catálogo inicial tem produtos sem estoque: use `CAT-001` a `CAT-007`.
+2. Esperar até 15 s e consultar: cada pedido está em `ProntoParaEnvio` (identificador `PAG-…`
+   no evento `pagamento.aprovado`) ou em `PagamentoRejeitado`. Para medir a latência, use os
+   instantes gravados (`Pedidos.CriadoEm` e `HistoricosStatusPedido.OcorridoEm`), não o tempo
+   de consulta: varrer muitos pedidos pela API infla a medida. Uma rajada de dezenas de
+   pedidos de uma vez faz fila no consumidor de pagamento, que trata uma mensagem por vez.
 3. No painel (`http://localhost:18888`), abrir o trace de um pedido: há o span `cobrar
    pagamento` com um ou mais spans de cliente HTTP `POST`, de durações diferentes entre os
    pedidos.
@@ -49,9 +53,11 @@ curl -s -X POST $PAG/controle/roteiro -H "X-Chave-Controle: $CHAVE_CONTROLE" \
   -H 'Content-Type: application/json' -d '{"comportamentos":["indisponivel","aprovar"]}'
 ```
 
-Criar um pedido. Esperado: `Processando`; no log do Worker, um 7013 `FalhaPassageiraGateway`
-(tipo `indisponivel`, tentativa 1); no trace, dois spans HTTP (`503` e `201`);
-`GET /controle/operacoes/cobranca/<pedidoId>` mostra `efetivacoes: 1`, `chamadas: 2`.
+Criar um pedido. Esperado: `Processando` (ou `ProntoParaEnvio`, com a entrega do perfil demo);
+no log do Worker, um 7013 `FalhaPassageiraGateway` (tipo `indisponivel`, tentativa 1); no trace,
+dois spans HTTP (`503` e `201`); `GET /controle/operacoes/cobranca/<pedidoId>` mostra
+`efetivacoes: 1`, `chamadas: 1`: a chamada que falhou não cria a operação na API (só as que
+efetivam são guardadas), e `GET /controle/comportamento` conta as duas em `chamadasRecebidas`.
 
 ## 5. Resultado incerto
 
@@ -93,7 +99,9 @@ estorno pendente e, na rodada seguinte, `pagamento.estornado`.
 
 ## 8. Estorno com o circuito aberto
 
-Com o modo `indisponivel`, cancelar um pedido pago pela operação. Esperado: 7020
+Com o modo `indisponivel`, cancelar um pedido pago pela operação e criar alguns pedidos novos.
+As rodadas de estorno (uma por minuto) sozinhas não juntam as 6 chamadas em 30 s que abrem o
+circuito; as cobranças dos pedidos novos o abrem, como numa queda de verdade. Esperado: 7020
 `EstornosAdiados`, o pagamento continua `EstornoPendente` sem tentativa contada; desfeito o
 modo, o estorno é confirmado na rodada seguinte.
 

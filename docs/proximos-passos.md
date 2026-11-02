@@ -9,10 +9,13 @@ dados de mensageria que cresciam sem limite e trocou o painel do broker por um r
 controlado, e o REQ-15 tornou os cancelamentos e os estornos visíveis para outros sistemas. O
 REQ-16 trouxe a rastreabilidade de ponta a ponta do pedido, com métricas da mensageria, e o
 REQ-17 fez os consumidores voltarem sozinhos depois de o broker reiniciar (issue #41). O REQ-18
-avisa quem acompanha um pedido quando o status muda, por webhooks e por SSE (issue #43).
+avisa quem acompanha um pedido quando o status muda, por webhooks e por SSE (issue #43), e o
+REQ-19 tirou o pagamento do processo de workers: a cobrança e o estorno vão pela rede a uma API
+de pagamento simulada, com latência, falhas, novas tentativas seguras, circuito e pausa do
+consumo (issue #46).
 Cada trabalho novo segue o fluxo SDD (`/speckit-specify` → `/speckit-clarify` →
 `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`), em uma
-branch `feature/req-XX-...`, com a numeração a partir do REQ-19.
+branch `feature/req-XX-...`, com a numeração a partir do REQ-20.
 
 | Ordem | Requisito | Origem | Escopo |
 |-------|-----------|--------|--------|
@@ -38,7 +41,8 @@ branch `feature/req-XX-...`, com a numeração a partir do REQ-19.
   `EstoqueReservado`; o consumidor `ReservaEstoque` é o exemplo de worker de negócio
   ([consumidor de estoque](../specs/008-estoque/contracts/consumidor-estoque.md)).
 - **Pagamento** (REQ-09): `Pedido.AprovarPagamento` e `Pedido.RecusarPagamento`, com a
-  condição `AptoParaPagamento`; a porta `IGatewayPagamento` e o gateway simulado
+  condição `AptoParaPagamento`; a porta `IGatewayPagamento`, implementada pelo gateway por HTTP
+  com resiliência (REQ-19, [fluxo 14](fluxos/14-gateway-de-pagamento.md))
   ([consumidor de pagamento](../specs/009-pagamento/contracts/consumidor-pagamento.md)).
 - **Entrega** (REQ-10): `Pedido.CriarOrdemEntrega`, com a condição `AptoParaOrdemEntrega`;
   a `OrdemEntrega` passa a ser lida com o pedido
@@ -93,8 +97,12 @@ branch `feature/req-XX-...`, com a numeração a partir do REQ-19.
   situações de estorno são internas. Pedidos cancelados com pagamento aprovado antes do
   REQ-13 não são estornados sozinhos ([quickstart](../specs/013-cancelamento-com-estorno/quickstart.md#5-pedidos-pagos-e-cancelados-antes-do-req-13)).
 - **Idempotência no gateway** (REQ-13). O pedido é a chave da cobrança e do estorno: a mesma
-  chamada repetida devolve o mesmo resultado. O simulado guarda as chaves em memória; um
-  gateway real as guarda do lado dele.
+  chamada repetida devolve o mesmo resultado. Desde o REQ-19, as chaves ficam na API de
+  pagamento simulada (em memória, perdidas só se ela for recriada), e não no Worker.
+- **Dependência fora do ar pausa o consumo** (REQ-19). Um manipulador que lança
+  `DependenciaIndisponivelException` faz a base de consumo devolver a mensagem à fila, sem
+  nova tentativa nem DLQ, e o supervisor pausar a inscrição até a dependência poder ser testada.
+  Serve para qualquer consumidor futuro que chame um serviço externo.
 - **Limpeza e reenvio da DLQ** (REQ-14). O Worker apaga, em lotes e com uma instância por
   rodada, os eventos enviados e os processados com mais de 7 dias, as chaves de idempotência
   com mais de 48 h (nunca antes de 24 h) e os pedidos de reenvio finais com mais de 90 dias.
