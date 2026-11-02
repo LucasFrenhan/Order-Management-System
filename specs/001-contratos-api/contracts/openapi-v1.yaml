@@ -22,6 +22,8 @@ tags:
     description: Criação, consulta e atualização de status de pedidos.
   - name: Administracao
     description: Operação da mensageria, só para Admin (REQ-14).
+  - name: Notificacoes
+    description: Destinos de webhook e eventos em tempo real das mudanças de status (REQ-18).
 
 paths:
   /api/v1/auth/register:
@@ -169,13 +171,26 @@ paths:
       description: |
         Perfis autorizados: **Cliente** (somente pedidos próprios), **Admin**, **OperadorLogistica**.
         Um Cliente que consulta pedido de outro usuário recebe 404.
+
+        A resposta 200 traz o `ETag` (forte) da versão do pedido; com `If-None-Match` igual, a
+        resposta é 304, sem corpo (REQ-18). A autorização vem antes: o 404 não muda.
       security:
         - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/IdPedido'
+        - name: If-None-Match
+          in: header
+          description: O `ETag` de uma consulta anterior.
+          schema:
+            type: string
       responses:
         '200':
           description: Pedido encontrado.
+          headers:
+            ETag:
+              description: Versão do pedido; muda a cada alteração que aparece na resposta.
+              schema:
+                type: string
           content:
             application/json:
               schema:
@@ -183,6 +198,8 @@ paths:
               examples:
                 pedidoPendente:
                   $ref: '#/components/examples/PedidoPendente'
+        '304':
+          description: O pedido não mudou desde o `ETag` informado; sem corpo.
         '400':
           $ref: '#/components/responses/ErroValidacao'
         '401':
@@ -396,6 +413,234 @@ paths:
           $ref: '#/components/responses/ErroSemPermissao'
         '404':
           $ref: '#/components/responses/ErroNaoEncontrado'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /api/v1/notificacoes/destinos:
+    post:
+      tags: [Notificacoes]
+      operationId: CadastrarDestinoNotificacao
+      summary: Cadastra um destino de webhook; o segredo de assinatura aparece só nesta resposta.
+      description: |
+        Perfis autorizados: **Cliente** (destinos dele, que recebem só os pedidos dele) e **Admin**
+        (destinos globais, que recebem todos os pedidos e são geridos por qualquer Admin; quem tem
+        os dois perfis cadastra como Admin). OperadorLogistica: 403 (REQ-18).
+
+        A URL precisa ser absoluta, `https`, sem usuário e senha, e o host precisa resolver só
+        para endereços públicos (`NOTIFICACAO_DESTINO_ENDERECO_PROIBIDO`). Até 5 destinos por
+        Cliente e 5 globais (`NOTIFICACAO_DESTINO_LIMITE`, 409). O `segredo` (`whsec_` + Base64)
+        assina os webhooks no formato do Standard Webhooks e não aparece em nenhuma outra resposta.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CadastrarDestinoRequestDTO'
+            example:
+              url: https://loja.exemplo.com/oms/webhooks
+      responses:
+        '201':
+          description: Destino cadastrado, com o segredo.
+          headers:
+            Location:
+              description: URL do recurso criado.
+              schema:
+                type: string
+                format: uri-reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DestinoCadastradoResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '409':
+          $ref: '#/components/responses/ErroConflito'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+    get:
+      tags: [Notificacoes]
+      operationId: ListarDestinosNotificacao
+      summary: Lista os destinos do usuário, sem o segredo.
+      description: |
+        O Cliente vê os próprios destinos; o Admin, os globais. OperadorLogistica: 403 (REQ-18).
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Destinos do usuário, por ordem de cadastro.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DestinoNotificacaoResponseDTO'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /api/v1/notificacoes/destinos/{id}:
+    delete:
+      tags: [Notificacoes]
+      operationId: RemoverDestinoNotificacao
+      summary: Remove um destino; as entregas pendentes dele são descartadas.
+      description: |
+        Destino de outro Cliente, ou global para um Cliente: 404 (REQ-18).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador do destino.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Destino removido.
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '404':
+          $ref: '#/components/responses/ErroNaoEncontrado'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /api/v1/notificacoes/destinos/{id}/reativacao:
+    post:
+      tags: [Notificacoes]
+      operationId: ReativarDestinoNotificacao
+      summary: Reativa um destino desativado e zera as falhas.
+      description: |
+        Idempotente: um destino já ativo volta sem mudança. As entregas esgotadas não são
+        reenviadas; o destino recebe os avisos novos (REQ-18).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador do destino.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Destino ativo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DestinoNotificacaoResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '404':
+          $ref: '#/components/responses/ErroNaoEncontrado'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /api/v1/notificacoes/destinos/{id}/entregas:
+    get:
+      tags: [Notificacoes]
+      operationId: ListarEntregasNotificacao
+      summary: Lista as últimas entregas do destino, da mais nova para a mais antiga.
+      description: |
+        Sem a URL completa nem o corpo da resposta do receptor (REQ-18).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador do destino.
+          schema:
+            type: string
+            format: uuid
+        - name: limite
+          in: query
+          description: Quantas entregas, de 1 a 200.
+          schema:
+            type: integer
+            format: int32
+            default: 50
+      responses:
+        '200':
+          description: Entregas do destino.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EntregaNotificacaoResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '404':
+          $ref: '#/components/responses/ErroNaoEncontrado'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /api/v1/notificacoes/eventos:
+    get:
+      tags: [Notificacoes]
+      operationId: EventosNotificacao
+      summary: Abre a conexão de eventos (SSE) com os avisos dos pedidos que o usuário pode consultar.
+      description: |
+        Resposta `text/event-stream` (REQ-18, `specs/018-notificacao-status/contracts/api-notificacoes.md`).
+        O Cliente recebe só os próprios pedidos; Admin e OperadorLogistica, todos. Eventos:
+        `conectado` (o primeiro, sem `Last-Event-ID`), `pedido.status-alterado`,
+        `pedido.estorno-confirmado`, `sincronizacao-necessaria` e `sinal` (a cada 30 s sem aviso).
+        Com `Last-Event-ID`, reenvia até 500 avisos perdidos. A conexão termina no `exp` do token.
+        Mais de 3 conexões do usuário na mesma instância: 429 (`NOTIFICACAO_SSE_LIMITE_CONEXOES`).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: Last-Event-ID
+          in: header
+          description: O `id` do último evento recebido, para a reconexão.
+          schema:
+            type: string
+        - name: pedidoId
+          in: query
+          description: Só os avisos deste pedido; de outro Cliente ou inexistente, 404.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Stream de eventos (`text/event-stream`).
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '404':
+          $ref: '#/components/responses/ErroNaoEncontrado'
+        '429':
+          description: Limite de conexões de eventos atingido.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '500':
           $ref: '#/components/responses/ErroInterno'
 
@@ -785,6 +1030,103 @@ components:
     SituacaoReenvioDlq:
       type: string
       enum: [Pendente, EmExecucao, Concluido, Falhou]
+
+    CadastrarDestinoRequestDTO:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          maxLength: 2048
+
+    DestinoNotificacaoResponseDTO:
+      type: object
+      required: [id, url, global, ativo, falhasSeguidas, criadoEm]
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+        global:
+          type: boolean
+        ativo:
+          type: boolean
+        motivoDesativacao:
+          type: ['null', string]
+        desativadoEm:
+          type: ['null', string]
+          format: date-time
+        falhasSeguidas:
+          type: integer
+          format: int32
+        criadoEm:
+          type: string
+          format: date-time
+
+    DestinoCadastradoResponseDTO:
+      type: object
+      required: [segredo, id, url, global, ativo, falhasSeguidas, criadoEm]
+      properties:
+        segredo:
+          type: string
+          description: '`whsec_` + Base64 de 32 bytes; aparece só no cadastro.'
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+        global:
+          type: boolean
+        ativo:
+          type: boolean
+        motivoDesativacao:
+          type: ['null', string]
+        desativadoEm:
+          type: ['null', string]
+          format: date-time
+        falhasSeguidas:
+          type: integer
+          format: int32
+        criadoEm:
+          type: string
+          format: date-time
+
+    SituacaoEntrega:
+      type: string
+      enum: [Pendente, Entregue, Esgotada, Descartada]
+
+    EntregaNotificacaoResponseDTO:
+      type: object
+      required: [idNotificacao, tipo, pedidoId, situacao, tentativas, criadaEm]
+      properties:
+        idNotificacao:
+          type: string
+          format: uuid
+        tipo:
+          type: string
+        pedidoId:
+          type: string
+          format: uuid
+        situacao:
+          $ref: '#/components/schemas/SituacaoEntrega'
+        tentativas:
+          type: integer
+          format: int32
+        ultimoCodigoHttp:
+          type: ['null', integer]
+          format: int32
+        ultimoErro:
+          type: ['null', string]
+        criadaEm:
+          type: string
+          format: date-time
+        proximaTentativaEm:
+          type: ['null', string]
+          format: date-time
+        finalizadaEm:
+          type: ['null', string]
+          format: date-time
 
     RegistrarReenvioDlqRequestDTO:
       type: object

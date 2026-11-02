@@ -11,9 +11,10 @@ public static class ExtensoesResultado
     public static IResult ParaResposta<T>(this Resultado<T> resultado, Func<T, IResult> sucesso) =>
         resultado.Sucesso ? sucesso(resultado.Valor!) : resultado.Falha!.ParaProblema();
 
-    public static IResult ParaProblema(this Falha falha)
+    /// <param name="statusCode">Outro status para a mesma falha, como o 429 do limite de conexões SSE (REQ-18, FR-023).</param>
+    public static IResult ParaProblema(this Falha falha, int? statusCode = null)
     {
-        var status = falha.Tipo switch
+        var status = statusCode ?? falha.Tipo switch
         {
             TipoFalha.Validacao => StatusCodes.Status400BadRequest,
             TipoFalha.NaoAutenticado => StatusCodes.Status401Unauthorized,

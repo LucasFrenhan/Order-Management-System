@@ -28,7 +28,13 @@ public sealed class ConformidadeOpenApiTestes(FabricaApi fabrica) : IClassFixtur
         { "PATCH", "/api/v1/pedidos/{id}/status" },
         { "PATCH", "/api/v1/pedidos/{id}/rastreio" },
         { "POST", "/api/v1/admin/dlq/{consumidor}/reenvios" },
-        { "GET", "/api/v1/admin/dlq/reenvios/{id}" }
+        { "GET", "/api/v1/admin/dlq/reenvios/{id}" },
+        { "POST", "/api/v1/notificacoes/destinos" },
+        { "GET", "/api/v1/notificacoes/destinos" },
+        { "DELETE", "/api/v1/notificacoes/destinos/{id}" },
+        { "POST", "/api/v1/notificacoes/destinos/{id}/reativacao" },
+        { "GET", "/api/v1/notificacoes/destinos/{id}/entregas" },
+        { "GET", "/api/v1/notificacoes/eventos" }
     };
 
     [Theory]

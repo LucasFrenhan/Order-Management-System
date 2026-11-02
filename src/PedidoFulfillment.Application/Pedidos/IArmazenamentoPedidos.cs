@@ -21,6 +21,12 @@ public interface IArmazenamentoPedidos
     Task<Pedido?> ObterPedidoAsync(Guid id, bool paraAlterar, CancellationToken cancellationToken);
 
     /// <summary>
+    /// A versão (<c>rowversion</c>) atual do pedido, para o <c>ETag</c> da consulta (REQ-18, R-17);
+    /// nula se o pedido não existe ou se o armazenamento não tem versão.
+    /// </summary>
+    Task<byte[]?> ObterVersaoAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<byte[]?>(null);
+
+    /// <summary>
     /// Outro pedido (diferente de <paramref name="pedidoId"/>) já tem a ordem com esta transportadora e
     /// este código de rastreio, sem diferenciar maiúsculas e minúsculas (REQ-11, FR-010).
     /// </summary>

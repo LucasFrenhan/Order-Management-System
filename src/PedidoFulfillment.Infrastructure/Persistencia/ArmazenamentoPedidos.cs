@@ -42,6 +42,11 @@ internal sealed class ArmazenamentoPedidos(ContextoBancoDados contexto) : IArmaz
             .SingleOrDefaultAsync(p => p.Id == id, cancellationToken);
     }
 
+    public async Task<byte[]?> ObterVersaoAsync(Guid id, CancellationToken cancellationToken) =>
+        await contexto.Pedidos.Where(p => p.Id == id)
+            .Select(p => EF.Property<byte[]>(p, ContextoBancoDados.Versao))
+            .SingleOrDefaultAsync(cancellationToken);
+
     // A collation das colunas não diferencia maiúsculas e minúsculas (REQ-11, R-06).
     public Task<bool> RastreioEmUsoAsync(string transportadora, string codigoRastreio, Guid pedidoId, CancellationToken cancellationToken) =>
         contexto.OrdensEntrega.AnyAsync(

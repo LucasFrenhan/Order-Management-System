@@ -8,6 +8,7 @@ using PedidoFulfillment.API.OpenApi;
 using PedidoFulfillment.API.Seguranca;
 using PedidoFulfillment.Application.Autenticacao;
 using PedidoFulfillment.Application.Mensageria;
+using PedidoFulfillment.Application.Notificacoes;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Infrastructure;
 using PedidoFulfillment.Infrastructure.Notificacoes;
@@ -32,6 +33,7 @@ builder.Services.AdicionarPoliticasAutorizacao();
 builder.Services.AdicionarInfraestrutura(builder.Configuration);
 // Destinos de webhook e eventos em tempo real (REQ-18).
 builder.Services.AdicionarNotificacoes();
+builder.Services.AdicionarEventosTempoReal();
 // Traces, métricas e logs por OTLP, só com destino configurado (REQ-16).
 builder.AdicionarObservabilidade("oms-api");
 builder.Services.AddOpenApi("v1", opcoes =>
@@ -49,6 +51,7 @@ builder.Services.AddSingleton<IEmissorToken, EmissorTokenJwt>();
 builder.Services.AddScoped<IServicoAutenticacao, ServicoAutenticacao>();
 builder.Services.AddScoped<IServicoPedidos, ServicoPedidos>();
 builder.Services.AddScoped<IServicoReenvioDlq, ServicoReenvioDlq>();
+builder.Services.AddScoped<IServicoDestinosNotificacao, ServicoDestinosNotificacao>();
 
 var app = builder.Build();
 
@@ -67,6 +70,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testes"))
 app.MapearEndpointsAutenticacao();
 app.MapearEndpointsPedidos();
 app.MapearEndpointsAdministracao();
+app.MapearEndpointsNotificacoes();
 // Saúde existe em todos os ambientes (REQ-02); pública e fora do OpenAPI.
 app.MapearEndpointsSaude();
 

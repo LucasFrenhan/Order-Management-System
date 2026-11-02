@@ -41,6 +41,8 @@ public sealed class OpcoesLimpezaTestes
     [InlineData(nameof(OpcoesLimpeza.RetencaoProcessadosHoras), 24, 8760)]
     [InlineData(nameof(OpcoesLimpeza.RetencaoChavesHoras), 24, 8760)]
     [InlineData(nameof(OpcoesLimpeza.RetencaoPedidosReenvioHoras), 24, 87600)]
+    [InlineData(nameof(OpcoesLimpeza.RetencaoAvisosHoras), 24, 8760)]
+    [InlineData(nameof(OpcoesLimpeza.RetencaoEntregasHoras), 24, 8760)]
     public void Faixas_da_limpeza(string chave, int minimo, int maximo)
     {
         Validar(new OpcoesLimpeza(), chave, minimo, ValidadorLimpeza.Validate).Should().BeEmpty();

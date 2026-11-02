@@ -27,6 +27,16 @@ public sealed class OpcoesLimpeza
 
     public int RetencaoPedidosReenvioHoras { get; set; } = 2160;
 
+    /// <summary>Avisos de notificação (REQ-18, R-18): também o limite do reenvio do SSE.</summary>
+    public int RetencaoAvisosHoras { get; set; } = 168;
+
+    /// <summary>Entregas de webhook finalizadas (REQ-18, FR-018).</summary>
+    public int RetencaoEntregasHoras { get; set; } = 168;
+
+    public TimeSpan RetencaoAvisos => TimeSpan.FromHours(RetencaoAvisosHoras);
+
+    public TimeSpan RetencaoEntregas => TimeSpan.FromHours(RetencaoEntregasHoras);
+
     public TimeSpan Intervalo => TimeSpan.FromSeconds(IntervaloSegundos);
 
     public TimeSpan RetencaoEnviados => TimeSpan.FromHours(RetencaoEnviadosHoras);
@@ -51,6 +61,8 @@ public sealed class ValidadorOpcoesLimpeza : IValidateOptions<OpcoesLimpeza>
         faixas.Limitar(options.RetencaoProcessadosHoras, 24, 8760, nameof(OpcoesLimpeza.RetencaoProcessadosHoras));
         faixas.Limitar(options.RetencaoChavesHoras, 24, 8760, nameof(OpcoesLimpeza.RetencaoChavesHoras));
         faixas.Limitar(options.RetencaoPedidosReenvioHoras, 24, 87600, nameof(OpcoesLimpeza.RetencaoPedidosReenvioHoras));
+        faixas.Limitar(options.RetencaoAvisosHoras, 24, 8760, nameof(OpcoesLimpeza.RetencaoAvisosHoras));
+        faixas.Limitar(options.RetencaoEntregasHoras, 24, 8760, nameof(OpcoesLimpeza.RetencaoEntregasHoras));
         return faixas.Resultado();
     }
 }

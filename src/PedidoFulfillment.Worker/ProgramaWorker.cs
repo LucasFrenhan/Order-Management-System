@@ -35,6 +35,7 @@ public sealed class ProgramaWorker
         builder.Services.AdicionarReconciliacao();
         builder.Services.AdicionarLimpezaEReenvio();
         builder.Services.AdicionarNotificacoes();
+        builder.Services.AdicionarProcessamentoNotificacoes();
 
         var app = builder.Build();
         app.MapearEndpointsSaude();

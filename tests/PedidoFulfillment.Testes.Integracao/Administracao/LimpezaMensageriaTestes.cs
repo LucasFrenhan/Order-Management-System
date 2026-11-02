@@ -139,6 +139,58 @@ public sealed class LimpezaMensageriaTestes(MensageriaTeste mensageria)
     }
 
     [Fact]
+    public async Task Entregas_finalizadas_e_avisos_sem_entrega_saem_depois_da_retencao_e_os_pendentes_ficam()
+    {
+        // REQ-18, FR-018 e research R-18: avisos e entregas de webhook com 7 dias de retenção.
+        Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
+        var stringConexao = await mensageria.NovoBancoMigradoAsync();
+        Guid pedidoId, clienteId;
+        await using (var contexto = BancoDadosTeste.NovoContexto(stringConexao))
+        {
+            clienteId = await Persistencia.DadosPersistencia.NovoUsuarioAsync(contexto);
+            var produto = Persistencia.DadosPersistencia.NovoProduto();
+            var pedido = Persistencia.DadosPersistencia.NovoPedido(clienteId, produto);
+            contexto.Produtos.Add(produto);
+            contexto.Pedidos.Add(pedido);
+            await contexto.SaveChangesAsync(Cancelamento);
+            pedidoId = pedido.Id;
+        }
+
+        async Task<long> AvisoAsync(TimeSpan idade)
+        {
+            await using var contexto = BancoDadosTeste.NovoContexto(stringConexao);
+            var aviso = Application.Notificacoes.AvisoPedido.Criar(Guid.CreateVersion7(), "pedido.status-alterado", pedidoId, clienteId, "{}", Agora - idade);
+            contexto.AvisosPedido.Add(aviso);
+            await contexto.SaveChangesAsync(Cancelamento);
+            return aviso.Id;
+        }
+
+        var semEntrega = await AvisoAsync(TimeSpan.FromDays(8));
+        var recente = await AvisoAsync(TimeSpan.FromDays(6));
+        var comEntregaAntiga = await AvisoAsync(TimeSpan.FromDays(9));
+        var comPendente = await AvisoAsync(TimeSpan.FromDays(9));
+        var destinoId = Guid.CreateVersion7();
+        await BancoDadosTeste.ExecutarAsync(stringConexao, $"""
+            INSERT INTO DestinosNotificacao (Id, ClienteId, CriadoPor, Url, SegredoCifrado, Ativo, FalhasSeguidas, CriadoEm, AtualizadoEm)
+            VALUES ('{destinoId}', NULL, '{clienteId}', 'https://exemplo.com/x', CRYPT_GEN_RANDOM(60), 1, 0, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET());
+            INSERT INTO EntregasNotificacao (DestinoId, AvisoId, Situacao, Tentativas, ProximaTentativaEm, CriadaEm, FinalizadaEm)
+            VALUES ('{destinoId}', {comEntregaAntiga}, N'Entregue', 1, SYSDATETIMEOFFSET(), DATEADD(DAY, -9, SYSDATETIMEOFFSET()), DATEADD(DAY, -8, SYSDATETIMEOFFSET())),
+                   ('{destinoId}', {comPendente}, N'Pendente', 3, SYSDATETIMEOFFSET(), DATEADD(DAY, -9, SYSDATETIMEOFFSET()), NULL);
+            """);
+        var logs = new CapturaLogs();
+        await using var worker = Worker(stringConexao, logs);
+
+        await Limpeza(worker).ExecutarRodadaAsync(Opcoes(), Cancelamento);
+
+        (await ContarAsync(stringConexao, "EntregasNotificacao", "Situacao = N'Entregue'")).Should().Be(0);
+        (await ContarAsync(stringConexao, "EntregasNotificacao", "Situacao = N'Pendente'")).Should().Be(1, "pendente nunca é apagada");
+        (await ContarAsync(stringConexao, "AvisosPedido", $"Id IN ({semEntrega}, {comEntregaAntiga})")).Should().Be(0);
+        (await ContarAsync(stringConexao, "AvisosPedido", $"Id IN ({recente}, {comPendente})")).Should().Be(2, "o aviso de uma entrega pendente fica");
+        logs.Registros.Should().ContainSingle(r => r.Evento.Id == 5013).Which.Texto
+            .Should().Contain("1 entrega(s) de webhook").And.Contain("2 aviso(s)");
+    }
+
+    [Fact]
     public async Task Chave_de_idempotencia_so_e_apagada_depois_da_retencao_e_a_recente_continua_valendo()
     {
         // US1 cenário 4: a garantia de 24 h do REQ-05.

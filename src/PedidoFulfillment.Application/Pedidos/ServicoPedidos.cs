@@ -108,6 +108,19 @@ public sealed class ServicoPedidos(
     }
 
     /// <summary>
+    /// A versão é lida antes do pedido (REQ-18, R-17): se ele mudar entre as duas leituras, o
+    /// <c>ETag</c> sai mais velho que o corpo, e a próxima consulta só recebe um 200 a mais; ao
+    /// contrário, o cliente guardaria um corpo velho com um <c>ETag</c> novo.
+    /// </summary>
+    public async Task<Resultado<PedidoConsultado>> ConsultarAsync(
+        Guid pedidoId, Guid usuarioId, IReadOnlyCollection<PerfilUsuario> perfis, CancellationToken cancellationToken)
+    {
+        var versao = await armazenamento.ObterVersaoAsync(pedidoId, cancellationToken);
+        var resultado = await ObterAsync(pedidoId, usuarioId, perfis, cancellationToken);
+        return resultado.Sucesso ? new PedidoConsultado(resultado.Valor!, versao) : resultado.Falha!;
+    }
+
+    /// <summary>
     /// Aplica a tabela de transições (FR-016, FR-017). Se o pedido mudou desde a leitura, a
     /// mudança é reavaliada sobre o estado atual, até <see cref="TentativasStatus"/> vezes (FR-019).
     /// O cancelamento passa por <see cref="Pedido.Cancelar"/>: devolve o estoque reservado (REQ-08)
