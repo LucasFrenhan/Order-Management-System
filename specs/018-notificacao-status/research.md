@@ -1,6 +1,6 @@
 # Research: notificação de mudança de status do pedido (estudo da issue #43)
 
-**Issue**: [#43](https://github.com/LucasFrenhan/Order-Management-System/issues/43) | **Data**: 2026-10-31 | **Situação**: proposta, aguardando aprovação
+**Issue**: [#43](https://github.com/LucasFrenhan/Order-Management-System/issues/43) | **Data**: 2026-10-31 | **Situação**: aprovada em 2026-11-01, com o SSE incluído (ver `spec.md`)
 
 Este documento é o primeiro entregável da issue #43: a decisão fundamentada sobre como avisar
 quem acompanha um pedido quando o status dele muda, com as alternativas e o custo de cada uma.
