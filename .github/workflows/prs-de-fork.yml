@@ -1,0 +1,32 @@
+# O repositório não aceita PRs de forks (REQ-20, specs/020-sonarqube-cloud, FR-004a): o GitHub
+# não permite desativá-los num repositório público, e eles nunca poderiam ser mergeados, porque
+# a análise do SonarQube Cloud (exigida pela main) não roda sem acesso ao segredo.
+#
+# pull_request_target roda no contexto da main, com permissão de escrita: por isso este
+# workflow NÃO faz checkout nem usa nada do PR além do número. Só comenta a política e fecha.
+name: prs-de-fork
+
+on:
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  fechar:
+    name: Fechar PR de fork
+    if: github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Comentar a política e fechar
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NUMERO: ${{ github.event.pull_request.number }}
+        run: >-
+          gh pr close "$NUMERO"
+          --comment "Obrigado pelo interesse! Este repositório não aceita pull requests de forks:
+          a main exige a análise do SonarQube Cloud, que não roda para forks. Para sugerir uma
+          mudança, abra uma issue. Veja a seção \"Análise estática\" do README."
