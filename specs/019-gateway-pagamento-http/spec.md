@@ -48,6 +48,22 @@ nunca cobrar ou estornar o Cliente duas vezes.
   fila, sem passar pelas novas tentativas nem ir para a DLQ, e são cobradas quando o circuito
   fecha (FR-016a).
 
+### Session 2026-11-02 (clarify)
+
+- Q: A API simulada guarda as operações num banco, ou em memória? → A: Em memória, sem banco.
+  As chaves sobrevivem ao reinício do processo de workers (a API continua no ar), mas
+  reiniciar ou recriar a API as apaga; isso é aceito como limitação da simulação (FR-005).
+- Q: Como o OMS se autentica na API simulada, e como a rota de controle é protegida? → A: Por
+  uma chave compartilhada (API key) enviada num cabeçalho em toda chamada, configurada nas duas
+  pontas; a rota de controle exige outra chave, a de controle, que o OMS não tem. Uma não vale
+  no lugar da outra (FR-002, FR-007a).
+- Q: O gateway em memória de hoje continua existindo, ou tudo passa a usar a API simulada? →
+  A: Continua só para os testes que não exercitam o pagamento por rede (regras de estoque,
+  cancelamento, reconciliação etc.); o ambiente local, a demonstração e o CI usam a API
+  simulada, e os testes do REQ-19 sobem a API simulada real (FR-009a).
+- Q: A API simulada exporta a própria telemetria para o coletor do OMS? → A: Não. Ela só
+  recebe o contexto do trace; traces, logs e métricas da chamada ficam do lado do OMS (FR-020).
+
 ## User Scenarios & Testing *(mandatory)*
 
 Os "usuários" deste requisito são o Cliente, que não pode ser cobrado duas vezes nem ficar
@@ -195,8 +211,8 @@ entre as tentativas.
    de novo, **Then** recebe o resultado original pela chave, e o pedido grava a mesma
    transação, sem segunda cobrança.
 2. **Given** o processo de workers reiniciado entre a cobrança efetivada e a nova tentativa,
-   **When** a mensagem é reentregue, **Then** a API ainda reconhece a chave e devolve o
-   resultado original.
+   com a API no ar, **When** a mensagem é reentregue, **Then** a API ainda reconhece a chave e
+   devolve o resultado original.
 3. **Given** uma cobrança efetivada sem resposta e o pedido cancelado pela operação antes da
    reentrega, **When** a reentrega ou a reconciliação encontra o pedido cancelado sem
    pagamento, **Then** o OMS consulta a cobrança pela chave e, se houve cobrança aprovada,
@@ -269,7 +285,7 @@ os registros da falha passageira e da nova tentativa.
 
 1. **Given** a telemetria ligada, **When** o consumidor cobra um pedido, **Then** o trace do
    pedido tem a chamada de saída à API de pagamento, com cada tentativa, o tempo e o código da
-   resposta, e a API simulada recebe o contexto do trace.
+   resposta, e a API simulada recebe o contexto do trace (sem exportar spans próprios).
 2. **Given** uma falha passageira, um resultado incerto, um erro de contrato ou o circuito
    aberto, **When** acontece, **Then** há um log próprio, com o pedido, a operação (cobrança
    ou estorno), o tipo da falha e a tentativa, sem dados pessoais, identificador de transação
@@ -295,10 +311,11 @@ os registros da falha passageira e da nova tentativa.
 - **Estorno de cobrança que a API não conhece** (por exemplo, a API perdeu os dados por ter
   sido recriada): a API recusa o estorno; o OMS trata como recusa do estorno, que fica
   pendente com o motivo no log, como uma recusa hoje (REQ-13, FR-003).
-- **API recriada (chaves perdidas) com cobranças já gravadas no OMS**: o OMS não cobra de novo
-  pedidos já pagos (idempotência pelo estado, como hoje); só as chamadas em andamento perdem a
-  proteção da chave. A API simulada guarda as chaves de forma durável para que reiniciar não
-  apague o histórico.
+- **API reiniciada ou recriada (chaves em memória perdidas)**: o OMS não cobra de novo pedidos
+  já pagos (idempotência pelo estado, como hoje); só as operações com resultado incerto naquele
+  momento perdem a proteção da chave, e a nova tentativa é tratada pela API como uma operação
+  nova. É uma limitação aceita da simulação, registrada no documento de fluxo; um gateway real
+  guarda as chaves de forma durável.
 - **Credencial errada ou ausente**: toda chamada é recusada como não autorizada; o OMS não
   repete, registra erro de configuração, e os pedidos seguem o caminho de falha (FR-011).
 - **Endereço da API errado ou DNS falhando**: falha de conexão, tratada como passageira.
@@ -332,7 +349,8 @@ os registros da falha passageira e da nova tentativa.
   responder a tempo. Só a aprovação, a recusa de negócio e o "processar sem responder" efetivam
   a operação.
 - **FR-005**: A API simulada MUST ser idempotente pela chave do pedido, guardando as chaves do
-  lado dela de forma que sobrevivam ao reinício dela e do processo de workers: a mesma chave
+  lado dela, em memória e sem banco, de forma que sobrevivam ao reinício do processo de workers
+  (reiniciar a própria API as apaga, como limitação aceita da simulação): a mesma chave
   MUST devolver o mesmo resultado e o mesmo identificador, sem efetivar de novo; a mesma chave
   com valor diferente MUST ser recusada como conflito; uma chave ainda em processamento MUST
   ser respondida como "em andamento".
@@ -354,6 +372,10 @@ os registros da falha passageira e da nova tentativa.
   estornos MUST chamar a API de pagamento pela rede, mantendo o comportamento de negócio de
   hoje: as regras de aptidão, os status, a devolução do estoque, os eventos e o estorno
   pendente não mudam.
+- **FR-009a**: A API simulada MUST ser o gateway do processo de workers no ambiente local, na
+  demonstração e no CI. O gateway em memória de hoje MUST continuar disponível só para os
+  testes que não exercitam o pagamento pela rede, e MUST NOT ser selecionável pela
+  configuração de execução do processo de workers.
 - **FR-010**: Toda resposta ou falha da chamada MUST ser classificada em: **resultado**
   (aprovação ou recusa de negócio da cobrança; confirmação ou recusa do estorno), **falha
   passageira** (indisponível, excesso de requisições, erro interno, "em andamento", tempo
@@ -406,7 +428,9 @@ os registros da falha passageira e da nova tentativa.
 
 - **FR-020**: Cada tentativa de chamada à API MUST aparecer no trace do pedido como uma
   chamada de saída, com a operação, o tempo, o código da resposta e o número da tentativa, e
-  o contexto do trace MUST ser propagado para a API simulada.
+  o contexto do trace MUST ser propagado para a API simulada. A API simulada MUST NOT exportar
+  telemetria própria para o coletor do OMS; a observabilidade da chamada fica toda do lado do
+  OMS.
 - **FR-021**: Falha passageira (com tipo e tentativa), resultado incerto, consulta pela chave,
   erro permanente, circuito aberto e circuito fechado MUST ser registrados em log com
   identificadores próprios, sem dados pessoais, identificadores de transação ou credenciais.
@@ -432,7 +456,7 @@ os registros da falha passageira e da nova tentativa.
 ### Key Entities *(include if feature involves data)*
 
 - **API de pagamento simulada**: serviço separado do OMS que cobra, estorna e consulta pela
-  chave, com comportamento de falha configurável e chaves guardadas de forma durável.
+  chave, com comportamento de falha configurável e as operações guardadas em memória.
 - **Operação de pagamento na API** (cobrança ou estorno): a chave (o pedido), o valor, o
   resultado (aprovado, recusado, confirmado), o identificador gerado pela API, o motivo da
   recusa e o instante; no máximo uma por chave e por tipo.
@@ -486,10 +510,12 @@ os registros da falha passageira e da nova tentativa.
   processamento continue limitado e a DLQ continue sendo o último recurso.
 - A chamada à API pode sair da transação do consumidor, ou continuar nela com o tempo limitado
   pelo FR-019; a escolha fica para o plano.
-- O gateway em memória de hoje pode continuar como opção de configuração para testes que não
-  precisam da rede; o ambiente local e o CI usam a API simulada.
-- A API simulada guarda as chaves num armazenamento próprio, não no banco do OMS, para se
-  comportar como um serviço externo.
+- A API simulada guarda as operações e o comportamento forçado pela rota de controle em
+  memória, sem banco nem pacote de armazenamento; reiniciá-la apaga as chaves e volta o
+  comportamento ao da configuração. Ela não acessa o banco do OMS.
+- A chave do OMS e a chave de controle vêm da configuração (segredos de ambiente no local e no
+  CI), com valores de desenvolvimento só no ambiente local, como as demais credenciais do
+  projeto.
 - A recusa de negócio continua sem nova tentativa de cobrança (como no REQ-09): o pedido
   termina `PagamentoRejeitado`.
 - Ficam fora do escopo: integração com um gateway real, confirmação assíncrona da cobrança por
