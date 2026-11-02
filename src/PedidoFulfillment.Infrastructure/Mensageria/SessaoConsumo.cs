@@ -4,13 +4,19 @@ using RabbitMQ.Client.Events;
 namespace PedidoFulfillment.Infrastructure.Mensageria;
 
 /// <summary>Por que uma sessão de consumo terminou (REQ-17, data-model).</summary>
-internal sealed record MotivoPerda(string Origem, string Motivo)
+internal sealed record MotivoPerda(string Origem, string Motivo, DateTimeOffset? DisponivelEm = null)
 {
     /// <summary>Canal de consumo ou de publicação fechado (conexão perdida, broker parado, erro de canal).</summary>
     public const string Canal = "canal";
 
     /// <summary>Inscrição cancelada pelo broker (fila apagada), com o canal ainda aberto.</summary>
     public const string Cancelamento = "cancelamento";
+
+    /// <summary>
+    /// Uma dependência do consumidor está fora do ar até <see cref="DisponivelEm"/> (REQ-19, FR-016a,
+    /// research R-09): não é perda de inscrição, e o supervisor reabre a sessão depois da pausa.
+    /// </summary>
+    public const string Pausa = "pausa";
 }
 
 /// <summary>O que o <see cref="SupervisorInscricao"/> precisa de uma sessão: saber quando ela acabou e fechá-la.</summary>
@@ -50,6 +56,24 @@ internal sealed class SessaoConsumo : ISessaoConsumo
     public IChannel CanalPublicacao { get; }
 
     public Task<MotivoPerda> Perdida => perda.Task;
+
+    /// <summary>Se a sessão já foi encerrada para pausar o consumo: as entregas seguintes só voltam à fila.</summary>
+    public bool Pausada { get; private set; }
+
+    /// <summary>
+    /// Encerra a sessão com o motivo <see cref="MotivoPerda.Pausa"/> (REQ-19, R-09); verdadeiro só
+    /// na primeira vez, para a pausa ser registrada uma vez.
+    /// </summary>
+    public bool Pausar(DateTimeOffset disponivelEm)
+    {
+        if (!perda.TrySetResult(new MotivoPerda(MotivoPerda.Pausa, "dependência indisponível", disponivelEm)))
+        {
+            return false;
+        }
+
+        Pausada = true;
+        return true;
+    }
 
     /// <summary>
     /// Abre os canais, declara a topologia do consumidor e se inscreve na fila principal. Se algo
