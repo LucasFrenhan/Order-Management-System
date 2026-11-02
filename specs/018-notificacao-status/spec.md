@@ -29,9 +29,10 @@ A consulta do pedido continua sendo a fonte da verdade: a notificação avisa, o
 confirma.
 
 **Mudança em relação ao estudo**: o `research.md` propunha adiar o SSE. O usuário decidiu
-incluí-lo neste requisito (2026-11-01). Como a notificação nasce no processo de workers e a
-conexão SSE fica na API, a API passa a receber os avisos da mensageria, o que revê a decisão
-do REQ-14 de a API não ter nenhuma permissão no broker (FR-024).
+incluí-lo neste requisito (2026-11-01). Para levar o aviso até a conexão SSE, que fica na
+API, cada instância da API lê periodicamente do banco os avisos já gravados, sem passar pelo
+broker (FR-024). Assim a decisão do REQ-14 (a API sem nenhuma permissão no broker) continua
+valendo, e a aplicação que reconecta recebe o que perdeu (FR-021).
 
 ## Clarifications
 
@@ -48,6 +49,22 @@ do REQ-14 de a API não ter nenhuma permissão no broker (FR-024).
   os pedidos dele; o do Admin é global (FR-007).
 - Q: O `ETag` / `304` no `GET` entra neste requisito? → A: Sim, como história de prioridade
   menor (US5, FR-025).
+
+### Session 2026-11-01 (clarify)
+
+- Q: O SSE precisa que a API leia do broker, ou há outro caminho? → A: Outro caminho (opção A):
+  cada instância da API lê periodicamente do banco os avisos já gravados, sem acesso ao
+  broker; a decisão do REQ-14 continua valendo, e a reconexão com `Last-Event-ID` recebe os
+  avisos perdidos dentro da retenção (FR-021, FR-024).
+- Q: E se o aviso informado na reconexão já saiu da retenção, ou ficaram avisos demais para
+  trás? → A: Reenviar até 500 avisos (configurável); acima disso, ou com aviso inexistente,
+  enviar o evento de controle `sincronizacao-necessaria` e seguir só com os novos (FR-021).
+- Q: Os destinos globais são só do Admin que cadastrou, ou de qualquer Admin? → A: De qualquer
+  Admin: os destinos globais são da operação, e o limite de 5 vale para eles no total
+  (FR-010, FR-011).
+- Q: Ao abrir a conexão pela primeira vez, a aplicação recebe algo do estado atual? → A: Um
+  evento de controle `conectado`, com o identificador do último aviso gravado como ponto de
+  partida para o `Last-Event-ID`; depois, só os avisos novos (FR-021a).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -166,6 +183,17 @@ pedido de outro Cliente, e conferir que só o primeiro aviso chega, em até 10 s
    uma, **Then** recebe `429` com `ProblemDetails`.
 10. **Given** várias instâncias da API, **When** um aviso sai, **Then** cada conexão aberta
     recebe o aviso, em qualquer instância que esteja.
+11. **Given** uma conexão que caiu depois de receber o aviso X, **When** a aplicação reconecta
+    informando X e dois pedidos dela mudaram nesse intervalo, **Then** ela recebe primeiro os
+    dois avisos perdidos, na ordem em que foram gravados, e depois os novos.
+12. **Given** uma reconexão informando um aviso que já saiu da retenção, ou com mais de 500
+    avisos perdidos, **When** a conexão abre, **Then** a aplicação recebe o evento
+    `sincronizacao-necessaria` e, depois, só os avisos novos.
+13. **Given** uma aplicação que abre a conexão sem `Last-Event-ID`, **When** a conexão abre,
+    **Then** o primeiro evento é `conectado`; se um pedido mudar entre a abertura e o `GET`
+    da aplicação, o aviso chega pela conexão.
+14. **Given** o broker fora do ar, **When** um pedido muda de status pela API, **Then** a
+    conexão SSE recebe o aviso normalmente.
 
 ---
 
@@ -190,11 +218,14 @@ entregas e remover um destino, conferindo as respostas e que outro usuário rece
    são reenviadas.
 3. **Given** um destino com entregas pendentes, **When** o dono o remove, **Then** as entregas
    pendentes são descartadas e nada mais é enviado para ele.
-4. **Given** um destino de outro usuário, **When** alguém tenta consultar, remover ou reativar,
-   **Then** recebe `404`.
-5. **Given** um usuário com o número máximo de destinos, **When** ele tenta cadastrar mais um,
-   **Then** recebe `409` com `ProblemDetails`.
-6. **Given** um OperadorLogistica, **When** ele tenta cadastrar um destino, **Then** recebe
+4. **Given** um destino de outro Cliente, ou um destino global, **When** um Cliente tenta
+   consultar, remover ou reativar, **Then** recebe `404`.
+5. **Given** um destino global cadastrado por um Admin, **When** outro Admin lista, reativa,
+   remove ou consulta as entregas dele, **Then** consegue, como o Admin que cadastrou.
+6. **Given** um Cliente com o número máximo de destinos, ou a operação com o número máximo de
+   destinos globais, **When** alguém tenta cadastrar mais um, **Then** recebe `409` com
+   `ProblemDetails`.
+7. **Given** um OperadorLogistica, **When** ele tenta cadastrar um destino, **Then** recebe
    `403`.
 
 ---
@@ -239,11 +270,15 @@ identificador.
 - **Receptor recebe duas vezes**: se o `2xx` se perde, o mesmo aviso chega de novo com o mesmo
   identificador; o receptor deduplica.
 - **Broker fora do ar**: as mudanças de status gravam normalmente; os avisos ficam no outbox e
-  saem quando o broker volta. As conexões SSE continuam abertas, com sinais de vida, mas não
-  recebem os avisos do período; a aplicação confirma pelo `GET`. As outras rotas da API não
-  são afetadas.
-- **Conexão SSE que cai**: os avisos do período em que ela esteve fechada não são reenviados
-  pela conexão; a aplicação reconecta e consulta o `GET`.
+  saem quando o broker volta, e os webhooks atrasam junto. O SSE não depende do broker: as
+  conexões continuam recebendo os avisos, que a API lê do banco. As rotas da API não são
+  afetadas.
+- **Banco fora do ar**: as mudanças de status também não gravam, então não há aviso a perder;
+  as conexões SSE continuam abertas com sinais de vida e voltam a receber quando o banco volta.
+- **Conexão SSE que cai**: a aplicação reconecta informando o último aviso recebido e recebe os
+  que perdeu, na ordem em que foram gravados (FR-021).
+- **Transação lenta**: um aviso gravado por uma transação que terminou depois de avisos mais
+  novos não é pulado pela leitura periódica nem entregue duas vezes na mesma conexão.
 - **Cliente com várias abas**: cada conexão recebe os avisos, até o limite por usuário.
 - **Chave de cifra dos segredos trocada ou ausente**: o processo que precisa dela não sobe
   (mesma regra da chave do JWT), em vez de enviar sem assinatura.
@@ -287,11 +322,14 @@ identificador.
 - **FR-009**: O cadastro MUST devolver um segredo gerado pelo OMS uma única vez; o segredo MUST
   ficar guardado cifrado e MUST NOT aparecer em consultas, logs ou métricas. Trocar o segredo
   é remover e cadastrar de novo.
-- **FR-010**: Cada usuário MUST ter no máximo 5 destinos (configurável); acima disso, `409`.
-- **FR-011**: O dono MUST poder listar, remover e reativar os próprios destinos e consultar as
-  últimas entregas de cada um (situação, tentativas, último código HTTP, instantes). Destino
-  de outro usuário MUST responder `404`. O OperadorLogistica MUST NOT gerenciar destinos
-  (`403`).
+- **FR-010**: Cada Cliente MUST ter no máximo 5 destinos, e a operação no máximo 5 destinos
+  globais no total (configuráveis); acima disso, `409`.
+- **FR-011**: O Cliente MUST poder listar, remover e reativar os próprios destinos e consultar
+  as últimas entregas de cada um (situação, tentativas, último código HTTP, instantes). Os
+  destinos globais são da operação: qualquer Admin MUST poder fazer o mesmo com todos eles,
+  inclusive os cadastrados por outro Admin, e o Admin MUST NOT ver nem gerenciar os destinos
+  dos Clientes. Destino de outro Cliente, ou global para um Cliente, MUST responder `404`. O
+  OperadorLogistica MUST NOT gerenciar destinos (`403`).
 
 **Webhooks: entrega**
 
@@ -324,16 +362,28 @@ identificador.
   OperadorLogistica MUST receber os de todos os pedidos, como na consulta. A conexão MAY ser
   aberta para um único pedido; pedido inexistente ou de outro Cliente MUST responder `404`.
 - **FR-021**: Cada aviso na conexão MUST ter o mesmo conteúdo do corpo do webhook, com o
-  identificador da notificação como identificador do evento. Avisos perdidos enquanto a
-  conexão estava fechada MUST NOT ser reenviados; a aplicação confirma pelo `GET`.
+  identificador da notificação como identificador do evento. Ao reconectar informando o
+  último identificador recebido (`Last-Event-ID`), a aplicação MUST receber, antes dos avisos
+  novos, os avisos que perdeu e que ela pode ver, na ordem em que foram gravados, desde que
+  ainda estejam dentro da retenção de 7 dias. O reenvio MUST se limitar a 500 avisos
+  (configurável); se o identificador informado não existir mais ou o limite for passado, a
+  API MUST enviar o evento de controle `sincronizacao-necessaria` e seguir só com os avisos
+  novos, e a aplicação confirma pelo `GET`.
+- **FR-021a**: Ao abrir uma conexão sem `Last-Event-ID`, a API MUST enviar primeiro o evento de
+  controle `conectado`, que traz como identificador de evento o do último aviso já gravado,
+  e depois só os avisos novos. Com isso, a aplicação abre a conexão antes de consultar o
+  `GET`, e uma reconexão a partir de `conectado` não perde avisos.
 - **FR-022**: A conexão MUST receber um sinal de vida a cada 30 segundos sem aviso e MUST ser
   encerrada pela API quando o token expira.
 - **FR-023**: Cada usuário MUST ter no máximo 3 conexões abertas por instância da API
   (configurável); acima disso, `429` com `ProblemDetails`.
-- **FR-024**: Para levar os avisos até as conexões, a API MUST passar a ler da mensageria só
-  os avisos de notificação, com a menor permissão possível, sem publicar nem ler outros
-  eventos. Com várias instâncias, cada instância MUST receber todos os avisos. A falha do
-  broker MUST NOT derrubar a API nem afetar as outras rotas.
+- **FR-024**: Para levar os avisos até as conexões, cada instância da API MUST ler
+  periodicamente do banco, no máximo a cada 2 segundos (configurável), os avisos gravados
+  desde a última leitura, sem acesso ao broker; a API continua sem nenhuma permissão no broker
+  (REQ-14). Cada instância lê por conta própria, sem coordenação com as outras. A leitura MUST
+  NOT pular um aviso gravado por uma transação mais lenta nem entregar o mesmo aviso duas vezes
+  na mesma conexão. A leitura é uma consulta por instância, não por conexão, e uma falha dela
+  MUST NOT derrubar a API, as conexões abertas nem as outras rotas.
 
 **Consulta**
 
@@ -357,7 +407,9 @@ identificador.
 - **FR-030**: A suíte MUST ter testes de integração, com banco e broker reais, de cada caminho
   de mudança de status, da entrega com receptor de teste (sucesso, falha, lentidão, `410`,
   esgotamento), da assinatura, da recusa de endereços internos, do SSE (autorização, filtro
-  por pedido, limite, várias conexões) e das rotas de destinos, além de testes unitários das
+  por pedido, limite, várias conexões, evento `conectado`, reconexão com `Last-Event-ID`,
+  `sincronizacao-necessaria`, transação lenta e broker fora do ar) e das rotas de destinos
+  (inclusive a gestão dos destinos globais por outro Admin), além de testes unitários das
   regras novas, e MUST continuar verde no CI.
 
 ### Key Entities *(include if feature involves data)*
@@ -367,8 +419,8 @@ identificador.
 - **Notificação** (corpo do webhook e do evento SSE): o aviso enviado para fora, do tipo
   `pedido.status-alterado` ou `pedido.estorno-confirmado`, com identificador, instante, dados
   mínimos do pedido e o link para a consulta.
-- **Destino de notificação**: URL cadastrada por um usuário, com dono (ou global, para o
-  Admin), segredo cifrado, situação (ativo ou desativado, com o motivo) e contagem de falhas.
+- **Destino de notificação**: URL cadastrada por um usuário, com dono (o Cliente) ou global
+  (da operação, gerenciado por qualquer Admin, guardando quem cadastrou), segredo cifrado, situação (ativo ou desativado, com o motivo) e contagem de falhas.
 - **Entrega de notificação**: o envio de uma notificação para um destino, com situação
   (`Pendente`, `Entregue`, `Esgotada`, `Descartada`), tentativas, próximo envio, último código
   HTTP e o contexto de trace do aviso.
@@ -403,13 +455,14 @@ identificador.
   próprio token, que aplica a autorização de sempre.
 - O segredo de assinatura é cifrado com uma chave da configuração, tratada como a chave do
   JWT; a perda da chave obriga a recadastrar os destinos.
-- O SSE não tem reenvio de avisos perdidos: a garantia de entrega fica com o webhook, e a
-  conexão serve para mostrar a mudança na hora. Não há front-end no projeto; a demonstração e
-  os testes usam um cliente HTTP.
+- O SSE reenvia o que a aplicação perdeu só quando ela reconecta dentro da retenção; fora
+  disso, a garantia de entrega fica com o webhook e a confirmação com o `GET`. Não há
+  front-end no projeto; a demonstração e os testes usam um cliente HTTP.
 - O token tem a duração atual do REQ-03 (60 minutos); a conexão SSE não dura mais que ele.
-- A API passa a ler da mensageria só para o SSE; o usuário do broker da API continua sem
-  permissão de publicar e sem acesso às filas dos consumidores do processo de workers. Isso
-  revê a decisão do REQ-14, por escolha do usuário em 2026-11-01.
+- A API lê os avisos do banco, que ela já usa; nenhuma dependência nova entre a API e o
+  broker. Se a leitura vem do outbox ou de uma tabela própria de avisos é decisão do plano.
+  Alternativas descartadas no clarify: a API consumir do broker (revia o REQ-14), notificação
+  de mudança do próprio SQL Server, chamada do processo de workers para a API e Redis.
 - Novas tentativas e esgotamento das entregas de webhook ficam no banco, e não em filas por
   destino no broker; a DLQ do consumidor de notificação (REQ-06) e o reenvio do REQ-14 seguem
   valendo para a etapa que cria as entregas.
