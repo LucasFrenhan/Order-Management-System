@@ -19,7 +19,7 @@ branch `feature/req-XX-...`, com a numeração a partir do REQ-20.
 
 | Ordem | Requisito | Origem | Escopo |
 |-------|-----------|--------|--------|
-| 1 | a numerar | [#18](https://github.com/LucasFrenhan/Order-Management-System/issues/18) — SonarQube Cloud | Análise estática de código no CI |
+| 1 | REQ-20 (em andamento, [spec](../specs/020-sonarqube-cloud/spec.md)) | [#18](https://github.com/LucasFrenhan/Order-Management-System/issues/18) — SonarQube Cloud | Análise estática de código no CI, com Quality Gate exigido na `main`. Em dois PRs: a integração e, depois da primeira análise da `main`, a situação de partida |
 
 
 ## O que já está pronto para os próximos REQs
