@@ -55,7 +55,18 @@ Comportamentos: `aprovar`, `recusar`, `indisponivel` (503), `limite-taxa` (429 c
 resposta). A latência é sorteada à parte: com chance `CaudaPercentual`, entre `CaudaMinimoMs`
 e `CaudaMaximoMs`; senão, entre `LatenciaMinimaMs` e `LatenciaMaximaMs`. O modo determinístico
 (`Simulacao:Deterministico = true`) zera as chances de falha e a latência e só aprova, a menos
-que o roteiro ou o modo forçado digam outra coisa (FR-007). `Semente` opcional fixa o sorteio.
+que o roteiro ou o modo forçado digam outra coisa (FR-007). Isso vale só para os valores da
+partida: no modo determinístico, `PUT /controle/comportamento` ainda pode definir uma latência
+(`LatenciaMinimaMs`/`LatenciaMaximaMs`, com `CaudaPercentual` 0), que vale até o `restaurar`;
+é assim que os testes reproduzem a latência alta dentro do limite (FR-024). `Semente` opcional
+fixa o sorteio.
+
+A decisão de comportamento vem **antes** da consulta à memória, em toda chamada: uma API real
+pode estar fora do ar mesmo para uma chave que já processou. Uma falha (`503`, `429`, `500`,
+`sem-resposta`) sobre uma chave já concluída responde a falha e **não remove nem altera** a
+operação guardada (só soma `Chamadas`); a chave só é removida quando a operação foi criada
+naquela chamada e ainda estava `EmAndamento`. Com `processar-sem-responder` sobre uma chave
+concluída, a resposta guardada sai depois de `SemRespostaMs`, sem efetivar de novo.
 
 **Padrões**: latência 40–250 ms; cauda de 5% entre 1–5 s; aprovação 90% (o restante das
 respostas efetivas é recusa); indisponível 2%; limite de taxa 1% (`Retry-After: 1`); erro

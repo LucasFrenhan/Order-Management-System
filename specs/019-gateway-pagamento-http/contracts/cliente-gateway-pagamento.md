@@ -48,6 +48,21 @@ entregas da mensagem, na reconciliação e depois de reiniciar o Worker (FR-017)
 
 Em nenhum caso sem resultado o OMS grava algo no pedido (FR-013, FR-014).
 
+### Quando a mensagem de pagamento vai para a DLQ
+
+A pausa (abaixo) cobre só o circuito aberto. Continuam seguindo as novas tentativas da base e,
+esgotadas, a DLQ:
+
+- **erro permanente** (`400`, `401`/`403`, `409 chave-reutilizada`, corpo fora do contrato): não
+  conta para o circuito e **não pausa**. Decisão do usuário: credencial errada vai para a DLQ, e
+  não para a pausa. Pausada, ela ficaria escondida com a prontidão em `200`; na DLQ, o monitor do
+  REQ-16 alerta, o log 7015 sai como Error, e o reenvio resolve depois da correção (a chave é o
+  pedido, sem cobrança dupla);
+- **falha passageira que não abre o circuito** (intermitente abaixo de `Circuito:ProporcaoFalhas`
+  ou sem `Circuito:MinimoChamadas` na janela), com azar em todas as entregas;
+- **falhas fora do gateway**, como hoje: mensagem malformada ou fora do schema, banco
+  indisponível, conflito persistente, erro inesperado.
+
 ## Pausa do consumo com o circuito aberto (FR-016a)
 
 1. O consumidor de pagamento recebe `GatewayPagamentoIndisponivelException` (herda de

@@ -49,6 +49,13 @@ O `identificador` tem o prefixo `PAG-` (cobrança) ou `EST-` (estorno), seguido 
 hífens. Só as linhas `aprovada`, `recusada` e `processar-sem-responder` efetivam a operação;
 nas falhas `503`, `429`, `500` e `sem-resposta` a chave fica livre para a próxima tentativa.
 
+O comportamento é decidido **antes** de consultar a memória, em toda chamada, inclusive na
+repetição de uma chave já concluída (uma API real pode estar fora do ar para qualquer
+chamada). Uma falha sobre uma chave concluída responde a falha e **não remove nem altera** a
+operação guardada; só a operação criada na própria chamada, ainda em andamento, é removida.
+`processar-sem-responder` sobre uma chave concluída devolve a resposta guardada depois de
+`SemRespostaMs`, sem efetivar de novo.
+
 ### `GET /v1/cobrancas/{chave}`
 
 `200` com o corpo da cobrança guardada; `404` com `codigo: "nao-encontrada"` se a chave não
@@ -119,6 +126,10 @@ O estado do controle fica em memória e volta à configuração quando a API rei
 | `Simulacao:SemRespostaPercentual` | 1 | 0–100 |
 | `Simulacao:ProcessarSemResponderPercentual` | 1 | 0–100 |
 | `Simulacao:SemRespostaMs` | 15000 | 100–120000 |
+
+Com `Simulacao:Deterministico` = `true`, a partida zera as chances de falha e a latência (só
+aprova), mas `PUT /controle/comportamento` continua podendo definir uma latência, que vale até
+`POST /controle/restaurar` (usado nos testes de latência alta, FR-024).
 
 A soma das chances de falha não pode passar de 100. A taxa de aprovação vale sobre as chamadas
 que efetivam (a recusa é o complemento).

@@ -32,7 +32,12 @@ EmAndamento --aprovar / processar-sem-responder--> Aprovada | Confirmado   (Efet
 EmAndamento --recusar / regra do estorno-------> Recusada | Recusado        (Efetivacoes = 1)
 EmAndamento --503, 429, 500, sem-resposta------> (removida: a chave fica livre)
 Aprovada|Recusada|Confirmado|Recusado --nova chamada mesma chave--> (sem mudança; devolve o mesmo, Chamadas + 1)
+Aprovada|Recusada|Confirmado|Recusado --falha sorteada/forçada----> (sem mudança; responde a falha, Chamadas + 1)
 ```
+
+O comportamento é decidido antes da consulta à memória (research R-03). Só a operação criada
+na própria chamada, ainda `EmAndamento`, é removida por uma falha; uma operação concluída nunca
+é removida nem alterada por falha.
 
 `Efetivacoes` conta a decisão de negócio da operação (inclusive a recusa), não o dinheiro;
 para os testes, o que importa é que nunca passa de 1.

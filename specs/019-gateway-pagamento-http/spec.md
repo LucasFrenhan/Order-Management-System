@@ -379,7 +379,8 @@ os registros da falha passageira e da nova tentativa.
 - **FR-010**: Toda resposta ou falha da chamada MUST ser classificada em: **resultado**
   (aprovação ou recusa de negócio da cobrança; confirmação ou recusa do estorno), **falha
   passageira** (indisponível, excesso de requisições, erro interno, "em andamento", tempo
-  esgotado, falha de conexão, circuito aberto), **resultado incerto** (tempo esgotado ou
+  esgotado, falha de conexão; e o circuito aberto, falha passageira sem chamada, tratada pelo
+  FR-016a), **resultado incerto** (tempo esgotado ou
   conexão perdida depois do envio da requisição) ou **erro permanente** (requisição rejeitada
   como inválida, conflito de chave, não autorizado, resposta fora do contrato).
 - **FR-011**: Uma falha passageira MUST ser tentada de novo dentro da mesma chamada, com a
@@ -508,8 +509,8 @@ os registros da falha passageira e da nova tentativa.
 - As novas tentativas dentro da chamada (FR-011) somam às da base de consumo (REQ-06) e da
   reconciliação (REQ-12); o plano ajusta os valores para que o tempo total de uma mensagem em
   processamento continue limitado e a DLQ continue sendo o último recurso.
-- A chamada à API pode sair da transação do consumidor, ou continuar nela com o tempo limitado
-  pelo FR-019; a escolha fica para o plano.
+- A chamada à API continua dentro da transação do consumidor, com o tempo limitado pelo
+  FR-019 (decidido no plano, research R-10, e confirmado pelo usuário).
 - A API simulada guarda as operações e o comportamento forçado pela rota de controle em
   memória, sem banco nem pacote de armazenamento; reiniciá-la apaga as chaves e volta o
   comportamento ao da configuração. Ela não acessa o banco do OMS.
