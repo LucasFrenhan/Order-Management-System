@@ -4,6 +4,7 @@ using PedidoFulfillment.Application.Estoque;
 using PedidoFulfillment.Application.Pagamentos;
 using PedidoFulfillment.Infrastructure;
 using PedidoFulfillment.Infrastructure.Mensageria;
+using PedidoFulfillment.Infrastructure.Notificacoes;
 using PedidoFulfillment.Infrastructure.Observabilidade;
 using PedidoFulfillment.Infrastructure.Pagamentos;
 using PedidoFulfillment.Infrastructure.Reconciliacao;
@@ -33,6 +34,8 @@ public sealed class ProgramaWorker
         builder.Services.AdicionarConsumidor<CriacaoOrdemEntrega, PagamentoAprovado>();
         builder.Services.AdicionarReconciliacao();
         builder.Services.AdicionarLimpezaEReenvio();
+        builder.Services.AdicionarNotificacoes();
+        builder.Services.AdicionarProcessamentoNotificacoes();
 
         var app = builder.Build();
         app.MapearEndpointsSaude();

@@ -26,8 +26,8 @@ internal static partial class EventosLimpezaReenvio
     public static partial void FalhaVerificacaoDlq(ILogger logger, string tipoErro, string erro);
 
     [LoggerMessage(EventId = 5013, EventName = "LimpezaConcluida",
-        Message = "Limpeza: {Enviados} evento(s) enviado(s), {Processados} registro(s) de processado, {Chaves} chave(s) de idempotência e {PedidosReenvio} pedido(s) de reenvio apagados.")]
-    public static partial void LimpezaConcluida(ILogger logger, LogLevel level, int enviados, int processados, int chaves, int pedidosReenvio);
+        Message = "Limpeza: {Enviados} evento(s) enviado(s), {Processados} registro(s) de processado, {Chaves} chave(s) de idempotência, {PedidosReenvio} pedido(s) de reenvio, {Entregas} entrega(s) de webhook e {Avisos} aviso(s) apagados.")]
+    public static partial void LimpezaConcluida(ILogger logger, LogLevel level, int enviados, int processados, int chaves, int pedidosReenvio, int entregas, int avisos);
 
     [LoggerMessage(EventId = 5014, EventName = "FalhaLimpeza", Level = LogLevel.Warning,
         Message = "Falha na rodada de limpeza ({TipoErro}): {Erro}. Tenta de novo no próximo intervalo.")]

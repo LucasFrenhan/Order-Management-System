@@ -2,7 +2,8 @@
 
 **Rota**: `PATCH /api/v1/pedidos/{id}/rastreio`, só para Admin e OperadorLogistica.
 **Origem**: REQ-11 ([spec](../../specs/011-rastreio/spec.md),
-[contrato](../../specs/011-rastreio/contracts/rastreio-http.md)).
+[contrato](../../specs/011-rastreio/contracts/rastreio-http.md)) e REQ-18
+([spec](../../specs/018-notificacao-status/spec.md), aviso do despacho).
 
 ## Caminho feliz
 
@@ -25,7 +26,9 @@ HTTP/1.1 200 OK
 Com o pedido em `ProntoParaEnvio`, numa gravação só:
 - a ordem de entrega é criada, se ainda não existir;
 - a transportadora, o código e a data de despacho são gravados, sem os espaços das pontas;
-- o pedido vai para `Despachado`, com o autor e o motivo "Pedido despachado." no histórico.
+- o pedido vai para `Despachado`, com o autor e o motivo "Pedido despachado." no histórico;
+- saem o `pedido.status-alterado` (origem `Operacao`) e o aviso para os webhooks e o SSE
+  (REQ-18, fluxo 13). A correção do rastreio de um pedido já despachado não gera aviso.
 
 ## Resultados por status
 
@@ -69,7 +72,7 @@ nesse momento.
 | Falha | Comportamento |
 |-------|---------------|
 | Banco fora do ar | 500 genérico; nada é gravado |
-| Broker fora do ar | Não afeta: o despacho não publica evento |
+| Broker fora do ar | Não afeta a resposta: o `pedido.status-alterado` fica pendente no outbox (fluxo 8); os webhooks e o SSE não dependem do broker (fluxo 13) |
 
 ## Observabilidade
 
@@ -78,6 +81,6 @@ e 4005 (duplicado). Nenhum log traz a transportadora nem o código.
 
 ## Limitações
 
-- Não há evento `pedido.despachado` para outros sistemas. Ficou fora do #29, que tratou só do
-  cancelamento e do estorno (REQ-15, spec, Assumptions).
+- A correção do rastreio não gera aviso nem evento; só a mudança de status gera (REQ-18,
+  clarify).
 - O rastreio não é validado com a transportadora.

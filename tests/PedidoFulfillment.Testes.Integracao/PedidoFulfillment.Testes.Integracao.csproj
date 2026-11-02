@@ -33,6 +33,8 @@
     <None Include="..\..\specs\008-estoque\contracts\eventos\*.schema.json" LinkBase="Eventos" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\specs\010-fulfillment\contracts\eventos\*.schema.json" LinkBase="Eventos" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\specs\015-visibilidade-cancelamentos\contracts\eventos\*.schema.json" LinkBase="Eventos" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\specs\018-notificacao-status\contracts\eventos\*.schema.json" LinkBase="Eventos" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\specs\018-notificacao-status\contracts\notificacoes\*.schema.json" LinkBase="Notificacoes" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -10,7 +10,8 @@ namespace PedidoFulfillment.Testes.Integracao.Mensageria;
 /// Conformidade dos eventos v1 com os schemas publicados em
 /// <c>specs/006-mensageria/contracts/eventos/</c> (REQ-06, FR-003, FR-004; constituição V),
 /// <c>specs/008-estoque/contracts/eventos/</c> (REQ-08), <c>specs/010-fulfillment/contracts/eventos/</c>
-/// (REQ-10, FR-009) e <c>specs/015-visibilidade-cancelamentos/contracts/eventos/</c> (REQ-15, FR-008).
+/// (REQ-10, FR-009), <c>specs/015-visibilidade-cancelamentos/contracts/eventos/</c> (REQ-15, FR-008) e
+/// <c>specs/018-notificacao-status/contracts/eventos/</c> (REQ-18, FR-006).
 /// </summary>
 public sealed class SchemaEventosTestes
 {
@@ -64,8 +65,21 @@ public sealed class SchemaEventosTestes
         { TiposEvento.EntregaCriada, JsonEntregaCriada() },
         { TiposEvento.PedidoCancelado, JsonPedidoCancelado(MotivoCancelamento.Operacao, null) },
         { TiposEvento.PedidoCancelado, JsonPedidoCancelado(MotivoCancelamento.ReconciliacaoEsgotada, EtapaEsgotada.Entrega) },
-        { TiposEvento.PagamentoEstornado, JsonPagamentoEstornado() }
+        { TiposEvento.PagamentoEstornado, JsonPagamentoEstornado() },
+        { TiposEvento.PedidoStatusAlterado, JsonPedidoStatusAlterado() }
     };
+
+    // REQ-18: despacho pela operação, quarta entrada do histórico.
+    private static string JsonPedidoStatusAlterado() => SerializacaoEventos.Serializar(EnvelopeEvento.Criar(PedidoId, new PedidoStatusAlterado
+    {
+        PedidoId = PedidoId,
+        Numero = "PED-20261101-000042",
+        StatusAnterior = Domain.Pedidos.StatusPedido.ProntoParaEnvio,
+        StatusNovo = Domain.Pedidos.StatusPedido.Despachado,
+        Sequencia = 4,
+        Origem = OrigemMudancaStatus.Operacao,
+        AlteradoEm = Instante
+    }, Instante));
 
     // REQ-15: cancelamento pela operação (sem etapa) ou esgotado na reconciliação (com etapa).
     private static string JsonPedidoCancelado(MotivoCancelamento motivo, EtapaEsgotada? etapa) =>

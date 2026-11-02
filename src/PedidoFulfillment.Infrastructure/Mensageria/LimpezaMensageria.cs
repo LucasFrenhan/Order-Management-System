@@ -33,6 +33,8 @@ internal sealed class LimpezaMensageria(
     internal const string AlvoProcessados = "processados";
     internal const string AlvoChaves = "chaves";
     internal const string AlvoPedidosReenvio = "pedidos_reenvio";
+    internal const string AlvoEntregas = "entregas_notificacao";
+    internal const string AlvoAvisos = "avisos_pedido";
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -109,8 +111,19 @@ internal sealed class LimpezaMensageria(
             .Where(p => (p.Situacao == SituacaoReenvioDlq.Concluido || p.Situacao == SituacaoReenvioDlq.Falhou) && p.RegistradoEm < limitePedidos)
             .OrderBy(p => p.RegistradoEm).Take(lote).ExecuteDeleteAsync(ct), cancellationToken);
 
-        var nivel = enviados + processados + chaves + pedidos > 0 ? LogLevel.Information : LogLevel.Debug;
-        EventosLimpezaReenvio.LimpezaConcluida(logger, nivel, enviados, processados, chaves, pedidos);
+        // REQ-18 (R-18): as entregas finalizadas primeiro; depois os avisos que nenhuma entrega usa,
+        // o que mantém o aviso de uma entrega pendente.
+        var limiteEntregas = agora - configuracao.RetencaoEntregas;
+        var limiteAvisos = agora - configuracao.RetencaoAvisos;
+        var entregas = await EmLotesAsync(configuracao, AlvoEntregas, (contexto, lote, ct) => contexto.EntregasNotificacao
+            .Where(e => e.FinalizadaEm != null && e.FinalizadaEm < limiteEntregas)
+            .OrderBy(e => e.FinalizadaEm).Take(lote).ExecuteDeleteAsync(ct), cancellationToken);
+        var avisos = await EmLotesAsync(configuracao, AlvoAvisos, (contexto, lote, ct) => contexto.AvisosPedido
+            .Where(a => a.CriadoEm < limiteAvisos && !contexto.EntregasNotificacao.Any(e => e.AvisoId == a.Id))
+            .OrderBy(a => a.CriadoEm).Take(lote).ExecuteDeleteAsync(ct), cancellationToken);
+
+        var nivel = enviados + processados + chaves + pedidos + entregas + avisos > 0 ? LogLevel.Information : LogLevel.Debug;
+        EventosLimpezaReenvio.LimpezaConcluida(logger, nivel, enviados, processados, chaves, pedidos, entregas, avisos);
     }
 
     /// <summary>Até <c>LotesPorRodada</c> lotes, cada um num escopo e numa transação curta; para quando um lote vem incompleto.</summary>

@@ -47,6 +47,11 @@ public sealed class FabricaWorker : WebApplicationFactory<ProgramaWorker>
         builder.UseSetting("Limpeza:Habilitada", "false");
         builder.UseSetting("ReenvioDlq:Habilitado", "false");
         builder.UseSetting("ReenvioDlq:AvisoHabilitado", "false");
+        // Webhooks (REQ-18): a chave da API, a rede local para o receptor de teste e o envio
+        // desligado, salvo nos testes dele.
+        builder.UseSetting("Notificacoes:ChaveCifra", FabricaApi.ChaveCifraTeste);
+        builder.UseSetting("Notificacoes:PermitirRedeLocal", "true");
+        builder.UseSetting("Notificacoes:Envio:Habilitado", "false");
         if (Telemetria is not null)
         {
             builder.UseSetting("Observabilidade:Habilitada", "true");

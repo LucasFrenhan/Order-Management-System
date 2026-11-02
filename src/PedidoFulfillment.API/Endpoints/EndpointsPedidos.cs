@@ -1,3 +1,4 @@
+using System.Buffers.Text;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using PedidoFulfillment.API.Erros;
@@ -36,13 +37,33 @@ public static class EndpointsPedidos
             .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status409Conflict, StatusCodes.Status422UnprocessableEntity);
 
         // Sem a restrição {id:guid}: um identificador inválido deve dar 400, e não 404 (R-10).
-        grupo.MapGet("/{id}", async (Guid id, ClaimsPrincipal usuario, IServicoPedidos servico, CancellationToken cancellationToken) =>
-                (await servico.ObterAsync(id, usuario.ObterUsuarioId(), usuario.ObterPerfis(), cancellationToken))
-                    .ParaResposta(pedido => TypedResults.Ok(pedido)))
+        // ETag forte da versão do pedido e 304 com If-None-Match igual (REQ-18, FR-025, R-17).
+        grupo.MapGet("/{id}", async (
+                Guid id,
+                [FromHeader(Name = "If-None-Match")] string? seNaoCorresponder,
+                ClaimsPrincipal usuario,
+                IServicoPedidos servico,
+                HttpResponse resposta,
+                CancellationToken cancellationToken) =>
+                (await servico.ConsultarAsync(id, usuario.ObterUsuarioId(), usuario.ObterPerfis(), cancellationToken))
+                    .ParaResposta(consultado =>
+                    {
+                        if (consultado.Versao is not { } versao)
+                        {
+                            return TypedResults.Ok(consultado.Pedido);
+                        }
+
+                        var etag = $"\"{Base64Url.EncodeToString(versao)}\"";
+                        resposta.Headers.ETag = etag;
+                        return seNaoCorresponder?.Split(',').Any(v => v.Trim() == etag) == true
+                            ? TypedResults.StatusCode(StatusCodes.Status304NotModified)
+                            : (IResult)TypedResults.Ok(consultado.Pedido);
+                    }))
             .WithName("ObterPedido")
             .WithSummary("Consulta um pedido pelo identificador.")
             .RequireAuthorization(PoliticasAutorizacao.PoliticaConsultaPedido)
             .Produces<PedidoResponseDTO>()
+            .Produces(StatusCodes.Status304NotModified)
             .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status404NotFound);
 
         grupo.MapPatch("/{id}/status", async (

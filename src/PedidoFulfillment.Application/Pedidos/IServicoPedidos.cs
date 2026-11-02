@@ -27,6 +27,16 @@ public interface IServicoPedidos
     Task<Resultado<PedidoResponseDTO>> ObterAsync(Guid pedidoId, Guid usuarioId, IReadOnlyCollection<PerfilUsuario> perfis, CancellationToken cancellationToken);
 
     /// <summary>
+    /// A consulta com a versão do pedido para o <c>ETag</c> (REQ-18, FR-025, R-17), com as mesmas
+    /// regras de <see cref="ObterAsync"/>. Sem versão conhecida, a consulta sai sem <c>ETag</c>.
+    /// </summary>
+    async Task<Resultado<PedidoConsultado>> ConsultarAsync(Guid pedidoId, Guid usuarioId, IReadOnlyCollection<PerfilUsuario> perfis, CancellationToken cancellationToken)
+    {
+        var resultado = await ObterAsync(pedidoId, usuarioId, perfis, cancellationToken);
+        return resultado.Sucesso ? new PedidoConsultado(resultado.Valor!, null) : resultado.Falha!;
+    }
+
+    /// <summary>
     /// Altera o status conforme as transições permitidas (FR-020):
     /// <list type="table">
     /// <listheader><term>De → Para</term><description>Perfis</description></listheader>
@@ -59,3 +69,6 @@ public interface IServicoPedidos
     /// </summary>
     Task<Resultado<PedidoResponseDTO>> RegistrarRastreioAsync(Guid pedidoId, Guid usuarioId, RegistrarRastreioRequestDTO rastreio, CancellationToken cancellationToken);
 }
+
+/// <summary>O pedido consultado e a versão dele, para o <c>ETag</c> (REQ-18, R-17).</summary>
+public sealed record PedidoConsultado(PedidoResponseDTO Pedido, byte[]? Versao);

@@ -15,7 +15,8 @@ public static class GeradorTokenTeste
         IEnumerable<PerfilUsuario>? perfis = null,
         bool expirado = false,
         bool assinaturaInvalida = false,
-        string? audiencia = null)
+        string? audiencia = null,
+        TimeSpan? validade = null)
     {
         var agora = DateTime.UtcNow;
         var claims = new Dictionary<string, object> { ["sub"] = (usuarioId ?? Guid.NewGuid()).ToString() };
@@ -33,7 +34,7 @@ public static class GeradorTokenTeste
             Claims = claims,
             IssuedAt = expirado ? agora.AddHours(-2) : agora,
             NotBefore = expirado ? agora.AddHours(-2) : agora.AddMinutes(-1),
-            Expires = expirado ? agora.AddHours(-1) : agora.AddMinutes(60),
+            Expires = expirado ? agora.AddHours(-1) : agora + (validade ?? TimeSpan.FromMinutes(60)),
             SigningCredentials = new SigningCredentials(
                 new SymmetricSecurityKey(Encoding.UTF8.GetBytes(chave)), SecurityAlgorithms.HmacSha256)
         };

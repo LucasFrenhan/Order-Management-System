@@ -28,6 +28,22 @@ internal static class EstadoMetricas
         Volatile.Write(ref outbox, new LeituraOutbox(pendentes, idadeSegundos));
 
     public static void RegistrarDlq(string consumidor, long mensagens) => Dlq[consumidor] = mensagens;
+
+    private static LeituraNotificacoes? notificacoes;
+    private static long conexoesSse;
+
+    /// <summary>Entregas pendentes e destinos desativados (REQ-18, R-19); sem leitura ainda, nulo.</summary>
+    public static LeituraNotificacoes? Notificacoes => Volatile.Read(ref notificacoes);
+
+    /// <summary>Conexões SSE abertas nesta instância da API (REQ-18, R-19).</summary>
+    public static long ConexoesSse => Interlocked.Read(ref conexoesSse);
+
+    public static void RegistrarNotificacoes(long entregasPendentes, long destinosDesativados) =>
+        Volatile.Write(ref notificacoes, new LeituraNotificacoes(entregasPendentes, destinosDesativados));
+
+    public static void SomarConexoesSse(int variacao) => Interlocked.Add(ref conexoesSse, variacao);
 }
 
 internal sealed record LeituraOutbox(long Pendentes, double IdadeSegundos);
+
+internal sealed record LeituraNotificacoes(long EntregasPendentes, long DestinosDesativados);

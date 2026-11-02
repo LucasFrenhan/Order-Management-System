@@ -58,6 +58,30 @@ internal static class TelemetriaOms
     public static readonly Counter<long> Reinscricoes = Medidor.CreateCounter<long>(
         "oms.mensageria.consumidor.reinscricoes", "{reinscricao}", "Vezes que um consumidor voltou a se inscrever depois de perder a inscrição.");
 
+    /// <summary>Métrica 9 (REQ-18, R-19): entregas de webhook por resultado (entregue, falha, esgotada).</summary>
+    public static readonly Counter<long> EntregasNotificacao = Medidor.CreateCounter<long>(
+        "oms.notificacoes.entregas", "{entrega}", "Tentativas de entrega de webhook, por resultado.");
+
+    /// <summary>Métrica 10 (REQ-18, R-19): do aviso gravado ao 2xx do receptor.</summary>
+    public static readonly Histogram<double> LatenciaNotificacao = Medidor.CreateHistogram<double>(
+        "oms.notificacoes.latencia", "s", "Tempo entre o aviso gravado e a resposta 2xx do receptor.");
+
+    /// <summary>Métrica 11 (REQ-18, R-19), do <see cref="EstadoMetricas"/>.</summary>
+    public static readonly ObservableGauge<long> EntregasPendentes = Medidor.CreateObservableGauge(
+        "oms.notificacoes.pendentes",
+        () => EstadoMetricas.Notificacoes is { } leitura ? [new Measurement<long>(leitura.EntregasPendentes)] : Array.Empty<Measurement<long>>(),
+        "{entrega}", "Entregas de webhook pendentes.");
+
+    /// <summary>Métrica 12 (REQ-18, R-19), do <see cref="EstadoMetricas"/>.</summary>
+    public static readonly ObservableGauge<long> DestinosDesativados = Medidor.CreateObservableGauge(
+        "oms.notificacoes.destinos_desativados",
+        () => EstadoMetricas.Notificacoes is { } leitura ? [new Measurement<long>(leitura.DestinosDesativados)] : Array.Empty<Measurement<long>>(),
+        "{destino}", "Destinos de webhook desativados.");
+
+    /// <summary>Métrica 13 (REQ-18, R-19): conexões SSE abertas nesta instância da API.</summary>
+    public static readonly ObservableGauge<long> ConexoesSse = Medidor.CreateObservableGauge(
+        "oms.notificacoes.sse.conexoes", () => EstadoMetricas.ConexoesSse, "{conexao}", "Conexões de eventos (SSE) abertas.");
+
     /// <summary>Atributos dos spans e das métricas (prefixo <c>oms.</c> para os de domínio).</summary>
     public static class Atributos
     {
@@ -93,6 +117,9 @@ internal static class TelemetriaOms
         public const string Falhou = "falhou";
         public const string Confirmado = "confirmado";
         public const string Concluido = "concluido";
+        public const string Entregue = "entregue";
+        public const string Falha = "falha";
+        public const string Esgotada = "esgotada";
     }
 
     /// <summary>Valores de <c>oms.rotina</c>.</summary>
@@ -102,6 +129,7 @@ internal static class TelemetriaOms
         public const string Estornos = "estornos";
         public const string ReenvioDlq = "reenvio_dlq";
         public const string Limpeza = "limpeza";
+        public const string Notificacoes = "notificacoes";
     }
 
     /// <summary>Nomes dos spans próprios.</summary>
@@ -112,6 +140,8 @@ internal static class TelemetriaOms
         public const string ProcessarEstornos = "processar_estornos";
         public const string EstornarPedido = "estornar pedido";
         public const string Limpar = "limpar";
+        public const string ProcessarNotificacoes = "processar_notificacoes";
+        public const string EnviarNotificacao = "notificacao enviar";
 
         public static string OutboxPublicar(string tipo) => $"outbox publicar {tipo}";
 

@@ -51,7 +51,8 @@ public sealed class EsgotamentoTestes(MensageriaTeste mensageria)
             (await ReservadoAsync(stringConexao, pedidoId)).Should().BeFalse();
             (await EstoqueAsync(stringConexao, Cat001)).Should().Be(50);
             (await EstoqueAsync(stringConexao, Cat002)).Should().Be(100);
-            (await BancoDadosTeste.ConsultarAsync<int>(stringConexao, "SELECT COUNT(*) FROM EventosSaida")).Should().Be(eventosAntes + 1, "REQ-15: só o pedido.cancelado");
+            (await BancoDadosTeste.ConsultarAsync<int>(stringConexao, "SELECT COUNT(*) FROM EventosSaida")).Should().Be(eventosAntes + 2,
+                "REQ-15: o pedido.cancelado; REQ-18: o pedido.status-alterado da mesma gravação");
             await CanceladoNaReconciliacaoAsync(stringConexao, pedidoId, EtapaEsgotada.Pagamento, estoque: true, estorno: false);
             logs.Registros.Count(r => r.Evento.Id == 9003).Should().BeGreaterThanOrEqualTo(3);
             logs.Registros.Should().ContainSingle(r => r.Evento.Id == 9002).Which.Texto.Should().Contain("Falhas=3");
@@ -80,7 +81,7 @@ public sealed class EsgotamentoTestes(MensageriaTeste mensageria)
 
             (await EsperarStatusAsync(stringConexao, pedidoId, "Cancelado", Prazo)).Should().BeTrue();
             (await UltimoMotivoSemAutorAsync(stringConexao, pedidoId)).Should().Be("Não foi possível reservar o estoque.");
-            (await BancoDadosTeste.ConsultarAsync<int>(stringConexao, "SELECT COUNT(*) FROM EventosSaida WHERE Tipo NOT IN ('pedido.criado', 'pedido.cancelado')")).Should().Be(0);
+            (await BancoDadosTeste.ConsultarAsync<int>(stringConexao, "SELECT COUNT(*) FROM EventosSaida WHERE Tipo NOT IN ('pedido.criado', 'pedido.cancelado', 'pedido.status-alterado')")).Should().Be(0);
             await CanceladoNaReconciliacaoAsync(stringConexao, pedidoId, EtapaEsgotada.Estoque, estoque: false, estorno: false);
         }
         finally
@@ -259,6 +260,10 @@ public sealed class EsgotamentoTestes(MensageriaTeste mensageria)
         var cancelado = await EventosOutbox.CanceladoAsync(stringConexao, pedidoId);
         (cancelado.Motivo, cancelado.EtapaEsgotada).Should().Be((MotivoCancelamento.ReconciliacaoEsgotada, etapa));
         (cancelado.EstoqueDevolvido, cancelado.EstornoPendente, cancelado.OrdemEntregaCancelada).Should().Be((estoque, estorno, false));
+
+        // REQ-18, US1: a reconciliação também avisa, como o processo de workers (sem autor).
+        var mudanca = (await EventosOutbox.ListarAsync<PedidoStatusAlterado>(stringConexao, pedidoId)).Last().Dados;
+        (mudanca.StatusNovo, mudanca.Origem).Should().Be((Domain.Pedidos.StatusPedido.Cancelado, OrigemMudancaStatus.Worker));
     }
 
     private sealed class GatewayQueFalha : IGatewayPagamento

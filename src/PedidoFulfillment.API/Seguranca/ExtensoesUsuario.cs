@@ -17,4 +17,8 @@ public static class ExtensoesUsuario
             .OfType<PerfilUsuario>()
             .Distinct()
             .ToArray();
+
+    /// <summary>O <c>exp</c> do token; a conexão SSE termina nele (REQ-18, FR-022). Sem ele, o máximo.</summary>
+    public static DateTimeOffset ObterExpiracao(this ClaimsPrincipal usuario) =>
+        long.TryParse(usuario.FindFirstValue("exp"), out var segundos) ? DateTimeOffset.FromUnixTimeSeconds(segundos) : DateTimeOffset.MaxValue;
 }

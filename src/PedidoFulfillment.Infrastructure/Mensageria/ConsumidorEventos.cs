@@ -174,6 +174,7 @@ internal sealed partial class ConsumidorEventos<TManipulador, TDados>(
 
         // O manipulador grava pelo mesmo contexto do escopo: efeito e registro entram juntos no commit.
         await escopo.ServiceProvider.GetRequiredService<TManipulador>().ManipularAsync(envelope, cancellationToken);
+        GuardaMudancaStatus.ExigirGravadaPeloArmazenamento(contexto);
         contexto.EventosProcessados.Add(new EventoProcessado(consumidor, envelope.IdEvento, relogio.GetUtcNow()));
         await contexto.SaveChangesAsync(cancellationToken);
         await transacao.CommitAsync(cancellationToken);

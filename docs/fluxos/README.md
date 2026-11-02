@@ -9,16 +9,17 @@ verdade: estes documentos as consolidam por fluxo, de ponta a ponta.
 |---|-------|-----------|------|
 | 1 | [Autenticação](01-autenticacao.md) | API | 01, 03, 14 |
 | 2 | [Criação de pedido](02-criacao-de-pedido.md) | API | 01, 04, 05, 16 |
-| 3 | [Consulta e mudança de status](03-consulta-e-mudanca-de-status.md) | API | 05, 08, 11, 13, 15 |
+| 3 | [Consulta e mudança de status](03-consulta-e-mudanca-de-status.md) | API | 05, 08, 11, 13, 15, 18 |
 | 4 | [Reserva de estoque](04-reserva-de-estoque.md) | Worker | 08, 15 |
 | 5 | [Pagamento](05-pagamento.md) | Worker | 09, 13, 15 |
 | 6 | [Ordem de entrega](06-ordem-de-entrega.md) | Worker | 10, 13, 15 |
-| 7 | [Despacho e rastreio](07-despacho-e-rastreio.md) | API | 11 |
+| 7 | [Despacho e rastreio](07-despacho-e-rastreio.md) | API | 11, 18 |
 | 8 | [Publicação de eventos e consumo](08-publicacao-e-consumo-de-eventos.md) | Worker | 06, 12, 14, 15, 16 |
 | 9 | [Reconciliação de pedidos parados](09-reconciliacao.md) | Worker | 12, 13, 15, 16 |
-| 10 | [Estorno](10-estorno.md) | Worker | 13, 15, 16 |
-| 11 | [Limpeza e reenvio da DLQ](11-limpeza-e-reenvio-da-dlq.md) | Worker e API (Admin) | 14, 16 |
-| 12 | [Rastreabilidade e métricas](12-rastreabilidade-e-metricas.md) | API e Worker (transversal) | 16 |
+| 10 | [Estorno](10-estorno.md) | Worker | 13, 15, 16, 18 |
+| 11 | [Limpeza e reenvio da DLQ](11-limpeza-e-reenvio-da-dlq.md) | Worker e API (Admin) | 14, 16, 18 |
+| 12 | [Rastreabilidade e métricas](12-rastreabilidade-e-metricas.md) | API e Worker (transversal) | 16, 18 |
+| 13 | [Notificação de mudança de status](13-notificacao-de-status.md) | API (destinos e SSE) e Worker (webhooks) | 18 |
 
 ## O pedido de ponta a ponta
 
@@ -51,6 +52,10 @@ perdeu. Quando um pedido pago é cancelado, o estorno (fluxo 10) devolve o valor
 
 Com a telemetria ligada (fluxo 12), esse caminho inteiro aparece num único trace, da rota
 `POST` até o consumidor de entrega, atravessando o outbox e o RabbitMQ.
+
+Cada mudança de status desse caminho grava também um `pedido.status-alterado` e um aviso, que
+chega por webhook aos destinos cadastrados e por SSE às aplicações conectadas (fluxo 13), sem
+depender do broker.
 
 ## Estados do pedido
 
@@ -98,6 +103,7 @@ SQL, dados de conexão ou senhas.
 | 404 | Pedido inexistente, ou de outro Cliente | O mesmo corpo nos dois casos, para não revelar que o pedido existe |
 | 409 | Conflito de estado (transição, idempotência, duplicidade) | `codigo` estável, do [catálogo](../../specs/001-contratos-api/data-model.md#catálogo-de-códigos-de-erro) |
 | 422 | Regra de negócio sobre os dados (produto inexistente ou indisponível) | `codigo` estável |
+| 429 | Limite de conexões de eventos (SSE) do usuário atingido (REQ-18, fluxo 13) | `codigo` `NOTIFICACAO_SSE_LIMITE_CONEXOES` |
 | 500 | Erro não previsto (por exemplo, banco fora do ar) | Título "Erro interno.", sem detalhes; o erro completo fica no log, com o `traceId` |
 
 ## Falhas externas, em resumo

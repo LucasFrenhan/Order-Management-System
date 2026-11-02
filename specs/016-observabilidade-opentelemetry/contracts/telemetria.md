@@ -59,9 +59,10 @@ Rodadas que não pegam o lock e ciclos do despachante sem eventos não geram spa
 | `oms.resultado` (reconciliação) | `recuperado`, `esgotado`, `falhou` |
 | `oms.resultado` (estornos) | `confirmado`, `falhou` |
 | `oms.resultado` (reenvio da DLQ) | `concluido`, `falhou` |
-| `oms.rotina` | `reconciliacao`, `estornos`, `reenvio_dlq`, `limpeza` |
+| `oms.resultado` (webhooks, REQ-18) | `entregue`, `falha`, `esgotada` |
+| `oms.rotina` | `reconciliacao`, `estornos`, `reenvio_dlq`, `limpeza`; `notificacoes` (REQ-18) |
 | `oms.etapa` | `Estoque`, `Pagamento`, `Entrega` |
-| `oms.limpeza.alvo` | `enviados`, `processados`, `chaves`, `pedidos_reenvio` |
+| `oms.limpeza.alvo` | `enviados`, `processados`, `chaves`, `pedidos_reenvio`; `entregas_notificacao`, `avisos_pedido` (REQ-18) |
 
 ## Métricas próprias (meter `PedidoFulfillment`)
 
@@ -73,6 +74,17 @@ Rodadas que não pegam o lock e ciclos do despachante sem eventos não geram spa
 | 4 | `oms.mensageria.mensagens` | Counter (long) | `{mensagem}` | `oms.consumidor`, `oms.resultado` | Worker |
 | 5 | `oms.rotinas.itens` | Counter (long) | `{item}` | `oms.rotina`, `oms.resultado` | Worker |
 | 6 | `oms.limpeza.linhas_apagadas` | Counter (long) | `{linha}` | `oms.limpeza.alvo` | Worker |
+
+As métricas 7 e 8 são do REQ-17. O REQ-18 acrescentou, com o span `processar_notificacoes` e o
+passo `notificacao enviar` ([research R-19](../../018-notificacao-status/research.md#r-19-observabilidade-complementa-r-12)):
+
+| # | Nome | Instrumento | Unidade | Atributos | Emitida por |
+|---|------|-------------|---------|-----------|-------------|
+| 9 | `oms.notificacoes.entregas` | Counter (long) | `{entrega}` | `oms.resultado` | Worker |
+| 10 | `oms.notificacoes.latencia` | Histogram (double) | `s` | — | Worker |
+| 11 | `oms.notificacoes.pendentes` | ObservableGauge (long) | `{entrega}` | — | Worker |
+| 12 | `oms.notificacoes.destinos_desativados` | ObservableGauge (long) | `{destino}` | — | Worker |
+| 13 | `oms.notificacoes.sse.conexoes` | ObservableGauge (long) | `{conexao}` | — | API (por instância) |
 
 - **Várias instâncias**: os gauges 1 a 3 saem iguais de cada instância; agregue com `max`.
   Os contadores 4 a 6 se somam.

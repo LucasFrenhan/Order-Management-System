@@ -71,6 +71,54 @@ public sealed class MetricasTestes(MensageriaTeste mensageria)
     }
 
     [Fact]
+    public async Task Gauges_das_notificacoes_mostram_as_entregas_pendentes_e_os_destinos_desativados()
+    {
+        // REQ-18, R-19 (T044): amostrados na rodada de envio, só com a telemetria ligada.
+        Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
+        var stringConexao = await mensageria.NovoBancoMigradoAsync();
+        Guid clienteId, pedidoId;
+        await using (var contexto = BancoDadosTeste.NovoContexto(stringConexao))
+        {
+            clienteId = await Persistencia.DadosPersistencia.NovoUsuarioAsync(contexto);
+            var produto = Persistencia.DadosPersistencia.NovoProduto();
+            var pedido = Persistencia.DadosPersistencia.NovoPedido(clienteId, produto);
+            contexto.Produtos.Add(produto);
+            contexto.Pedidos.Add(pedido);
+            contexto.AvisosPedido.Add(Application.Notificacoes.AvisoPedido.Criar(Guid.CreateVersion7(), "pedido.status-alterado", pedido.Id, clienteId, "{}", DateTimeOffset.UtcNow));
+            await contexto.SaveChangesAsync(Cancelamento);
+            pedidoId = pedido.Id;
+        }
+
+        var ativo = Guid.CreateVersion7();
+        var inativo = Guid.CreateVersion7();
+        await BancoDadosTeste.ExecutarAsync(stringConexao, $"""
+            INSERT INTO DestinosNotificacao (Id, ClienteId, CriadoPor, Url, SegredoCifrado, Ativo, FalhasSeguidas, CriadoEm, AtualizadoEm)
+            VALUES ('{ativo}', NULL, '{clienteId}', 'https://exemplo.com/a', CRYPT_GEN_RANDOM(60), 1, 0, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET()),
+                   ('{inativo}', NULL, '{clienteId}', 'https://exemplo.com/b', CRYPT_GEN_RANDOM(60), 0, 3, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET());
+            INSERT INTO EntregasNotificacao (DestinoId, AvisoId, Situacao, Tentativas, ProximaTentativaEm, CriadaEm)
+            SELECT '{ativo}', Id, N'Pendente', 1, DATEADD(HOUR, 1, SYSDATETIMEOFFSET()), SYSDATETIMEOFFSET() FROM AvisosPedido;
+            UPDATE CursorNotificacoes SET Posicao = (SELECT MAX(Posicao) FROM AvisosPedido);
+            """);
+        using var coletor = new ColetorTelemetria();
+        await using var worker = new FabricaWorker
+        {
+            StringConexao = stringConexao,
+            ConfiguracoesBroker = mensageria.ConfiguracoesBroker,
+            Configuracoes = new Dictionary<string, string?> { ["RabbitMQ:Porta"] = "1" },
+            Telemetria = coletor
+        };
+        worker.CreateClient().Dispose();
+        var processador = worker.Services.GetServices<IHostedService>().OfType<Infrastructure.Notificacoes.ProcessadorNotificacoes>().Single();
+
+        await processador.ExecutarRodadaAsync(Cancelamento);
+        coletor.LerGauges();
+
+        coletor.Ultimo("oms.notificacoes.pendentes").Should().Be(1);
+        coletor.Ultimo("oms.notificacoes.destinos_desativados").Should().Be(1);
+        pedidoId.Should().NotBeEmpty();
+    }
+
+    [Fact]
     public async Task Gauge_da_dlq_por_consumidor_e_o_aviso_5011_no_ritmo_de_antes()
     {
         Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");

@@ -1,7 +1,8 @@
 # Fluxo 12: rastreabilidade e métricas
 
 Transversal: roda na API e no Worker. Spec: [REQ-16](../../specs/016-observabilidade-opentelemetry/spec.md);
-as métricas de inscrição dos consumidores são do [REQ-17](../../specs/017-recuperacao-consumidores/contracts/recuperacao-consumo.md).
+as métricas de inscrição dos consumidores são do [REQ-17](../../specs/017-recuperacao-consumidores/contracts/recuperacao-consumo.md),
+e as das notificações, do [REQ-18](../../specs/018-notificacao-status/research.md#r-19-observabilidade-complementa-r-12) ([fluxo 13](13-notificacao-de-status.md)).
 Nomes estáveis (spans, atributos, métricas): [contrato de telemetria](../../specs/016-observabilidade-opentelemetry/contracts/telemetria.md).
 Decisões: [research](../../specs/016-observabilidade-opentelemetry/research.md).
 
@@ -80,7 +81,8 @@ Por quê: o cliente sobrescreve o `traceparent` ao publicar; o reenvio lê o ori
 |--------|-----------|--------|------|
 | Reconciliação | `reconciliar` | `reconciliar pedido`, com `oms.etapa` e `oms.resultado` | Trace de criação do pedido |
 | Estornos | `processar_estornos` | `estornar pedido`, com `oms.resultado` | Trace de criação do pedido |
-| Limpeza | `limpar` | `limpar {alvo}`, com `oms.limpeza.linhas_apagadas` | — |
+| Limpeza | `limpar` | `limpar {alvo}`, com `oms.limpeza.linhas_apagadas` (alvos novos do REQ-18: `entregas_notificacao` e `avisos_pedido`) | — |
+| Webhooks (REQ-18) | `processar_notificacoes` | `notificacao enviar` (`Client`), com `oms.pedido.id` e `oms.resultado` (`entregue`, `falha`, `esgotada`) | Trace da mudança de status que gerou o aviso; o `traceparent` não vai para o receptor |
 
 - A rodada que não pega o lock (logs 9006, 7011 e 5015) não gera span.
 - O evento gravado por uma rotina (por exemplo, `estoque.reservado` gravado pela
@@ -104,6 +106,11 @@ Meter `PedidoFulfillment`, emitidas pelo Worker:
 | `oms.limpeza.linhas_apagadas` | contador | `{linha}` | `oms.limpeza.alvo` | A cada rodada de limpeza |
 | `oms.mensageria.consumidor.inscrito` | gauge | `{inscricao}` | `oms.consumidor` | Estado em memória: 1 inscrito, 0 sem inscrição (REQ-17) |
 | `oms.mensageria.consumidor.reinscricoes` | contador | `{reinscricao}` | `oms.consumidor` | A cada volta depois de uma perda de inscrição; a da partida não conta (REQ-17) |
+| `oms.notificacoes.entregas` | contador | `{entrega}` | `oms.resultado` (`entregue`, `falha`, `esgotada`) | A cada tentativa de webhook (REQ-18) |
+| `oms.notificacoes.latencia` | histograma | `s` | — | Do aviso gravado ao 2xx do receptor (REQ-18) |
+| `oms.notificacoes.pendentes` | gauge | `{entrega}` | — | A cada rodada de webhooks, só com a telemetria ligada (REQ-18) |
+| `oms.notificacoes.destinos_desativados` | gauge | `{destino}` | — | Idem (REQ-18) |
+| `oms.notificacoes.sse.conexoes` | gauge | `{conexao}` | — | Conexões SSE abertas na instância da API (REQ-18) |
 
 Também saem as métricas nativas do .NET (`System.Runtime`) e do ASP.NET Core.
 

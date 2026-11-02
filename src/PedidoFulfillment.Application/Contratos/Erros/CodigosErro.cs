@@ -13,4 +13,7 @@ public static class CodigosErro
     public const string ProdutoIndisponivel = "PRODUTO_INDISPONIVEL";
     public const string PedidoTransicaoInvalida = "PEDIDO_TRANSICAO_INVALIDA";
     public const string PedidoRastreioDuplicado = "PEDIDO_RASTREIO_DUPLICADO";
+    public const string NotificacaoDestinoEnderecoProibido = "NOTIFICACAO_DESTINO_ENDERECO_PROIBIDO";
+    public const string NotificacaoDestinoLimite = "NOTIFICACAO_DESTINO_LIMITE";
+    public const string NotificacaoSseLimiteConexoes = "NOTIFICACAO_SSE_LIMITE_CONEXOES";
 }
