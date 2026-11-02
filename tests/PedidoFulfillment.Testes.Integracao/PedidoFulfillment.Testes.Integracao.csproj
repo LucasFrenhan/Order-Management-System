@@ -24,6 +24,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\PedidoFulfillment.API\PedidoFulfillment.API.csproj" />
     <ProjectReference Include="..\..\src\PedidoFulfillment.Worker\PedidoFulfillment.Worker.csproj" />
+    <!-- API de pagamento simulada, servida em Kestrel pelos testes do REQ-19 (research R-13). -->
+    <ProjectReference Include="..\..\src\PedidoFulfillment.PagamentosSimulados\PedidoFulfillment.PagamentosSimulados.csproj" />
   </ItemGroup>
 
   <ItemGroup>

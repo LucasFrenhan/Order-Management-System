@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- API de pagamento simulada (REQ-19, research R-01): serviço externo do OMS, chamado pelo
+       Worker pela rede. Não referencia nenhum projeto do OMS e não exporta telemetria (FR-020). -->
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="PedidoFulfillment.Testes.Unitarios" />
+    <InternalsVisibleTo Include="PedidoFulfillment.Testes.Integracao" />
+  </ItemGroup>
+
+</Project>

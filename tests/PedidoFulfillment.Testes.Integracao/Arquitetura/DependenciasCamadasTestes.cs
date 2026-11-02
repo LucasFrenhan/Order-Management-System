@@ -23,6 +23,9 @@ public sealed class DependenciasCamadasTestes
     // REQ-06: o Worker é uma camada de hospedagem, no mesmo nível da API.
     private const string Worker = "PedidoFulfillment.Worker";
 
+    // REQ-19: serviço externo simulado, fora das camadas do OMS.
+    private const string PagamentosSimulados = "PedidoFulfillment.PagamentosSimulados";
+
     private static readonly Dictionary<string, string[]> Permitidas = new()
     {
         [Domain] = [],
@@ -42,10 +45,23 @@ public sealed class DependenciasCamadasTestes
     };
 
     [Fact]
-    public void A_solucao_tem_exatamente_as_cinco_camadas()
+    public void A_solucao_tem_exatamente_as_cinco_camadas_e_a_API_de_pagamento_simulada()
     {
         Directory.GetDirectories(Path.Combine(RaizRepositorio(), "src")).Select(Path.GetFileName)
-            .Should().BeEquivalentTo(Domain, Application, Infrastructure, Api, Worker);
+            .Should().BeEquivalentTo(Domain, Application, Infrastructure, Api, Worker, PagamentosSimulados);
+    }
+
+    [Fact]
+    public void A_API_de_pagamento_simulada_nao_depende_do_OMS_e_o_OMS_nao_depende_dela()
+    {
+        // REQ-19, research R-01: um serviço externo do OMS, chamado só pela rede.
+        var projetosOms = Permitidas.Keys.ToHashSet();
+        var raiz = RaizRepositorio();
+
+        typeof(global::PedidoFulfillment.PagamentosSimulados.ProgramaPagamentos).Assembly.GetReferencedAssemblies().Select(a => a.Name!)
+            .Concat(ReferenciasDeProjeto(Path.Combine(raiz, "src", PagamentosSimulados, $"{PagamentosSimulados}.csproj")))
+            .Should().NotContain(projetosOms);
+        ReferenciasReais().Values.Should().OnlyContain(referencias => !referencias.Contains(PagamentosSimulados));
     }
 
     [Fact]
