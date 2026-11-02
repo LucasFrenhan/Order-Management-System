@@ -1,6 +1,8 @@
 # Order Management System (OMS)
 
 [![build-testes](https://github.com/LucasFrenhan/Order-Management-System/actions/workflows/build-testes.yml/badge.svg?event=pull_request)](https://github.com/LucasFrenhan/Order-Management-System/actions/workflows/build-testes.yml)
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=LucasFrenhan_Order-Management-System&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=LucasFrenhan_Order-Management-System)
+[![Cobertura](https://sonarcloud.io/api/project_badges/measure?project=LucasFrenhan_Order-Management-System&metric=coverage)](https://sonarcloud.io/summary/new_code?id=LucasFrenhan_Order-Management-System)
 
 API de gestão de pedidos em .NET 10, desenvolvida com **Specification-Driven Development**
 (Spec Kit). Toda funcionalidade nasce de uma especificação aprovada em `specs/`, e a
@@ -246,8 +248,8 @@ todos, inclusive o dono do repositório (REQ-20):
 
 - mudanças só por PR, mergeado **por rebase** (histórico linear; os commits de etapa e de fase
   entram em sequência na `main`);
-- verificações exigidas, com a branch atualizada: **Build e testes** e **Demonstração** (e,
-  ao fim do REQ-20, o Quality Gate do SonarQube Cloud);
+- verificações exigidas, com a branch atualizada: **Build e testes**, **Demonstração** e
+  **SonarCloud Code Analysis** (o Quality Gate, aceito só quando vem do app do SonarQube Cloud);
 - push direto, force push e exclusão da `main` recusados.
 
 Para conferir ou reaplicar a regra a partir do arquivo versionado:
