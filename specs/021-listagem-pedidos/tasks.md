@@ -151,11 +151,11 @@ usado pelo Cliente → 400; filtros só sobre os próprios pedidos.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T027 [P] Documentos de fluxo (regra do `CLAUDE.md`), conferindo mensagens, limites, IDs de log e links relativos no código:
+- [X] T027 [P] Documentos de fluxo (regra do `CLAUDE.md`), conferindo mensagens, limites, IDs de log e links relativos no código:
   - `docs/fluxos/03-consulta-e-mudanca-de-status.md`: rota nova no cabeçalho e REQ-21 na origem; seção **Listagem** com exemplo de requisição e resposta, os filtros, a navegação por cursor e a tabela de respostas (200, 400 com as mensagens, 401, 403 sem perfil e 403 do filtro por Cliente) com o motivo de cada uma; falhas externas (banco fora do ar → 500); log 4006;
   - em **Limitações**: a chave do cursor hoje é derivada da chave de assinatura do JWT; trocá-la (rotação da #60) invalida os cursores em uso (400, recomeçar da primeira página), e a chave pode passar no futuro a uma chave própria do cursor, mudando só o registro de `IChaveCursorPedidos` (R-04); sem total nem salto de página, por decisão da clarify;
   - `docs/fluxos/README.md`: a rota nova na linha do fluxo 3; o diagrama de estados não muda.
-- [ ] T028 [P] Documentação do projeto: `docs/estado-atual.md` e `docs/proximos-passos.md` com a listagem entregue e a pendência da chave própria do cursor. O `README.md` **não** cresce sem permissão (regra do `CLAUDE.md`): se houver algo a acrescentar lá, perguntar antes.
+- [X] T028 [P] Documentação do projeto: `docs/estado-atual.md` e `docs/proximos-passos.md` com a listagem entregue e a pendência da chave própria do cursor. O `README.md` **não** cresce sem permissão (regra do `CLAUDE.md`): se houver algo a acrescentar lá, perguntar antes.
 - [ ] T029 Varredura de segredos no diff, `dotnet build`, `dotnet format --verify-no-changes` e a suíte inteira com Docker (zero ignorados); registrar a contagem em Notes, comparando com a T001.
 - [ ] T030 Executar o [quickstart](./quickstart.md) (§2) com a API local e registrar o resultado em Notes, corrigindo o quickstart onde divergir.
 - [ ] T031 Push e PR em português (Resumo, Pontos de atenção, Validação) com `Closes #52`, citando em Validação os documentos de fluxo atualizados e, em Pontos de atenção, a paginação por cursor sem total e a chave do cursor derivada do JWT, com a possível troca futura por uma chave própria. Acompanhar `build-testes` e `Compatibilidade do contrato` até ficarem verdes, inclusive depois de cada push posterior, e entrar por auto-merge com rebase.

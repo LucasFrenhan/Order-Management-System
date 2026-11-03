@@ -9,7 +9,7 @@ verdade: estes documentos as consolidam por fluxo, de ponta a ponta.
 |---|-------|-----------|------|
 | 1 | [Autenticação](01-autenticacao.md) | API | 01, 03, 14 |
 | 2 | [Criação de pedido](02-criacao-de-pedido.md) | API | 01, 04, 05, 16 |
-| 3 | [Consulta e mudança de status](03-consulta-e-mudanca-de-status.md) | API | 05, 08, 11, 13, 15, 18 |
+| 3 | [Consulta, listagem e mudança de status](03-consulta-e-mudanca-de-status.md) | API | 05, 08, 11, 13, 15, 18, 21 |
 | 4 | [Reserva de estoque](04-reserva-de-estoque.md) | Worker | 08, 15 |
 | 5 | [Pagamento](05-pagamento.md) | Worker | 09, 13, 15, 19 |
 | 6 | [Ordem de entrega](06-ordem-de-entrega.md) | Worker | 10, 13, 15 |
