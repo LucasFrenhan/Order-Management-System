@@ -15,7 +15,8 @@
 - **Paginação por chave (keyset)** sobre `(CriadoEm DESC, Numero DESC)`, nos dois sentidos,
   com `tamanho + 1` para saber se há mais página e sem total (R-01, R-02).
 - **Cursor opaco com HMAC** ligado ao usuário e aos filtros, com a chave derivada por HKDF da
-  `Jwt:ChaveAssinatura`; adulterado ou de outra consulta → 400 (R-03, R-04).
+  `Jwt:ChaveAssinatura`; adulterado ou de outra consulta → 400 (R-03, R-04). A chave chega por
+  `IChaveCursorPedidos`, para poder passar a uma chave própria no futuro trocando só o registro.
 - **Filtros**: status (vários), período de criação e período de última alteração, e Cliente
   (operação); validados todos de uma vez pelo `FiltroValidacao` existente (R-05).
 - **Resumo** projetado direto do banco, sem carregar itens, histórico nem entrega (R-07, R-08);

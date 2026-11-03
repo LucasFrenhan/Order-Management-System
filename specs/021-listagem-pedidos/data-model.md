@@ -50,7 +50,9 @@ requisição.
 - `Codificar(PosicaoCursor, Guid usuarioId, FiltroListagemPedidos) → string`
 - `TentarDecodificar(string, Guid usuarioId, FiltroListagemPedidos, out PosicaoCursor) → bool`
 
-Chave derivada por HKDF da `Jwt:ChaveAssinatura` (R-04). Sem estado; singleton.
+Sem estado; singleton. Recebe a chave por `IChaveCursorPedidos` (novo), cuja implementação de
+hoje deriva por HKDF da `Jwt:ChaveAssinatura`; no futuro pode ser trocada por uma chave própria
+do cursor, mudando só o registro na API (R-04).
 
 ## Contratos da API (DTOs)
 
