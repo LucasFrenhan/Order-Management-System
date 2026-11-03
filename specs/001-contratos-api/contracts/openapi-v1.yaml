@@ -582,8 +582,8 @@ paths:
       summary: Soma uma variação ao estoque, com motivo, sem perder unidades reservadas ao mesmo tempo (somente Admin).
       description: |
         Perfis autorizados: **Admin** (REQ-22). A variação é somada ao estoque atual no momento da
-        gravação. Estoque final negativo: 422 `ESTOQUE_INSUFICIENTE`; acima de 1000000000: 422
-        `ESTOQUE_ACIMA_DO_LIMITE`; tentativas esgotadas: 409 `PRODUTO_ALTERADO_POR_OUTRA_OPERACAO`.
+        gravação, numa instrução só: reservas ao mesmo tempo não perdem nem criam unidades. Estoque
+        final negativo: 422 `ESTOQUE_INSUFICIENTE`; acima de 1000000000: 422 `ESTOQUE_ACIMA_DO_LIMITE`.
       security:
         - bearerAuth: []
       parameters:
@@ -609,8 +609,6 @@ paths:
           $ref: '#/components/responses/ErroSemPermissao'
         '404':
           $ref: '#/components/responses/ErroNaoEncontrado'
-        '409':
-          $ref: '#/components/responses/ErroConflito'
         '422':
           $ref: '#/components/responses/ErroRegraNegocio'
         '500':

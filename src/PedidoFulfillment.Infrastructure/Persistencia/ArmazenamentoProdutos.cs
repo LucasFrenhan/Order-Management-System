@@ -77,6 +77,33 @@ internal sealed class ArmazenamentoProdutos(ContextoBancoDados contexto) : IArma
         return lidos;
     }
 
+    /// <summary>
+    /// <c>UPDATE … SET QuantidadeEstoque = QuantidadeEstoque + @variacao WHERE … AND limites</c>: o
+    /// banco soma sobre o valor do momento da gravação, e o <c>rowversion</c> muda, então uma
+    /// reserva que leu antes reavalia (REQ-08). Sem linha afetada, a releitura diz o motivo.
+    /// </summary>
+    public async Task<ResultadoAjusteEstoque> AjustarEstoqueAsync(Guid id, int variacao, int maximo, DateTimeOffset instante, CancellationToken cancellationToken)
+    {
+        var afetados = await contexto.Produtos
+            .Where(p => p.Id == id && p.QuantidadeEstoque + variacao >= 0 && p.QuantidadeEstoque + variacao <= maximo)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(p => p.QuantidadeEstoque, p => p.QuantidadeEstoque + variacao)
+                .SetProperty(p => p.AtualizadoEm, instante), cancellationToken);
+        if (afetados == 1)
+        {
+            return ResultadoAjusteEstoque.Ajustado;
+        }
+
+        var atual = await contexto.Produtos.AsNoTracking().Where(p => p.Id == id).Select(p => (int?)p.QuantidadeEstoque)
+            .SingleOrDefaultAsync(cancellationToken);
+        return atual switch
+        {
+            null => ResultadoAjusteEstoque.Inexistente,
+            _ when (long)atual + variacao < 0 => ResultadoAjusteEstoque.Insuficiente,
+            _ => ResultadoAjusteEstoque.AcimaDoLimite
+        };
+    }
+
     public async Task SalvarAsync(CancellationToken cancellationToken)
     {
         try

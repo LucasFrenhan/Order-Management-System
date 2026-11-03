@@ -99,6 +99,30 @@ public sealed class ArmazenamentoProdutosFalso : IArmazenamentoProdutos
         return Task.FromResult<IReadOnlyList<Produto>>(lidos);
     }
 
+    /// <summary>Como o <c>UPDATE</c> atômico: soma sobre o valor gravado, se couber nos limites.</summary>
+    public Task<ResultadoAjusteEstoque> AjustarEstoqueAsync(Guid id, int variacao, int maximo, DateTimeOffset instante, CancellationToken cancellationToken)
+    {
+        if (!gravados.TryGetValue(id, out var produto))
+        {
+            return Task.FromResult(ResultadoAjusteEstoque.Inexistente);
+        }
+
+        var nova = (long)produto.QuantidadeEstoque + variacao;
+        if (nova < 0)
+        {
+            return Task.FromResult(ResultadoAjusteEstoque.Insuficiente);
+        }
+
+        if (nova > maximo)
+        {
+            return Task.FromResult(ResultadoAjusteEstoque.AcimaDoLimite);
+        }
+
+        produto.AjustarEstoque(variacao, instante);
+        Gravacoes++;
+        return Task.FromResult(ResultadoAjusteEstoque.Ajustado);
+    }
+
     public Task SalvarAsync(CancellationToken cancellationToken)
     {
         if (SkuDuplicadoNaProximaGravacao)

@@ -140,9 +140,9 @@ unidades reservadas.
 4. **Given** uma variação zero ou sem motivo, **When** o Admin ajusta, **Then** a resposta é 400.
 5. **Given** um produto com 100 unidades, **When** o Admin repõe 50 enquanto o processo de workers
    reserva 30 pedidos de 1 unidade ao mesmo tempo, **Then** o estoque final é 120.
-6. **Given** um ajuste que encontra o produto alterado por outra operação, **When** ele é gravado,
-   **Then** é reavaliado sobre o estoque atual, como a reserva já faz, e só falha com 409 depois
-   de esgotar as tentativas.
+6. **Given** um produto que o processo de workers está reservando sem parar, **When** o Admin
+   ajusta o estoque, **Then** o ajuste é somado ao estoque do momento da gravação e responde 200,
+   sem precisar de nova tentativa e sem perder nenhuma reserva.
 
 ---
 
@@ -259,10 +259,11 @@ reativar e conferir que volta.
   `ESTOQUE_INSUFICIENTE` e não mudar nada; um que passaria de 1.000.000.000 MUST dar 422 com o
   código `ESTOQUE_ACIMA_DO_LIMITE`.
 - **FR-016**: O ajuste MUST somar a variação ao estoque atual no momento da gravação, nunca
-  gravar um valor calculado sobre uma leitura antiga: com o produto alterado por outra operação
-  (uma reserva, uma devolução ou outro ajuste), MUST reavaliar sobre o estado atual, até 3 vezes;
-  esgotadas, MUST dar 409 com o código `PRODUTO_ALTERADO_POR_OUTRA_OPERACAO`. A alteração de
-  dados, a desativação e a reativação MUST seguir a mesma regra.
+  gravar um valor calculado sobre uma leitura antiga, de modo que uma reserva, uma devolução ou
+  outro ajuste ao mesmo tempo não perca nem crie unidades (a soma é atômica no banco; research
+  R-07, revista no implement). A alteração de dados, a desativação e a reativação, com o produto
+  alterado por outra operação, MUST reavaliar sobre o estado atual, até 3 vezes; esgotadas, MUST
+  dar 409 com o código `PRODUTO_ALTERADO_POR_OUTRA_OPERACAO`.
 - **FR-017**: A resposta do ajuste MUST trazer o produto com a quantidade nova.
 
 **Ativação**

@@ -71,8 +71,7 @@ public static class EndpointsProdutos
             .RequireAuthorization(PoliticasAutorizacao.PoliticaCatalogo)
             .AddEndpointFilter<FiltroValidacao<AjustarEstoqueRequestDTO>>()
             .Produces<ProdutoResponseDTO>()
-            .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status404NotFound, StatusCodes.Status409Conflict,
-                StatusCodes.Status422UnprocessableEntity);
+            .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status404NotFound, StatusCodes.Status422UnprocessableEntity);
 
         grupo.MapPost("/{id}/desativacao", async (Guid id, ClaimsPrincipal usuario, IServicoCatalogo servico, CancellationToken cancellationToken) =>
                 (await servico.DesativarAsync(id, usuario.ObterUsuarioId(), cancellationToken))
