@@ -99,6 +99,7 @@ specs/021-listagem-pedidos/
 src/
 ├── PedidoFulfillment.API/
 │   ├── Endpoints/EndpointsPedidos.cs              # + MapGet("") ListarPedidos
+│   ├── Seguranca/ChaveCursorDerivadaDoJwt.cs      # novo: IChaveCursorPedidos via HKDF (R-04)
 │   └── OpenApi/                                   # ajuste de tipos dos parâmetros, se preciso (R-05)
 ├── PedidoFulfillment.Application/
 │   ├── Contratos/Pedidos/
@@ -108,7 +109,7 @@ src/
 │   └── Pedidos/
 │       ├── FiltroListagemPedidos.cs               # novo
 │       ├── PosicaoCursor.cs                       # novo
-│       ├── CodificadorCursorPedidos.cs            # novo (R-03, R-04)
+│       ├── CodificadorCursorPedidos.cs            # novo, com IChaveCursorPedidos (R-03, R-04)
 │       ├── IArmazenamentoPedidos.cs               # + ListarResumosAsync
 │       ├── IServicoPedidos.cs / ServicoPedidos.cs # + ListarAsync (escopo, cursor, keyset)
 │       └── EventosPedidos.cs                      # + 4006 PedidosListados
@@ -133,9 +134,10 @@ docs/fluxos/README.md                               # índice: rota nova
 ```
 
 **Structure Decision**: os projetos existentes (API, Application, Infrastructure e os dois de
-testes); nenhum projeto novo. A chave do cursor é derivada na Application a partir das
-`OpcoesJwt`, injetada pela API na inicialização, para a Application não depender da
-configuração da API.
+testes); nenhum projeto novo. A Application define `IChaveCursorPedidos` e só conhece a
+interface; a implementação de hoje, `ChaveCursorDerivadaDoJwt`, fica na API, onde estão as
+`OpcoesJwt`, e é registrada na inicialização. Assim a Application não depende da configuração da
+API, e a troca futura por uma chave própria muda só o registro (R-04).
 
 ## Complexity Tracking
 

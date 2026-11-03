@@ -171,7 +171,10 @@ depois combinar os demais filtros e conferir que só aparecem pedidos do dono.
 
 - Fim da lista: a última página não tem cursor da próxima, e a primeira não tem cursor da
   anterior; não existe "página fora do intervalo", porque não há número de página.
-- Nenhum pedido atende aos filtros: 200 com a lista vazia e sem cursores.
+- Nenhum pedido atende aos filtros na primeira página: 200 com a lista vazia e sem cursores.
+- Página vazia vinda de um cursor (os pedidos à frente saíram do filtro no meio da
+  navegação): 200 com a lista vazia, sem cursor nesse sentido e com o cursor do sentido oposto,
+  para o cliente poder voltar.
 - Cursor que aponta para um pedido que, depois, mudou de status e saiu do filtro: a
   navegação continua do ponto em que estava, sem erro (o cursor guarda a posição na ordem,
   não depende de o pedido ainda atender ao filtro).
@@ -180,7 +183,8 @@ depois combinar os demais filtros e conferir que só aparecem pedidos do dono.
   filtro.
 - Filtro por um Cliente que não existe: 200 com a lista vazia (a operação não recebe 404, e o
   filtro não serve para descobrir se um usuário existe).
-- Identificador de Cliente malformado no filtro: 400.
+- Identificador de Cliente malformado no filtro: 400, para qualquer perfil (inclusive o
+  Cliente, que recebe 403 só com um identificador bem formado).
 - Período (de criação ou de última alteração) só com início ou só com fim: vale como período
   aberto do outro lado.
 - Pedido alterado durante a navegação com filtro de última alteração: pode sair ou entrar no
@@ -219,7 +223,8 @@ depois combinar os demais filtros e conferir que só aparecem pedidos do dono.
   Clientes.
 - **FR-006**: O filtro por Cliente MUST ser exclusivo de OperadorLogistica e Admin; o Cliente
   que o informa MUST receber 403 com uma mensagem em português dizendo que o filtro é
-  exclusivo da operação, independentemente do valor informado.
+  exclusivo da operação, independentemente do valor informado, desde que seja um
+  identificador bem formado (um malformado dá 400 antes, pela validação de FR-021).
 - **FR-007**: Um usuário com o perfil Cliente e também um perfil da operação MUST ter o escopo
   da operação (o perfil mais amplo prevalece, como na consulta por identificador).
 
@@ -257,7 +262,8 @@ depois combinar os demais filtros e conferir que só aparecem pedidos do dono.
 **Resumo do pedido**
 
 - **FR-018**: Cada item da lista MUST trazer o identificador, o número, o status, o valor
-  total, a quantidade de itens, o identificador do Cliente, a data de criação e a data da
+  total, a quantidade de itens (linhas de item, isto é, produtos distintos, e não a soma das
+  quantidades), o identificador do Cliente, a data de criação e a data da
   última alteração do pedido.
 - **FR-019**: O item da lista MUST NOT trazer os itens, o histórico, a entrega, o pagamento
   nem o estorno; o detalhe continua na consulta por identificador, que não muda.
@@ -271,7 +277,9 @@ depois combinar os demais filtros e conferir que só aparecem pedidos do dono.
   não numérico, cursor inválido) MUST dar 400 em ProblemDetails, com mensagens em português
   que digam qual parâmetro corrigir e sem revelar detalhes internos.
 - **FR-022**: Quando houver mais de um parâmetro inválido, a resposta 400 MUST listar todos
-  eles, como nas outras validações do contrato.
+  eles, como nas outras validações do contrato. O cursor é conferido depois dos demais
+  parâmetros (depende do usuário e dos filtros já válidos), então só aparece no 400 quando
+  todos os outros estão válidos.
 
 **Observabilidade e documentação**
 
