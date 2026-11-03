@@ -775,6 +775,11 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                         .HasColumnType("nvarchar(50)")
                         .UseCollation("SQL_Latin1_General_CP1_CI_AS");
 
+                    b.Property<string>("TextoBusca")
+                        .IsRequired()
+                        .HasMaxLength(1260)
+                        .HasColumnType("nvarchar(1260)");
+
                     b.Property<byte[]>("Versao")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
@@ -784,6 +789,16 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
 
                     b.HasIndex("Sku")
                         .IsUnique();
+
+                    b.HasIndex("Nome", "Sku")
+                        .HasDatabaseName("IX_Produtos_Nome_Sku");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("Nome", "Sku"), new[] { "Preco", "QuantidadeEstoque", "Ativo" });
+
+                    b.HasIndex("Ativo", "Nome", "Sku")
+                        .HasDatabaseName("IX_Produtos_Ativo_Nome_Sku");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("Ativo", "Nome", "Sku"), new[] { "Preco", "QuantidadeEstoque" });
 
                     b.ToTable("Produtos", null, t =>
                         {

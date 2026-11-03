@@ -14,7 +14,10 @@ name: oms
 
 services:
   sqlserver:
-    image: mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04
+    # Imagem própria: a oficial + Full-Text Search, para a busca do catálogo (REQ-22).
+    build:
+      context: docker/sqlserver
+    image: oms-sqlserver:2022-CU26-fts
     environment:
       ACCEPT_EULA: "Y"
       MSSQL_PID: Developer
