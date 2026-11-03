@@ -33,7 +33,7 @@
 
 - Os termos 401, 403, 404, 409, 422, ProblemDetails, códigos de erro e "contrato v1" aparecem
   porque fazem parte do contrato público já existente e dos critérios de aceite da issue #53.
-- Decisões tomadas como padrão, para revisar no `/speckit-clarify`: gestão só pelo Admin (sem
-  perfil novo), Cliente vê só ativos e só a disponibilidade, ajuste de estoque por variação com
-  motivo, histórico de ajustes só no log, listagem por cursor como a de pedidos, sem eventos
-  `produto.*`, catálogo inicial mantido em Development e testes.
+- Clarify de 2026-11-03: só o Admin gerencia; o Cliente vê só ativos, sem a quantidade; o
+  OperadorLogistica vê como o Admin, só leitura; listagem por cursor como a de pedidos, ordenada
+  pelo nome, com busca textual em português (até 10 s de atraso na busca); histórico de ajustes
+  só no log; sem eventos novos; catálogo inicial só em Development e testes.
