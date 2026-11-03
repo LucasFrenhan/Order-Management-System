@@ -97,7 +97,10 @@ stateDiagram-v2
 
 Toda resposta de erro é um `ProblemDetails` (RFC 7807), com `type`, `title`, `status`,
 `detail`, `instance` e `traceId`. Nenhuma resposta expõe detalhes internos, como pilha,
-SQL, dados de conexão ou senhas.
+SQL, dados de conexão ou senhas. Os erros gerados pelo próprio ASP.NET também têm título em
+português: rota inexistente ("Recurso não encontrado."), método não permitido ("Método não
+permitido.") e tipo de conteúdo não suportado ("Tipo de conteúdo não suportado."). Até a issue
+#63, esses saíam com o título padrão em inglês ("Not Found").
 
 | Status | Quando | Corpo |
 |--------|--------|-------|
