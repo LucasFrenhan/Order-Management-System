@@ -46,6 +46,25 @@ public sealed class CabecalhosReenvioTestes
     }
 
     [Fact]
+    public void Texto_aceita_string_e_ignora_outros_tipos()
+    {
+        CabecalhosReenvio.Motivo(new Dictionary<string, object?> { ["x-motivo"] = "em texto" }).Should().Be("em texto");
+        CabecalhosReenvio.Motivo(new Dictionary<string, object?> { ["x-motivo"] = 42 }).Should().BeNull();
+        CabecalhosReenvio.Motivo(new Dictionary<string, object?>()).Should().BeNull();
+    }
+
+    [Fact]
+    public void Reenvio_sem_cabecalhos_originais_comeca_a_contagem()
+    {
+        var pedido = Guid.CreateVersion7();
+
+        var copia = CabecalhosReenvio.ParaReenvio(null, pedido, T0);
+
+        copia[CabecalhosReenvio.Reenvios].Should().Be(1);
+        CabecalhosReenvio.PedidoReenvioId(copia).Should().Be(pedido);
+    }
+
+    [Fact]
     public void A_copia_reenviada_recomeca_as_tentativas_e_conta_o_reenvio()
     {
         var pedido = Guid.CreateVersion7();

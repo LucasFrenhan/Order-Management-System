@@ -75,6 +75,22 @@ public sealed class OpcoesPagamentosSimuladosTestes
     }
 
     [Fact]
+    public void O_validador_da_partida_aceita_os_padroes_e_recusa_a_violacao()
+    {
+        var validador = new ValidadorOpcoesSimulacao();
+
+        validador.Validate(null, new OpcoesSimulacao()).Succeeded.Should().BeTrue();
+        validador.Validate(null, new OpcoesSimulacao { RetryAfterSegundos = 0 }).Failed.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Sem_semente_o_sorteio_e_aleatorio_e_nome_nulo_nao_e_comportamento()
+    {
+        new ControleSimulacao(Microsoft.Extensions.Options.Options.Create(new OpcoesSimulacao { Semente = null })).Parametros.Should().NotBeNull();
+        NomesComportamento.TentarLer(null, out _).Should().BeFalse();
+    }
+
+    [Fact]
     public void Chaves_validas_passam()
     {
         new ValidadorOpcoesSeguranca().Validate(null, new OpcoesSeguranca { ChaveApi = ChaveApi, ChaveControle = ChaveControle })

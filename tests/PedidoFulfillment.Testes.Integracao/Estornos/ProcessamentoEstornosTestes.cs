@@ -216,6 +216,23 @@ public sealed class ProcessamentoEstornosTestes(MensageriaTeste mensageria)
     }
 
     [Fact]
+    public async Task Falha_de_um_pedido_fora_do_servico_e_registrada_e_o_estorno_continua_pendente()
+    {
+        // Um escopo por pedido: o que escapa do ServicoEstornos (aqui, a montagem do gateway) fica no pedido.
+        Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
+        var (stringConexao, pedidoId) = await CanceladoPagoAsync();
+        var logs = new CapturaLogs();
+
+        await using var worker = WorkerEstornando(mensageria, stringConexao, logs,
+            servicos: s => s.AddScoped<IGatewayPagamento>(_ => throw new InvalidOperationException("Gateway sem configuração.")));
+        worker.CreateClient().Dispose();
+
+        (await EsperarLogsAsync(logs, 7010)).Should().BeTrue();
+        logs.Registros.First(r => r.Evento.Id == 7010).Texto.Should().Contain($"pedido {pedidoId}");
+        (await SituacaoAsync(stringConexao, pedidoId)).Should().Be("EstornoPendente");
+    }
+
+    [Fact]
     public async Task Estorno_confirmado_e_perdido_antes_da_gravacao_recebe_o_mesmo_estorno_na_rodada_seguinte()
     {
         // REQ-13, US4 cenário 3: o gateway simulado é idempotente por pedido.
