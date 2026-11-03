@@ -7,6 +7,7 @@ using PedidoFulfillment.API.Observabilidade;
 using PedidoFulfillment.API.OpenApi;
 using PedidoFulfillment.API.Seguranca;
 using PedidoFulfillment.Application.Autenticacao;
+using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Notificacoes;
 using PedidoFulfillment.Application.Pedidos;
@@ -51,8 +52,8 @@ builder.Services.AddSingleton<IEmissorToken, EmissorTokenJwt>();
 builder.Services.AddScoped<IServicoAutenticacao, ServicoAutenticacao>();
 builder.Services.AddScoped<IServicoPedidos, ServicoPedidos>();
 // Chave do cursor da listagem (REQ-21, research R-04): hoje derivada da chave do JWT. Para usar
-// uma chave própria do cursor, troque só esta linha por outra IChaveCursorPedidos.
-builder.Services.AddSingleton<IChaveCursorPedidos, ChaveCursorDerivadaDoJwt>();
+// uma chave própria do cursor, troque só esta linha por outra IChaveCursor.
+builder.Services.AddSingleton<IChaveCursor, ChaveCursorDerivadaDoJwt>();
 builder.Services.AddSingleton<CodificadorCursorPedidos>();
 builder.Services.AddScoped<IServicoListagemPedidos, ServicoListagemPedidos>();
 builder.Services.AddScoped<IServicoReenvioDlq, ServicoReenvioDlq>();

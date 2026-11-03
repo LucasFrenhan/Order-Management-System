@@ -1,6 +1,7 @@
 using System.Buffers.Text;
 using System.Text;
 using FluentAssertions;
+using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Domain.Pedidos;
 
@@ -163,7 +164,7 @@ public sealed class CodificadorCursorPedidosTestes
         return $"{Base64Url.EncodeToString(bytes)}.{Base64Url.EncodeToString(mac)}";
     }
 
-    internal sealed class ChaveFixa(string texto) : IChaveCursorPedidos
+    internal sealed class ChaveFixa(string texto) : IChaveCursor
     {
         public byte[] Chave { get; } = Encoding.UTF8.GetBytes(texto);
     }
