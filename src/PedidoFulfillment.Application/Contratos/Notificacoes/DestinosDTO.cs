@@ -6,24 +6,18 @@ namespace PedidoFulfillment.Application.Contratos.Notificacoes;
 /// <summary>
 /// Cadastro de um destino de webhook (REQ-18, FR-008; <c>contracts/api-notificacoes.md</c>). Aqui
 /// só a forma da URL; o esquema <c>https</c> e o endereço público são conferidos pelo serviço, que
-/// conhece a configuração.
+/// conhece a configuração. A URL é aparada ao chegar; o <see cref="Validate"/> só roda depois que
+/// os atributos passam.
 /// </summary>
 public sealed record CadastrarDestinoRequestDTO : IValidatableObject
 {
-    [Required]
-    [MaxLength(DestinoNotificacao.TamanhoMaximoUrl)]
-    public string Url { get; init; } = "";
+    [Required(ErrorMessage = "A URL é obrigatória.")]
+    [MaxLength(DestinoNotificacao.TamanhoMaximoUrl, ErrorMessage = "A URL deve ter até 2048 caracteres.")]
+    public string Url { get; init => field = value?.Trim() ?? ""; } = "";
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
-        var url = Url?.Trim() ?? "";
-        if (url.Length == 0)
-        {
-            yield return new ValidationResult("A URL é obrigatória.", [nameof(Url)]);
-            yield break;
-        }
-
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+        if (!Uri.TryCreate(Url, UriKind.Absolute, out var uri) || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
         {
             yield return new ValidationResult("A URL deve ser absoluta, com https.", [nameof(Url)]);
         }
