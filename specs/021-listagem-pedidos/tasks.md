@@ -13,8 +13,9 @@ description: "Lista de tarefas do REQ-21 — Listagem e paginação de pedidos p
 
 **Tests**: OBRIGATÓRIOS. A constituição exige testes unitários das regras, integração com
 sucesso, 401 e 403 de toda rota protegida e conformidade do contrato; a issue #52 pede testes
-de escopo do Cliente e de paginação. Os testes de cada fase vêm antes da implementação e devem
-falhar primeiro.
+de escopo do Cliente e de paginação. Os testes da fundação vêm antes da implementação e devem
+falhar primeiro; nas fases das histórias, a fundação já implementa boa parte, então os testes
+descrevem o comportamento esperado e os que falharem orientam o ajuste.
 
 **Organization**: uma fundação com os tipos, o cursor, a validação, a consulta e a rota sem
 filtros; depois uma fase por história. A US1 (Cliente lista os próprios pedidos) é o MVP. A US2
@@ -94,7 +95,7 @@ conforme.
 **Independent Test**: pedidos de dois Clientes; cada um lista e recebe só os seus, na ordem
 certa, com os campos do resumo iguais aos da consulta por id.
 
-- [ ] T015 [P] [US1] Testes unitários do escopo em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosListagemTestes.cs`: Cliente recebe o filtro com o próprio `ClienteId`; usuário com Cliente e um perfil da operação tem escopo da operação (FR-007); sem cursor, `Anterior` é `null`.
+- [ ] T015 [P] [US1] Testes unitários do escopo em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosListagemTestes.cs`: Cliente recebe o filtro com o próprio `ClienteId`; usuário com Cliente e um perfil da operação tem escopo da operação (FR-007); sem cursor, `Anterior` é `null`; o log `4006 PedidosListados` sai uma vez por listagem, com perfil, nomes dos filtros, sentido e quantidade, e sem nenhum valor de filtro (nem o `clienteId`, nem datas, nem status) (FR-024).
 - [ ] T016 [P] [US1] Testes de integração em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/ListagemPedidosTestes.cs` (criar o arquivo e o cenário com Testcontainers, reaproveitando `CenarioPedidos`): Cliente com 3 pedidos e outro com 2 → 200 com os 3, ordem decrescente, sem cursores; Cliente sem pedidos → lista vazia sem cursores; o resumo tem exatamente os campos do `ResumoPedidoResponseDTO`, sem `itens`, `historico` nem `entrega`, e `numero`, `status`, `valorTotal`, `moeda`, `criadoEm` e `atualizadoEm` iguais aos do `GET /api/v1/pedidos/{id}` (FR-018 a FR-020); `quantidadeItens` = número de linhas de item; a listagem não grava nada no outbox nem nos avisos (FR-023).
 - [ ] T017 [US1] Ajustar o que os testes T015 e T016 apontarem no `ServicoPedidos.ListarAsync` e no `ArmazenamentoPedidos.ListarResumosAsync` até ficarem verdes.
 
@@ -124,7 +125,7 @@ combinação dão exatamente os pedidos esperados.
 **Independent Test**: 45 pedidos com tamanho 20, ida até o fim e volta; pedido novo no meio;
 empate de `CriadoEm`; parâmetros e cursores inválidos.
 
-- [ ] T020 [P] [US3] Testes de integração em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/ListagemPedidosNavegacaoTestes.cs`: 45 pedidos, tamanho 20 → 20, 20 e 5, sem repetição, última sem `proximo`, primeira sem `anterior`; da terceira, `anterior` devolve a segunda igual (mesmos pedidos e ordem, com os dois cursores); pedido criado entre a página 1 e a 2 não desloca nem repete nada e aparece ao recomeçar (SC-002); dois pedidos com o mesmo `CriadoEm` na divisa entre páginas, nenhum perdido nem repetido; troca de `tamanho` no meio aceita; pedido que sai do filtro de status durante a navegação não quebra o cursor; sem parâmetros → 20 itens.
+- [ ] T020 [P] [US3] Testes de integração em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/ListagemPedidosNavegacaoTestes.cs`: 45 pedidos, tamanho 20 → 20, 20 e 5, sem repetição, última sem `proximo`, primeira sem `anterior`; da terceira, `anterior` devolve a segunda igual (mesmos pedidos e ordem, com os dois cursores); pedido criado entre a página 1 e a 2 não desloca nem repete nada e aparece ao recomeçar (SC-002); dois pedidos com o mesmo `CriadoEm` na divisa entre páginas, nenhum perdido nem repetido; troca de `tamanho` no meio aceita; pedido que sai do filtro de status durante a navegação não quebra o cursor; página vazia vinda de um cursor (os pedidos à frente saíram do filtro) → 200 vazia, sem `proximo` e com `anterior`, que devolve a página de antes; sem parâmetros → 20 itens.
 - [ ] T021 [P] [US3] Testes de integração dos erros em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/ListagemPedidosErrosTestes.cs`: 400 em `ValidacaoProblemDetails` com a mensagem exata da research R-05 para `tamanho` `0`, `101` e `abc`, status desconhecido, data sem fuso e período invertido; três erros juntos na mesma resposta; cursor malformado, com um caractere trocado, com filtros diferentes e de outro usuário → 400 `erros.cursor` `O cursor é inválido para esta consulta; recomece da primeira página.`; nenhum caso dá 500 (SC-006).
 - [ ] T022 [P] [US3] Teste de desempenho em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/ListagemPedidosDesempenhoTestes.cs`, no padrão de `DesempenhoCriacaoTestes`: 10.000 pedidos inseridos em lote; primeira página, uma página a 50 passos de profundidade pelo cursor e uma com `status` e período, cada uma em até 1 s (SC-004).
 - [ ] T023 [US3] Ajustar a montagem dos cursores no `ServicoPedidos.ListarAsync` e o keyset no `ArmazenamentoPedidos` até T020 a T022 passarem.
@@ -140,7 +141,7 @@ empate de `CriadoEm`; parâmetros e cursores inválidos.
 **Independent Test**: Cliente com `clienteId` (de outro e o próprio) → 403; cursor da operação
 usado pelo Cliente → 400; filtros só sobre os próprios pedidos.
 
-- [ ] T024 [P] [US4] Testes unitários em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosListagemTestes.cs`: Cliente com `clienteId` (outro e o próprio) → `TipoFalha.SemPermissao` com `"Operação não permitida."` / `"O filtro por cliente é exclusivo da operação."`, sem chamar o armazenamento; o 403 vem antes da validação do cursor; operação com `clienteId` aceita.
+- [ ] T024 [US4] Testes unitários em `tests/PedidoFulfillment.Testes.Unitarios/Pedidos/ServicoPedidosListagemTestes.cs`: Cliente com `clienteId` (outro e o próprio) → `TipoFalha.SemPermissao` com `"Operação não permitida."` / `"O filtro por cliente é exclusivo da operação."`, sem chamar o armazenamento; o 403 vem antes da validação do cursor; operação com `clienteId` aceita.
 - [ ] T025 [P] [US4] Testes de integração em `tests/PedidoFulfillment.Testes.Integracao/Pedidos/ListagemPedidosEscopoTestes.cs`: Cliente com `clienteId` de outro e com o próprio → 403 com a mensagem; Cliente com `clienteId` malformado → 400; Cliente com filtros de status e de período só vê os próprios; cursor devolvido à operação e a outro Cliente, usado pelo Cliente → 400 e nada listado; varredura combinando status, períodos, tamanhos e cursores sem nenhum pedido de outro Cliente na resposta (SC-001).
 - [ ] T026 [US4] Implementar o 403 do filtro por Cliente no `ServicoPedidos.ListarAsync` (research R-06), antes de decodificar o cursor e de consultar o banco, até T024 e T025 passarem.
 
@@ -174,7 +175,7 @@ usado pelo Cliente → 400; filtros só sobre os próprios pedidos.
 ### Parallel Opportunities
 
 - T002 e T003; T004 e T005.
-- T015 e T016; T018; T020, T021 e T022; T025.
+- T015 e T016; T018; T020, T021 e T022; T025 (a T024 vem depois da T015, mesmo arquivo).
 - T027 e T028.
 
 ## Parallel Example: User Story 3
@@ -194,6 +195,11 @@ Depois: T023
 6. Polish → `docs(fluxos): listagem de pedidos no fluxo 3 [REQ-21]`, push e PR.
 
 ## Notes
+
+- **/speckit-analyze (2026-11-03)**: aplicadas as correções I1 (plan: interface na Application,
+  implementação na API), I2 (spec FR-006: 403 só com `clienteId` bem formado), I3 (spec: página
+  vazia vinda de cursor), G1 (T020), G2 (log na T015), U1 (spec FR-018: linhas de item), I4
+  (spec FR-022: cursor conferido depois), F1 (T024 sem `[P]`) e F2 (cabeçalho de testes).
 
 - A chave do cursor vem hoje da `Jwt:ChaveAssinatura` (HKDF), por `IChaveCursorPedidos`; a troca
   futura por uma chave própria é mudar só o registro na API (pedido do usuário no tasks,
