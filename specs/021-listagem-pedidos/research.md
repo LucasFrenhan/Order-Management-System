@@ -89,6 +89,14 @@ o que fica registrado em Limitações no fluxo 3.
 um segredo obrigatório para gerar, distribuir e validar em todos os ambientes, sem ganho de
 segurança para um cursor que não protege escopo.
 
+**Evolução prevista** (decisão do usuário, 2026-11-03): hoje a chave vem da chave de assinatura
+do JWT, mas pode passar no futuro a uma chave própria do cursor, por exemplo quando a rotação da
+chave do JWT (#60) for feita. Para a troca ficar local, a chave chega ao
+`CodificadorCursorPedidos` por uma única abstração (`IChaveCursorPedidos`), registrada na
+inicialização da API; trocar a origem é mudar só esse registro. A troca invalida os cursores em
+uso (400, recomeçar da primeira página), sem mudança de contrato. A pendência fica nas
+Limitações do fluxo 3.
+
 ## R-05 — Parâmetros de consulta e validação com todos os erros
 
 **Decision**: a rota recebe um `ListarPedidosRequestDTO` com `[AsParameters]`, com os campos
