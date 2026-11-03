@@ -72,6 +72,21 @@ de qualquer outro passo.
 - Antes de abrir o PR, rode `dotnet build`, `dotnet test` e
   `dotnet format --verify-no-changes`. O workflow `build-testes` precisa ficar verde.
 
+## Regra: o README só cresce com permissão
+
+O `README.md` é a porta de entrada do projeto e deve ficar curto. O detalhe vai para `docs/`
+(como `docs/mensageria.md`, `docs/integracao-continua.md` e `docs/analise-estatica.md`), com o
+README apontando para lá.
+
+- **Antes de acrescentar qualquer coisa ao README** (seção, parágrafo, linha de tabela,
+  comando ou item de lista), pergunte ao usuário e espere a permissão. Diga o que entraria e
+  proponha a alternativa em `docs/`. Vale também para as tarefas de documentação dos REQs (por
+  exemplo, a "linha do REQ" no README ou um roteiro novo).
+- Sem pedir: corrigir um texto que ficou errado, trocar um link ou encurtar, desde que o README
+  não cresça.
+- Um documento novo em `docs/` ganha o link `[← Voltar ao README](../README.md)` no topo e
+  entra na linha `docs/` da seção Estrutura do README (isso não precisa de permissão).
+
 ## Regra: manter os documentos de fluxo em dia
 
 `docs/fluxos/` descreve cada fluxo de ponta a ponta: caminho feliz, erros tratados (com
