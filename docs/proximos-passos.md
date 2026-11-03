@@ -48,7 +48,7 @@ Itens do mesmo levantamento que ficaram anotados, sem issue, para decidir depois
 - **Segurança**
   - A demonstração roda em HTTP, sem certificado (REQ-07; só local).
   - A chave que assina o cursor da listagem de pedidos é derivada da chave de assinatura do JWT;
-    pode passar a uma chave própria do cursor, trocando só o registro de `IChaveCursorPedidos`
+    pode passar a uma chave própria do cursor, trocando só o registro de `IChaveCursor`
     na API. Vale decidir junto com a rotação da chave do JWT (#60), que hoje invalidaria os
     cursores em uso (REQ-21, [research R-04](../specs/021-listagem-pedidos/research.md#r-04--chave-do-hmac-do-cursor)).
 - **Operação e infraestrutura**

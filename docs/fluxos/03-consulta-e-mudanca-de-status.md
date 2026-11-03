@@ -215,4 +215,4 @@ entrega cancelada). A listagem registra o 4006 (`PedidosListados`, nível Debug)
   (`Jwt:ChaveAssinatura`, por HKDF). Trocar essa chave, por exemplo na rotação da #60, invalida
   os cursores em uso: a resposta é 400 e o cliente recomeça da primeira página. A chave pode
   passar no futuro a uma chave própria do cursor, mudando só o registro de
-  `IChaveCursorPedidos` na API ([research R-04](../../specs/021-listagem-pedidos/research.md#r-04--chave-do-hmac-do-cursor)).
+  `IChaveCursor` na API ([research R-04](../../specs/021-listagem-pedidos/research.md#r-04--chave-do-hmac-do-cursor)).

@@ -6,26 +6,16 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using PedidoFulfillment.Application.Comum;
 
 namespace PedidoFulfillment.Application.Pedidos;
-
-/// <summary>
-/// Chave do HMAC do cursor da listagem (REQ-21, research R-04). A implementação de hoje deriva a
-/// chave da chave de assinatura do JWT; ela pode passar a uma chave própria do cursor trocando só
-/// o registro desta interface na API. A troca invalida os cursores em uso (400).
-/// </summary>
-public interface IChaveCursorPedidos
-{
-    /// <summary>Bytes da chave; ao menos 32.</summary>
-    byte[] Chave { get; }
-}
 
 /// <summary>
 /// Cursor opaco da listagem (research R-03): <c>base64url(carga) + "." + base64url(mac)</c>. O
 /// <c>mac</c> liga o cursor ao usuário e aos filtros; o tamanho da página fica de fora. O escopo
 /// do Cliente não depende do cursor: ele é aplicado no servidor (FR-004).
 /// </summary>
-public sealed class CodificadorCursorPedidos(IChaveCursorPedidos chave)
+public sealed class CodificadorCursorPedidos(IChaveCursor chave)
 {
     private const int VersaoCarga = 1;
     private const int TamanhoMac = 16;
