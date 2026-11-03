@@ -206,91 +206,16 @@ telemetria fica desligada e nada muda.
 - **Várias instâncias do Worker**: os gauges (`oms.outbox.*` e `oms.mensageria.dlq.mensagens`)
   saem iguais de cada instância; agregue com `max`. Os contadores se somam.
 
-## Integração contínua
+## Integração contínua e qualidade
 
-O workflow [`build-testes`](.github/workflows/build-testes.yml) roda em todo PR para a
-`main` e no push da `main` (o merge). São dois jobs:
+Todo PR para a `main` passa pelo build, pelos testes unitários e de integração, pela
+demonstração e pelo Quality Gate do SonarQube Cloud, e só entra por rebase. Os detalhes estão
+em dois documentos:
 
-- **Build e testes**: compila em Release, com avisos como erros, e roda os testes unitários
-  e de integração com SQL Server, RabbitMQ e a API de pagamento simulada reais
-  (Testcontainers e Kestrel). O resumo da execução mostra as contagens por projeto, os testes
-  que falharam e a cobertura de linhas, sem as migrations nem o código gerado. A análise
-  estática do SonarQube Cloud envolve esse build e esses testes (veja
-  [Análise estática](#análise-estática)). Os resultados (TRX, Cobertura e o relatório de
-  cobertura enviado ao SonarQube) ficam 14 dias no artefato `resultados-testes`.
-- **Demonstração**: só nos PRs; sobe o perfil `demo` e confere a prontidão da API, do Worker e
-  da API de pagamento simulada e o login do administrador de desenvolvimento.
-
-No push da `main`, só o job de testes roda: a análise da `main` é a referência de comparação
-dos PRs e do estado mostrado na análise estática.
-
-O check fica vermelho com:
-- erro ou aviso de compilação;
-- teste falhando ou **ignorado**;
-- falta de Docker;
-- demonstração que não fica pronta;
-- falha da análise (por exemplo, credencial inválida).
-
-No CI, `OMS_EXIGIR_DOCKER=true` faz os testes com banco e broker reais falharem sem Docker,
-em vez de serem ignorados. Para reproduzir localmente:
-
-```powershell
-$env:OMS_EXIGIR_DOCKER = "true"
-dotnet test PedidoFulfillment.sln -c Release --logger "trx;LogFilePrefix=resultado" --results-directory resultados --collect "Code Coverage;Format=cobertura" --settings coverage.runsettings
-bash .github/scripts/resumo-testes.sh resultados
-```
-
-### Proteção da `main`
-
-A `main` tem o ruleset **Proteção da main**, versionado em
-[`.github/rulesets/protecao-main.json`](.github/rulesets/protecao-main.json) e válido para
-todos, inclusive o dono do repositório (REQ-20):
-
-- mudanças só por PR, mergeado **por rebase** (histórico linear; os commits de etapa e de fase
-  entram em sequência na `main`);
-- verificações exigidas, com a branch atualizada: **Build e testes**, **Demonstração** e
-  **SonarCloud Code Analysis** (o Quality Gate, aceito só quando vem do app do SonarQube Cloud);
-- push direto, force push e exclusão da `main` recusados.
-
-Para conferir ou reaplicar a regra a partir do arquivo versionado:
-
-```bash
-gh api repos/LucasFrenhan/Order-Management-System/rules/branches/main
-gh api -X PUT repos/LucasFrenhan/Order-Management-System/rulesets/26400051 --input .github/rulesets/protecao-main.json
-```
-
-Uma verificação exigida só pode ser cadastrada depois de rodar uma vez, e uma que não roda
-num PR o bloqueia: por isso a **Compatibilidade do contrato**, que só roda quando o contrato
-muda, não é exigida. Numa indisponibilidade do SonarQube Cloud, o merge espera; se for
-preciso, a regra é desligada temporariamente em Settings → Rules, de forma registrada.
-
-## Análise estática
-
-O código é analisado pelo SonarQube Cloud em todo PR e no push da `main`:
-[painel do projeto](https://sonarcloud.io/project/overview?id=LucasFrenhan_Order-Management-System)
-(organização `lucasfrenhan`, projeto `LucasFrenhan_Order-Management-System`; não são
-segredos). A credencial de análise é o segredo `SONAR_TOKEN` do repositório e só chega aos
-passos do scanner.
-
-- **Onde ver**: no PR, a verificação do SonarQube Cloud e o comentário com o Quality Gate,
-  os problemas novos, a cobertura e a duplicação do código novo, com link para o detalhe.
-- **Quality Gate** ("Sonar way", só sobre o código novo): nenhum bug nem vulnerabilidade
-  novos, todos os pontos de segurança (security hotspots) revisados, nota A de
-  manutenibilidade, cobertura de pelo menos 80% e no máximo 3% de duplicação.
-- **Quality Gate reprovado**: abra o detalhe pelo comentário do PR e corrija o problema no
-  mesmo PR (para cobertura, acrescente testes ao código novo). Um falso positivo, ou um ponto
-  de segurança que é seguro (como uma credencial só de desenvolvimento), é marcado no painel
-  com a justificativa, sem desligar a regra.
-- **Fora da análise**: as migrations, o código gerado, `specs/` e `.specify/`; os projetos de
-  `tests/` contam como teste. A cobertura soma os testes unitários e os de integração.
-- **No editor** (opcional): o SonarQube for IDE, em modo conectado ao projeto, mostra os
-  mesmos problemas antes do push.
-
-**Pull requests de forks não são aceitos.** O GitHub não permite desativá-los num repositório
-público, e eles não poderiam ser mergeados (a análise não roda sem acesso ao segredo, e a
-`main` a exige). O workflow [`prs-de-fork`](.github/workflows/prs-de-fork.yml) comenta a
-política e fecha esses PRs, sem fazer checkout do código deles. Para sugerir uma mudança,
-abra uma issue.
+- [Integração contínua](docs/integracao-continua.md): os jobs, o que deixa o check vermelho,
+  como reproduzir localmente e a proteção da `main`.
+- [Análise estática](docs/analise-estatica.md): o painel, o Quality Gate e o que fazer quando
+  ele reprova.
 
 ## Estrutura
 
@@ -333,7 +258,8 @@ tests/
                                         saúde, autenticação, persistência, pedidos, mensageria, estoque e pagamento
                                         com SQL Server e RabbitMQ reais (Testcontainers),
                                         schemas de eventos e arquitetura
-docs/                                estado atual, próximos passos, mensageria e fluxos/ (fluxos de ponta a ponta)
+docs/                                estado atual, próximos passos, mensageria, integração contínua,
+                                     análise estática e fluxos/ (fluxos de ponta a ponta)
 specs/                               especificações SDD (spec, plano, tarefas, contrato)
 ```
 
