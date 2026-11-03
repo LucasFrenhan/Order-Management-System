@@ -29,7 +29,33 @@ public sealed class FormatoErroTestes(FabricaApi fabrica) : IClassFixture<Fabric
         var resposta = await cliente.GetAsync("/nao-existe", TestContext.Current.CancellationToken);
 
         resposta.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        await DeveSerProblemDetails(resposta, 404, "/nao-existe");
+        var corpo = await DeveSerProblemDetails(resposta, 404, "/nao-existe");
+        corpo.GetProperty("title").GetString().Should().Be("Recurso não encontrado.", "o título do framework vem em inglês");
+    }
+
+    [Fact]
+    public async Task Metodo_nao_permitido_responde_405_com_titulo_em_portugues()
+    {
+        var cliente = fabrica.CreateClient().ComToken(PerfilUsuario.Admin);
+
+        var resposta = await cliente.DeleteAsync("/api/v1/pedidos", TestContext.Current.CancellationToken);
+
+        resposta.StatusCode.Should().Be(HttpStatusCode.MethodNotAllowed);
+        var corpo = await DeveSerProblemDetails(resposta, 405, "/api/v1/pedidos");
+        corpo.GetProperty("title").GetString().Should().Be("Método não permitido.");
+    }
+
+    [Fact]
+    public async Task Corpo_que_nao_e_json_responde_415_com_titulo_em_portugues()
+    {
+        var cliente = fabrica.CreateClient().ComToken(PerfilUsuario.Cliente);
+
+        var resposta = await cliente.PostAsync("/api/v1/pedidos", new StringContent("itens", System.Text.Encoding.UTF8, "text/plain"),
+            TestContext.Current.CancellationToken);
+
+        resposta.StatusCode.Should().Be(HttpStatusCode.UnsupportedMediaType);
+        var corpo = await DeveSerProblemDetails(resposta, 415, "/api/v1/pedidos");
+        corpo.GetProperty("title").GetString().Should().Be("Tipo de conteúdo não suportado.");
     }
 
     [Fact]
