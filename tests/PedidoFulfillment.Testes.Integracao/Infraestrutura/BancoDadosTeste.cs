@@ -75,7 +75,7 @@ public sealed class BancoDadosTeste : IAsyncLifetime
     {
         try
         {
-            sqlServer = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04").Build();
+            sqlServer = (await ImagemSqlServerTeste.ConstrutorAsync()).Build();
             await sqlServer.StartAsync();
             DockerDisponivel = true;
         }

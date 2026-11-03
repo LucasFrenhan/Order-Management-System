@@ -34,6 +34,8 @@ public sealed class ContextoBancoDados(DbContextOptions<ContextoBancoDados> opti
 
     private static readonly InterceptorContextoRastreio InterceptorRastreio = new();
 
+    private static readonly InterceptorTextoBusca InterceptorBusca = new();
+
     /// <summary>Tamanho das colunas de enum gravadas como texto (R-06).</summary>
     internal const int TamanhoEnum = 30;
 
@@ -100,7 +102,7 @@ public sealed class ContextoBancoDados(DbContextOptions<ContextoBancoDados> opti
     /// R-03), em qualquer instância do contexto, inclusive as criadas fora da injeção.
     /// </summary>
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
-        optionsBuilder.AddInterceptors(InterceptorRastreio);
+        optionsBuilder.AddInterceptors(InterceptorRastreio, InterceptorBusca);
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

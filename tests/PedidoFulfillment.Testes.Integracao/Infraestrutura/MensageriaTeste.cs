@@ -321,7 +321,7 @@ public sealed class MensageriaTeste : IAsyncLifetime
     {
         try
         {
-            sqlServer = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04").Build();
+            sqlServer = (await ImagemSqlServerTeste.ConstrutorAsync()).Build();
             portaAmqp = PortaLivre();
             rabbitMQ = new RabbitMqBuilder("rabbitmq:4.3.6-management")
                 .WithUsername(UsuarioRabbitMQ)

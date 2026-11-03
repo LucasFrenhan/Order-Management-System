@@ -21,5 +21,15 @@ internal sealed class ConfiguracaoProduto : IEntityTypeConfiguration<Produto>
         produto.Property(p => p.Descricao).HasMaxLength(Produto.TamanhoMaximoDescricao);
         produto.Property(p => p.Preco).HasPrecision(18, 2);
         produto.Property<byte[]>(ContextoBancoDados.Versao).IsRowVersion();
+
+        // Busca do catálogo (REQ-22, research R-03 e R-05): coluna do índice full-text, criado na
+        // migration CatalogoProdutos, e os índices da listagem por nome e SKU.
+        produto.Property<string>(InterceptorTextoBusca.Propriedade).HasMaxLength(InterceptorTextoBusca.Tamanho).IsRequired();
+        produto.HasIndex(p => new { p.Nome, p.Sku })
+            .IncludeProperties(p => new { p.Preco, p.QuantidadeEstoque, p.Ativo })
+            .HasDatabaseName("IX_Produtos_Nome_Sku");
+        produto.HasIndex(p => new { p.Ativo, p.Nome, p.Sku })
+            .IncludeProperties(p => new { p.Preco, p.QuantidadeEstoque })
+            .HasDatabaseName("IX_Produtos_Ativo_Nome_Sku");
     }
 }
