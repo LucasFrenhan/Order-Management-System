@@ -28,8 +28,18 @@ internal sealed class ConfiguracaoPedido : IEntityTypeConfiguration<Pedido>
 
         // Pedidos são histórico: o dono não pode ser apagado (FR-007).
         pedido.HasOne<Usuario>().WithMany().HasForeignKey(p => p.ClienteId).OnDelete(DeleteBehavior.Restrict);
-        pedido.HasIndex(p => new { p.ClienteId, p.CriadoEm });
         pedido.HasIndex(p => p.Status);
+
+        // Listagem por chave (REQ-21, research R-07): a do Cliente e a da operação, na ordem da
+        // listagem e com as colunas do resumo, para cada página ser um TOP pelo índice.
+        pedido.HasIndex(p => new { p.ClienteId, p.CriadoEm, p.Numero })
+            .IsDescending(false, true, true)
+            .IncludeProperties(p => new { p.Status, p.AtualizadoEm, p.ValorTotal, p.Moeda })
+            .HasDatabaseName("IX_Pedidos_ClienteId_CriadoEm_Numero");
+        pedido.HasIndex(p => new { p.CriadoEm, p.Numero })
+            .IsDescending(true, true)
+            .IncludeProperties(p => new { p.ClienteId, p.Status, p.AtualizadoEm, p.ValorTotal, p.Moeda })
+            .HasDatabaseName("IX_Pedidos_CriadoEm_Numero");
 
         // Apagar o pedido apaga o que pertence a ele (FR-011).
         pedido.HasMany(p => p.Itens).WithOne().HasForeignKey(i => i.PedidoId).OnDelete(DeleteBehavior.Cascade);

@@ -1,4 +1,5 @@
 using PedidoFulfillment.Application.Comum;
+using PedidoFulfillment.Application.Contratos.Pedidos;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Domain.Pedidos;
 using PedidoFulfillment.Domain.Produtos;
@@ -30,6 +31,17 @@ public interface IArmazenamentoPedidos
     /// Outro pedido (diferente de <paramref name="pedidoId"/>) já tem a ordem com esta transportadora e
     /// este código de rastreio, sem diferenciar maiúsculas e minúsculas (REQ-11, FR-010).
     /// </summary>
+    /// <summary>
+    /// Resumos para a listagem (REQ-21, research R-02 e R-07), em ordem <c>CriadoEm DESC, Numero DESC</c>.
+    /// Sem posição, do começo; com <see cref="SentidoCursor.Proxima"/>, os estritamente depois da
+    /// posição; com <see cref="SentidoCursor.Anterior"/>, os estritamente antes, já na ordem da
+    /// listagem. No máximo <paramref name="quantidade"/> itens. A implementação padrão existe só
+    /// para os armazenamentos de teste que não listam.
+    /// </summary>
+    Task<IReadOnlyList<ResumoPedidoResponseDTO>> ListarResumosAsync(
+        FiltroListagemPedidos filtro, PosicaoCursor? posicao, int quantidade, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("Este armazenamento não lista pedidos.");
+
     Task<bool> RastreioEmUsoAsync(string transportadora, string codigoRastreio, Guid pedidoId, CancellationToken cancellationToken);
 
     Task<RegistroIdempotencia?> ObterRegistroIdempotenciaAsync(Guid clienteId, Guid chave, CancellationToken cancellationToken);

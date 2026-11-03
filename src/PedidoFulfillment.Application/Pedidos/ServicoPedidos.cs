@@ -295,7 +295,7 @@ public sealed class ServicoPedidos(
         }, agora);
 
     /// <summary>Admin e OperadorLogistica operam qualquer pedido; os demais, só como Cliente dono.</summary>
-    private static bool EhOperacao(IReadOnlyCollection<PerfilUsuario> perfis) =>
+    internal static bool EhOperacao(IReadOnlyCollection<PerfilUsuario> perfis) =>
         perfis.Contains(PerfilUsuario.Admin) || perfis.Contains(PerfilUsuario.OperadorLogistica);
 
     /// <summary>Mesma impressão devolve a resposta original (FR-010); outra impressão, 409 (FR-011).</summary>

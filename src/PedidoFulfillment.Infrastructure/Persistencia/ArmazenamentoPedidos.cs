@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Contratos.Eventos;
+using PedidoFulfillment.Application.Contratos.Pedidos;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Notificacoes;
 using PedidoFulfillment.Application.Pedidos;
@@ -46,6 +47,97 @@ internal sealed class ArmazenamentoPedidos(ContextoBancoDados contexto) : IArmaz
         await contexto.Pedidos.Where(p => p.Id == id)
             .Select(p => EF.Property<byte[]>(p, ContextoBancoDados.Versao))
             .SingleOrDefaultAsync(cancellationToken);
+
+    /// <summary>
+    /// Paginação por chave sobre <c>(CriadoEm DESC, Numero DESC)</c> (REQ-21, research R-01, R-02
+    /// e R-07): um <c>TOP</c> pelos índices da listagem, com projeção direta para o resumo, sem
+    /// carregar itens, histórico, pagamento nem entrega (FR-019).
+    /// </summary>
+    public async Task<IReadOnlyList<ResumoPedidoResponseDTO>> ListarResumosAsync(
+        FiltroListagemPedidos filtro, PosicaoCursor? posicao, int quantidade, CancellationToken cancellationToken)
+    {
+        var pedidos = Filtrar(contexto.Pedidos.AsNoTracking(), filtro);
+
+        IOrderedQueryable<Pedido> ordenados;
+        if (posicao is { Sentido: SentidoCursor.Anterior } anterior)
+        {
+            var (c, n) = (anterior.CriadoEm, anterior.Numero);
+            pedidos = anterior.Inclusiva
+                ? pedidos.Where(p => p.CriadoEm > c || (p.CriadoEm == c && string.Compare(p.Numero, n) >= 0))
+                : pedidos.Where(p => p.CriadoEm > c || (p.CriadoEm == c && string.Compare(p.Numero, n) > 0));
+            ordenados = pedidos.OrderBy(p => p.CriadoEm).ThenBy(p => p.Numero);
+        }
+        else
+        {
+            if (posicao is { } proxima)
+            {
+                var (c, n) = (proxima.CriadoEm, proxima.Numero);
+                pedidos = proxima.Inclusiva
+                    ? pedidos.Where(p => p.CriadoEm < c || (p.CriadoEm == c && string.Compare(p.Numero, n) <= 0))
+                    : pedidos.Where(p => p.CriadoEm < c || (p.CriadoEm == c && string.Compare(p.Numero, n) < 0));
+            }
+
+            ordenados = pedidos.OrderByDescending(p => p.CriadoEm).ThenByDescending(p => p.Numero);
+        }
+
+        var resumos = await ordenados.Take(quantidade)
+            .Select(p => new ResumoPedidoResponseDTO
+            {
+                Id = p.Id,
+                Numero = p.Numero,
+                ClienteId = p.ClienteId,
+                Status = p.Status,
+                ValorTotal = p.ValorTotal,
+                Moeda = p.Moeda,
+                QuantidadeItens = p.Itens.Count,
+                CriadoEm = p.CriadoEm,
+                AtualizadoEm = p.AtualizadoEm
+            })
+            .ToListAsync(cancellationToken);
+
+        if (posicao?.Sentido == SentidoCursor.Anterior)
+        {
+            resumos.Reverse();
+        }
+
+        return resumos;
+    }
+
+    private static IQueryable<Pedido> Filtrar(IQueryable<Pedido> pedidos, FiltroListagemPedidos filtro)
+    {
+        if (filtro.ClienteId is { } clienteId)
+        {
+            pedidos = pedidos.Where(p => p.ClienteId == clienteId);
+        }
+
+        if (filtro.Status.Count > 0)
+        {
+            var status = filtro.Status.ToList();
+            pedidos = pedidos.Where(p => status.Contains(p.Status));
+        }
+
+        if (filtro.CriadoDe is { } criadoDe)
+        {
+            pedidos = pedidos.Where(p => p.CriadoEm >= criadoDe);
+        }
+
+        if (filtro.CriadoAte is { } criadoAte)
+        {
+            pedidos = pedidos.Where(p => p.CriadoEm <= criadoAte);
+        }
+
+        if (filtro.AtualizadoDe is { } atualizadoDe)
+        {
+            pedidos = pedidos.Where(p => p.AtualizadoEm >= atualizadoDe);
+        }
+
+        if (filtro.AtualizadoAte is { } atualizadoAte)
+        {
+            pedidos = pedidos.Where(p => p.AtualizadoEm <= atualizadoAte);
+        }
+
+        return pedidos;
+    }
 
     // A collation das colunas não diferencia maiúsculas e minúsculas (REQ-11, R-06).
     public Task<bool> RastreioEmUsoAsync(string transportadora, string codigoRastreio, Guid pedidoId, CancellationToken cancellationToken) =>

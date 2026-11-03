@@ -30,4 +30,13 @@ internal static partial class EventosPedidos
     [LoggerMessage(EventId = 4005, EventName = "RastreioDuplicado", Level = LogLevel.Information,
         Message = "Rastreio do pedido {PedidoId} recusado para o usuário {UsuarioId}: já usado por outro pedido da mesma transportadora.")]
     public static partial void RastreioDuplicado(ILogger logger, Guid pedidoId, Guid usuarioId);
+
+    /// <summary>
+    /// Listagem (REQ-21, research R-10). Só os nomes dos filtros: os valores, como o
+    /// <c>clienteId</c>, ficam de fora. <paramref name="escopo"/>: <c>Cliente</c> ou <c>Operacao</c>;
+    /// <paramref name="sentido"/>: <c>Inicio</c>, <c>Proxima</c> ou <c>Anterior</c>.
+    /// </summary>
+    [LoggerMessage(EventId = 4006, EventName = "PedidosListados", Level = LogLevel.Debug,
+        Message = "Listagem de pedidos ({Escopo}) com os filtros {Filtros}, a partir de {Sentido}: {Quantidade} pedido(s).")]
+    public static partial void PedidosListados(ILogger logger, string escopo, string filtros, string sentido, int quantidade);
 }

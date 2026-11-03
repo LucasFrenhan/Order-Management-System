@@ -75,9 +75,10 @@ public sealed class DesempenhoConsultaTestes(BancoDadosTeste banco)
 
         var indices = await BancoDadosTeste.ConsultarAsync<string>(stringConexao,
             "SELECT STRING_AGG(name, ',') WITHIN GROUP (ORDER BY name) FROM sys.indexes WHERE name IN " +
-            "('IX_Pedidos_ClienteId_CriadoEm', 'IX_Pedidos_Status', 'IX_HistoricosStatusPedido_PedidoId_Id', 'IX_ItensPedido_ProdutoId')");
+            "('IX_Pedidos_ClienteId_CriadoEm_Numero', 'IX_Pedidos_CriadoEm_Numero', 'IX_Pedidos_Status', 'IX_HistoricosStatusPedido_PedidoId_Id', 'IX_ItensPedido_ProdutoId')");
 
-        indices.Should().Be("IX_HistoricosStatusPedido_PedidoId_Id,IX_ItensPedido_ProdutoId,IX_Pedidos_ClienteId_CriadoEm,IX_Pedidos_Status");
+        // O índice por Cliente ganhou o Numero e as colunas do resumo no REQ-21 (research R-07).
+        indices.Should().Be("IX_HistoricosStatusPedido_PedidoId_Id,IX_ItensPedido_ProdutoId,IX_Pedidos_ClienteId_CriadoEm_Numero,IX_Pedidos_CriadoEm_Numero,IX_Pedidos_Status");
     }
 
     private static async Task<TimeSpan> MedianaAsync<T>(Func<Task<T>> consulta)

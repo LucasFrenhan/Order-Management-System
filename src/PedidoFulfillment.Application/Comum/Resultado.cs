@@ -16,9 +16,10 @@ public enum TipoFalha
 
 /// <summary>
 /// Descrição de uma falha. <see cref="Codigo"/> é obrigatório para conflitos e regras de
-/// negócio (catálogo em <c>CodigosErro</c>).
+/// negócio (catálogo em <c>CodigosErro</c>). <see cref="Erros"/>, numa falha de validação, vira
+/// o <c>erros</c> do <c>ValidacaoProblemDetails</c>, como o cursor inválido da listagem (REQ-21).
 /// </summary>
-public sealed record Falha(TipoFalha Tipo, string Titulo, string? Detalhe = null, string? Codigo = null);
+public sealed record Falha(TipoFalha Tipo, string Titulo, string? Detalhe = null, string? Codigo = null, IReadOnlyDictionary<string, string[]>? Erros = null);
 
 /// <summary>
 /// Resultado de uma operação de aplicação: um valor em caso de sucesso ou uma <see cref="Falha"/>.

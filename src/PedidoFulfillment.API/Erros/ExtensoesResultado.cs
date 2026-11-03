@@ -14,6 +14,11 @@ public static class ExtensoesResultado
     /// <param name="statusCode">Outro status para a mesma falha, como o 429 do limite de conexões SSE (REQ-18, FR-023).</param>
     public static IResult ParaProblema(this Falha falha, int? statusCode = null)
     {
+        if (falha is { Tipo: TipoFalha.Validacao, Erros: { } erros } && statusCode is null)
+        {
+            return TypedResults.Problem(RespostasErro.Validacao(erros.ToDictionary(e => e.Key, e => e.Value)));
+        }
+
         var status = statusCode ?? falha.Tipo switch
         {
             TipoFalha.Validacao => StatusCodes.Status400BadRequest,
