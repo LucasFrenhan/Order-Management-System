@@ -73,6 +73,35 @@ public sealed class ServicoReconciliacaoTestes
     }
 
     [Fact]
+    public async Task Etapa_sem_regra_esgotada_nao_cancela_o_pedido()
+    {
+        // Uma etapa interna nova sem regra nem valor no contrato: falha sempre, mas nunca cancela.
+        PedidoEm();
+        FalhasAnteriores(2);
+        var etapa = (EtapaFluxoPedido)99;
+
+        var resultado = await Reconciliar(Servico(EtapaFluxoPedido.Estoque, () => Task.FromResult(true)), Parado(etapa));
+
+        resultado.Should().Be(ResultadoReconciliacao.NaoMaisParado);
+        Gravado().Status.Should().Be(StatusPedido.Pendente);
+        armazenamento.EventosGravados.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Cancelamento_do_encerramento_segue_adiante_sem_contar_falha()
+    {
+        PedidoEm();
+        using var cancelamento = new CancellationTokenSource();
+        await cancelamento.CancelAsync();
+        var servico = Servico(EtapaFluxoPedido.Estoque, () => throw new OperationCanceledException(cancelamento.Token));
+
+        var reconciliar = () => servico.ReconciliarAsync(Parado(EtapaFluxoPedido.Estoque), Agora, Parametros, cancelamento.Token);
+
+        await reconciliar.Should().ThrowAsync<OperationCanceledException>();
+        registro.ComFalha.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Regra_que_grava_recupera_o_pedido_sem_evento_de_origem()
     {
         FalhasAnteriores(1);

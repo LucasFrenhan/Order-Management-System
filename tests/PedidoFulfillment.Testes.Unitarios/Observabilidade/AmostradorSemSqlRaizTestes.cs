@@ -43,6 +43,12 @@ public sealed class AmostradorSemSqlRaizTestes
     }
 
     [Fact]
+    public void Raiz_cliente_sem_atributos_nao_e_consulta()
+    {
+        Decidir(1.0, default, ActivityKind.Client, null).Should().Be(SamplingDecision.RecordAndSample);
+    }
+
+    [Fact]
     public void Filho_segue_o_pai_mesmo_com_taxa_zero()
     {
         Decidir(0.0, PaiAmostrado, ActivityKind.Consumer, null).Should().Be(SamplingDecision.RecordAndSample);

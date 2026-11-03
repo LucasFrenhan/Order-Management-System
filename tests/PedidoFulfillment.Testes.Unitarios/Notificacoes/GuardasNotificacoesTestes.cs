@@ -22,6 +22,8 @@ public sealed class GuardasNotificacoesTestes
     [Fact]
     public void Aviso_recusa_identificador_vazio_tipo_vazio_ou_longo_e_instante_fora_de_utc()
     {
+        FluentActions.Invoking(() => AvisoPedido.Criar(Guid.CreateVersion7(), "pedido.status-alterado", Guid.CreateVersion7(), Guid.CreateVersion7(), "  ", T0))
+            .Should().Throw<ArgumentException>().WithMessage("O conteúdo é obrigatório.*");
         FluentActions.Invoking(() => Aviso(id: Guid.Empty)).Should().Throw<ArgumentException>().WithMessage("O identificador é obrigatório.*");
         FluentActions.Invoking(() => Aviso(tipo: "  ")).Should().Throw<ArgumentException>().WithMessage("O valor é obrigatório.*");
         FluentActions.Invoking(() => Aviso(tipo: new string('t', AvisoPedido.TamanhoMaximoTipo + 1)))
@@ -68,6 +70,22 @@ public sealed class GuardasNotificacoesTestes
     public void Destino_com_url_fora_da_forma_e_recusado(string url, string mensagem)
     {
         Validacao.Validar(new CadastrarDestinoRequestDTO { Url = url })["Url"].Should().Equal(mensagem);
+    }
+
+    [Fact]
+    public void Destino_com_url_nula_e_recusado()
+    {
+        Validacao.Validar(new CadastrarDestinoRequestDTO { Url = null! })["Url"].Should().Equal("A URL é obrigatória.");
+    }
+
+    [Theory]
+    [InlineData(SituacaoEntrega.Pendente, true)]
+    [InlineData(SituacaoEntrega.Entregue, false)]
+    public void A_proxima_tentativa_so_aparece_na_entrega_pendente(SituacaoEntrega situacao, bool comProxima)
+    {
+        var resumo = new ResumoEntrega(Guid.CreateVersion7(), "pedido.status-alterado", Guid.CreateVersion7(), situacao, 1, 200, null, T0, T0.AddMinutes(1), null);
+
+        EntregaNotificacaoResponseDTO.De(resumo).ProximaTentativaEm.Should().Be(comProxima ? T0.AddMinutes(1) : null);
     }
 
     [Fact]

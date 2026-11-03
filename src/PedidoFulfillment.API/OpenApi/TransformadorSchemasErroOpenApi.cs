@@ -74,7 +74,6 @@ public sealed class TransformadorSchemasErroOpenApi : IOpenApiDocumentTransforme
             {
                 400 => ("Dados de entrada inválidos.", SchemaValidacao),
                 401 => ("Não autenticado.", SchemaProblemDetails),
-                403 => ("Usuário autenticado sem permissão para a operação.", SchemaProblemDetails),
                 404 => ("Recurso não encontrado (ou não visível para o usuário).", SchemaProblemDetails),
                 409 => ("Conflito com o estado atual do recurso.", SchemaNegocio),
                 422 => ("Requisição bem formada, mas rejeitada por regra de negócio.", SchemaNegocio),

@@ -213,6 +213,16 @@ public sealed class PipelineGatewayPagamentoTestes : IDisposable
     }
 
     [Fact]
+    public async Task UrlBase_com_barra_no_fim_monta_a_mesma_rota()
+    {
+        rede.Enfileirar(Aprovada);
+
+        await Gateway(new() { ["GatewayPagamento:UrlBase"] = "http://pagamentos.teste/" }).CobrarAsync(Pedido, 10m, Token);
+
+        rede.Recebidas.Should().ContainSingle().Which.Url.Should().Be("http://pagamentos.teste/v1/cobrancas");
+    }
+
+    [Fact]
     public async Task Falha_de_conexao_em_todas_as_tentativas_e_passageira()
     {
         rede.Sempre(_ => throw new HttpRequestException("conexão recusada"));
