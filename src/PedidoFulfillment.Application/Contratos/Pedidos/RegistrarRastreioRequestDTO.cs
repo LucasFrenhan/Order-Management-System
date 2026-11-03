@@ -5,39 +5,16 @@ namespace PedidoFulfillment.Application.Contratos.Pedidos;
 
 /// <summary>
 /// Transportadora e código de rastreio do despacho (REQ-11, FR-007). Os espaços nas pontas não
-/// contam: só espaços é vazio, e o tamanho é medido depois de aparar (research R-09).
+/// contam: os valores são aparados ao chegar, então só espaços é vazio e o tamanho é medido
+/// depois de aparar (research R-09). Os atributos validam e também descrevem o schema.
 /// </summary>
-public sealed record RegistrarRastreioRequestDTO : IValidatableObject
+public sealed record RegistrarRastreioRequestDTO
 {
-    [Required]
-    [MaxLength(OrdemEntrega.TamanhoMaximoTransportadora)]
-    public string Transportadora { get; init; } = "";
+    [Required(ErrorMessage = "A transportadora é obrigatória.")]
+    [MaxLength(OrdemEntrega.TamanhoMaximoTransportadora, ErrorMessage = "A transportadora deve ter até 100 caracteres.")]
+    public string Transportadora { get; init => field = value?.Trim() ?? ""; } = "";
 
-    [Required]
-    [MaxLength(OrdemEntrega.TamanhoMaximoCodigoRastreio)]
-    public string CodigoRastreio { get; init; } = "";
-
-    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-    {
-        if (Invalido(Transportadora, OrdemEntrega.TamanhoMaximoTransportadora, "A transportadora é obrigatória.", "A transportadora", nameof(Transportadora)) is { } transportadora)
-        {
-            yield return transportadora;
-        }
-
-        if (Invalido(CodigoRastreio, OrdemEntrega.TamanhoMaximoCodigoRastreio, "O código de rastreio é obrigatório.", "O código de rastreio", nameof(CodigoRastreio)) is { } codigo)
-        {
-            yield return codigo;
-        }
-    }
-
-    private static ValidationResult? Invalido(string? valor, int maximo, string obrigatorio, string nome, string campo)
-    {
-        var aparado = valor?.Trim() ?? "";
-        if (aparado.Length == 0)
-        {
-            return new ValidationResult(obrigatorio, [campo]);
-        }
-
-        return aparado.Length > maximo ? new ValidationResult($"{nome} deve ter até {maximo} caracteres.", [campo]) : null;
-    }
+    [Required(ErrorMessage = "O código de rastreio é obrigatório.")]
+    [MaxLength(OrdemEntrega.TamanhoMaximoCodigoRastreio, ErrorMessage = "O código de rastreio deve ter até 50 caracteres.")]
+    public string CodigoRastreio { get; init => field = value?.Trim() ?? ""; } = "";
 }
