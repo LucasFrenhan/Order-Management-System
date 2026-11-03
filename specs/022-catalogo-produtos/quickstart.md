@@ -38,7 +38,7 @@ Tokens: `$TOKEN_CLIENTE` (Cliente novo), `$TOKEN_ADMIN` (`admin@oms.local`) e `$
 | 3 | `POST /api/v1/produtos` com `$TOKEN_CLIENTE` | 403 |
 | 4 | `POST /api/v1/produtos` com `$TOKEN_ADMIN` (`CAF-250`, "Café torrado 250 g", 32.50, 40) | 201 + `Location` |
 | 5 | Repetir o passo 4 com `caf-250` | 409 `PRODUTO_SKU_DUPLICADO` |
-| 6 | Depois de até 10 s, `GET /api/v1/produtos?busca=cafes` com `$TOKEN_CLIENTE` | O produto do passo 4 aparece |
+| 6 | Depois de até 10 s, `GET /api/v1/produtos?busca=cafés` com `$TOKEN_CLIENTE` | O produto do passo 4 aparece ("cafes", sem acento, não acha: limitação do fluxo 15) |
 | 7 | `POST …/{id}/ajustes-estoque` `{ "variacao": -50, "motivo": "Teste" }` | 422 `ESTOQUE_INSUFICIENTE` |
 | 8 | `POST …/{id}/ajustes-estoque` `{ "variacao": 10, "motivo": "Reposição" }` | 200, `quantidadeEstoque` 50 |
 | 9 | Criar um pedido com o produto; `PUT …/{id}` com preço 35.00; consultar o pedido | O pedido mantém 32.50 |

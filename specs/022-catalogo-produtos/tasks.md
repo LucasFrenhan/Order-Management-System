@@ -160,8 +160,8 @@ Cliente não o vê e não consegue pedi-lo; reativar e conferir que volta.
   - `docs/fluxos/02-criacao-de-pedido.md`: o Cliente acha os produtos pela listagem; preço lido na criação, sem efeito de mudanças posteriores; produto inativo;
   - `docs/fluxos/04-reserva-de-estoque.md`: o ajuste do Admin disputa com a reserva e é reavaliado, sem perder unidades.
 - [X] T033 [P] Documentação do projeto: `docs/estado-atual.md` (linha do REQ-22), `docs/proximos-passos.md` (tira a #53 da fila; anota a tabela de movimentações de estoque e eventos de catálogo como análise futura), e onde a imagem do SQL Server é citada (`docs/integracao-continua.md` e a seção Ambiente local do README, só corrigindo o texto que ficar errado, sem crescer). Qualquer acréscimo ao README só com permissão (regra do `CLAUDE.md`).
-- [ ] T034 Varredura de segredos, `dotnet build`, `dotnet format --verify-no-changes` e a suíte inteira com Docker (zero ignorados); registrar a contagem em Notes, comparando com a T001, e o tempo a mais da montagem da imagem.
-- [ ] T035 Executar o [quickstart](./quickstart.md) (§2 e §3) com o compose montando a imagem e a API local; registrar em Notes e corrigir o quickstart onde divergir.
+- [X] T034 Varredura de segredos, `dotnet build`, `dotnet format --verify-no-changes` e a suíte inteira com Docker (zero ignorados); registrar a contagem em Notes, comparando com a T001, e o tempo a mais da montagem da imagem.
+- [X] T035 Executar o [quickstart](./quickstart.md) (§2 e §3) com o compose montando a imagem e a API local; registrar em Notes e corrigir o quickstart onde divergir.
 - [ ] T036 Push e PR em português (Resumo, Pontos de atenção, Validação) com `Closes #53`, citando em Pontos de atenção a imagem própria do SQL Server (versão fixada, ~2 min no CI, migration exige FTS) e a troca de `IChaveCursorPedidos` por `IChaveCursor`, e em Validação os documentos de fluxo. Acompanhar `Build e testes`, `Demonstração`, SonarCloud e a compatibilidade do contrato até ficarem verdes, inclusive depois de cada push, armar o auto-merge por rebase e marcar esta tarefa antes do merge.
 
 ---
@@ -229,5 +229,19 @@ Depois: T011 e T012 → T013 → T014 → T015 → T016 → T017
   - a T017 cobre as 7 rotas no mesmo arquivo, porque todas foram criadas juntas;
   - a migration rodou também sobre o banco local já existente (com o catálogo inicial), pela API
     em Development;
-  - resultado: 66 testes unitários novos e 38 de integração do catálogo (com o teste de
+  - resultado: 62 testes unitários novos e 42 de integração novos (38 do catálogo e 4 linhas de
+    conformidade a mais por rota; o teste de
     concorrência repetido 3 vezes, estável); a T031 mediu a busca com 10.000 produtos dentro de 1 s.
+- **T035 (2026-11-03)**: quickstart §2 e §3 com `docker compose up -d --wait --build` (imagem com
+  FTS) e a API pelo SDK em Development. Os 11 passos deram o esperado: (1) 401; (2) só ativos, sem
+  `quantidadeEstoque`; (3) 403 do Cliente; (4) 201 com `Location`; (5) 409
+  `PRODUTO_SKU_DUPLICADO` com o SKU em minúsculas; (6) achado na busca "cafés" em cerca de 3 s;
+  (7) 422 `ESTOQUE_INSUFICIENTE`; (8) `quantidadeEstoque` 50; (9) o pedido manteve 32.50 depois
+  do preço novo; (10) 404 para o Cliente, 422 `PRODUTO_INDISPONIVEL` no pedido novo e `ativo:
+  false` para o Operador; (11) 403 do Cliente com `situacao`. Corrigido no quickstart: o passo 6
+  buscava "cafes", que não acha "Café" (limitação), e passou a "cafés".
+- **T034 (2026-11-03)**: nenhum segredo no diff (só as credenciais de desenvolvimento já
+  versionadas); `dotnet build` com 0 avisos e 0 erros; `dotnet format --verify-no-changes` limpo;
+  suíte inteira com Docker: 1.757 testes, 1.092 unitários e 665 de integração, zero falhas e zero
+  ignorados (linha de base 1.030 + 623). A montagem da imagem do SQL Server com FTS leva cerca de
+  2 minutos na primeira vez (medido: 2 min 3 s no compose e 2 min 12 s no Testcontainers).
