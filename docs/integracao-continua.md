@@ -11,9 +11,12 @@ O workflow [`build-testes`](../.github/workflows/build-testes.yml) roda em todo 
   que falharam e a cobertura de linhas, sem as migrations nem o código gerado. A análise
   estática do SonarQube Cloud envolve esse build e esses testes (veja
   [Análise estática](analise-estatica.md)). Os resultados (TRX, Cobertura e o relatório de
-  cobertura enviado ao SonarQube) ficam 14 dias no artefato `resultados-testes`.
-- **Demonstração**: só nos PRs; sobe o perfil `demo` e confere a prontidão da API, do Worker e
-  da API de pagamento simulada e o login do administrador de desenvolvimento.
+  cobertura enviado ao SonarQube) ficam 14 dias no artefato `resultados-testes`. O SQL Server
+  dos testes é a imagem própria com Full-Text Search (`docker/sqlserver/Dockerfile`, REQ-22),
+  montada pelo Testcontainers uma vez por execução: cerca de 2 minutos a mais por rodada.
+- **Demonstração**: só nos PRs; sobe o perfil `demo` (montando também a imagem do SQL Server
+  com Full-Text Search) e confere a prontidão da API, do Worker e da API de pagamento simulada
+  e o login do administrador de desenvolvimento.
 
 No push da `main`, só o job de testes roda: a análise da `main` é a referência de comparação
 dos PRs e do estado mostrado na análise estática.

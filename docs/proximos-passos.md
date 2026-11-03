@@ -14,24 +14,25 @@ REQ-19 tirou o pagamento do processo de workers: a cobrança e o estorno vão pe
 de pagamento simulada, com latência, falhas, novas tentativas seguras, circuito e pausa do
 consumo (issue #46). O REQ-20 pôs a análise estática do SonarQube Cloud em todo PR e na
 `main`, com o Quality Gate exigido para o merge e a `main` protegida por um ruleset (issue #18).
-O REQ-21 trouxe a listagem de pedidos por perfil, com filtros e paginação por cursor (issue #52).
+O REQ-21 trouxe a listagem de pedidos por perfil, com filtros e paginação por cursor (issue #52),
+e o REQ-22, o catálogo de produtos pela API, com busca em português pelo Full-Text Search do
+SQL Server (issue #53).
 Cada trabalho novo segue o fluxo SDD (`/speckit-specify` → `/speckit-clarify` →
 `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`), em uma
-branch `feature/req-XX-...`, com a numeração a partir do REQ-22.
+branch `feature/req-XX-...`, com a numeração a partir do REQ-23.
 
 A fila abaixo saiu do levantamento das pendências de todas as specs (2026-11-02). A ordem é
 uma sugestão; o número do REQ é dado quando o trabalho começa.
 
 | Ordem | Requisito | Origem | Escopo |
 |-------|-----------|--------|--------|
-| 1 | a numerar | [#53](https://github.com/LucasFrenhan/Order-Management-System/issues/53) — Catálogo de produtos | Cadastro, preço, estoque e ativação de produtos pela API |
-| 2 | a numerar | [#58](https://github.com/LucasFrenhan/Order-Management-System/issues/58) — Rate limiting | Limite de requisições no login e no registro |
-| 3 | a numerar | [#59](https://github.com/LucasFrenhan/Order-Management-System/issues/59) — Dependabot e CodeQL | Dependências vulneráveis e análise do CodeQL na cadeia de build |
-| 4 | a numerar | [#54](https://github.com/LucasFrenhan/Order-Management-System/issues/54) — Gestão de usuários | Usuários internos e perfis pelo Admin |
-| 5 | a numerar | [#55](https://github.com/LucasFrenhan/Order-Management-System/issues/55) — Ciclo da autenticação | Refresh token, logout, troca e recuperação de senha, confirmação de e-mail |
-| 6 | a numerar | [#60](https://github.com/LucasFrenhan/Order-Management-System/issues/60) — Rotação da chave JWT | Várias chaves com `kid` e rotação sem derrubar sessões |
-| 7 | a numerar | [#57](https://github.com/LucasFrenhan/Order-Management-System/issues/57) — Estornos pela operação | Forçar tentativa, dar baixa manual e evento de estorno travado |
-| 8 | a numerar | [#56](https://github.com/LucasFrenhan/Order-Management-System/issues/56) — Evolução do pagamento | Estudo: nova cobrança após recusa, estorno parcial, devolução, pagamento em análise e gateway real |
+| 1 | a numerar | [#58](https://github.com/LucasFrenhan/Order-Management-System/issues/58) — Rate limiting | Limite de requisições no login e no registro |
+| 2 | a numerar | [#59](https://github.com/LucasFrenhan/Order-Management-System/issues/59) — Dependabot e CodeQL | Dependências vulneráveis e análise do CodeQL na cadeia de build |
+| 3 | a numerar | [#54](https://github.com/LucasFrenhan/Order-Management-System/issues/54) — Gestão de usuários | Usuários internos e perfis pelo Admin |
+| 4 | a numerar | [#55](https://github.com/LucasFrenhan/Order-Management-System/issues/55) — Ciclo da autenticação | Refresh token, logout, troca e recuperação de senha, confirmação de e-mail |
+| 5 | a numerar | [#60](https://github.com/LucasFrenhan/Order-Management-System/issues/60) — Rotação da chave JWT | Várias chaves com `kid` e rotação sem derrubar sessões |
+| 6 | a numerar | [#57](https://github.com/LucasFrenhan/Order-Management-System/issues/57) — Estornos pela operação | Forçar tentativa, dar baixa manual e evento de estorno travado |
+| 7 | a numerar | [#56](https://github.com/LucasFrenhan/Order-Management-System/issues/56) — Evolução do pagamento | Estudo: nova cobrança após recusa, estorno parcial, devolução, pagamento em análise e gateway real |
 | contínua | sem REQ | [#61](https://github.com/LucasFrenhan/Order-Management-System/issues/61) — Dívida técnica de code smells | Sem prazo: todo PR que corrigir code smells referencia a #61 (`Refs #61`) e atualiza a tabela dela |
 
 ### Para análise futura (sem issue)
@@ -41,13 +42,16 @@ Itens do mesmo levantamento que ficaram anotados, sem issue, para decidir depois
 - **Negócio**
   - Rastreio não validado com a transportadora; a correção do rastreio não gera aviso nem
     evento (REQ-11, REQ-18).
+  - Catálogo: tabela de movimentações de estoque (hoje o histórico dos ajustes fica no log),
+    eventos `produto.*`, exclusão de produtos, categorias, imagens e importação em massa; busca
+    de palavras sem acento e flexionadas ("cafes" não acha "Café") (REQ-22).
   - Notificações: SignalR, push, e-mail e SMS, reenvio manual de entrega esgotada, troca do
     segredo sem recadastro e avisos retroativos (REQ-18).
   - Pedidos pagos e cancelados antes do REQ-13 não foram estornados (passivo de dados; consulta
     no [quickstart do REQ-13](../specs/013-cancelamento-com-estorno/quickstart.md#5-pedidos-pagos-e-cancelados-antes-do-req-13)).
 - **Segurança**
   - A demonstração roda em HTTP, sem certificado (REQ-07; só local).
-  - A chave que assina o cursor da listagem de pedidos é derivada da chave de assinatura do JWT;
+  - A chave que assina os cursores das listagens de pedidos e de produtos é derivada da chave de assinatura do JWT;
     pode passar a uma chave própria do cursor, trocando só o registro de `IChaveCursor`
     na API. Vale decidir junto com a rotação da chave do JWT (#60), que hoje invalidaria os
     cursores em uso (REQ-21, [research R-04](../specs/021-listagem-pedidos/research.md#r-04--chave-do-hmac-do-cursor)).

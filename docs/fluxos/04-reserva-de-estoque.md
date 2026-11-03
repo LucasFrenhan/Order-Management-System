@@ -2,7 +2,7 @@
 
 **Onde roda**: Worker, consumidor `estoque` (fila `oms.estoque`), ao receber `pedido.criado`.
 **Origem**: REQ-08 ([spec](../../specs/008-estoque/spec.md),
-[contrato](../../specs/008-estoque/contracts/consumidor-estoque.md)) e REQ-15 (`pedido.cancelado` na falta de estoque).
+[contrato](../../specs/008-estoque/contracts/consumidor-estoque.md)), REQ-15 (`pedido.cancelado` na falta de estoque) e REQ-22 (ajuste de estoque pelo Admin).
 A base de consumo (novas tentativas, DLQ e duplicados) está no [fluxo 8](08-publicacao-e-consumo-de-eventos.md).
 
 ## Caminho feliz
@@ -61,6 +61,7 @@ entre tipos diferentes: quem consome os dois não deve depender dela.
 | Pedido movido pela operação para `Processando` antes da reserva | É reservado normalmente | Qualquer status não final precisa do estoque |
 | Dois pedidos disputando o último item (`CAT-008` no catálogo de desenvolvimento) | Um reserva; o outro perde na concorrência otimista do produto, é reavaliado com o estoque atual e é cancelado por falta | Nunca há estoque negativo |
 | Cancelamento pela API enquanto a reserva acontece | Um dos dois perde e é reavaliado (fluxo 3) | Concorrência otimista no pedido |
+| Ajuste de estoque pelo Admin enquanto a reserva acontece (REQ-22) | O ajuste soma a variação ao estoque do momento da gravação, numa instrução só, e muda a versão do produto; a reserva que leu antes perde na concorrência otimista e é reavaliada com o estoque já ajustado | Nenhuma unidade se perde nem aparece: 100 em estoque, 50 repostos e 30 reservados ao mesmo tempo dão sempre 120 ([fluxo 15](15-catalogo-de-produtos.md)) |
 
 ## Falhas externas
 

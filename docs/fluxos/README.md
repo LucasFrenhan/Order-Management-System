@@ -8,9 +8,9 @@ verdade: estes documentos as consolidam por fluxo, de ponta a ponta.
 | # | Fluxo | Onde roda | REQs |
 |---|-------|-----------|------|
 | 1 | [Autenticação](01-autenticacao.md) | API | 01, 03, 14 |
-| 2 | [Criação de pedido](02-criacao-de-pedido.md) | API | 01, 04, 05, 16 |
+| 2 | [Criação de pedido](02-criacao-de-pedido.md) | API | 01, 04, 05, 16, 22 |
 | 3 | [Consulta, listagem e mudança de status](03-consulta-e-mudanca-de-status.md) | API | 05, 08, 11, 13, 15, 18, 21 |
-| 4 | [Reserva de estoque](04-reserva-de-estoque.md) | Worker | 08, 15 |
+| 4 | [Reserva de estoque](04-reserva-de-estoque.md) | Worker | 08, 15, 22 |
 | 5 | [Pagamento](05-pagamento.md) | Worker | 09, 13, 15, 19 |
 | 6 | [Ordem de entrega](06-ordem-de-entrega.md) | Worker | 10, 13, 15 |
 | 7 | [Despacho e rastreio](07-despacho-e-rastreio.md) | API | 11, 18 |
@@ -21,6 +21,7 @@ verdade: estes documentos as consolidam por fluxo, de ponta a ponta.
 | 12 | [Rastreabilidade e métricas](12-rastreabilidade-e-metricas.md) | API e Worker (transversal) | 16, 18, 19 |
 | 13 | [Notificação de mudança de status](13-notificacao-de-status.md) | API (destinos e SSE) e Worker (webhooks) | 18 |
 | 14 | [Gateway de pagamento por HTTP](14-gateway-de-pagamento.md) | Worker e API de pagamento simulada | 19 |
+| 15 | [Catálogo de produtos](15-catalogo-de-produtos.md) | API | 22 |
 
 ## O pedido de ponta a ponta
 

@@ -3,7 +3,10 @@
 **Rota**: `POST /api/v1/pedidos`, só para o perfil `Cliente`.
 **Origem**: REQ-01 (contrato), REQ-04 ([domínio](../../specs/004-dominio-persistencia/spec.md))
 e REQ-05 ([spec](../../specs/005-criacao-pedidos/spec.md),
-[idempotência](../../specs/005-criacao-pedidos/contracts/idempotencia.md)).
+[idempotência](../../specs/005-criacao-pedidos/contracts/idempotencia.md)); REQ-22 (catálogo).
+
+O Cliente encontra os produtos e os identificadores em `GET /api/v1/produtos`, com busca em
+português ([fluxo 15](15-catalogo-de-produtos.md)); só os ativos aparecem para ele.
 
 ## Caminho feliz
 
@@ -80,7 +83,12 @@ Para ver o estado atual, o Cliente consulta o `Location` (fluxo 3).
 - **Estoque suficiente na criação e esgotado logo depois**: a criação não reserva. A falta
   é tratada pelo consumidor de estoque, que cancela o pedido com "Estoque insuficiente."
   (fluxo 4).
-- **Preço alterado depois da criação**: o pedido mantém o preço do momento da criação.
+- **Preço alterado depois da criação**: o pedido mantém o preço do momento da criação. A
+  mudança de preço pelo Admin (`PUT /api/v1/produtos/{id}`, REQ-22) vale só para os pedidos
+  criados depois dela; uma criação que leu o preço antigo usa o preço antigo.
+- **Produto desativado pelo Admin** (REQ-22): os pedidos novos com ele recebem 422
+  `PRODUTO_INDISPONIVEL`; uma criação que já o leu ativo é concluída. Os pedidos antigos não
+  mudam ([fluxo 15](15-catalogo-de-produtos.md)).
 
 ## Falhas externas
 
