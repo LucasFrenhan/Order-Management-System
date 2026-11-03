@@ -33,6 +33,6 @@
 
 - Os termos 401, 403, 400, ProblemDetails e "contrato v1" aparecem porque fazem parte do
   contrato público já existente e dos critérios de aceite da issue #52, não da implementação.
-- Decisões tomadas como padrão, para revisar no `/speckit-clarify`: paginação por página e
-  tamanho (padrão 20, máximo 100), página depois da última responde 200 vazia, Cliente com
-  filtro por Cliente recebe 403, período só pela data de criação.
+- Clarify de 2026-11-03: paginação por cursor (próxima e anterior, sem total), filtros de
+  período de criação e de última alteração, e 403 para o Cliente que usa o filtro por
+  Cliente. Tamanho padrão 20 e máximo 100 seguem como padrão.
