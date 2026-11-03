@@ -77,7 +77,7 @@ stoplist, palavras como "de" não anulam um `AND`.
 
 ## R-04 — Montagem da condição de busca
 
-**Decision**: o texto é quebrado em palavras (sequências de letras e dígitos, até 10 palavras);
+**Decision**: o texto é quebrado em palavras (sequências de letras e dígitos; mais de 10 dá 400);
 cada palavra vira `(FORMSOF(INFLECTIONAL, "p") OR "p*")`, e as palavras se juntam com `AND`. A
 condição vai como **parâmetro** de `EF.Functions.Contains(p.TextoBusca, condicao, 1046)`; o
 usuário nunca escreve a sintaxe do FTS. Sem nenhuma palavra (só pontuação) → 400.
@@ -165,7 +165,7 @@ Como no REQ-21: parâmetros e corpos validados por `FiltroValidacao` com todas a
 | `estoqueInicial` | 0 a 1.000.000.000 | `O estoque inicial deve estar entre 0 e 1000000000.` |
 | `variacao` | ≠ 0, de -1.000.000 a 1.000.000 | `A variação deve ser diferente de zero e estar entre -1000000 e 1000000.` |
 | `motivo` | obrigatório, até 200 após aparar | `O motivo é obrigatório e deve ter até 200 caracteres.` |
-| `busca` | 2 a 100 caracteres, ao menos uma palavra | `A busca deve ter entre 2 e 100 caracteres e ao menos uma palavra.` |
+| `busca` | 2 a 100 caracteres, de 1 a 10 palavras | `A busca deve ter entre 2 e 100 caracteres e de 1 a 10 palavras.` |
 | `situacao` | `Ativos`, `Inativos` ou `Todos` | `A situação deve ser Ativos, Inativos ou Todos.` |
 | `tamanho`, `cursor` | como no REQ-21 | as mesmas mensagens |
 

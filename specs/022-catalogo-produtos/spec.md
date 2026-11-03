@@ -228,9 +228,10 @@ reativar e conferir que volta.
   - com as flexões de plural e singular ("camisetas" acha "Camiseta");
   - por início de palavra ("cami" acha "Camiseta");
   - com várias palavras, só os produtos que têm todas;
-  - o SKU também por parte do código ("001" acha "CAT-001").
-  A busca se combina com os demais filtros e com o cursor, e uma busca sem nenhuma palavra útil
-  (só pontuação, por exemplo) MUST dar 400.
+  - o SKU pelos trechos separados por hífen ou pelo começo do código ("001" e "cat" acham
+    "CAT-001"; um trecho no meio de um código sem separador, como "250" em "CAF250", não acha).
+  A busca se combina com os demais filtros e com o cursor. Uma busca sem nenhuma palavra útil
+  (só pontuação, por exemplo) ou com mais de 10 palavras MUST dar 400.
 - **FR-007a**: A busca por texto MAY refletir um cadastro ou uma alteração com atraso de até 10
   segundos; a consulta por identificador, a listagem sem busca e a regra de ativação (um produto
   desativado nunca aparece para o Cliente, nem na busca) MUST refletir a gravação na hora.
@@ -260,7 +261,8 @@ reativar e conferir que volta.
 - **FR-016**: O ajuste MUST somar a variação ao estoque atual no momento da gravação, nunca
   gravar um valor calculado sobre uma leitura antiga: com o produto alterado por outra operação
   (uma reserva, uma devolução ou outro ajuste), MUST reavaliar sobre o estado atual, até 3 vezes;
-  esgotadas, MUST dar 409 com o código `PRODUTO_ALTERADO_POR_OUTRA_OPERACAO`.
+  esgotadas, MUST dar 409 com o código `PRODUTO_ALTERADO_POR_OUTRA_OPERACAO`. A alteração de
+  dados, a desativação e a reativação MUST seguir a mesma regra.
 - **FR-017**: A resposta do ajuste MUST trazer o produto com a quantidade nova.
 
 **Ativação**
@@ -282,9 +284,13 @@ reativar e conferir que volta.
 
 - **FR-022**: Cadastro, alteração (com o preço anterior e o novo), ajuste de estoque (com a
   variação, o motivo, a quantidade nova e quem fez), desativação e reativação MUST gerar logs
-  estruturados com IDs próprios, sem dados pessoais além do identificador do usuário.
+  estruturados com IDs próprios, sem dados pessoais além do identificador do usuário. O motivo
+  do ajuste vai ao log de propósito, porque o log é o histórico dos ajustes (clarify); ele é
+  limitado a 200 caracteres.
 - **FR-023**: O catálogo inicial de desenvolvimento (`CAT-001` a `CAT-010`) MUST continuar sendo
-  criado só em Development e nos testes, apenas quando o produto ainda não existe.
+  criado só em Development e nos testes, apenas quando o produto ainda não existe, e MUST entrar
+  na busca como qualquer produto; um produto do catálogo inicial alterado pela API não volta ao
+  original na próxima partida.
 - **FR-024**: Os documentos de fluxo da criação de pedido (fluxo 2) e da reserva de estoque
   (fluxo 4) MUST ser atualizados, e o catálogo MUST ganhar um documento de fluxo próprio, com a
   linha no índice.
