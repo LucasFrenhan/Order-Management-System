@@ -23,6 +23,34 @@ Este requisito acrescenta ao contrato v1 a consulta e a listagem de produtos par
 pedidos e a gestão do catálogo pela operação: cadastro, alteração de dados e preço, reposição e
 ajuste de estoque, desativação e reativação.
 
+## Clarifications
+
+### Session 2026-11-03
+
+Respostas dadas pelo usuário de uma vez, no início do clarify:
+
+- Q: Quem gerencia o catálogo: só o Admin ou um perfil novo de catálogo? → A: Só o Admin; nenhum
+  perfil novo (FR-008).
+- Q: O que o Cliente vê do catálogo? → A: Só os produtos ativos, sem a quantidade em estoque
+  (FR-003, FR-005).
+- Q: Como é a listagem de produtos? → A: Igual à de pedidos (REQ-21): paginação por cursor, só
+  com próxima e anterior, tamanho de 1 a 100 (padrão 20), sem total (FR-006).
+- Q: O histórico dos ajustes de estoque precisa de uma tabela? → A: Não; fica só no log (FR-022).
+- Q: A gestão do catálogo publica eventos novos? → A: Não; nenhum evento `produto.*`.
+- Q: O catálogo inicial (`CAT-001` a `CAT-010`) continua? → A: Sim, só em Development e nos
+  testes (FR-023).
+- Q: Na listagem de produtos, "igual à de pedidos" também vale para a ordem e para a busca? → A:
+  Não: o mesmo modelo de cursor, mas ordenado pelo nome (desempate pelo SKU) e com busca
+  opcional; a busca é de texto otimizada para o português do Brasil (busca textual completa, por
+  palavras, sem diferenciar acentos e maiúsculas, com plural e singular) (FR-007).
+- Q: Com busca por texto, a ordem é pelo nome ou pela relevância? → A: Pelo nome (desempate pelo
+  SKU), com ou sem busca; a busca só filtra, e o cursor é o mesmo (FR-006, FR-007).
+- Q: Um produto recém-cadastrado ou alterado pode demorar a aparecer na busca por texto? → A:
+  Pode: aparece na busca em até 10 segundos depois de gravado; a consulta por id e a listagem sem
+  busca são imediatas (FR-007a, SC-006).
+- Q: O OperadorLogistica vê a quantidade em estoque e os inativos, como o Admin? → A: Sim, como o
+  Admin, mas só para leitura (FR-004, FR-005, US2).
+
 ## User Scenarios & Testing *(mandatory)*
 
 Os usuários deste requisito são o **Cliente**, que precisa achar os produtos para montar um
@@ -82,8 +110,8 @@ operações com Cliente e OperadorLogistica e conferir 403.
    pedidos antigos mantêm o preço e o total que tinham, e um pedido novo usa o preço novo.
 5. **Given** o Cliente ou o OperadorLogistica, **When** tenta cadastrar ou alterar, **Then** a
    resposta é 403.
-6. **Given** o Admin, **When** ele lista ou consulta, **Then** vê também os inativos e a
-   quantidade em estoque.
+6. **Given** o Admin ou o OperadorLogistica, **When** lista ou consulta, **Then** vê também os
+   inativos e a quantidade em estoque; o OperadorLogistica só lê.
 
 ---
 
@@ -180,19 +208,32 @@ reativar e conferir que volta.
   de produtos, como acréscimos, sem alterar nada do que já existe (Princípio II).
 - **FR-002**: A consulta e a listagem MUST exigir autenticação e estar disponíveis para Cliente,
   OperadorLogistica e Admin.
-- **FR-003**: Para Cliente e OperadorLogistica, a listagem MUST trazer só os produtos ativos, e a
-  consulta de um produto inativo MUST responder como a de um inexistente (404).
-- **FR-004**: Para o Admin, a listagem e a consulta MUST incluir os inativos, com o filtro
-  opcional por situação (ativos, inativos ou todos).
+- **FR-003**: Para o Cliente, a listagem MUST trazer só os produtos ativos, e a consulta de um
+  produto inativo MUST responder como a de um inexistente (404).
+- **FR-004**: Para a operação (Admin e OperadorLogistica), a listagem e a consulta MUST incluir os
+  inativos, com o filtro opcional por situação (ativos, inativos ou todos); o filtro por situação
+  é exclusivo da operação, e o Cliente que o informa recebe 403, como o filtro por Cliente da
+  listagem de pedidos (REQ-21).
 - **FR-005**: Cada produto MUST trazer o identificador, o SKU, o nome, a descrição, o preço, a
-  moeda e a disponibilidade (se há ao menos uma unidade em estoque). Para o Admin, MUST trazer
-  também a quantidade em estoque, a situação (ativo ou inativo) e as datas de criação e de última
-  alteração.
-- **FR-006**: A listagem MUST ser ordenada pelo nome, com desempate pelo SKU, e paginada por
+  moeda e a disponibilidade (se há ao menos uma unidade em estoque). Para a operação (Admin e
+  OperadorLogistica), MUST trazer também a quantidade em estoque, a situação (ativo ou inativo) e
+  as datas de criação e de última alteração.
+- **FR-006**: A listagem MUST ser ordenada pelo nome, com desempate pelo SKU, também quando há
+  busca por texto (a busca só filtra; não há ordem por relevância), e paginada por
   cursor no mesmo modelo da listagem de pedidos (REQ-21): tamanho de 1 a 100, padrão 20,
   cursores da próxima e da anterior, sem total.
-- **FR-007**: A listagem MUST aceitar a busca opcional por parte do nome ou do SKU, sem
-  diferenciar maiúsculas, com no mínimo 2 e no máximo 100 caracteres.
+- **FR-007**: A listagem MUST aceitar uma busca opcional de texto (de 2 a 100 caracteres) sobre
+  o nome, a descrição e o SKU, otimizada para o português do Brasil:
+  - por palavras, sem diferenciar maiúsculas nem acentos ("cafe" acha "Café");
+  - com as flexões de plural e singular ("camisetas" acha "Camiseta");
+  - por início de palavra ("cami" acha "Camiseta");
+  - com várias palavras, só os produtos que têm todas;
+  - o SKU também por parte do código ("001" acha "CAT-001").
+  A busca se combina com os demais filtros e com o cursor, e uma busca sem nenhuma palavra útil
+  (só pontuação, por exemplo) MUST dar 400.
+- **FR-007a**: A busca por texto MAY refletir um cadastro ou uma alteração com atraso de até 10
+  segundos; a consulta por identificador, a listagem sem busca e a regra de ativação (um produto
+  desativado nunca aparece para o Cliente, nem na busca) MUST refletir a gravação na hora.
 
 **Cadastro e alteração**
 
@@ -269,13 +310,15 @@ reativar e conferir que volta.
   mudanças incompatíveis.
 - **SC-005**: Com 10.000 produtos, qualquer página da listagem, com ou sem busca, responde em até
   1 segundo no ambiente de testes.
+- **SC-006**: Um produto cadastrado ou renomeado é encontrado pela busca por texto em até 10
+  segundos; um desativado deixa de aparecer para o Cliente na hora, também na busca.
 
 ## Assumptions
 
 - A gestão do catálogo fica com o Admin; não é criado um perfil novo de catálogo nesta versão
   (criar perfil mexe na autenticação, que é escopo da #54).
-- O OperadorLogistica consulta o catálogo como o Cliente (só ativos, sem a quantidade); ele não
-  gerencia produtos.
+- O OperadorLogistica consulta o catálogo como o Admin (inativos, quantidade e datas), por
+  decisão do usuário (clarify), mas só lê: ele não gerencia produtos.
 - O Cliente vê só a disponibilidade (há ou não estoque), não a quantidade, para não expor o nível
   de estoque.
 - O ajuste é por variação (somar ou subtrair), não por valor absoluto: um valor absoluto
