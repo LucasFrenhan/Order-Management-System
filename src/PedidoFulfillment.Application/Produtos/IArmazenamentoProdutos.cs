@@ -18,6 +18,13 @@ public interface IArmazenamentoProdutos
     /// </summary>
     Task<IReadOnlyList<Produto>> ListarAsync(FiltroListagemProdutos filtro, PosicaoCursorProdutos? posicao, int quantidade, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Soma a variação ao estoque atual numa única instrução do banco, conferindo os limites na
+    /// mesma instrução (REQ-22, FR-016, research R-07): nenhuma unidade se perde, mesmo com
+    /// reservas gravando ao mesmo tempo, e não há conflito a reavaliar.
+    /// </summary>
+    Task<ResultadoAjusteEstoque> AjustarEstoqueAsync(Guid id, int variacao, int maximo, DateTimeOffset instante, CancellationToken cancellationToken);
+
     /// <exception cref="SkuDuplicadoException">Outro cadastro gravou o mesmo SKU.</exception>
     /// <exception cref="Comum.ConflitoConcorrenciaException">O produto mudou desde a leitura.</exception>
     Task SalvarAsync(CancellationToken cancellationToken);

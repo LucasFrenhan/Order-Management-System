@@ -131,30 +131,36 @@ public sealed class ServicoCatalogo(
             produto => EventosCatalogo.ProdutoAlterado(logger, produto.Id, usuarioId, precoAnterior, produto.Preco));
     }
 
-    /// <summary>A variação é aplicada sobre a leitura de cada tentativa: nenhuma unidade se perde (FR-016).</summary>
-    public Task<Resultado<ProdutoResponseDTO>> AjustarEstoqueAsync(Guid produtoId, AjustarEstoqueRequestDTO ajuste, Guid usuarioId, CancellationToken cancellationToken) =>
-        AlterarComTentativasAsync(produtoId, cancellationToken,
-            produto =>
-            {
-                var nova = (long)produto.QuantidadeEstoque + ajuste.Variacao;
-                if (nova < 0)
-                {
-                    return new Falha(TipoFalha.RegraNegocio, "Estoque insuficiente.",
-                        $"O ajuste deixaria o estoque do produto {produto.Sku} negativo (atual: {produto.QuantidadeEstoque}, variação: {ajuste.Variacao}).",
-                        CodigosErro.EstoqueInsuficiente);
-                }
+    /// <summary>
+    /// O banco soma a variação ao estoque do momento da gravação, numa instrução só (FR-016,
+    /// research R-07): com reservas do Worker gravando ao mesmo tempo, nenhuma unidade se perde e
+    /// não há conflito a reavaliar. Os limites são conferidos na mesma instrução.
+    /// </summary>
+    public async Task<Resultado<ProdutoResponseDTO>> AjustarEstoqueAsync(Guid produtoId, AjustarEstoqueRequestDTO ajuste, Guid usuarioId, CancellationToken cancellationToken)
+    {
+        var resultado = await armazenamento.AjustarEstoqueAsync(produtoId, ajuste.Variacao, MensagensCatalogo.EstoqueMaximo, relogio.GetUtcNow(), cancellationToken);
+        var produto = await armazenamento.ObterAsync(produtoId, paraAlterar: false, cancellationToken);
+        if (resultado == ResultadoAjusteEstoque.Inexistente || produto is null)
+        {
+            return NaoEncontrado;
+        }
 
-                if (nova > MensagensCatalogo.EstoqueMaximo)
-                {
-                    return new Falha(TipoFalha.RegraNegocio, "Estoque acima do limite.",
-                        $"O ajuste deixaria o estoque do produto {produto.Sku} acima de {MensagensCatalogo.EstoqueMaximo}.",
-                        CodigosErro.EstoqueAcimaDoLimite);
-                }
-
-                produto.AjustarEstoque(ajuste.Variacao, relogio.GetUtcNow());
-                return Mudanca.Feita;
-            },
-            produto => EventosCatalogo.EstoqueAjustado(logger, produto.Id, ajuste.Variacao, usuarioId, ajuste.Motivo, produto.QuantidadeEstoque));
+        switch (resultado)
+        {
+            case ResultadoAjusteEstoque.Insuficiente:
+                return new Falha(TipoFalha.RegraNegocio, "Estoque insuficiente.",
+                    $"O ajuste deixaria o estoque do produto {produto.Sku} negativo (atual: {produto.QuantidadeEstoque}, variação: {ajuste.Variacao}).",
+                    CodigosErro.EstoqueInsuficiente);
+            case ResultadoAjusteEstoque.AcimaDoLimite:
+                return new Falha(TipoFalha.RegraNegocio, "Estoque acima do limite.",
+                    $"O ajuste deixaria o estoque do produto {produto.Sku} acima de {MensagensCatalogo.EstoqueMaximo}.",
+                    CodigosErro.EstoqueAcimaDoLimite);
+            default:
+                // A quantidade lida logo depois pode já incluir reservas feitas em seguida.
+                EventosCatalogo.EstoqueAjustado(logger, produto.Id, ajuste.Variacao, usuarioId, ajuste.Motivo, produto.QuantidadeEstoque);
+                return Resposta(produto, operacao: true);
+        }
+    }
 
     /// <summary>Idempotente: um produto já inativo volta como está, sem gravar nem logar (FR-018).</summary>
     public Task<Resultado<ProdutoResponseDTO>> DesativarAsync(Guid produtoId, Guid usuarioId, CancellationToken cancellationToken) =>

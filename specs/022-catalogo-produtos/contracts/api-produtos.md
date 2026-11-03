@@ -14,7 +14,7 @@ Nada do que existe muda (Princípio II).
 | `GET /api/v1/produtos/{id}` | Cliente, OperadorLogistica, Admin | 200, 400 (id não UUID), 401, 403, 404 (inexistente; inativo para o Cliente) |
 | `POST /api/v1/produtos` | Admin | 201 + `Location`, 400, 401, 403, 409 `PRODUTO_SKU_DUPLICADO` |
 | `PUT /api/v1/produtos/{id}` | Admin | 200, 400, 401, 403, 404, 409 `PRODUTO_ALTERADO_POR_OUTRA_OPERACAO` |
-| `POST /api/v1/produtos/{id}/ajustes-estoque` | Admin | 200, 400, 401, 403, 404, 409 `PRODUTO_ALTERADO_POR_OUTRA_OPERACAO`, 422 `ESTOQUE_INSUFICIENTE` / `ESTOQUE_ACIMA_DO_LIMITE` |
+| `POST /api/v1/produtos/{id}/ajustes-estoque` | Admin | 200, 400, 401, 403, 404, 422 `ESTOQUE_INSUFICIENTE` / `ESTOQUE_ACIMA_DO_LIMITE` |
 | `POST /api/v1/produtos/{id}/desativacao` | Admin | 200 (idempotente), 400, 401, 403, 404, 409 |
 | `POST /api/v1/produtos/{id}/ativacao` | Admin | 200 (idempotente), 400, 401, 403, 404, 409 |
 

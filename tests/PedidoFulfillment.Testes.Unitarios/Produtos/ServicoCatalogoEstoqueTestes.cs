@@ -5,7 +5,10 @@ using PedidoFulfillment.Application.Contratos.Produtos;
 
 namespace PedidoFulfillment.Testes.Unitarios.Produtos;
 
-/// <summary>REQ-22, User Story 3: ajuste por variação, limites e reavaliação sobre o estoque atual.</summary>
+/// <summary>
+/// REQ-22, User Story 3: ajuste por variação, limites e log. A soma atômica sob concorrência é
+/// provada no teste de integração (<c>EstoqueConcorrenteTestes</c>), com o banco real.
+/// </summary>
 public sealed class ServicoCatalogoEstoqueTestes : ServicoCatalogoTestesBase
 {
     private Task<Resultado<ProdutoResponseDTO>> Ajustar(Guid id, int variacao, string motivo = "Reposição") =>
@@ -38,6 +41,7 @@ public sealed class ServicoCatalogoEstoqueTestes : ServicoCatalogoTestesBase
         });
         Armazenamento.Gravado(produto.Id).QuantidadeEstoque.Should().Be(2);
         Armazenamento.Gravacoes.Should().Be(0);
+        IdsDeLog().Should().BeEmpty();
     }
 
     [Fact]
@@ -52,28 +56,20 @@ public sealed class ServicoCatalogoEstoqueTestes : ServicoCatalogoTestesBase
     }
 
     [Fact]
-    public async Task Conflito_reavalia_a_variacao_sobre_o_estoque_atual()
+    public async Task Produto_inexistente_da_404()
     {
-        var produto = Armazenamento.Guardar("CAF-250", "Café", estoque: 100);
-        Armazenamento.ConflitosRestantes = 2;
-        // A cada conflito, "a reserva" tirou uma unidade do produto gravado.
-        Armazenamento.AoConflitar = p => p.AjustarEstoque(-1, Agora);
-
-        var resultado = await Ajustar(produto.Id, 50, "Reposição do fornecedor");
-
-        resultado.Valor!.QuantidadeEstoque.Should().Be(148, "100 - 2 reservas + 50, sem perder nenhuma");
-        IdsDeLog().Should().Equal(12006, 12006, 12003);
-        var log = Logger.Eventos.Single(e => e.Id.Id == 12003);
-        (log.Propriedades["Variacao"], log.Propriedades["Motivo"], log.Propriedades["QuantidadeEstoque"], log.Propriedades["UsuarioId"])
-            .Should().Be((50, "Reposição do fornecedor", 148, Admin));
+        (await Ajustar(Guid.NewGuid(), 1)).Falha!.Tipo.Should().Be(TipoFalha.NaoEncontrado);
     }
 
     [Fact]
-    public async Task Tentativas_esgotadas_dao_409()
+    public async Task Log_12003_e_o_historico_do_ajuste()
     {
-        var produto = Armazenamento.Guardar("CAF-250", "Café", estoque: 10);
-        Armazenamento.ConflitosRestantes = 3;
+        var produto = Armazenamento.Guardar("CAF-250", "Café", estoque: 100);
 
-        (await Ajustar(produto.Id, 1)).Falha!.Codigo.Should().Be(CodigosErro.ProdutoAlteradoPorOutraOperacao);
+        await Ajustar(produto.Id, 50, "Reposição do fornecedor");
+
+        var log = Logger.Eventos.Single(e => e.Id.Id == 12003);
+        (log.Propriedades["Variacao"], log.Propriedades["Motivo"], log.Propriedades["QuantidadeEstoque"], log.Propriedades["UsuarioId"])
+            .Should().Be((50, "Reposição do fornecedor", 150, Admin));
     }
 }

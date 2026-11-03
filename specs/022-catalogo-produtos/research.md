@@ -118,17 +118,23 @@ agora.
 
 ## R-07 — Ajuste de estoque concorrente
 
-**Decision**: `ServicoCatalogo.AjustarEstoqueAsync` lê o produto para alterar, chama
-`Produto.AjustarEstoque(variacao)` e grava; num `ConflitoConcorrenciaException` (o `rowversion`
-do produto mudou por uma reserva, devolução ou outro ajuste), descarta e repete sobre o estado
-atual, até 3 vezes, como a reserva (REQ-08, R-03); esgotadas, 409
-`PRODUTO_ALTERADO_POR_OUTRA_OPERACAO`. Estoque final negativo → 422 `ESTOQUE_INSUFICIENTE`;
-acima de 1.000.000.000 → 422 `ESTOQUE_ACIMA_DO_LIMITE`. A alteração de dados e a ativação usam
-o mesmo laço.
+**Decision** (revista no implement, 2026-11-03): o ajuste de estoque é **uma instrução só** no
+banco, `UPDATE Produtos SET QuantidadeEstoque = QuantidadeEstoque + @variacao, AtualizadoEm = @agora
+WHERE Id = @id AND QuantidadeEstoque + @variacao BETWEEN 0 AND 1000000000` (`ExecuteUpdateAsync`).
+Sem linha afetada, uma releitura diz o motivo: inexistente → 404; estoque final negativo → 422
+`ESTOQUE_INSUFICIENTE`; acima do limite → 422 `ESTOQUE_ACIMA_DO_LIMITE`. O `rowversion` muda com o
+`UPDATE`, então uma reserva que leu antes reavalia (REQ-08). A alteração de dados, a desativação e
+a reativação continuam com o laço de concorrência otimista: até 3 reavaliações e, esgotadas, 409
+`PRODUTO_ALTERADO_POR_OUTRA_OPERACAO`.
 
-**Rationale**: a variação é aplicada sobre a leitura de cada tentativa, e o `rowversion` impede
-gravar sobre uma leitura antiga: nenhuma unidade se perde (SC-002). O domínio já recusa estoque
-negativo.
+**Rationale**: a primeira versão (ler, `Produto.AjustarEstoque`, gravar com até 3 reavaliações)
+nunca perdia unidades, mas no teste de concorrência um ajuste do Admin recebeu 409 ao esgotar as
+tentativas enquanto o Worker gravava reservas sem parar: o Admin teria de repetir sem ter feito
+nada de errado. A soma no banco atende o FR-016 ao pé da letra ("somar a variação ao estoque atual
+no momento da gravação"), nunca perde unidades e nunca precisa de nova tentativa (SC-002).
+
+**Alternatives considered**: aumentar as tentativas ou esperar entre elas — só reduz a chance de
+409; trava pessimista (`UPDLOCK`) — exige transação explícita e serializa as reservas.
 
 ## R-08 — SKU único e cadastro concorrente
 
