@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using PedidoFulfillment.Application.Autenticacao;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Pedidos;
+using PedidoFulfillment.Application.Produtos;
 using PedidoFulfillment.Infrastructure.Configuracao;
 using PedidoFulfillment.Infrastructure.Identidade;
 using PedidoFulfillment.Infrastructure.Persistencia;
@@ -71,6 +72,7 @@ public static class ExtensoesInfraestrutura
             .AddEntityFrameworkStores<ContextoBancoDados>();
         services.AddScoped<IGestorIdentidade, GestorIdentidade>();
         services.AddScoped<IArmazenamentoPedidos, ArmazenamentoPedidos>();
+        services.AddScoped<IArmazenamentoProdutos, ArmazenamentoProdutos>();
         services.AddScoped<IGeradorNumeroPedido, GeradorNumeroPedido>();
         services.AddScoped<IArmazenamentoReenvios, ArmazenamentoReenvios>();
 

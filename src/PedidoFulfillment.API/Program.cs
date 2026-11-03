@@ -11,6 +11,7 @@ using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Notificacoes;
 using PedidoFulfillment.Application.Pedidos;
+using PedidoFulfillment.Application.Produtos;
 using PedidoFulfillment.Infrastructure;
 using PedidoFulfillment.Infrastructure.Notificacoes;
 using PedidoFulfillment.Infrastructure.Observabilidade;
@@ -56,6 +57,8 @@ builder.Services.AddScoped<IServicoPedidos, ServicoPedidos>();
 builder.Services.AddSingleton<IChaveCursor, ChaveCursorDerivadaDoJwt>();
 builder.Services.AddSingleton<CodificadorCursorPedidos>();
 builder.Services.AddScoped<IServicoListagemPedidos, ServicoListagemPedidos>();
+builder.Services.AddSingleton<CodificadorCursorProdutos>();
+builder.Services.AddScoped<IServicoCatalogo, ServicoCatalogo>();
 builder.Services.AddScoped<IServicoReenvioDlq, ServicoReenvioDlq>();
 builder.Services.AddScoped<IServicoDestinosNotificacao, ServicoDestinosNotificacao>();
 
@@ -75,6 +78,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testes"))
 
 app.MapearEndpointsAutenticacao();
 app.MapearEndpointsPedidos();
+app.MapearEndpointsProdutos();
 app.MapearEndpointsAdministracao();
 app.MapearEndpointsNotificacoes();
 // Saúde existe em todos os ambientes (REQ-02); pública e fora do OpenAPI.

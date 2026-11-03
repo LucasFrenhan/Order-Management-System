@@ -11,6 +11,10 @@ public static class CodigosErro
     public const string IdempotenciaEmProcessamento = "IDEMPOTENCIA_EM_PROCESSAMENTO";
     public const string ProdutoInexistente = "PRODUTO_INEXISTENTE";
     public const string ProdutoIndisponivel = "PRODUTO_INDISPONIVEL";
+    public const string ProdutoSkuDuplicado = "PRODUTO_SKU_DUPLICADO";
+    public const string ProdutoAlteradoPorOutraOperacao = "PRODUTO_ALTERADO_POR_OUTRA_OPERACAO";
+    public const string EstoqueInsuficiente = "ESTOQUE_INSUFICIENTE";
+    public const string EstoqueAcimaDoLimite = "ESTOQUE_ACIMA_DO_LIMITE";
     public const string PedidoTransicaoInvalida = "PEDIDO_TRANSICAO_INVALIDA";
     public const string PedidoRastreioDuplicado = "PEDIDO_RASTREIO_DUPLICADO";
     public const string NotificacaoDestinoEnderecoProibido = "NOTIFICACAO_DESTINO_ENDERECO_PROIBIDO";
