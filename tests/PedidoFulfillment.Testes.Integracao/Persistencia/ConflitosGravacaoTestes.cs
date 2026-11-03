@@ -49,6 +49,19 @@ public sealed class ConflitosGravacaoTestes(BancoDadosTeste banco)
         await armazenamento.SalvarAsync(Token);
     }
 
+    [Theory]
+    [InlineData(2601, true)]
+    [InlineData(2627, true)]
+    [InlineData(ErroSqlSimulado.Deadlock, false)]
+    public void Indice_unico_e_chave_unica_sao_violacao_de_unicidade(int numero, bool unicidade)
+    {
+        // Sem banco: só a classificação dos números de erro do SQL Server.
+        var excecao = new DbUpdateException("x", ErroSqlSimulado.Criar(numero));
+
+        ErrosBancoDados.EhViolacaoUnicidade(excecao).Should().Be(unicidade);
+        ErrosBancoDados.EhDeadlock(excecao).Should().Be(!unicidade);
+    }
+
     [Fact]
     public async Task Rastreio_gravado_por_outro_pedido_antes_da_gravacao_e_duplicado()
     {

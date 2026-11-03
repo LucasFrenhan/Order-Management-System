@@ -40,6 +40,21 @@ public sealed class InstrumentacaoBaseTestes(MensageriaTeste mensageria)
     }
 
     [Fact]
+    public async Task OTEL_SERVICE_NAME_sobrescreve_o_nome_do_servico()
+    {
+        // Contrato › Recurso: sem a variável, o nome padrão do processo.
+        Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
+        using var coletor = new ColetorTelemetria();
+        await using var api = Api(mensageria.NovoBanco(), coletor, new Dictionary<string, string?> { ["OTEL_SERVICE_NAME"] = "oms-api-teste" });
+        api.CreateClient().Dispose();
+
+        var recurso = OpenTelemetry.ProviderExtensions.GetResource(
+            Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<OpenTelemetry.Trace.TracerProvider>(api.Services));
+
+        recurso.Attributes.Should().Contain(new KeyValuePair<string, object>("service.name", "oms-api-teste"));
+    }
+
+    [Fact]
     public async Task Rotas_de_saude_nao_geram_span()
     {
         Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
