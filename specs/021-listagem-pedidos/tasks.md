@@ -156,8 +156,8 @@ usado pelo Cliente → 400; filtros só sobre os próprios pedidos.
   - em **Limitações**: a chave do cursor hoje é derivada da chave de assinatura do JWT; trocá-la (rotação da #60) invalida os cursores em uso (400, recomeçar da primeira página), e a chave pode passar no futuro a uma chave própria do cursor, mudando só o registro de `IChaveCursorPedidos` (R-04); sem total nem salto de página, por decisão da clarify;
   - `docs/fluxos/README.md`: a rota nova na linha do fluxo 3; o diagrama de estados não muda.
 - [X] T028 [P] Documentação do projeto: `docs/estado-atual.md` e `docs/proximos-passos.md` com a listagem entregue e a pendência da chave própria do cursor. O `README.md` **não** cresce sem permissão (regra do `CLAUDE.md`): se houver algo a acrescentar lá, perguntar antes.
-- [ ] T029 Varredura de segredos no diff, `dotnet build`, `dotnet format --verify-no-changes` e a suíte inteira com Docker (zero ignorados); registrar a contagem em Notes, comparando com a T001.
-- [ ] T030 Executar o [quickstart](./quickstart.md) (§2) com a API local e registrar o resultado em Notes, corrigindo o quickstart onde divergir.
+- [X] T029 Varredura de segredos no diff, `dotnet build`, `dotnet format --verify-no-changes` e a suíte inteira com Docker (zero ignorados); registrar a contagem em Notes, comparando com a T001.
+- [X] T030 Executar o [quickstart](./quickstart.md) (§2) com a API local e registrar o resultado em Notes, corrigindo o quickstart onde divergir.
 - [ ] T031 Push e PR em português (Resumo, Pontos de atenção, Validação) com `Closes #52`, citando em Validação os documentos de fluxo atualizados e, em Pontos de atenção, a paginação por cursor sem total e a chave do cursor derivada do JWT, com a possível troca futura por uma chave própria. Acompanhar `build-testes` e `Compatibilidade do contrato` até ficarem verdes, inclusive depois de cada push posterior, e entrar por auto-merge com rebase.
 
 ---
@@ -231,5 +231,17 @@ Depois: T023
     `IX_Pedidos_ClienteId_CriadoEm_Numero`, mais o `IX_Pedidos_CriadoEm_Numero`);
   - os testes da fundação foram escritos junto com o código, não antes: rodaram verdes já na
     primeira execução depois da compilação;
-  - resultado: 66 testes unitários novos e 17 de integração novos, todos verdes; SC-004 com
+  - resultado: 66 testes unitários novos e 16 de integração novos (15 da listagem e a linha
+    nova da conformidade do contrato), todos verdes; SC-004 com
     folga (o teste de 10.000 pedidos inteiro leva cerca de 2 s, incluindo a carga).
+- **T030 (2026-11-03)**: quickstart §2 executado com `docker compose up -d --wait` e a API pelo SDK
+  em Development (`http://localhost:5230`), com um Cliente novo e 5 pedidos. Resultado: (1) 401;
+  (2) 2 pedidos mais recentes, `anterior` nulo; (3) os 2 seguintes, sem repetição, com
+  `anterior`; (4) a volta trouxe a mesma página do passo 2; (5) 403 "O filtro por cliente é
+  exclusivo da operação." com o próprio id; (6) e (7) 200 para o OperadorLogistica; (8) 400 com
+  os três erros juntos; (9) 400 `erros.cursor` com o cursor alterado e com `status` a mais;
+  (10) 400 com o cursor do Cliente usado pela operação. O quickstart não precisou de correção.
+- **T029 (2026-11-03)**: nenhum segredo no diff (só nomes de propriedade do snapshot do EF e
+  textos); `dotnet build` e `dotnet format --verify-no-changes` sem erros; suíte inteira com
+  Docker: 1.653 testes, 1.030 unitários e 623 de integração, zero falhas e zero ignorados
+  (linha de base: 964 + 607).
