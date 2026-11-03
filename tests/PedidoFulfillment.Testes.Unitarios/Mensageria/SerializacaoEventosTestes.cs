@@ -8,6 +8,13 @@ namespace PedidoFulfillment.Testes.Unitarios.Mensageria;
 /// <summary>Serialização dos contratos de evento v1 (REQ-06, FR-001 a FR-004; REQ-08, FR-012 e FR-013; REQ-10, FR-008 e FR-009; REQ-15, R-04; REQ-18, R-02).</summary>
 public sealed class SerializacaoEventosTestes
 {
+    [Fact]
+    public void Evento_nulo_e_recusado_e_consumidor_nulo_nao_e_conhecido()
+    {
+        FluentActions.Invoking(() => SerializacaoEventos.Desserializar<PedidoCriado>("null")).Should().Throw<JsonException>();
+        PedidoFulfillment.Application.Mensageria.ConsumidoresConhecidos.Conhecido(null).Should().BeFalse();
+    }
+
     internal static readonly DateTimeOffset Instante = new(2026, 10, 22, 15, 30, 0, TimeSpan.Zero);
     internal static readonly Guid PedidoId = Guid.Parse("0192b6a0-1111-7000-8000-000000000001");
     private static readonly Guid ProdutoId = Guid.Parse("0192b6a0-0000-7000-8000-000000000001");

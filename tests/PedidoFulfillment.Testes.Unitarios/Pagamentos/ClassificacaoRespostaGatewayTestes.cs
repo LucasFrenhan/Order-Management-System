@@ -37,6 +37,7 @@ public sealed class ClassificacaoRespostaGatewayTestes
     [InlineData(HttpStatusCode.Unauthorized, false, (int)ClasseResposta.Permanente)]
     [InlineData(HttpStatusCode.Forbidden, false, (int)ClasseResposta.Permanente)]
     [InlineData(HttpStatusCode.MovedPermanently, false, (int)ClasseResposta.Permanente)]
+    [InlineData(HttpStatusCode.Continue, false, (int)ClasseResposta.Permanente)]
     public void Cada_status_tem_a_sua_classe(HttpStatusCode status, bool retryAfter, int esperada)
     {
         ClassificacaoRespostaGateway.Classificar(status, retryAfter).Should().Be((ClasseResposta)esperada);
@@ -78,6 +79,8 @@ public sealed class ClassificacaoRespostaGatewayTestes
         ClassificacaoRespostaGateway.TipoFalha(Resposta(HttpStatusCode.InternalServerError)).Should().Be("erro-interno");
         ClassificacaoRespostaGateway.TipoFalha(Resposta(HttpStatusCode.Conflict, retryAfter: true)).Should().Be("em-andamento");
         ClassificacaoRespostaGateway.TipoFalha(Outcome.FromException<HttpResponseMessage>(new HttpRequestException())).Should().Be("conexao");
+        ClassificacaoRespostaGateway.TipoFalha(Outcome.FromException<HttpResponseMessage>(new TimeoutRejectedException())).Should().Be("tempo-esgotado");
+        ClassificacaoRespostaGateway.TipoFalha(Outcome.FromException<HttpResponseMessage>(new IOException())).Should().Be("conexao");
         ClassificacaoRespostaGateway.Incerto(Outcome.FromException<HttpResponseMessage>(new TimeoutRejectedException())).Should().BeTrue();
         ClassificacaoRespostaGateway.Incerto(Resposta(HttpStatusCode.ServiceUnavailable)).Should().BeFalse();
     }
@@ -107,5 +110,14 @@ public sealed class ClassificacaoRespostaGatewayTestes
 
         ler.Should().Throw<FalhaGatewayPagamentoException>().Which.Tipo.Should().Be(TipoFalhaGateway.Permanente);
         FluentActions.Invoking(() => ClassificacaoRespostaGateway.LerCobranca(null)).Should().Throw<FalhaGatewayPagamentoException>();
+    }
+
+    [Fact]
+    public void Estorno_e_consulta_fora_do_contrato_sao_erro_permanente_da_propria_operacao()
+    {
+        FluentActions.Invoking(() => ClassificacaoRespostaGateway.LerEstorno(new("aprovada", "EST-1", null)))
+            .Should().Throw<FalhaGatewayPagamentoException>().Which.Operacao.Should().Be(OperacaoGateway.Estorno);
+        FluentActions.Invoking(() => ClassificacaoRespostaGateway.LerConsulta(null))
+            .Should().Throw<FalhaGatewayPagamentoException>().Which.Operacao.Should().Be(OperacaoGateway.Consulta);
     }
 }

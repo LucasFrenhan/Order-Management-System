@@ -139,6 +139,29 @@ public sealed class PedidoTestes
     }
 
     [Fact]
+    public void MudarStatus_para_status_desconhecido_e_recusado()
+    {
+        var pedido = new Pedido(ClienteId, Numero, [(NovoProduto("A", 1m), 1)], Instante);
+
+        var mudar = () => pedido.MudarStatus((StatusPedido)99, null, null, Instante);
+
+        mudar.Should().Throw<ArgumentOutOfRangeException>();
+        pedido.Historico.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void Cancelar_sem_motivo_registra_o_historico_sem_motivo()
+    {
+        var produto = NovoProduto("A", 1m);
+        var pedido = new Pedido(ClienteId, Numero, [(produto, 1)], Instante);
+
+        pedido.Cancelar(null, null, new Dictionary<Guid, Produto> { [produto.Id] = produto }, Instante);
+
+        pedido.Status.Should().Be(StatusPedido.Cancelado);
+        pedido.Historico.Last().Motivo.Should().BeNull();
+    }
+
+    [Fact]
     public void MudarStatus_nao_valida_a_transicao_que_e_regra_do_REQ_05()
     {
         var pedido = new Pedido(ClienteId, Numero, [(NovoProduto("A", 1m), 1)], Instante);

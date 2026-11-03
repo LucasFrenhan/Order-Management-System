@@ -71,6 +71,20 @@ public sealed class SegurancaWebhookTestes
     }
 
     [Fact]
+    public void Cifrado_sem_conteudo_alem_do_nonce_e_da_tag_e_recusado()
+    {
+        ((Action)(() => Cifra(7).Decifrar(new byte[28]))).Should().Throw<CryptographicException>().WithMessage("*tamanho inválido*");
+    }
+
+    [Theory]
+    [InlineData("https://exemplo.com:8443/caminho?x=1", "https://exemplo.com:8443")]
+    [InlineData("nao e url", "(url inválida)")]
+    public void O_host_do_destino_nos_logs_e_so_esquema_host_e_porta(string url, string esperado)
+    {
+        EventosNotificacao.HostDestino(url).Should().Be(esperado);
+    }
+
+    [Fact]
     public void Conteudo_adulterado_ou_outra_chave_nao_decifram()
     {
         var cifrado = Cifra(7).Cifrar(SegredoWebhook.Gerar());

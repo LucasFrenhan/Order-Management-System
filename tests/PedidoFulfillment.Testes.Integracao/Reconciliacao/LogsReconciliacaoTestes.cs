@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PedidoFulfillment.Application.Reconciliacao;
 using PedidoFulfillment.Testes.Integracao.Infraestrutura;
@@ -58,6 +59,33 @@ public sealed class LogsReconciliacaoTestes(MensageriaTeste mensageria)
             var valorTotal = (await ValorTotalAsync(stringConexao, entrega)).ToString(System.Globalization.CultureInfo.InvariantCulture);
             logs.Registros.Where(r => r.Evento.Id is >= 9001 and <= 9007).Should()
                 .NotContain(r => r.Texto.Contains(email, StringComparison.OrdinalIgnoreCase) || r.Texto.Contains(valorTotal, StringComparison.Ordinal));
+        }
+        finally
+        {
+            await LimparFilasAsync(mensageria);
+        }
+    }
+
+    [Fact]
+    public async Task Falha_fora_da_regra_da_etapa_conta_para_o_pedido_e_nao_interrompe_o_ciclo()
+    {
+        // FR-011: a defesa do ciclo, por pedido, para o que escapa do serviço (aqui, a montagem do serviço).
+        Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
+        var stringConexao = mensageria.NovoBanco();
+        await using var api = Api(stringConexao);
+        var (cliente, _, _) = await ClienteAsync(api);
+        var pedidoId = await ParadoNaEntregaAsync(mensageria, stringConexao, cliente);
+        await EnvelhecerAsync(stringConexao, pedidoId, UmaHora);
+        using var logs = new CapturaLogs();
+
+        try
+        {
+            await using var worker = WorkerReconciliando(mensageria, stringConexao, logs,
+                servicos: s => s.AddScoped<IEtapaFluxoPedido>(_ => throw new InvalidOperationException("Regra indisponível.")));
+            worker.CreateClient().Dispose();
+
+            (await EsperarLogsAsync(logs, 9003, quantidade: 2)).Should().BeTrue("o pedido falha a cada ciclo, e os ciclos continuam");
+            logs.Registros.First(r => r.Evento.Id == 9003).Texto.Should().Contain(pedidoId.ToString()).And.Contain("InvalidOperationException");
         }
         finally
         {

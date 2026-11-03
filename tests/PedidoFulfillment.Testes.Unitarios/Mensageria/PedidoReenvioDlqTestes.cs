@@ -104,6 +104,17 @@ public sealed class PedidoReenvioDlqTestes
     }
 
     [Fact]
+    public void Falhar_sem_motivo_grava_motivo_vazio()
+    {
+        var pedido = EmExecucao();
+
+        pedido.Falhar(new ContagensReenvio(0, 0, 0), null!, T0.AddMinutes(2));
+
+        pedido.Situacao.Should().Be(SituacaoReenvioDlq.Falhou);
+        pedido.MotivoFalha.Should().BeEmpty();
+    }
+
+    [Fact]
     public void Transicoes_fora_do_ciclo_sao_recusadas_sem_alterar_nada()
     {
         var pendente = Pendente();

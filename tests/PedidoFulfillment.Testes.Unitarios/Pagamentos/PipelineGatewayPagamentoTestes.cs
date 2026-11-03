@@ -213,6 +213,54 @@ public sealed class PipelineGatewayPagamentoTestes : IDisposable
     }
 
     [Fact]
+    public async Task Falha_de_conexao_em_todas_as_tentativas_e_passageira()
+    {
+        rede.Sempre(_ => throw new HttpRequestException("conexão recusada"));
+
+        var cobrar = () => Gateway().CobrarAsync(Pedido, 10m, Token);
+
+        var falha = (await cobrar.Should().ThrowAsync<FalhaGatewayPagamentoException>()).Which;
+        falha.Tipo.Should().Be(TipoFalhaGateway.Passageira);
+        falha.InnerException.Should().BeOfType<HttpRequestException>();
+        rede.Recebidas.Should().HaveCount(3);
+    }
+
+    [Fact]
+    public async Task Corpo_que_nao_e_json_e_erro_permanente()
+    {
+        rede.Enfileirar(() => Json(HttpStatusCode.Created, "não é json"));
+
+        var cobrar = () => Gateway().CobrarAsync(Pedido, 10m, Token);
+
+        (await cobrar.Should().ThrowAsync<FalhaGatewayPagamentoException>()).Which.Tipo.Should().Be(TipoFalhaGateway.Permanente);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.BadRequest, "texto solto", "sem-codigo")]
+    [InlineData(HttpStatusCode.Unauthorized, "texto solto", "credencial-recusada")]
+    [InlineData(HttpStatusCode.Forbidden, "{\"title\":\"x\"}", "sem-codigo")]
+    public async Task Erro_permanente_sem_codigo_legivel_usa_o_codigo_do_status(HttpStatusCode status, string corpo, string codigo)
+    {
+        rede.Enfileirar(() => new HttpResponseMessage(status) { Content = new StringContent(corpo, Encoding.UTF8, "application/problem+json") });
+
+        var cobrar = () => Gateway().CobrarAsync(Pedido, 10m, Token);
+
+        await cobrar.Should().ThrowAsync<FalhaGatewayPagamentoException>();
+        logs.Eventos.Should().ContainSingle(e => e.Id.Id == 7015).Which.Propriedades["Codigo"].Should().Be(codigo);
+    }
+
+    [Fact]
+    public async Task Consulta_recusada_e_estorno_recusado_sao_resultados()
+    {
+        rede.Enfileirar(() => Json(HttpStatusCode.OK, "{\"situacao\":\"recusada\",\"motivo\":\"Pagamento recusado pelo emissor.\"}"),
+            () => Json(HttpStatusCode.Created, "{\"situacao\":\"recusado\",\"motivo\":\"Cobrança desconhecida.\"}"));
+        var gateway = Gateway();
+
+        (await gateway.ConsultarCobrancaAsync(Pedido, Token)).Situacao.Should().Be(SituacaoConsultaCobranca.Recusada);
+        (await gateway.EstornarAsync(Pedido, "PAG-1", 10m, Token)).Should().Be(ResultadoEstorno.Recusar("Cobrança desconhecida."));
+    }
+
+    [Fact]
     public async Task Recusa_de_negocio_nao_e_repetida()
     {
         rede.Enfileirar(() => Json(HttpStatusCode.Created, "{\"situacao\":\"recusada\",\"motivo\":\"Pagamento recusado pelo emissor.\"}"));
