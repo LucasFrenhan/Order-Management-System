@@ -43,8 +43,8 @@ Com o pedido em `ProntoParaEnvio`, numa gravação só:
 
 | Situação | Resposta | Exemplo | Por quê |
 |----------|----------|---------|---------|
-| Transportadora ou código vazio, ou só com espaços | 400, com o campo em `erros` | `"transportadora": "   "` | — |
-| Transportadora com mais de 100 caracteres, ou código com mais de 50, contados depois de aparar | 400 | — | Limites do contrato |
+| Transportadora ou código vazio, nulo ou só com espaços | 400, com o campo em `erros`: "A transportadora é obrigatória." ou "O código de rastreio é obrigatório." | `"transportadora": "   "` | — |
+| Transportadora com mais de 100 caracteres, ou código com mais de 50, contados depois de aparar | 400: "A transportadora deve ter até 100 caracteres." ou "O código de rastreio deve ter até 50 caracteres." | — | Limites do contrato. Até a issue #63, essas respostas saíam com as mensagens padrão em inglês, e os espaços nas pontas contavam no tamanho |
 | Mesmo código na mesma transportadora em outro pedido, **sem diferenciar maiúsculas** | 409 `PEDIDO_RASTREIO_DUPLICADO`: "Outro pedido já usa este código de rastreio nesta transportadora."; log 4005 | `correios`/`br123` com `Correios`/`BR123` em outro pedido | Um código de rastreio identifica um único volume |
 | Mesmo código em transportadoras diferentes | Aceito | `BR123` na Jadlog e nos Correios | A unicidade vale por transportadora |
 | Cliente | 403 | — | Despacho é da operação |

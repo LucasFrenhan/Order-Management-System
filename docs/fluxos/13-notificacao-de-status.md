@@ -118,7 +118,10 @@ Cliente, responde 404. O Admin não vê os destinos dos Clientes.
 
 | Situação | Resposta | Exemplo | Motivo |
 |----------|----------|---------|--------|
-| URL vazia, relativa, fora de http/https ou com usuário e senha | 400 | "A URL deve ser absoluta, com https." | FR-008 |
+| URL vazia ou só com espaços | 400 | "A URL é obrigatória." | FR-008 |
+| URL com mais de 2048 caracteres | 400 | "A URL deve ter até 2048 caracteres." | Tamanho da coluna |
+| URL relativa ou fora de http/https | 400 | "A URL deve ser absoluta, com https." | FR-008 |
+| URL com usuário e senha | 400 | "A URL não pode ter usuário nem senha." | FR-008 |
 | `http` fora de Development e dos testes | 400 | "A URL deve ser absoluta, com https." | FR-008 |
 | Host que não resolve ou resolve para endereço interno | 400 `NOTIFICACAO_DESTINO_ENDERECO_PROIBIDO` | "O endereço do destino não é público." | Proteção contra SSRF (FR-008) |
 | Sexto destino do Cliente, ou sexto global | 409 `NOTIFICACAO_DESTINO_LIMITE` | "O limite de 5 destinos foi atingido." | FR-010 |
