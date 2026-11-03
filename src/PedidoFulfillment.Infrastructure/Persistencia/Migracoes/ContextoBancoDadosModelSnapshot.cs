@@ -719,7 +719,17 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
 
                     b.HasIndex("Status");
 
-                    b.HasIndex("ClienteId", "CriadoEm");
+                    b.HasIndex("CriadoEm", "Numero")
+                        .IsDescending()
+                        .HasDatabaseName("IX_Pedidos_CriadoEm_Numero");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("CriadoEm", "Numero"), new[] { "ClienteId", "Status", "AtualizadoEm", "ValorTotal", "Moeda" });
+
+                    b.HasIndex("ClienteId", "CriadoEm", "Numero")
+                        .IsDescending(false, true, true)
+                        .HasDatabaseName("IX_Pedidos_ClienteId_CriadoEm_Numero");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("ClienteId", "CriadoEm", "Numero"), new[] { "Status", "AtualizadoEm", "ValorTotal", "Moeda" });
 
                     b.ToTable("Pedidos", null, t =>
                         {

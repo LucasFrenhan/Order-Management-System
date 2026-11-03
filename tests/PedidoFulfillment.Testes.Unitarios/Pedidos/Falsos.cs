@@ -1,4 +1,5 @@
 using PedidoFulfillment.Application.Comum;
+using PedidoFulfillment.Application.Contratos.Pedidos;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Domain.Pedidos;
@@ -94,6 +95,44 @@ public sealed class ArmazenamentoPedidosFalso : IArmazenamentoPedidos
         }
 
         return Task.FromResult(pedido);
+    }
+
+    /// <summary>Resumos "gravados" para a listagem (REQ-21).</summary>
+    public List<ResumoPedidoResponseDTO> Resumos { get; } = [];
+
+    /// <summary>Filtro e posição de cada chamada da listagem, na ordem.</summary>
+    public List<(FiltroListagemPedidos Filtro, PosicaoCursor? Posicao, int Quantidade)> Listagens { get; } = [];
+
+    /// <summary>Mesma semântica do armazenamento real (research R-01 e R-02), em memória.</summary>
+    public Task<IReadOnlyList<ResumoPedidoResponseDTO>> ListarResumosAsync(
+        FiltroListagemPedidos filtro, PosicaoCursor? posicao, int quantidade, CancellationToken cancellationToken)
+    {
+        Listagens.Add((filtro, posicao, quantidade));
+        var filtrados = Resumos.Where(r => (filtro.ClienteId is null || r.ClienteId == filtro.ClienteId)
+            && (filtro.Status.Count == 0 || filtro.Status.Contains(r.Status))
+            && (filtro.CriadoDe is null || r.CriadoEm >= filtro.CriadoDe) && (filtro.CriadoAte is null || r.CriadoEm <= filtro.CriadoAte)
+            && (filtro.AtualizadoDe is null || r.AtualizadoEm >= filtro.AtualizadoDe) && (filtro.AtualizadoAte is null || r.AtualizadoEm <= filtro.AtualizadoAte));
+
+        static int Comparar(ResumoPedidoResponseDTO r, PosicaoCursor p)
+        {
+            var porData = r.CriadoEm.CompareTo(p.CriadoEm);
+            return porData != 0 ? porData : string.CompareOrdinal(r.Numero, p.Numero);
+        }
+
+        List<ResumoPedidoResponseDTO> lidos;
+        if (posicao is { Sentido: SentidoCursor.Anterior })
+        {
+            lidos = [.. filtrados.Where(r => posicao.Inclusiva ? Comparar(r, posicao) >= 0 : Comparar(r, posicao) > 0)
+                .OrderBy(r => r.CriadoEm).ThenBy(r => r.Numero, StringComparer.Ordinal).Take(quantidade)];
+            lidos.Reverse();
+        }
+        else
+        {
+            lidos = [.. filtrados.Where(r => posicao is null || (posicao.Inclusiva ? Comparar(r, posicao) <= 0 : Comparar(r, posicao) < 0))
+                .OrderByDescending(r => r.CriadoEm).ThenByDescending(r => r.Numero, StringComparer.Ordinal).Take(quantidade)];
+        }
+
+        return Task.FromResult<IReadOnlyList<ResumoPedidoResponseDTO>>(lidos);
     }
 
     public Task<bool> RastreioEmUsoAsync(string transportadora, string codigoRastreio, Guid pedidoId, CancellationToken cancellationToken) =>

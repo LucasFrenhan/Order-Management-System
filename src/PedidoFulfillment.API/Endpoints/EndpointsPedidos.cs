@@ -36,6 +36,23 @@ public static class EndpointsPedidos
             .ComCabecalhoLocation()
             .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status409Conflict, StatusCodes.Status422UnprocessableEntity);
 
+        // Listagem por perfil com cursor (REQ-21); a ordem 401 → 403 → 400 → 403 do filtro por
+        // Cliente → 400 do cursor está no contrato (contracts/api-listagem-pedidos.md).
+        grupo.MapGet("", async (
+                [AsParameters] ParametrosListarPedidos parametros,
+                ClaimsPrincipal usuario,
+                IServicoListagemPedidos servico,
+                CancellationToken cancellationToken) =>
+                (await servico.ListarAsync(parametros.ParaRequisicao(), usuario.ObterUsuarioId(), usuario.ObterPerfis(), cancellationToken))
+                    .ParaResposta(pagina => TypedResults.Ok(pagina)))
+            .WithName("ListarPedidos")
+            .WithSummary("Lista os pedidos do escopo do usuário, dos mais recentes para os mais antigos.")
+            .RequireAuthorization(PoliticasAutorizacao.PoliticaConsultaPedido)
+            .AddEndpointFilter<FiltroValidacao<ParametrosListarPedidos>>()
+            .AddOpenApiOperationTransformer(ParametrosListagemOpenApi.AplicarAsync)
+            .Produces<PaginaPedidosResponseDTO>()
+            .ProduzErros(StatusCodes.Status400BadRequest);
+
         // Sem a restrição {id:guid}: um identificador inválido deve dar 400, e não 404 (R-10).
         // ETag forte da versão do pedido e 304 com If-None-Match igual (REQ-18, FR-025, R-17).
         grupo.MapGet("/{id}", async (
