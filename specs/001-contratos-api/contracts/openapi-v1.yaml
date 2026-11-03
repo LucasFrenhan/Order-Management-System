@@ -412,6 +412,270 @@ paths:
         '500':
           $ref: '#/components/responses/ErroInterno'
 
+  /api/v1/produtos:
+    get:
+      tags: [Produtos]
+      operationId: ListarProdutos
+      summary: Lista os produtos pelo nome, com busca em português; o Cliente vê só os ativos.
+      description: |
+        Perfis autorizados: **Cliente**, **OperadorLogistica** e **Admin** (REQ-22). O Cliente vê só
+        os produtos ativos, sem `quantidadeEstoque`, `ativo` e datas; a operação vê todos. O filtro
+        `situacao` é exclusivo da operação: o Cliente que o informa recebe 403.
+
+        A busca usa o Full-Text Search em português do Brasil: por palavras, sem diferenciar
+        acentos e maiúsculas, com plural e singular e pelo começo da palavra; com várias palavras,
+        só os produtos que têm todas. Um produto novo ou alterado pode levar até 10 s para entrar
+        na busca. A ordem é sempre pelo nome e pelo SKU. Paginação por cursor, como em
+        `GET /api/v1/pedidos`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: busca
+          in: query
+          description: Palavras do nome, do SKU ou da descrição, em português (de 2 a 100 caracteres, até 10 palavras).
+          schema:
+            type: string
+        - name: situacao
+          in: query
+          description: 'Somente Admin e OperadorLogistica: Ativos, Inativos ou Todos (padrão).'
+          schema:
+            type: string
+            enum: [Ativos, Inativos, Todos]
+        - name: tamanho
+          in: query
+          description: Produtos por página, de 1 a 100.
+          schema:
+            type: integer
+            format: int32
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: cursor
+          in: query
+          description: O `proximo` ou o `anterior` de uma resposta anterior.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Página de produtos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginaProdutosResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+    post:
+      tags: [Produtos]
+      operationId: CadastrarProduto
+      summary: Cadastra um produto ativo (somente Admin).
+      description: |
+        Perfis autorizados: **Admin** (REQ-22). O SKU é único sem diferenciar maiúsculas e não muda
+        depois do cadastro; repetido, 409 `PRODUTO_SKU_DUPLICADO`. O preço é maior que zero, até
+        999999.99, com duas casas.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CadastrarProdutoRequestDTO'
+      responses:
+        '201':
+          description: Produto cadastrado.
+          headers:
+            Location:
+              description: URL do produto cadastrado.
+              schema:
+                type: string
+                format: uri-reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProdutoResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '409':
+          $ref: '#/components/responses/ErroConflito'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /api/v1/produtos/{id}:
+    get:
+      tags: [Produtos]
+      operationId: ObterProduto
+      summary: Consulta um produto; para o Cliente, um inativo responde como inexistente.
+      description: Perfis autorizados como na listagem (REQ-22).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdProduto'
+      responses:
+        '200':
+          description: Produto encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProdutoResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '404':
+          $ref: '#/components/responses/ErroNaoEncontrado'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+    put:
+      tags: [Produtos]
+      operationId: AlterarProduto
+      summary: Altera nome, descrição e preço; o preço novo vale só para pedidos novos (somente Admin).
+      description: |
+        Perfis autorizados: **Admin** (REQ-22). Os pedidos já criados mantêm os preços. Com o produto
+        alterado por outra operação, a alteração é reavaliada até 3 vezes; esgotadas, 409
+        `PRODUTO_ALTERADO_POR_OUTRA_OPERACAO`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdProduto'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlterarProdutoRequestDTO'
+      responses:
+        '200':
+          description: Produto alterado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProdutoResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '404':
+          $ref: '#/components/responses/ErroNaoEncontrado'
+        '409':
+          $ref: '#/components/responses/ErroConflito'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /api/v1/produtos/{id}/ajustes-estoque:
+    post:
+      tags: [Produtos]
+      operationId: AjustarEstoqueProduto
+      summary: Soma uma variação ao estoque, com motivo, sem perder unidades reservadas ao mesmo tempo (somente Admin).
+      description: |
+        Perfis autorizados: **Admin** (REQ-22). A variação é somada ao estoque atual no momento da
+        gravação. Estoque final negativo: 422 `ESTOQUE_INSUFICIENTE`; acima de 1000000000: 422
+        `ESTOQUE_ACIMA_DO_LIMITE`; tentativas esgotadas: 409 `PRODUTO_ALTERADO_POR_OUTRA_OPERACAO`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdProduto'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AjustarEstoqueRequestDTO'
+      responses:
+        '200':
+          description: Estoque ajustado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProdutoResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '404':
+          $ref: '#/components/responses/ErroNaoEncontrado'
+        '409':
+          $ref: '#/components/responses/ErroConflito'
+        '422':
+          $ref: '#/components/responses/ErroRegraNegocio'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /api/v1/produtos/{id}/desativacao:
+    post:
+      tags: [Produtos]
+      operationId: DesativarProduto
+      summary: Desativa o produto sem apagá-lo; repetir não muda nada (somente Admin).
+      description: Perfis autorizados - **Admin** (REQ-22). O produto some para o Cliente e não pode mais ser pedido.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdProduto'
+      responses:
+        '200':
+          description: Produto inativo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProdutoResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '404':
+          $ref: '#/components/responses/ErroNaoEncontrado'
+        '409':
+          $ref: '#/components/responses/ErroConflito'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /api/v1/produtos/{id}/ativacao:
+    post:
+      tags: [Produtos]
+      operationId: AtivarProduto
+      summary: Reativa o produto; repetir não muda nada (somente Admin).
+      description: Perfis autorizados - **Admin** (REQ-22).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdProduto'
+      responses:
+        '200':
+          description: Produto ativo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProdutoResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '404':
+          $ref: '#/components/responses/ErroNaoEncontrado'
+        '409':
+          $ref: '#/components/responses/ErroConflito'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
   /api/v1/admin/dlq/{consumidor}/reenvios:
     post:
       tags: [Administracao]
@@ -750,6 +1014,14 @@ components:
       in: path
       required: true
       description: Identificador do pedido.
+      schema:
+        type: string
+        format: uuid
+    IdProduto:
+      name: id
+      in: path
+      required: true
+      description: Identificador do produto.
       schema:
         type: string
         format: uuid
@@ -1140,6 +1412,115 @@ components:
         anterior:
           type: ['null', string]
           description: Cursor da página anterior; null na primeira.
+
+    ProdutoResponseDTO:
+      type: object
+      description: |
+        Um produto do catálogo (REQ-22). `quantidadeEstoque`, `ativo`, `criadoEm` e `atualizadoEm`
+        só vêm para Admin e OperadorLogistica; na resposta ao Cliente, são omitidos.
+      required: [id, sku, nome, descricao, preco, moeda, disponivel]
+      properties:
+        id:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        nome:
+          type: string
+        descricao:
+          type: ['null', string]
+        preco:
+          type: number
+          format: decimal
+          description: Duas casas decimais.
+        moeda:
+          type: string
+          description: Sempre "BRL".
+        disponivel:
+          type: boolean
+          description: Há ao menos uma unidade em estoque.
+        quantidadeEstoque:
+          type: ['null', integer]
+          format: int32
+        ativo:
+          type: ['null', boolean]
+        criadoEm:
+          type: ['null', string]
+          format: date-time
+        atualizadoEm:
+          type: ['null', string]
+          format: date-time
+
+    PaginaProdutosResponseDTO:
+      type: object
+      description: Uma página da listagem de produtos (REQ-22), como a de pedidos.
+      required: [itens, tamanho, proximo, anterior]
+      properties:
+        itens:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProdutoResponseDTO'
+        tamanho:
+          type: integer
+          format: int32
+        proximo:
+          type: ['null', string]
+          description: Cursor da próxima página; null na última.
+        anterior:
+          type: ['null', string]
+          description: Cursor da página anterior; null na primeira.
+
+    CadastrarProdutoRequestDTO:
+      type: object
+      required: [sku, nome]
+      properties:
+        sku:
+          type: string
+          maxLength: 50
+        nome:
+          type: string
+          maxLength: 200
+        descricao:
+          type: ['null', string]
+          maxLength: 1000
+        preco:
+          type: number
+          format: decimal
+          description: Maior que zero, até 999999.99, com no máximo duas casas decimais.
+        estoqueInicial:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 1000000000
+
+    AlterarProdutoRequestDTO:
+      type: object
+      required: [nome]
+      properties:
+        nome:
+          type: string
+          maxLength: 200
+        descricao:
+          type: ['null', string]
+          maxLength: 1000
+        preco:
+          type: number
+          format: decimal
+          description: Maior que zero, até 999999.99, com no máximo duas casas decimais.
+
+    AjustarEstoqueRequestDTO:
+      type: object
+      required: [motivo]
+      properties:
+        variacao:
+          type: integer
+          format: int32
+          minimum: -1000000
+          maximum: 1000000
+          description: Diferente de zero; positiva repõe, negativa dá baixa.
+        motivo:
+          type: string
+          maxLength: 200
 
     AtualizarStatusPedidoRequestDTO:
       type: object

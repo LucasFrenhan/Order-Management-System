@@ -22,6 +22,9 @@ public static class PoliticasAutorizacao
     /// <summary>Destinos de webhook: o Cliente (os próprios) e o Admin (os globais) (REQ-18, FR-007 e FR-011).</summary>
     public const string PoliticaDestinosNotificacao = nameof(PoliticaDestinosNotificacao);
 
+    /// <summary>Gestão do catálogo de produtos: só o Admin (REQ-22, FR-008).</summary>
+    public const string PoliticaCatalogo = nameof(PoliticaCatalogo);
+
     private static readonly string[] TodosOsPerfis = Enum.GetNames<PerfilUsuario>();
 
     public static IServiceCollection AdicionarPoliticasAutorizacao(this IServiceCollection services)
@@ -33,6 +36,7 @@ public static class PoliticasAutorizacao
             .AddPolicy(PoliticaRastreioPedido, p => p.RequireAuthenticatedUser()
                 .RequireRole(nameof(PerfilUsuario.Admin), nameof(PerfilUsuario.OperadorLogistica)))
             .AddPolicy(PoliticaAdministracao, p => p.RequireAuthenticatedUser().RequireRole(nameof(PerfilUsuario.Admin)))
+            .AddPolicy(PoliticaCatalogo, p => p.RequireAuthenticatedUser().RequireRole(nameof(PerfilUsuario.Admin)))
             .AddPolicy(PoliticaDestinosNotificacao, p => p.RequireAuthenticatedUser()
                 .RequireRole(nameof(PerfilUsuario.Cliente), nameof(PerfilUsuario.Admin)))
             // FR-007a: qualquer endereço sem política explícita exige autenticação,
