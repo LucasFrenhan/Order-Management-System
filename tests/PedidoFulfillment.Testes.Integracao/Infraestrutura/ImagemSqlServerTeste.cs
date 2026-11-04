@@ -13,11 +13,22 @@ internal static class ImagemSqlServerTeste
 {
     public const string Nome = "oms-sqlserver-testes:2022-CU26-fts";
 
+    /// <summary>
+    /// Imagem já montada (por exemplo, publicada no GHCR pelo CI): usada como está, sem montar
+    /// nada (estudo docs/otimizacao-ci.md, proposta 1).
+    /// </summary>
+    private static readonly string? ImagemPronta = Environment.GetEnvironmentVariable("OMS_IMAGEM_SQLSERVER");
+
     private static readonly Lazy<Task> Montagem = new(MontarAsync, LazyThreadSafetyMode.ExecutionAndPublication);
 
     /// <summary>Espera a imagem existir e devolve o construtor do contêiner.</summary>
     public static async Task<MsSqlBuilder> ConstrutorAsync()
     {
+        if (!string.IsNullOrWhiteSpace(ImagemPronta))
+        {
+            return new MsSqlBuilder(ImagemPronta);
+        }
+
         await Montagem.Value;
         return new MsSqlBuilder(Nome);
     }
