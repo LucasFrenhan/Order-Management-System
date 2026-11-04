@@ -26,6 +26,11 @@ Respostas dadas pelo usuário durante o specify:
 - Q: O token de acesso ainda válido continua funcionando depois do logout? → A: Sim, até expirar, sem consulta por requisição. Em troca, a validade padrão cai de 60 para 15 minutos, o que limita o risco.
 - Q: O login exige o e-mail confirmado? → A: Não. O login é aceito e a confirmação só fica registrada, para nada mudar para os clientes atuais nem para as contas existentes. Uma regra futura pode exigir a confirmação em ações específicas.
 
+Respostas dadas pelo usuário no clarify:
+
+- Q: Quais são os limites padrão das rotas públicas novas? → A: Recuperação e reenvio: 3 por hora por origem mais e-mail e 20 por hora por origem. Redefinição e confirmação: 10 por minuto por origem. Renovação e logout: 120 por minuto por origem.
+- Q: A redefinição de senha e a confirmação de e-mail recebem só o token, ou o token com o e-mail da conta? → A: Só o token, aleatório e longo, que identifica a conta sozinho. O link não traz dados pessoais.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Continuar conectado sem digitar a senha de novo (Priority: P1)
@@ -77,7 +82,7 @@ Quem esqueceu a senha informa o e-mail, recebe um token de uso único e define u
 1. **Given** um e-mail com conta, **When** a recuperação é pedida, **Then** a resposta é 202, e um e-mail com o token é enviado.
 2. **Given** um e-mail sem conta, **When** a recuperação é pedida, **Then** a resposta é o mesmo 202, com o mesmo corpo, em tempo equivalente, e nenhum e-mail é enviado.
 3. **Given** um token válido e uma senha que atende às regras, **When** a redefinição é feita, **Then** a senha muda, o token deixa de valer e todas as sessões da conta são encerradas.
-4. **Given** um token expirado, já usado, de outra conta ou inexistente, **When** a redefinição é tentada, **Then** a resposta é a mesma, sem indicar o motivo, e a senha não muda.
+4. **Given** um token expirado, já usado ou inexistente, **When** a redefinição é tentada, **Then** a resposta é a mesma, sem indicar o motivo, e a senha não muda.
 5. **Given** dois pedidos de recuperação seguidos, **When** o segundo é atendido, **Then** só o token mais recente vale.
 6. **Given** uma conta bloqueada por erros de senha, **When** a redefinição é concluída, **Then** o bloqueio e a contagem de erros são zerados.
 7. **Given** uma redefinição concluída, **When** ela termina, **Then** a conta recebe um e-mail avisando da troca, para que a pessoa perceba um uso indevido.
@@ -159,14 +164,14 @@ Depois do registro, a pessoa recebe um e-mail com um token e confirma que o ende
 - **FR-011**: A troca e a redefinição de senha MUST encerrar todas as sessões da conta.
 - **FR-012**: Uma senha atual errada MUST contar para o bloqueio de conta do REQ-03, cujas regras não mudam.
 - **FR-013**: O pedido de recuperação MUST responder 202 com o mesmo corpo e em tempo equivalente, com ou sem conta, e o envio do e-mail não pode ocorrer durante a requisição.
-- **FR-014**: O token de recuperação MUST ser de uso único, valer 30 minutos por padrão, configuráveis, e um pedido novo MUST invalidar os anteriores da mesma conta.
+- **FR-014**: O token de recuperação MUST ser aleatório, longo o bastante para não ser adivinhado e suficiente para identificar a conta, sem que a chamada informe o e-mail. MUST ser de uso único e valer 30 minutos por padrão, configuráveis, e um pedido novo MUST invalidar os anteriores da mesma conta.
 - **FR-015**: A redefinição concluída MUST zerar o bloqueio e a contagem de erros da conta, marcar o e-mail como confirmado e enviar um e-mail de aviso.
-- **FR-016**: Token de recuperação inválido, expirado, usado ou de outra conta MUST receber a mesma resposta, sem indicar o motivo.
+- **FR-016**: Token de recuperação inválido, expirado ou já usado MUST receber a mesma resposta, sem indicar o motivo.
 
 **Confirmação de e-mail**
 
 - **FR-017**: O registro MUST gerar um e-mail de confirmação, sem mudar a resposta nem o tempo da rota de registro.
-- **FR-018**: O token de confirmação MUST ser de uso único e valer 24 horas por padrão, configuráveis.
+- **FR-018**: O token de confirmação MUST seguir a mesma forma do token de recuperação, sem que a chamada informe o e-mail, ser de uso único e valer 24 horas por padrão, configuráveis.
 - **FR-019**: O reenvio MUST responder 202 com o mesmo corpo em qualquer caso, e enviar só para conta existente e não confirmada.
 - **FR-020**: O login MUST NOT exigir o e-mail confirmado. Nenhuma resposta existente muda por causa da confirmação.
 
@@ -178,7 +183,7 @@ Depois do registro, a pessoa recebe um e-mail com um token e confirma que o ende
 
 **Proteção e observabilidade**
 
-- **FR-024**: As rotas públicas novas MUST seguir o limite de requisições do REQ-23, com a mesma resposta 429 e o estado único: pedido de recuperação e reenvio por origem e por origem mais e-mail; renovação, logout, redefinição e confirmação por origem. Os limites são configuráveis.
+- **FR-024**: As rotas públicas novas MUST seguir o limite de requisições do REQ-23, com a mesma resposta 429 e o estado único. Os padrões, configuráveis, são: pedido de recuperação e reenvio, 3 por hora por origem mais e-mail e 20 por hora por origem; redefinição e confirmação, 10 por minuto por origem; renovação e logout, 120 por minuto por origem.
 - **FR-025**: Respostas de rotas públicas MUST NOT revelar se um e-mail tem conta, exceto o 409 já existente no registro.
 - **FR-026**: O sistema MUST registrar em log, com o e-mail mascarado, renovação recusada por reutilização, logout, troca, pedido e conclusão de recuperação e confirmação, e expor métricas de renovações por resultado e de e-mails por resultado, sem token, senha, e-mail completo ou endereço de origem.
 - **FR-027**: Tokens vencidos ou revogados MUST ser removidos periodicamente, sem intervenção da operação.
