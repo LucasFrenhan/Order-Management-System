@@ -20,10 +20,11 @@ Os testes de integração cobrem o estado compartilhado com duas instâncias da 
 ## 2. Ambiente local
 
 ```bash
-docker compose up -d --wait --build
+docker compose --profile demo up -d --wait --build
 ```
 
-A API usa os limites padrão, com uma instância. Em PowerShell, use `curl.exe`.
+A API usa os limites padrão, com uma instância. Em PowerShell, use `curl.exe`. O registro permite 20 contas por hora
+por origem: para repetir o roteiro, reinicie a API e apague as linhas de `ContagensLimite`.
 
 ## 3. Roteiro manual
 
@@ -62,8 +63,11 @@ docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U s
 
 ### 3.5 Duas instâncias
 
-Suba uma segunda API pelo SDK, com o mesmo banco, em outra porta. Esgote o limite pela porta 5230 e tente o
-mesmo e-mail pela outra. **Esperado**: `429`, com o `Retry-After` até 1 s diferente do outro.
+Suba **duas** APIs pelo SDK, com o mesmo banco, em portas diferentes (`ASPNETCORE_URLS`), e chame as duas por
+`127.0.0.1`. Não misture com a API do contêiner: ela vê outra origem, a da rede do Docker, e a contagem seria outra.
+Esgote o limite por uma e tente o mesmo e-mail pela outra.
+
+**Esperado**: `429`, com o `Retry-After` até 1 s diferente do outro.
 
 ### 3.6 Armazenamento indisponível
 
@@ -74,11 +78,12 @@ Volte o banco com `docker compose start sqlserver`.
 
 ## 4. Verificação sob carga (R-01)
 
-Com o limite padrão:
+Com o limite padrão (resultado registrado em [R-01](./research.md#verificação-sob-carga-t041-2026-11-04)):
 
-1. Meça o p95 de `POST /api/v1/pedidos`, com 4 clientes simultâneos, por 1 minuto, sem a inundação.
-2. Repita a medição com 32 clientes fazendo login, sem parar, contra um mesmo e-mail e da mesma origem.
-3. Durante a inundação, leia duas vezes, com 30 s de intervalo, quantas vezes o lote rodou no banco:
+1. Meça o p95 de `POST /api/v1/pedidos`, só das respostas 201, com 4 clientes simultâneos, por 1 minuto, sem a inundação.
+2. Repita com 32 clientes chamando `/health` sem parar. É o controle: mostra quanto a máquina piora sem o limite e sem o banco.
+3. Repita com 32 clientes fazendo login, sem parar, contra um mesmo e-mail e da mesma origem.
+4. Durante a inundação do login, leia duas vezes, com 30 s de intervalo, quantas vezes o lote rodou no banco:
 
    ```sql
    SELECT SUM(s.execution_count) FROM sys.dm_exec_query_stats s
@@ -90,7 +95,8 @@ Com o limite padrão:
 - p95 da criação de pedidos com a inundação até **20% acima** do p95 sem ela;
 - contagem do lote praticamente parada entre as duas leituras: as tentativas são barradas pelo bloqueio local.
 
-Se não atender, registre no PR e reveja a [decisão R-01](./research.md#r-01-armazenamento-compartilhado-sql-server-ou-redis).
+Com tudo na mesma máquina, o controle também piora, então compare os três números. Se não atender, registre no PR e reveja a
+[decisão R-01](./research.md#r-01-armazenamento-compartilhado-sql-server-ou-redis).
 
 ## 5. Log e métrica
 

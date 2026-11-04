@@ -68,6 +68,7 @@ Seção `Limpeza`, no Worker:
 |-------|--------|----------|
 | Log 3007 `LimiteRequisicoesExcedido` (Warning) | Primeira recusa de cada contagem em cada janela | Política e, em `login_origem_email`, o e-mail mascarado |
 | Log 3008 `FalhaArmazenamentoLimite` (Warning) | Falha do armazenamento, uma por pausa | O tipo da falha |
+| Log 3009 `AquecimentoLimiteIgnorado` (Debug) | O pool de conexões não pôde ser aberto ao subir (R-04) | O tipo da falha |
 | `oms.limite_requisicoes.recusadas` (contador) | Toda recusa, inclusive pelo bloqueio local | Atributo `oms.limite.politica`: `login_origem_email`, `login_origem` ou `registro` |
 | `oms.limite_requisicoes.falhas_armazenamento` (contador) | Toda requisição que seguiu sem o limite, inclusive durante a pausa | Sem atributos |
 

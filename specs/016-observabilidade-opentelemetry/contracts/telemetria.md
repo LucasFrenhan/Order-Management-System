@@ -62,7 +62,8 @@ Rodadas que não pegam o lock e ciclos do despachante sem eventos não geram spa
 | `oms.resultado` (webhooks, REQ-18) | `entregue`, `falha`, `esgotada` |
 | `oms.rotina` | `reconciliacao`, `estornos`, `reenvio_dlq`, `limpeza`; `notificacoes` (REQ-18) |
 | `oms.etapa` | `Estoque`, `Pagamento`, `Entrega` |
-| `oms.limpeza.alvo` | `enviados`, `processados`, `chaves`, `pedidos_reenvio`; `entregas_notificacao`, `avisos_pedido` (REQ-18) |
+| `oms.limpeza.alvo` | `enviados`, `processados`, `chaves`, `pedidos_reenvio`; `entregas_notificacao`, `avisos_pedido` (REQ-18); `contagens_limite` (REQ-23, sem span próprio) |
+| `oms.limite.politica` (REQ-23) | `login_origem_email`, `login_origem`, `registro` |
 
 ## Métricas próprias (meter `PedidoFulfillment`)
 
@@ -85,6 +86,13 @@ passo `notificacao enviar` ([research R-19](../../018-notificacao-status/researc
 | 11 | `oms.notificacoes.pendentes` | ObservableGauge (long) | `{entrega}` | — | Worker |
 | 12 | `oms.notificacoes.destinos_desativados` | ObservableGauge (long) | `{destino}` | — | Worker |
 | 13 | `oms.notificacoes.sse.conexoes` | ObservableGauge (long) | `{conexao}` | — | API (por instância) |
+
+As métricas 14 a 16 são do REQ-19. O REQ-23 acrescentou ([contrato](../../023-rate-limiting/contracts/limite-requisicoes.md#observabilidade)):
+
+| # | Nome | Instrumento | Unidade | Atributos | Emitida por |
+|---|------|-------------|---------|-----------|-------------|
+| 17 | `oms.limite_requisicoes.recusadas` | Counter (long) | `{requisicao}` | `oms.limite.politica` | API (por instância) |
+| 18 | `oms.limite_requisicoes.falhas_armazenamento` | Counter (long) | `{requisicao}` | — | API (por instância) |
 
 - **Várias instâncias**: os gauges 1 a 3 saem iguais de cada instância; agregue com `max`.
   Os contadores 4 a 6 se somam.

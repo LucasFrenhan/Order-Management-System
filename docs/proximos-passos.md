@@ -16,23 +16,23 @@ consumo (issue #46). O REQ-20 pôs a análise estática do SonarQube Cloud em to
 `main`, com o Quality Gate exigido para o merge e a `main` protegida por um ruleset (issue #18).
 O REQ-21 trouxe a listagem de pedidos por perfil, com filtros e paginação por cursor (issue #52),
 e o REQ-22, o catálogo de produtos pela API, com busca em português pelo Full-Text Search do
-SQL Server (issue #53).
+SQL Server (issue #53). O REQ-23 limitou as requisições do login e do registro, com uma contagem
+única para todas as instâncias da API (issue #58).
 Cada trabalho novo segue o fluxo SDD (`/speckit-specify` → `/speckit-clarify` →
 `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`), em uma
-branch `feature/req-XX-...`, com a numeração a partir do REQ-23.
+branch `feature/req-XX-...`, com a numeração a partir do REQ-24.
 
 A fila abaixo saiu do levantamento das pendências de todas as specs (2026-11-02). A ordem é
 uma sugestão; o número do REQ é dado quando o trabalho começa.
 
 | Ordem | Requisito | Origem | Escopo |
 |-------|-----------|--------|--------|
-| 1 | a numerar | [#58](https://github.com/LucasFrenhan/Order-Management-System/issues/58) — Rate limiting | Limite de requisições no login e no registro |
-| 2 | a numerar | [#59](https://github.com/LucasFrenhan/Order-Management-System/issues/59) — Dependabot e CodeQL | Dependências vulneráveis e análise do CodeQL na cadeia de build |
-| 3 | a numerar | [#54](https://github.com/LucasFrenhan/Order-Management-System/issues/54) — Gestão de usuários | Usuários internos e perfis pelo Admin |
-| 4 | a numerar | [#55](https://github.com/LucasFrenhan/Order-Management-System/issues/55) — Ciclo da autenticação | Refresh token, logout, troca e recuperação de senha, confirmação de e-mail |
-| 5 | a numerar | [#60](https://github.com/LucasFrenhan/Order-Management-System/issues/60) — Rotação da chave JWT | Várias chaves com `kid` e rotação sem derrubar sessões |
-| 6 | a numerar | [#57](https://github.com/LucasFrenhan/Order-Management-System/issues/57) — Estornos pela operação | Forçar tentativa, dar baixa manual e evento de estorno travado |
-| 7 | a numerar | [#56](https://github.com/LucasFrenhan/Order-Management-System/issues/56) — Evolução do pagamento | Estudo: nova cobrança após recusa, estorno parcial, devolução, pagamento em análise e gateway real |
+| 1 | a numerar | [#59](https://github.com/LucasFrenhan/Order-Management-System/issues/59) — Dependabot e CodeQL | Dependências vulneráveis e análise do CodeQL na cadeia de build |
+| 2 | a numerar | [#54](https://github.com/LucasFrenhan/Order-Management-System/issues/54) — Gestão de usuários | Usuários internos e perfis pelo Admin |
+| 3 | a numerar | [#55](https://github.com/LucasFrenhan/Order-Management-System/issues/55) — Ciclo da autenticação | Refresh token, logout, troca e recuperação de senha, confirmação de e-mail |
+| 4 | a numerar | [#60](https://github.com/LucasFrenhan/Order-Management-System/issues/60) — Rotação da chave JWT | Várias chaves com `kid` e rotação sem derrubar sessões |
+| 5 | a numerar | [#57](https://github.com/LucasFrenhan/Order-Management-System/issues/57) — Estornos pela operação | Forçar tentativa, dar baixa manual e evento de estorno travado |
+| 6 | a numerar | [#56](https://github.com/LucasFrenhan/Order-Management-System/issues/56) — Evolução do pagamento | Estudo: nova cobrança após recusa, estorno parcial, devolução, pagamento em análise e gateway real |
 | contínua | sem REQ | [#61](https://github.com/LucasFrenhan/Order-Management-System/issues/61) — Dívida técnica de code smells | Sem prazo: todo PR que corrigir code smells referencia a #61 (`Refs #61`) e atualiza a tabela dela |
 
 ### Para análise futura (sem issue)
@@ -50,6 +50,9 @@ Itens do mesmo levantamento que ficaram anotados, sem issue, para decidir depois
   - Pedidos pagos e cancelados antes do REQ-13 não foram estornados (passivo de dados; consulta
     no [quickstart do REQ-13](../specs/013-cancelamento-com-estorno/quickstart.md#5-pedidos-pagos-e-cancelados-antes-do-req-13)).
 - **Segurança**
+  - Limite de requisições: as contagens ficam no SQL Server, e um armazenamento próprio, como o Redis, isolaria o limite do
+    banco dos pedidos em uma inundação. A troca é só outra implementação de `IArmazenamentoContagens` (REQ-23,
+    [research R-01](../specs/023-rate-limiting/research.md#r-01-armazenamento-compartilhado-sql-server-ou-redis)).
   - A demonstração roda em HTTP, sem certificado (REQ-07; só local).
   - A chave que assina os cursores das listagens de pedidos e de produtos é derivada da chave de assinatura do JWT;
     pode passar a uma chave própria do cursor, trocando só o registro de `IChaveCursor`
