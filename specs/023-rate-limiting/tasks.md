@@ -95,9 +95,9 @@ em todas as instâncias) é o MVP. A US2 (registro), a US3 (contrato) e a US4 (o
 
 **Independent Test**: duas `FabricaApi` sobre o mesmo banco; esgotar por uma e receber 429 na outra.
 
-- [ ] T023 [US1] Ligar `/login` às políticas `login_origem_email` e `login_origem` em `src/PedidoFulfillment.API/Endpoints/EndpointsAutenticacao.cs`
-- [ ] T024 [US1] Escrever testes em `tests/PedidoFulfillment.Testes.Integracao/LimiteRequisicoes/LimiteLoginTestes.cs`, com banco real e limites baixos: esgotado na instância A, 429 na B, sem avaliar a senha nem contar para o bloqueio de conta; rajada de 100 tentativas simultâneas repartidas entre A e B com no máximo o limite aceito (SC-001, SC-002); um e-mail por tentativa contido pelo limite por origem (SC-009); outra origem e outro e-mail não barrados; e-mail com outra caixa e espaços é o mesmo; e-mail sem conta tem a mesma resposta; insistir em um e-mail barrado não consome o limite por origem; corpo inválido conta por origem e segue respondendo 400; depois do `Retry-After`, aceita em qualquer instância (SC-004); contagem sobrevive ao descarte de uma instância (FR-009); `Retry-After` com até 1 s de diferença entre as instâncias (SC-003); instância B com um `TimeProvider` adiantado em 10 minutos toma a mesma decisão e informa o mesmo `Retry-After` (FR-008)
-- [ ] T025 [US1] Provar o bloqueio de conta sem mudanças em `tests/PedidoFulfillment.Testes.Integracao/LimiteRequisicoes/LimiteLoginTestes.cs`: dentro do limite, 5 erros seguidos continuam bloqueando a conta com o mesmo 401 (FR-017)
+- [X] T023 [US1] Ligar `/login` às políticas `login_origem_email` e `login_origem` em `src/PedidoFulfillment.API/Endpoints/EndpointsAutenticacao.cs`
+- [X] T024 [US1] Escrever testes em `tests/PedidoFulfillment.Testes.Integracao/LimiteRequisicoes/LimiteLoginTestes.cs`, com banco real e limites baixos: esgotado na instância A, 429 na B, sem avaliar a senha nem contar para o bloqueio de conta; rajada de 100 tentativas simultâneas repartidas entre A e B com no máximo o limite aceito (SC-001, SC-002); um e-mail por tentativa contido pelo limite por origem (SC-009); outra origem e outro e-mail não barrados; e-mail com outra caixa e espaços é o mesmo; e-mail sem conta tem a mesma resposta; insistir em um e-mail barrado não consome o limite por origem; corpo inválido conta por origem e segue respondendo 400; depois do `Retry-After`, aceita em qualquer instância (SC-004); contagem sobrevive ao descarte de uma instância (FR-009); `Retry-After` com até 1 s de diferença entre as instâncias (SC-003); instância B com um `TimeProvider` adiantado em 10 minutos toma a mesma decisão e informa o mesmo `Retry-After` (FR-008)
+- [X] T025 [US1] Provar o bloqueio de conta sem mudanças em `tests/PedidoFulfillment.Testes.Integracao/LimiteRequisicoes/LimiteLoginTestes.cs`: dentro do limite, 5 erros seguidos continuam bloqueando a conta com o mesmo 401 (FR-017)
 
 **Checkpoint**: MVP entregue: a força bruta é contida em todas as instâncias.
 
@@ -109,8 +109,8 @@ em todas as instâncias) é o MVP. A US2 (registro), a US3 (contrato) e a US4 (o
 
 **Independent Test**: esgotar por uma instância com e-mails diferentes; a outra recusa, sem criar a conta.
 
-- [ ] T026 [US2] Ligar `/register` à política `registro` em `src/PedidoFulfillment.API/Endpoints/EndpointsAutenticacao.cs`
-- [ ] T027 [US2] Escrever testes em `tests/PedidoFulfillment.Testes.Integracao/LimiteRequisicoes/LimiteRegistroTestes.cs`: esgotado na A, 429 na B, e a conta não é criada; outra origem é aceita; a contagem do registro não afeta o login da mesma origem, nem a do login afeta o registro (FR-005, FR-014)
+- [X] T026 [US2] Ligar `/register` à política `registro` em `src/PedidoFulfillment.API/Endpoints/EndpointsAutenticacao.cs`
+- [X] T027 [US2] Escrever testes em `tests/PedidoFulfillment.Testes.Integracao/LimiteRequisicoes/LimiteRegistroTestes.cs`: esgotado na A, 429 na B, e a conta não é criada; outra origem é aceita; a contagem do registro não afeta o login da mesma origem, nem a do login afeta o registro (FR-005, FR-014)
 
 **Checkpoint**: as duas rotas estão protegidas.
 

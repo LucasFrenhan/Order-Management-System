@@ -1,7 +1,9 @@
 using PedidoFulfillment.API.Erros;
+using PedidoFulfillment.API.LimiteRequisicoes;
 using PedidoFulfillment.API.OpenApi;
 using PedidoFulfillment.Application.Autenticacao;
 using PedidoFulfillment.Application.Contratos.Autenticacao;
+using PedidoFulfillment.Application.LimiteRequisicoes;
 
 namespace PedidoFulfillment.API.Endpoints;
 
@@ -20,16 +22,18 @@ public static class EndpointsAutenticacao
             .WithName("RegistrarUsuario")
             .WithSummary("Registra um novo usuário com o perfil Cliente.")
             .AddEndpointFilter<FiltroValidacao<RegistrarUsuarioRequestDTO>>()
+            .ComLimiteRequisicoes(RotaLimitada.Registro)
             .Produces<UsuarioResponseDTO>(StatusCodes.Status201Created)
-            .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status409Conflict);
+            .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status409Conflict, StatusCodes.Status429TooManyRequests);
 
         grupo.MapPost("/login", async (LoginRequestDTO credenciais, IServicoAutenticacao servico, CancellationToken cancellationToken) =>
                 (await servico.AutenticarAsync(credenciais, cancellationToken)).ParaResposta(token => TypedResults.Ok(token)))
             .WithName("AutenticarUsuario")
             .WithSummary("Autentica com e-mail e senha e emite um token de acesso.")
             .AddEndpointFilter<FiltroValidacao<LoginRequestDTO>>()
+            .ComLimiteRequisicoes(RotaLimitada.Login)
             .Produces<LoginResponseDTO>()
-            .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status401Unauthorized);
+            .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status401Unauthorized, StatusCodes.Status429TooManyRequests);
 
         return app;
     }
