@@ -36,7 +36,7 @@ public sealed class LimpezaContagensLimiteTestes(BancoDadosTeste banco)
     }
 
     /// <summary>Linhas vencidas há 1 minuto (<paramref name="segundos"/> negativo) ou dentro da janela.</summary>
-    private static Task InserirAsync(string stringConexao, int quantidade, int segundos) => BancoDadosTeste.ExecutarAsync(stringConexao, $"""
+    private static Task<int> InserirAsync(string stringConexao, int quantidade, int segundos) => BancoDadosTeste.ExecutarAsync(stringConexao, $"""
         ;WITH n AS (SELECT TOP ({quantidade}) ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) i FROM sys.all_objects)
         INSERT ContagensLimite (Chave, Contador, FimJanela, BloqueioRegistrado)
         SELECT HASHBYTES('SHA2_256', CAST(NEWID() AS varchar(36))), 1, DATEADD(SECOND, {segundos}, SYSUTCDATETIME()), 0 FROM n;

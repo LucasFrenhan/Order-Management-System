@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
-using PedidoFulfillment.Application.Autenticacao;
 using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Contratos.Autenticacao;
 using PedidoFulfillment.Application.LimiteRequisicoes;
@@ -85,7 +84,7 @@ internal static class CenarioLimite
     public static int RetryAfter(HttpResponseMessage resposta) =>
         int.Parse(resposta.Headers.GetValues("Retry-After").Single(), CultureInfo.InvariantCulture);
 
-    private static IServicoAutenticacao LoginRecusado() => new ServicoAutenticacaoFalso
+    private static ServicoAutenticacaoFalso LoginRecusado() => new()
     {
         ResultadoLogin = Resultado<LoginResponseDTO>.Falhou(new Falha(TipoFalha.NaoAutenticado, "Credenciais inválidas."))
     };
