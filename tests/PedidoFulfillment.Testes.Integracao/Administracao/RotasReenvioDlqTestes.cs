@@ -13,7 +13,7 @@ namespace PedidoFulfillment.Testes.Integracao.Administracao;
 /// 9 a 12). A <see cref="FabricaApi"/> aponta o broker para uma porta fechada: as rotas não
 /// dependem dele.
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaReconciliacao))]
 public sealed class RotasReenvioDlqTestes(MensageriaTeste mensageria)
 {
     private const string RotaEstoque = "/api/v1/admin/dlq/estoque/reenvios";

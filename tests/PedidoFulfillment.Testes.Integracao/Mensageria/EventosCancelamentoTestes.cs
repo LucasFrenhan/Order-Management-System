@@ -19,7 +19,7 @@ namespace PedidoFulfillment.Testes.Integracao.Mensageria;
 /// <c>oms.eventos</c>, e não chegam aos consumidores internos (REQ-15, US1, US2 e US3; FR-008 a
 /// FR-010).
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaEntregas))]
 public sealed class EventosCancelamentoTestes(MensageriaTeste mensageria)
 {
     private static readonly TimeSpan Prazo = TimeSpan.FromSeconds(15);

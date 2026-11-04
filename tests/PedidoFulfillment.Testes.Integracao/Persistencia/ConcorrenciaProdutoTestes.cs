@@ -9,7 +9,6 @@ namespace PedidoFulfillment.Testes.Integracao.Persistencia;
 /// User Story 2: concorrência otimista do produto (FR-003, SC-002). Nenhuma alteração é
 /// sobrescrita em silêncio, e o estoque nunca fica negativo.
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class ConcorrenciaProdutoTestes(BancoDadosTeste banco)
 {
     private const int Repeticoes = 50;

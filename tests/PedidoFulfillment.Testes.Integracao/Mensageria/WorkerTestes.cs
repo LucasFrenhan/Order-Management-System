@@ -11,7 +11,7 @@ namespace PedidoFulfillment.Testes.Integracao.Mensageria;
 /// e recusa configuração inválida sem mostrar valores (REQ-06, FR-017, FR-018). A API sem o
 /// Worker está coberta em <see cref="OutboxComBrokerTestes"/>.
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaEntregas))]
 public sealed class WorkerTestes(MensageriaTeste mensageria)
 {
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;

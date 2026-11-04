@@ -18,7 +18,7 @@ namespace PedidoFulfillment.Testes.Integracao.Administracao;
 /// Limpeza de mensageria e idempotência, com SQL Server real (REQ-14, US1). A rodada é chamada
 /// direto, com os dados datados em relação ao instante atual.
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaReconciliacao))]
 public sealed class LimpezaMensageriaTestes(MensageriaTeste mensageria)
 {
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;

@@ -10,7 +10,7 @@ namespace PedidoFulfillment.Testes.Integracao.Entregas;
 /// SC-001 e SC-005 do REQ-10, pelos instantes gravados no banco, com o Worker completo: do
 /// pagamento aprovado e da criação do pedido até a publicação de <c>entrega.criada</c>.
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaEntregas))]
 public sealed class DesempenhoEntregaTestes(MensageriaTeste mensageria)
 {
     private const int Aquecimento = 3;

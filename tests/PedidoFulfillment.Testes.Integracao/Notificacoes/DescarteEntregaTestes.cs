@@ -12,7 +12,7 @@ namespace PedidoFulfillment.Testes.Integracao.Notificacoes;
 /// Uma entrega pendente de um destino desativado depois de criada é descartada na rodada, sem
 /// chamada ao destino (REQ-18, FR-013).
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaEntregas))]
 public sealed class DescarteEntregaTestes(MensageriaTeste mensageria)
 {
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;

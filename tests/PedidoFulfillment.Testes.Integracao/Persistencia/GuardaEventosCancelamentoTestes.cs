@@ -13,7 +13,6 @@ namespace PedidoFulfillment.Testes.Integracao.Persistencia;
 /// A gravação recusa um pedido que vai a Cancelado sem <c>pedido.cancelado</c>, ou um pagamento que
 /// vai a Estornado sem <c>pagamento.estornado</c> (REQ-15, R-03, FR-001 e FR-006).
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class GuardaEventosCancelamentoTestes(BancoDadosTeste banco)
 {
     private static readonly DateTimeOffset Cancelamento = DadosPersistencia.Instante.AddHours(1);

@@ -9,7 +9,7 @@ using static PedidoFulfillment.Testes.Integracao.Administracao.CenarioReenvio;
 namespace PedidoFulfillment.Testes.Integracao.Administracao;
 
 /// <summary>Aviso de tamanho da DLQ, com RabbitMQ real (REQ-14, US3). A verificação é chamada direto.</summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaReconciliacao))]
 public sealed class MonitorDlqTestes(MensageriaTeste mensageria)
 {
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;

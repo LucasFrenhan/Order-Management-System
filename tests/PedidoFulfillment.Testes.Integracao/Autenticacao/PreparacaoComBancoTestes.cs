@@ -7,7 +7,6 @@ namespace PedidoFulfillment.Testes.Integracao.Autenticacao;
 /// <summary>
 /// Preparação da inicialização com SQL Server real (FR-011, FR-017).
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class PreparacaoComBancoTestes(BancoDadosTeste banco)
 {
     private const string ContarPerfis = "SELECT COUNT(*) FROM Perfis";

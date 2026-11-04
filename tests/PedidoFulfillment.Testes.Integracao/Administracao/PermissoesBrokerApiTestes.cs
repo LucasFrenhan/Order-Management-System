@@ -15,7 +15,7 @@ namespace PedidoFulfillment.Testes.Integracao.Administracao;
 /// O usuário da API no broker só conecta (REQ-14, US4, FR-017 a FR-019): publicar, ler e
 /// declarar são recusados, e a prontidão continua funcionando.
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaReconciliacao))]
 public sealed class PermissoesBrokerApiTestes(MensageriaTeste mensageria)
 {
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;

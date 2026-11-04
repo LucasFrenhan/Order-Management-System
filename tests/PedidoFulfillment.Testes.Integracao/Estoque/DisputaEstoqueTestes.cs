@@ -21,7 +21,7 @@ namespace PedidoFulfillment.Testes.Integracao.Estoque;
 /// O manipulador roda em paralelo, cada execução no seu escopo e transação, como a base de
 /// consumo faz; o Worker processa um evento por vez e não forçaria a intercalação.
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaReconciliacao))]
 public sealed class DisputaEstoqueTestes(MensageriaTeste mensageria)
 {
     /// <summary>1 execução mais as 3 novas tentativas da base (REQ-06).</summary>

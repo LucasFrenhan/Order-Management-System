@@ -9,7 +9,6 @@ namespace PedidoFulfillment.Testes.Integracao.Persistencia;
 /// <summary>
 /// User Story 2: restrições do produto no SQL Server real (FR-001, FR-002, FR-004, SC-004).
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class RestricoesProdutoTestes(BancoDadosTeste banco)
 {
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;

@@ -7,7 +7,6 @@ using static PedidoFulfillment.Testes.Integracao.Pedidos.CenarioPedidos;
 namespace PedidoFulfillment.Testes.Integracao.Pedidos;
 
 /// <summary>User Story 4 com SQL Server real (cenários 1 a 8).</summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class StatusPedidoComBancoTestes(BancoDadosTeste banco)
 {
     private const int RepeticoesCorrida = 10;

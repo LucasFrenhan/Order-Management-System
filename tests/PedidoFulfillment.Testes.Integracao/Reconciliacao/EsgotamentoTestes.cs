@@ -16,7 +16,7 @@ namespace PedidoFulfillment.Testes.Integracao.Reconciliacao;
 /// Esgotamento da reconciliação, com SQL Server e RabbitMQ reais (REQ-12, US2 cenários 8 a 12;
 /// FR-011 a FR-013): ciclos de 1 s, esgotamento com 3 falhas e 120 s parado.
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaReconciliacao))]
 public sealed class EsgotamentoTestes(MensageriaTeste mensageria)
 {
     private static readonly TimeSpan UmDia = TimeSpan.FromDays(1);

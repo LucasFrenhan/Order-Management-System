@@ -10,7 +10,6 @@ namespace PedidoFulfillment.Testes.Integracao.Persistencia;
 /// User Story 1 com SQL Server real: o pedido gravado é relido com todos os dados do contrato
 /// v1 (SC-001), com o snapshot do produto e o histórico de status.
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class PersistenciaPedidoTestes(BancoDadosTeste banco)
 {
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;

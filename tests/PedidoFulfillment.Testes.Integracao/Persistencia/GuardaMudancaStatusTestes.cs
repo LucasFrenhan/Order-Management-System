@@ -9,7 +9,6 @@ namespace PedidoFulfillment.Testes.Integracao.Persistencia;
 /// A base de consumo recusa uma mudança de status que não passou pelo <c>SalvarAsync</c>, e a que
 /// passou segue normalmente (REQ-18, R-14). No banco real, porque a guarda olha o contexto do EF.
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class GuardaMudancaStatusTestes(BancoDadosTeste banco)
 {
     private static CancellationToken Token => TestContext.Current.CancellationToken;

@@ -4,12 +4,21 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using PedidoFulfillment.Infrastructure.Persistencia;
+using PedidoFulfillment.Testes.Integracao.Infraestrutura;
 using Testcontainers.MsSql;
+
+// Um SQL Server para a execução toda: cada teste cria o próprio banco, então as classes rodam
+// em paralelo (estudo docs/otimizacao-ci.md, proposta 2).
+[assembly: AssemblyFixture(typeof(BancoDadosTeste))]
 
 namespace PedidoFulfillment.Testes.Integracao.Infraestrutura;
 
-[CollectionDefinition(nameof(ColecaoBancoDados))]
-public sealed class ColecaoBancoDados : ICollectionFixture<BancoDadosTeste>;
+/// <summary>
+/// Testes com limite de tempo (<c>Desempenho*</c>): seriais entre si, para que um não dispute o
+/// banco com o outro. Usam o mesmo contêiner do assembly.
+/// </summary>
+[CollectionDefinition(nameof(ColecaoDesempenhoBanco))]
+public sealed class ColecaoDesempenhoBanco;
 
 /// <summary>
 /// Um SQL Server real em contêiner, compartilhado pelas classes da coleção, com um banco novo

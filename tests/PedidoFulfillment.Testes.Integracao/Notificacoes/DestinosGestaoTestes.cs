@@ -10,7 +10,6 @@ namespace PedidoFulfillment.Testes.Integracao.Notificacoes;
 /// <summary>
 /// Gestão dos destinos e consulta das entregas (REQ-18, US4 cenários 1 a 7; FR-011, FR-026).
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class DestinosGestaoTestes(BancoDadosTeste banco)
 {
     private const string Rota = DestinosCadastroTestes.Rota;

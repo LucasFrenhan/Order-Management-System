@@ -11,7 +11,7 @@ namespace PedidoFulfillment.Testes.Integracao.Produtos;
 /// SC-005 do REQ-22: com 10.000 produtos, a primeira página, uma página a 50 passos pelo cursor e
 /// uma página com busca respondem em até 1 s cada.
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
+[Collection(nameof(ColecaoDesempenhoBanco))]
 public sealed class CatalogoDesempenhoTestes(BancoDadosTeste banco)
 {
     private const int Produtos = 10_000;

@@ -12,7 +12,7 @@ namespace PedidoFulfillment.Testes.Integracao.Estoque;
 /// Devolução do estoque no cancelamento pela API, com SQL Server e RabbitMQ reais (REQ-08,
 /// US5, FR-010 e FR-011; research R-05). O contrato HTTP v1 não muda.
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaReconciliacao))]
 public sealed class DevolucaoEstoqueTestes(MensageriaTeste mensageria)
 {
     private static readonly TimeSpan Prazo = TimeSpan.FromSeconds(5);

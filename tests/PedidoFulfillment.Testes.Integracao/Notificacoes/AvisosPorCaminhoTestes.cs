@@ -19,7 +19,7 @@ namespace PedidoFulfillment.Testes.Integracao.Notificacoes;
 /// na mesma gravação; a criação e a correção do rastreio não gravam; o estorno confirmado grava o
 /// aviso <c>pedido.estorno-confirmado</c> (REQ-18, US1 cenários 1 a 7; FR-001 a FR-005).
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaEntregas))]
 public sealed class AvisosPorCaminhoTestes(MensageriaTeste mensageria)
 {
     private static readonly TimeSpan Prazo = TimeSpan.FromSeconds(20);
@@ -154,7 +154,11 @@ public sealed class AvisosPorCaminhoTestes(MensageriaTeste mensageria)
             // Independent Test da US1: publicado pelo despachante a quem ligar a fila (analyze I2).
             await using var worker = await CenarioEntrega.WorkerProntoAsync(mensageria, stringConexao);
             (await MensageriaTeste.EsperarAteAsync(() => Task.FromResult(CenarioEstoque.DoPedido(fila, id).Count >= 3), Prazo)).Should().BeTrue();
-            CenarioEstoque.DoPedido(fila, id).Select(m => SerializacaoEventos.Desserializar<PedidoStatusAlterado>(m.Texto).Dados.Sequencia)
+            // A entrega é pelo menos uma vez: um evento publicado e não marcado como enviado (o
+            // Worker do cenário encerrado antes do commit, ou a confirmação atrasada) sai de novo,
+            // com o mesmo MessageId, e quem consome descarta o repetido (issue #70).
+            CenarioEstoque.DoPedido(fila, id).DistinctBy(m => m.Propriedades.MessageId)
+                .Select(m => SerializacaoEventos.Desserializar<PedidoStatusAlterado>(m.Texto).Dados.Sequencia)
                 .Should().BeEquivalentTo(new[] { 2, 3, 4 });
         }
         finally

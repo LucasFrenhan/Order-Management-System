@@ -7,7 +7,6 @@ using static PedidoFulfillment.Testes.Integracao.Pedidos.CenarioPedidos;
 namespace PedidoFulfillment.Testes.Integracao.Pedidos;
 
 /// <summary>User Story 2 com SQL Server real (cenários 1 a 6; <c>contracts/idempotencia.md</c>).</summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class IdempotenciaComBancoTestes(BancoDadosTeste banco)
 {
     private const string ContarPedidos = "SELECT COUNT(*) FROM Pedidos";

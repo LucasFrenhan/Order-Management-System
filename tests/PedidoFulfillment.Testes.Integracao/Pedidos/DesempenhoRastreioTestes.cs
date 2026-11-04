@@ -10,7 +10,7 @@ namespace PedidoFulfillment.Testes.Integracao.Pedidos;
 /// SC-004 do REQ-11: 95% das consultas e dos rastreios em menos de 500 ms no ambiente local, com
 /// um pedido de 10 itens e 10 entradas de histórico.
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
+[Collection(nameof(ColecaoDesempenhoBanco))]
 public sealed class DesempenhoRastreioTestes(BancoDadosTeste banco)
 {
     private const int Aquecimento = 5;

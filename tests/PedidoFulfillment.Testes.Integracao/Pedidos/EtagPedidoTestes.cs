@@ -6,7 +6,6 @@ using static PedidoFulfillment.Testes.Integracao.Pedidos.CenarioPedidos;
 namespace PedidoFulfillment.Testes.Integracao.Pedidos;
 
 /// <summary><c>ETag</c> e <c>304</c> na consulta do pedido (REQ-18, US5 cenários 1 a 3; FR-025, research R-17).</summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class EtagPedidoTestes(BancoDadosTeste banco)
 {
     private static CancellationToken Token => TestContext.Current.CancellationToken;

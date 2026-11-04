@@ -7,7 +7,6 @@ using PedidoFulfillment.Testes.Integracao.Infraestrutura;
 namespace PedidoFulfillment.Testes.Integracao.Persistencia;
 
 /// <summary>Pedidos de reenvio da DLQ gravados e lidos (REQ-14, R-07 e data-model).</summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class PedidoReenvioDlqPersistenciaTestes(BancoDadosTeste banco)
 {
     private static readonly DateTimeOffset T0 = new(2026, 10, 24, 12, 0, 0, TimeSpan.Zero);

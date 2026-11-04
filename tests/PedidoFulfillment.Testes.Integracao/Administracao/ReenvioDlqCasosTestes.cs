@@ -13,7 +13,7 @@ namespace PedidoFulfillment.Testes.Integracao.Administracao;
 /// Casos do <see cref="ReenvioDlq"/> chamados direto, sem esperar a rodada do executor: DLQ que
 /// não existe e mensagem que já foi reenviada pelo mesmo pedido (REQ-14, R-04).
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaReconciliacao))]
 public sealed class ReenvioDlqCasosTestes(MensageriaTeste mensageria)
 {
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;

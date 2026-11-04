@@ -12,7 +12,6 @@ namespace PedidoFulfillment.Testes.Integracao.Notificacoes;
 /// Leitura dos avisos por cursor de <c>rowversion</c>, sem pular o aviso de uma transação lenta
 /// (REQ-18, research R-13; caso de borda "transação lenta"; FR-024).
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class LeituraAvisosTestes(BancoDadosTeste banco)
 {
     private static CancellationToken Token => TestContext.Current.CancellationToken;

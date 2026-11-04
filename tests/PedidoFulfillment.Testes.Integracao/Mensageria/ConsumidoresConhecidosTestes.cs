@@ -10,7 +10,7 @@ namespace PedidoFulfillment.Testes.Integracao.Mensageria;
 /// A lista de consumidores que a API aceita no reenvio da DLQ é a mesma que o Worker registra
 /// (REQ-14, R-03): um consumidor novo no Worker não fica de fora.
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaEntregas))]
 public sealed class ConsumidoresConhecidosTestes(MensageriaTeste mensageria)
 {
     [Fact]

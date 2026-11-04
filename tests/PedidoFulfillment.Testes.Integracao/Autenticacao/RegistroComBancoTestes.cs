@@ -10,7 +10,6 @@ namespace PedidoFulfillment.Testes.Integracao.Autenticacao;
 /// <summary>
 /// User Story 1 com SQL Server real: registro, unicidade do e-mail e armazenamento da senha.
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class RegistroComBancoTestes(BancoDadosTeste banco)
 {
     private const string Registro = "/api/v1/auth/register";

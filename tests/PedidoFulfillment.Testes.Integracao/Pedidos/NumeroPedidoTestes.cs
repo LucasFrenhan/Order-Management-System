@@ -6,7 +6,6 @@ using static PedidoFulfillment.Testes.Integracao.Pedidos.CenarioPedidos;
 namespace PedidoFulfillment.Testes.Integracao.Pedidos;
 
 /// <summary>SC-003: 50 criações simultâneas com chaves diferentes recebem números distintos (FR-005).</summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class NumeroPedidoTestes(BancoDadosTeste banco)
 {
     private const int Clientes = 5;

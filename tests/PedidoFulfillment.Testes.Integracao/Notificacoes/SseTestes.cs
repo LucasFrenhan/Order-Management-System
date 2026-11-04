@@ -12,7 +12,6 @@ namespace PedidoFulfillment.Testes.Integracao.Notificacoes;
 /// Eventos em tempo real pela API, lidos do banco, sem broker (REQ-18, US3 cenários 1 a 14;
 /// FR-019 a FR-024; analyze G1 e U1).
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class SseTestes(BancoDadosTeste banco)
 {
     /// <summary>Leitura a cada 1 s: o aviso chega em poucos segundos.</summary>
