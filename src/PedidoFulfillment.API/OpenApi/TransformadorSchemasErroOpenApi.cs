@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.OpenApi;
+using PedidoFulfillment.API.LimiteRequisicoes;
 
 namespace PedidoFulfillment.API.OpenApi;
 
@@ -65,13 +66,16 @@ public sealed class TransformadorSchemasErroOpenApi : IOpenApiDocumentTransforme
     public Task TransformAsync(OpenApiOperation operation, OpenApiOperationTransformerContext context, CancellationToken cancellationToken)
     {
         operation.Responses ??= new OpenApiResponses();
-        var declarados = context.Description.ActionDescriptor.EndpointMetadata.OfType<MetadadosRespostasErro>()
-            .SelectMany(m => m.Codigos);
+        var metadados = context.Description.ActionDescriptor.EndpointMetadata;
+        var declarados = metadados.OfType<MetadadosRespostasErro>().SelectMany(m => m.Codigos);
+        // O 429 do limite traz o código estável (REQ-23); o do SSE continua como está (REQ-18).
+        var comLimite = metadados.OfType<MetadadosLimiteRequisicoes>().Any();
 
         foreach (var codigo in declarados)
         {
             var (descricao, schema) = codigo switch
             {
+                429 when comLimite => ("Limite de requisições excedido.", SchemaNegocio),
                 400 => ("Dados de entrada inválidos.", SchemaValidacao),
                 401 => ("Não autenticado.", SchemaProblemDetails),
                 404 => ("Recurso não encontrado (ou não visível para o usuário).", SchemaProblemDetails),

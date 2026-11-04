@@ -122,9 +122,9 @@ em todas as instâncias) é o MVP. A US2 (registro), a US3 (contrato) e a US4 (o
 
 **Independent Test**: exceder o limite e conferir a resposta contra o contrato publicado.
 
-- [ ] T028 [P] [US3] Acrescentar o `429` às duas rotas em `specs/001-contratos-api/contracts/openapi-v1.yaml`, com `NegocioProblemDetails`, exemplo com `LIMITE_REQUISICOES_EXCEDIDO` e o cabeçalho `Retry-After` inteiro
-- [ ] T029 [US3] Gerar o mesmo contrato em `src/PedidoFulfillment.API/OpenApi/TransformadorSchemasErroOpenApi.cs` e `TransformadorCabecalhosOpenApi.cs`, a partir de `MetadadosLimiteRequisicoes` e de `ProduzErros` em `EndpointsAutenticacao.cs`. O `429` do SSE não muda
-- [ ] T030 [US3] Escrever testes em `tests/PedidoFulfillment.Testes.Integracao/LimiteRequisicoes/RespostaLimiteTestes.cs`: `application/problem+json`, `title`, `detail`, `instance`, `traceId`, `codigo` e `Retry-After` inteiro ≥ 1; corpo igual para conta existente, inexistente e bloqueada, sem os valores dos limites (FR-013); `ConformidadeOpenApiTestes` e o comparador de contrato verdes (SC-006)
+- [X] T028 [P] [US3] Acrescentar o `429` às duas rotas em `specs/001-contratos-api/contracts/openapi-v1.yaml`, com `NegocioProblemDetails`, exemplo com `LIMITE_REQUISICOES_EXCEDIDO` e o cabeçalho `Retry-After` inteiro
+- [X] T029 [US3] Gerar o mesmo contrato em `src/PedidoFulfillment.API/OpenApi/TransformadorSchemasErroOpenApi.cs` e `TransformadorCabecalhosOpenApi.cs`, a partir de `MetadadosLimiteRequisicoes` e de `ProduzErros` em `EndpointsAutenticacao.cs`. O `429` do SSE não muda
+- [X] T030 [US3] Escrever testes em `tests/PedidoFulfillment.Testes.Integracao/LimiteRequisicoes/RespostaLimiteTestes.cs`: `application/problem+json`, `title`, `detail`, `instance`, `traceId`, `codigo` e `Retry-After` inteiro ≥ 1; corpo igual para conta existente, inexistente e bloqueada, sem os valores dos limites (FR-013); `ConformidadeOpenApiTestes` e o comparador de contrato verdes (SC-006)
 
 **Checkpoint**: contrato publicado e sem mudanças incompatíveis.
 
