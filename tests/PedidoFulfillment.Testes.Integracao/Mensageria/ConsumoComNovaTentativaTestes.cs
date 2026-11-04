@@ -19,7 +19,7 @@ namespace PedidoFulfillment.Testes.Integracao.Mensageria;
 /// manipulador de verificação conta as execuções de cada evento. Novas tentativas a 100, 200 e
 /// 400 ms (<see cref="FabricaWorker"/>).
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaEntregas))]
 public sealed class ConsumoComNovaTentativaTestes(MensageriaTeste mensageria)
 {
     private const string Consumidor = "verificacao";

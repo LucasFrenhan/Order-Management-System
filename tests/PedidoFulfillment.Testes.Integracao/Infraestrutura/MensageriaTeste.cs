@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
+using Docker.DotNet;
 using DotNet.Testcontainers.Builders;
 using Microsoft.Data.SqlClient;
 using PedidoFulfillment.Infrastructure.Mensageria;
@@ -12,8 +13,20 @@ using Testcontainers.RabbitMq;
 
 namespace PedidoFulfillment.Testes.Integracao.Infraestrutura;
 
+// Três coleções, cada uma com seu SQL Server e seu RabbitMQ: as filas do broker são
+// compartilhadas dentro da coleção, que segue serial (estudo docs/otimizacao-ci.md, proposta 2).
+
+/// <summary>Pagamentos, pagamentos por HTTP e estornos.</summary>
 [CollectionDefinition(nameof(ColecaoMensageria))]
 public sealed class ColecaoMensageria : ICollectionFixture<MensageriaTeste>;
+
+/// <summary>Reconciliação, estoque e administração da mensageria.</summary>
+[CollectionDefinition(nameof(ColecaoMensageriaReconciliacao))]
+public sealed class ColecaoMensageriaReconciliacao : ICollectionFixture<MensageriaTeste>;
+
+/// <summary>Notificações, entregas e o núcleo da mensageria.</summary>
+[CollectionDefinition(nameof(ColecaoMensageriaEntregas))]
+public sealed class ColecaoMensageriaEntregas : ICollectionFixture<MensageriaTeste>;
 
 /// <summary>
 /// SQL Server e RabbitMQ reais para os testes de mensageria (REQ-06, T015), com um banco novo
@@ -322,13 +335,7 @@ public sealed class MensageriaTeste : IAsyncLifetime
         try
         {
             sqlServer = (await ImagemSqlServerTeste.ConstrutorAsync()).Build();
-            portaAmqp = PortaLivre();
-            rabbitMQ = new RabbitMqBuilder("rabbitmq:4.3.6-management")
-                .WithUsername(UsuarioRabbitMQ)
-                .WithPassword(SenhaRabbitMQ)
-                .WithPortBinding(portaAmqp, 5672)
-                .Build();
-            await Task.WhenAll(sqlServer.StartAsync(), rabbitMQ.StartAsync());
+            await Task.WhenAll(sqlServer.StartAsync(), IniciarRabbitMQAsync());
             await CriarUsuarioApiAsync();
             DockerDisponivel = true;
         }
@@ -344,10 +351,46 @@ public sealed class MensageriaTeste : IAsyncLifetime
         }
     }
 
-    /// <summary>Uma porta TCP livre do host, escolhida pelo sistema operacional.</summary>
+    /// <summary>
+    /// Sobe o broker na porta fixa do host. A porta é escolhida livre antes de o Docker
+    /// reservá-la, e outro processo ou outra coleção subindo em paralelo pode tomá-la nesse
+    /// meio-tempo ("address already in use"): aí o contêiner é descartado e sobe em outra porta
+    /// (issue #70).
+    /// </summary>
+    private async Task IniciarRabbitMQAsync()
+    {
+        const int Tentativas = 5;
+        for (var tentativa = 1; ; tentativa++)
+        {
+            portaAmqp = PortaLivre();
+            rabbitMQ = new RabbitMqBuilder("rabbitmq:4.3.6-management")
+                .WithUsername(UsuarioRabbitMQ)
+                .WithPassword(SenhaRabbitMQ)
+                .WithPortBinding(portaAmqp, 5672)
+                .Build();
+            try
+            {
+                await rabbitMQ.StartAsync();
+                return;
+            }
+            catch (DockerApiException excecao) when (tentativa < Tentativas && PortaOcupada(excecao))
+            {
+                await rabbitMQ.DisposeAsync();
+            }
+        }
+    }
+
+    private static bool PortaOcupada(DockerApiException excecao) =>
+        excecao.Message.Contains("address already in use", StringComparison.OrdinalIgnoreCase)
+        || excecao.Message.Contains("port is already allocated", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Uma porta TCP livre do host, escolhida pelo sistema operacional. A sondagem é em todas as
+    /// interfaces, como a publicação do Docker (<c>0.0.0.0</c>).
+    /// </summary>
     private static int PortaLivre()
     {
-        var ouvinte = new TcpListener(IPAddress.Loopback, 0);
+        var ouvinte = new TcpListener(IPAddress.Any, 0);
         ouvinte.Start();
         try
         {

@@ -14,7 +14,6 @@ namespace PedidoFulfillment.Testes.Integracao.Persistencia;
 /// gravou o mesmo rastreio ou a ordem do mesmo pedido entre a leitura e a gravação (REQ-11, R-06
 /// e R-07), e o deadlock, dentro e fora de uma transação (REQ-05, R-04; REQ-08, R-07).
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class ConflitosGravacaoTestes(BancoDadosTeste banco)
 {
     private static CancellationToken Token => TestContext.Current.CancellationToken;

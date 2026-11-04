@@ -9,7 +9,6 @@ namespace PedidoFulfillment.Testes.Integracao.Autenticacao;
 /// <summary>
 /// User Story 3 com SQL Server real: usuários iniciais Admin e OperadorLogistica (FR-012).
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class UsuariosIniciaisComBancoTestes(BancoDadosTeste banco)
 {
     internal const string EmailAdmin = "admin@oms.teste";

@@ -13,7 +13,6 @@ namespace PedidoFulfillment.Testes.Integracao.Produtos;
 /// tempo, sem perder nem criar unidades. As reservas rodam como a base de consumo (REQ-08,
 /// <see cref="DisputaEstoqueTestes"/>), em paralelo com o ajuste.
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class EstoqueConcorrenteTestes(BancoDadosTeste banco)
 {
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;

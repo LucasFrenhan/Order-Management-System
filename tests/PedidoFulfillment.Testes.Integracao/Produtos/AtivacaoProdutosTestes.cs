@@ -9,7 +9,6 @@ using static PedidoFulfillment.Testes.Integracao.Produtos.CenarioProdutos;
 namespace PedidoFulfillment.Testes.Integracao.Produtos;
 
 /// <summary>REQ-22, User Story 4: desativação sem apagar e reativação (SQL Server real).</summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class AtivacaoProdutosTestes(BancoDadosTeste banco)
 {
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;

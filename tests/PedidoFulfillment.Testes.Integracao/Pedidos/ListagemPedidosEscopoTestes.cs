@@ -8,7 +8,6 @@ using static PedidoFulfillment.Testes.Integracao.Pedidos.CenarioPedidos;
 namespace PedidoFulfillment.Testes.Integracao.Pedidos;
 
 /// <summary>REQ-21, User Story 4: o Cliente não alcança pedidos de outros (SC-001).</summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class ListagemPedidosEscopoTestes(BancoDadosTeste banco)
 {
     private static readonly DateTimeOffset Base = new(2026, 11, 1, 0, 0, 0, TimeSpan.Zero);

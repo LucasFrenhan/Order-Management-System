@@ -29,6 +29,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- 6 testes em paralelo, fixo em qualquer máquina (1,5 por vCPU no runner do CI): os testes
+         passam a maior parte do tempo esperando I/O; com 8, testes com prazo de espera às vezes
+         estouram (issue #70, docs/otimizacao-ci.md). -->
+    <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="..\..\specs\001-contratos-api\contracts\openapi-v1.yaml" Link="Contrato\openapi-v1.yaml" CopyToOutputDirectory="PreserveNewest" />
     <!-- Schemas dos eventos (REQ-06, REQ-08, REQ-10 e REQ-15), para os testes de conformidade. -->
     <None Include="..\..\specs\006-mensageria\contracts\eventos\*.schema.json" LinkBase="Eventos" CopyToOutputDirectory="PreserveNewest" />

@@ -14,7 +14,7 @@ namespace PedidoFulfillment.Testes.Integracao.Reconciliacao;
 /// Logs da reconciliação para a operação (REQ-12, US3, FR-015): identificadores, etapa,
 /// resultado e contagens, sem dados pessoais.
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaReconciliacao))]
 public sealed class LogsReconciliacaoTestes(MensageriaTeste mensageria)
 {
     private static readonly TimeSpan UmaHora = TimeSpan.FromHours(1);

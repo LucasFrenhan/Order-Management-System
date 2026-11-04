@@ -9,7 +9,6 @@ using static PedidoFulfillment.Testes.Integracao.Produtos.CenarioProdutos;
 namespace PedidoFulfillment.Testes.Integracao.Produtos;
 
 /// <summary>REQ-22, User Story 2: cadastro, SKU único e preço novo só para pedidos novos.</summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class CadastroProdutosTestes(BancoDadosTeste banco)
 {
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;

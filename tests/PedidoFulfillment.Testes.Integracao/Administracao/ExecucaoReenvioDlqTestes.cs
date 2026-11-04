@@ -12,7 +12,7 @@ namespace PedidoFulfillment.Testes.Integracao.Administracao;
 /// Execução dos pedidos de reenvio da DLQ pelo Worker, com SQL Server e RabbitMQ reais
 /// (REQ-14, US2 e research R-04).
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaReconciliacao))]
 public sealed class ExecucaoReenvioDlqTestes(MensageriaTeste mensageria)
 {
     [Fact]

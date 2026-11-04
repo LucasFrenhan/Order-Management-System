@@ -12,7 +12,6 @@ namespace PedidoFulfillment.Testes.Integracao.Persistencia;
 /// User Story 3: pagamento e ordem de entrega pertencem ao pedido, no máximo um de cada
 /// (FR-012, FR-013, SC-004).
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class PagamentoEntregaTestes(BancoDadosTeste banco)
 {
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;

@@ -11,7 +11,6 @@ namespace PedidoFulfillment.Testes.Integracao.Produtos;
 /// (research R-01). O índice é atualizado em segundo plano: cada busca espera por condição, até
 /// 10 s (FR-007a).
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class BuscaCatalogoTestes(BancoDadosTeste banco)
 {
     private static readonly (string Texto, string[] Esperado)[] Casos =
@@ -56,8 +55,12 @@ public sealed class BuscaCatalogoTestes(BancoDadosTeste banco)
             await CadastradoAsync(admin, sku, nome, descricao: descricao);
         }
 
-        // O último cadastrado já aparece: o índice está em dia.
-        (await BuscarAteAsync(cliente, "papeis", skus => skus.Contains("BUS-008"))).Should().Contain("BUS-008");
+        // Cada produto já aparece pelo nome: o índice está em dia. Esperar só o último não basta,
+        // porque o Full-Text Search processa as mudanças em lote, sem ordem garantida.
+        foreach (var (sku, nome, _) in produtos)
+        {
+            (await BuscarAteAsync(cliente, nome, skus => skus.Contains(sku))).Should().Contain(sku, $"'{nome}' deveria estar indexado");
+        }
 
         var erros = new List<string>();
         foreach (var (texto, esperado) in Casos)

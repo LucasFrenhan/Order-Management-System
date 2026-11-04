@@ -6,7 +6,6 @@ using static PedidoFulfillment.Testes.Integracao.Pedidos.CenarioPedidos;
 namespace PedidoFulfillment.Testes.Integracao.Pedidos;
 
 /// <summary>User Story 3 com SQL Server real (cenários 1 a 4).</summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class ConsultaPedidoComBancoTestes(BancoDadosTeste banco)
 {
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;

@@ -13,7 +13,6 @@ namespace PedidoFulfillment.Testes.Integracao.Persistencia;
 /// Restrições do pedido no SQL Server real (SC-004). Quando o domínio impediria o dado, a
 /// gravação é feita por SQL direto: o banco precisa recusar também (FR-002).
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class RestricoesPedidoTestes(BancoDadosTeste banco)
 {
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;

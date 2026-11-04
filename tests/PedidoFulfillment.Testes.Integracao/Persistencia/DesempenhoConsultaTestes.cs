@@ -11,7 +11,7 @@ namespace PedidoFulfillment.Testes.Integracao.Persistencia;
 /// SC-005 e FR-010: com 10.000 pedidos, as consultas por cliente, por número e por status
 /// respondem em menos de 100 ms (mediana de 20 execuções após aquecimento, research R-10).
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
+[Collection(nameof(ColecaoDesempenhoBanco))]
 public sealed class DesempenhoConsultaTestes(BancoDadosTeste banco)
 {
     private const int Usuarios = 100;

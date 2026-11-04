@@ -7,7 +7,7 @@ using static PedidoFulfillment.Testes.Integracao.Pedidos.CenarioPedidos;
 namespace PedidoFulfillment.Testes.Integracao.Pedidos;
 
 /// <summary>SC-005: 95% das criações com 10 itens em menos de 500 ms no ambiente local.</summary>
-[Collection(nameof(ColecaoBancoDados))]
+[Collection(nameof(ColecaoDesempenhoBanco))]
 public sealed class DesempenhoCriacaoTestes(BancoDadosTeste banco)
 {
     private const int Aquecimento = 5;

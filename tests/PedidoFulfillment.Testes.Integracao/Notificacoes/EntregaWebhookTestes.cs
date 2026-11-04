@@ -11,7 +11,7 @@ namespace PedidoFulfillment.Testes.Integracao.Notificacoes;
 /// Entrega dos webhooks com API, Worker, banco e receptor reais (REQ-18, US2 cenários 2 a 8;
 /// FR-012 a FR-017; analyze U2).
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaEntregas))]
 public sealed class EntregaWebhookTestes(MensageriaTeste mensageria)
 {
     private static CancellationToken Token => TestContext.Current.CancellationToken;

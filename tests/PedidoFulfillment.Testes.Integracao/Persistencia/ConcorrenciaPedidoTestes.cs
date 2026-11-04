@@ -13,7 +13,6 @@ namespace PedidoFulfillment.Testes.Integracao.Persistencia;
 /// Concorrência otimista do pedido (FR-021, cenário 9 da US1) e preservação do comportamento do
 /// Identity, que não passa pela tradução do conflito (research R-04, FR-019).
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class ConcorrenciaPedidoTestes(BancoDadosTeste banco)
 {
     private const int Repeticoes = 50;

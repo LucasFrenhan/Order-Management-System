@@ -6,7 +6,6 @@ using static PedidoFulfillment.Testes.Integracao.Pedidos.CenarioPedidos;
 namespace PedidoFulfillment.Testes.Integracao.Pedidos;
 
 /// <summary>REQ-21, User Story 2: a operação lista e filtra todos os pedidos (SQL Server real).</summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class ListagemPedidosFiltrosTestes(BancoDadosTeste banco)
 {
     private static readonly DateTimeOffset Dia = new(2026, 11, 3, 12, 0, 0, TimeSpan.Zero);

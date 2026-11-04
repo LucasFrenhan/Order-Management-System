@@ -18,7 +18,7 @@ namespace PedidoFulfillment.Testes.Integracao.Entregas;
 /// Pedido que mudou antes do fulfillment, com SQL Server e RabbitMQ reais (REQ-10, US3;
 /// research R-04 e R-06).
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaEntregas))]
 public sealed class PedidoIgnoradoNaEntregaTestes(MensageriaTeste mensageria)
 {
     /// <summary>1 execução mais as 3 novas tentativas da base (REQ-06).</summary>

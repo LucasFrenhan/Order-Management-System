@@ -16,7 +16,6 @@ namespace PedidoFulfillment.Testes.Integracao.Persistencia;
 /// contas (FR-014, SC-003) e segue as regras de aplicação do REQ-03 (FR-015). O cenário 4
 /// (modelo sem migration pendente) está em <see cref="ModeloSincronizadoTestes"/>.
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class MigracaoBancoTestes(BancoDadosTeste banco)
 {
     private const string Senha = "SenhaForte1";

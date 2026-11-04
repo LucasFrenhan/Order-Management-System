@@ -12,7 +12,6 @@ namespace PedidoFulfillment.Testes.Integracao.Autenticacao;
 /// O gestor de identidade chamado direto, para o que a API não deixa chegar até ele: uma recusa
 /// do Identity que não é e-mail repetido e um perfil no banco que o sistema não conhece (REQ-02).
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class GestorIdentidadeTestes(BancoDadosTeste banco)
 {
     private const string Senha = "SenhaForte1";

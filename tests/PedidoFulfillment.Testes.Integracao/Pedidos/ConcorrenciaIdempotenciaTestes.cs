@@ -9,7 +9,6 @@ namespace PedidoFulfillment.Testes.Integracao.Pedidos;
 /// SC-002: 20 criações simultâneas com a mesma chave e o mesmo conteúdo criam exatamente um
 /// pedido, sem nenhum 500, em 10 repetições (FR-012).
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class ConcorrenciaIdempotenciaTestes(BancoDadosTeste banco)
 {
     private const int Repeticoes = 10;

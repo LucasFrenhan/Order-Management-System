@@ -20,7 +20,7 @@ namespace PedidoFulfillment.Testes.Integracao.Mensageria;
 /// existem antes da primeira publicação, e um evento com consumidor que o broker devolve sem
 /// rota fica pendente no outbox, em vez de ser dado como enviado.
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaEntregas))]
 public sealed class PublicacaoSemFilaTestes(MensageriaTeste mensageria)
 {
     private static readonly TimeSpan Prazo = TimeSpan.FromSeconds(15);

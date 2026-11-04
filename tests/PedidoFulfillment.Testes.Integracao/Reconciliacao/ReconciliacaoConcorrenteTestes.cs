@@ -13,7 +13,7 @@ namespace PedidoFulfillment.Testes.Integracao.Reconciliacao;
 /// Reconciliação repetida e em duas instâncias do Worker (REQ-12, US2 cenário 6, FR-009, SC-003;
 /// research R-08): o pedido avança uma vez só, com um único evento de saída.
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaReconciliacao))]
 public sealed class ReconciliacaoConcorrenteTestes(MensageriaTeste mensageria)
 {
     private static readonly TimeSpan UmaHora = TimeSpan.FromHours(1);

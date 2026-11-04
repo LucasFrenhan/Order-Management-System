@@ -8,7 +8,6 @@ using static PedidoFulfillment.Testes.Integracao.Pedidos.CenarioPedidos;
 namespace PedidoFulfillment.Testes.Integracao.Pedidos;
 
 /// <summary>REQ-21, User Story 3: 400 com as mensagens da research R-05, nunca 500 (SC-006).</summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class ListagemPedidosErrosTestes(BancoDadosTeste banco)
 {
     private const string MensagemCursor = "O cursor é inválido para esta consulta; recomece da primeira página.";

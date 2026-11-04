@@ -11,7 +11,7 @@ namespace PedidoFulfillment.Testes.Integracao.Pedidos;
 /// SC-004 do REQ-21: com 10.000 pedidos, a primeira página, uma página funda (50 passos pelo
 /// cursor) e uma página filtrada respondem em até 1 s cada, sem piorar com a profundidade.
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
+[Collection(nameof(ColecaoDesempenhoBanco))]
 public sealed class ListagemPedidosDesempenhoTestes(BancoDadosTeste banco)
 {
     private const int Pedidos = 10_000;

@@ -7,7 +7,6 @@ using static PedidoFulfillment.Testes.Integracao.Pedidos.CenarioPedidos;
 namespace PedidoFulfillment.Testes.Integracao.Pedidos;
 
 /// <summary>REQ-21, User Story 1: o Cliente lista os próprios pedidos (SQL Server real).</summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class ListagemPedidosTestes(BancoDadosTeste banco)
 {
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;

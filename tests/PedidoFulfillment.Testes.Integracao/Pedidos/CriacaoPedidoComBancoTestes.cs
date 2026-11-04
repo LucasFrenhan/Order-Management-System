@@ -14,7 +14,6 @@ namespace PedidoFulfillment.Testes.Integracao.Pedidos;
 /// <summary>
 /// User Story 1 com SQL Server real, tokens do login e catálogo inicial (FR-001 a FR-006).
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed partial class CriacaoPedidoComBancoTestes(BancoDadosTeste banco)
 {
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;

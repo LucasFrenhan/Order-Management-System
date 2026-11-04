@@ -11,7 +11,6 @@ namespace PedidoFulfillment.Testes.Integracao.Notificacoes;
 /// <summary>
 /// Cadastro e listagem dos destinos de webhook (REQ-18, US2 cenário 1; FR-007 a FR-010 e FR-026).
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class DestinosCadastroTestes(BancoDadosTeste banco)
 {
     internal const string Rota = "/api/v1/notificacoes/destinos";

@@ -8,7 +8,6 @@ namespace PedidoFulfillment.Testes.Integracao.Persistencia;
 /// User Story 4, cenários 5 a 7: catálogo inicial só em Development e Testes, idempotente
 /// (FR-020, <c>contracts/catalogo-inicial.md</c>).
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class CatalogoInicialTestes(BancoDadosTeste banco)
 {
     private const string ContarProdutos = "SELECT COUNT(*) FROM Produtos";

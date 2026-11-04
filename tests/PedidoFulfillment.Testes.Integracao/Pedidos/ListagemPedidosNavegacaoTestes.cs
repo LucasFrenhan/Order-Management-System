@@ -6,7 +6,6 @@ using static PedidoFulfillment.Testes.Integracao.Pedidos.CenarioPedidos;
 namespace PedidoFulfillment.Testes.Integracao.Pedidos;
 
 /// <summary>REQ-21, User Story 3: navegação por cursor nos dois sentidos (SQL Server real).</summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class ListagemPedidosNavegacaoTestes(BancoDadosTeste banco)
 {
     private static readonly DateTimeOffset Base = new(2026, 11, 1, 0, 0, 0, TimeSpan.Zero);

@@ -9,7 +9,6 @@ namespace PedidoFulfillment.Testes.Integracao.Autenticacao;
 /// SC-002: a tabela de acesso do contrato v1 verificada com tokens emitidos pelo próprio login,
 /// para cada perfil e cada rota protegida (FR-013).
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class AutorizacaoComTokensReaisTestes(BancoDadosTeste banco)
 {
     [Fact]

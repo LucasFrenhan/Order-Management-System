@@ -9,3 +9,11 @@ namespace PedidoFulfillment.Testes.Integracao.Mensageria;
 /// </summary>
 [CollectionDefinition(nameof(ColecaoQuedaBroker))]
 public sealed class ColecaoQuedaBroker : ICollectionFixture<MensageriaTeste>;
+
+/// <summary>
+/// A segunda metade dos testes de queda do broker, com outra instância do
+/// <see cref="MensageriaTeste"/>: as duas metades rodam em paralelo (estudo
+/// docs/otimizacao-ci.md, proposta 4).
+/// </summary>
+[CollectionDefinition(nameof(ColecaoQuedaBrokerReinicio))]
+public sealed class ColecaoQuedaBrokerReinicio : ICollectionFixture<MensageriaTeste>;

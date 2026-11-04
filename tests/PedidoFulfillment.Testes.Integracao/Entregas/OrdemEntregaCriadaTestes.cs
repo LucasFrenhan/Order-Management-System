@@ -13,7 +13,7 @@ namespace PedidoFulfillment.Testes.Integracao.Entregas;
 /// Ordem de entrega criada pelo Worker completo, com SQL Server e RabbitMQ reais e a taxa do
 /// gateway em 100% (REQ-10, US1; contracts/consumidor-entrega.md).
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaEntregas))]
 public sealed class OrdemEntregaCriadaTestes(MensageriaTeste mensageria)
 {
     private static readonly TimeSpan Prazo = TimeSpan.FromSeconds(10);

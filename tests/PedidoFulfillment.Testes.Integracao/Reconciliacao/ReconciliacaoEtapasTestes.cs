@@ -24,7 +24,7 @@ namespace PedidoFulfillment.Testes.Integracao.Reconciliacao;
 /// publicacao-e-reconciliacao.md): o pedido parado recebe o mesmo efeito e o mesmo evento de
 /// saída que o consumidor da etapa gravaria.
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaReconciliacao))]
 public sealed class ReconciliacaoEtapasTestes(MensageriaTeste mensageria)
 {
     private static readonly TimeSpan UmaHora = TimeSpan.FromHours(1);

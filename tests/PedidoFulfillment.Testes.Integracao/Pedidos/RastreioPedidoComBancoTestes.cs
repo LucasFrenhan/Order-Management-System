@@ -11,7 +11,6 @@ namespace PedidoFulfillment.Testes.Integracao.Pedidos;
 /// Despacho e correção do rastreio com SQL Server real (REQ-11, User Stories 2 e 3;
 /// contracts/rastreio-http.md).
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class RastreioPedidoComBancoTestes(BancoDadosTeste banco)
 {
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;

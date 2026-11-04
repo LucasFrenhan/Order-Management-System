@@ -10,7 +10,7 @@ namespace PedidoFulfillment.Testes.Integracao.Estoque;
 /// Consumidor de estoque pelo Worker, com SQL Server e RabbitMQ reais (REQ-08, US1, US2 e
 /// US4; contracts/consumidor-estoque.md).
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaReconciliacao))]
 public sealed class ReservaEstoqueTestes(MensageriaTeste mensageria)
 {
     private static readonly TimeSpan Prazo = TimeSpan.FromSeconds(5);

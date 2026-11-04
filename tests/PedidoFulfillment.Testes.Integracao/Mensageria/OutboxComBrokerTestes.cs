@@ -13,7 +13,7 @@ namespace PedidoFulfillment.Testes.Integracao.Mensageria;
 /// A API sem o Worker continua criando pedidos (US4, cenário 2): coberto em
 /// <see cref="Worker_parado_deixa_os_eventos_pendentes_ate_voltar"/>.
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaEntregas))]
 public sealed class OutboxComBrokerTestes(MensageriaTeste mensageria)
 {
     // Só pedido.criado: com o consumidor de estoque (REQ-08) no Worker, estoque.* também entra no outbox.

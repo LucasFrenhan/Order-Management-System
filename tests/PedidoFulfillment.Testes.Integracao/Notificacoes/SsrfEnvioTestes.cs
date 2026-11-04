@@ -9,7 +9,7 @@ namespace PedidoFulfillment.Testes.Integracao.Notificacoes;
 /// Um destino que passou a apontar para a rede interna não recebe chamada: o IP é conferido na
 /// conexão (REQ-18, FR-016, SC-006).
 /// </summary>
-[Collection(nameof(ColecaoMensageria))]
+[Collection(nameof(ColecaoMensageriaEntregas))]
 public sealed class SsrfEnvioTestes(MensageriaTeste mensageria)
 {
     [Fact]

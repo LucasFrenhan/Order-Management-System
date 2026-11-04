@@ -10,7 +10,6 @@ namespace PedidoFulfillment.Testes.Integracao.Autenticacao;
 /// <summary>
 /// User Story 2 com SQL Server real: login, resposta genérica, bloqueio e uso do token.
 /// </summary>
-[Collection(nameof(ColecaoBancoDados))]
 public sealed class LoginComBancoTestes(BancoDadosTeste banco)
 {
     private const string Registro = "/api/v1/auth/register";
