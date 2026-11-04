@@ -198,7 +198,7 @@ Depois do registro, a pessoa recebe um e-mail com um token e confirma que o ende
 - **Sessão de renovação**: agrupa os tokens de renovação gerados a partir de um login: conta, início, limite de 30 dias e se foi encerrada.
 - **Token de renovação**: pertence a uma sessão, em forma não legível, com validade e o momento em que foi usado.
 - **Token de uso único**: de recuperação de senha ou de confirmação de e-mail: conta, finalidade, forma não legível, validade e se foi usado.
-- **E-mail a enviar**: mensagem pendente, com destino, tipo e situação do envio, guardada de forma a não expor o token em claro.
+- **Solicitação de e-mail**: pedido de envio pendente, com destino, tipo e tentativas, sem o token nem o corpo da mensagem. O token é gerado só no momento de enviar.
 
 ## Success Criteria *(mandatory)*
 
