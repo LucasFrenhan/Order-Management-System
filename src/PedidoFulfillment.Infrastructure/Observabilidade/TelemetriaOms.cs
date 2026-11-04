@@ -96,6 +96,14 @@ internal static class TelemetriaOms
         () => EstadoMetricas.CircuitoGateway is >= 0 and var estado ? [new Measurement<long>(estado)] : Array.Empty<Measurement<long>>(),
         "{estado}", "Estado do circuito do gateway de pagamento: 0 fechado, 1 aberto, 2 meio-aberto.");
 
+    /// <summary>Métrica 17 (REQ-23, FR-021): requisições recusadas pelo limite, por política.</summary>
+    public static readonly Counter<long> RequisicoesRecusadas = Medidor.CreateCounter<long>(
+        "oms.limite_requisicoes.recusadas", "{requisicao}", "Requisições recusadas pelo limite, por política.");
+
+    /// <summary>Métrica 18 (REQ-23, FR-021): requisições que seguiram sem o limite, com o armazenamento indisponível.</summary>
+    public static readonly Counter<long> FalhasArmazenamentoLimite = Medidor.CreateCounter<long>(
+        "oms.limite_requisicoes.falhas_armazenamento", "{requisicao}", "Requisições que seguiram sem o limite por falha do armazenamento.");
+
     /// <summary>Atributos dos spans e das métricas (prefixo <c>oms.</c> para os de domínio).</summary>
     public static class Atributos
     {
@@ -117,6 +125,7 @@ internal static class TelemetriaOms
         public const string PagamentoTentativa = "oms.pagamento.tentativa";
         public const string PagamentoTentativas = "oms.pagamento.tentativas";
         public const string PagamentoTipoFalha = "oms.pagamento.tipo_falha";
+        public const string LimitePolitica = "oms.limite.politica";
         public const string UsuarioId = "user.id";
         public const string MensagemId = "messaging.message.id";
         public const string TipoErro = "error.type";

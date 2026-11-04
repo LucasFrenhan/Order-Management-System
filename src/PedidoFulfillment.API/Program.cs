@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using PedidoFulfillment.API.Endpoints;
 using PedidoFulfillment.API.Erros;
+using PedidoFulfillment.API.LimiteRequisicoes;
 using PedidoFulfillment.API.Observabilidade;
 using PedidoFulfillment.API.OpenApi;
 using PedidoFulfillment.API.Seguranca;
@@ -13,6 +14,7 @@ using PedidoFulfillment.Application.Notificacoes;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Application.Produtos;
 using PedidoFulfillment.Infrastructure;
+using PedidoFulfillment.Infrastructure.LimiteRequisicoes;
 using PedidoFulfillment.Infrastructure.Notificacoes;
 using PedidoFulfillment.Infrastructure.Observabilidade;
 using PedidoFulfillment.Infrastructure.Saude;
@@ -36,6 +38,8 @@ builder.Services.AdicionarInfraestrutura(builder.Configuration);
 // Destinos de webhook e eventos em tempo real (REQ-18).
 builder.Services.AdicionarNotificacoes();
 builder.Services.AdicionarEventosTempoReal();
+// Limite de requisições no login e no registro, com estado único entre as instâncias (REQ-23).
+builder.Services.AdicionarLimiteRequisicoes();
 // Traces, métricas e logs por OTLP, só com destino configurado (REQ-16).
 builder.AdicionarObservabilidade("oms-api");
 builder.Services.AddOpenApi("v1", opcoes =>
@@ -64,7 +68,10 @@ builder.Services.AddScoped<IServicoDestinosNotificacao, ServicoDestinosNotificac
 
 var app = builder.Build();
 
+// Antes de tudo: o limite e os logs precisam do cliente real (REQ-23, R-06).
+app.UsarIntermediariosConfiaveis();
 app.UsarProblemDetails();
+app.UseMiddleware<MiddlewareLimiteRequisicoes>();
 app.UseAuthentication();
 // Usuário e pedido no span da requisição (REQ-16, FR-001).
 app.UsarAtributosRequisicao();

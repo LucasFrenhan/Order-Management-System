@@ -127,7 +127,7 @@ chave sem o valor; depois, provocar um bloqueio e conferir o log e a métrica.
 
 **Acceptance Scenarios**:
 
-1. **Given** um limite zero, negativo ou ausente na configuração, **When** a API parte, **Then** a partida falha com a mensagem citando a chave, como nas demais opções.
+1. **Given** um limite zero, negativo ou fora da faixa na configuração, ou a chave das contagens ausente, **When** a API parte, **Then** a partida falha com a mensagem citando a chave, como nas demais opções.
 2. **Given** um bloqueio de login, **When** o log é gravado, **Then** ele traz a política e o e-mail mascarado, nunca o e-mail completo, a senha ou o endereço de origem.
 3. **Given** uma rajada que recebe muitos 429 seguidos, **When** os logs são gravados, **Then** a mesma contagem gera um único log por janela, e a métrica registra todas as recusas.
 

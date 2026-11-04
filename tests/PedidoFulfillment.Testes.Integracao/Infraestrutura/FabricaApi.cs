@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -9,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using PedidoFulfillment.Application.Autenticacao;
+using PedidoFulfillment.Application.LimiteRequisicoes;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Domain.Usuarios;
 
@@ -24,6 +26,11 @@ public class FabricaApi : WebApplicationFactory<Program>
 
     /// <summary>Chave AES-GCM dos segredos dos webhooks nos testes (REQ-18), igual na API e no Worker.</summary>
     public const string ChaveCifraTeste = "Y2hhdmUtZGUtdGVzdGUtYXV0b21hdGl6YWRvLTMyYnk=";
+    /// <summary>Chave das contagens do limite de requisições nos testes (REQ-23), igual em todas as instâncias.</summary>
+    public const string ChaveContagemTeste = "Y2hhdmUtZGUtdGVzdGUtYXV0b21hdGl6YWRvLTMyYnk=";
+
+    /// <summary>O teto da validação: os testes que não tratam do limite nunca o atingem (REQ-23, R-10).</summary>
+    public const string LimiteAltoTeste = "1000000";
     public const string EmissorTeste = "PedidoFulfillment";
     public const string AudienciaTeste = "PedidoFulfillment";
     public const string RotaExcecaoTeste = "/_teste/excecao";
@@ -67,9 +74,29 @@ public class FabricaApi : WebApplicationFactory<Program>
 
     public IServicoPedidos? ServicoPedidos { get; init; }
 
+    /// <summary>
+    /// O estado dos limites (REQ-23). Sem informar: o armazenamento real, com <see cref="StringConexao"/>,
+    /// ou um em memória, para a suíte rodar sem banco (R-10).
+    /// </summary>
+    public IArmazenamentoContagens? ArmazenamentoContagens { get; init; }
+
+    /// <summary>O endereço da conexão: o <c>TestServer</c> não informa nenhum (REQ-23, R-10).</summary>
+    public IPAddress? EnderecoConexao { get; init; }
+
+    /// <summary>Outro relógio, como o de uma instância com a hora errada (REQ-23, FR-008).</summary>
+    public TimeProvider? Relogio { get; init; }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment(Ambiente);
+        // REQ-23 (R-10): limites altos, sem desligar o código; sem a saída por tempo, que num teste
+        // de limite exato liberaria uma requisição sem haver bug.
+        builder.UseSetting("LimiteRequisicoes:ChaveContagem", ChaveContagemTeste);
+        builder.UseSetting("LimiteRequisicoes:LoginOrigemEmail:Limite", LimiteAltoTeste);
+        builder.UseSetting("LimiteRequisicoes:LoginOrigem:Limite", LimiteAltoTeste);
+        builder.UseSetting("LimiteRequisicoes:Registro:Limite", LimiteAltoTeste);
+        builder.UseSetting("LimiteRequisicoes:TempoMaximoEsperaMs", "5000");
+        builder.UseSetting("LimiteRequisicoes:PausaAposFalhaSegundos", "0");
         builder.UseSetting("Jwt:ChaveAssinatura", ChaveTeste);
         builder.UseSetting("Jwt:Emissor", EmissorTeste);
         builder.UseSetting("Jwt:Audiencia", AudienciaTeste);
@@ -107,6 +134,25 @@ public class FabricaApi : WebApplicationFactory<Program>
         builder.ConfigureTestServices(services =>
         {
             services.AddSingleton<IStartupFilter, FiltroRotaExcecao>();
+            if (EnderecoConexao is not null)
+            {
+                services.AddSingleton<IStartupFilter>(new FiltroEnderecoConexao(EnderecoConexao));
+            }
+
+            if (ArmazenamentoContagens is not null)
+            {
+                services.Replace(ServiceDescriptor.Singleton(ArmazenamentoContagens));
+            }
+            else if (StringConexao is null)
+            {
+                services.Replace(ServiceDescriptor.Singleton<IArmazenamentoContagens>(new ArmazenamentoContagensMemoria()));
+            }
+
+            if (Relogio is not null)
+            {
+                services.Replace(ServiceDescriptor.Singleton(Relogio));
+            }
+
             if (ServicoAutenticacao is not null)
             {
                 services.Replace(ServiceDescriptor.Singleton(ServicoAutenticacao));
@@ -119,6 +165,20 @@ public class FabricaApi : WebApplicationFactory<Program>
 
             Telemetria?.RegistrarEm(services);
         });
+    }
+
+    /// <summary>No começo do pipeline, antes dos cabeçalhos encaminhados: o que uma conexão real informaria.</summary>
+    private sealed class FiltroEnderecoConexao(IPAddress endereco) : IStartupFilter
+    {
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+        {
+            app.Use((HttpContext contexto, RequestDelegate proximo) =>
+            {
+                contexto.Connection.RemoteIpAddress = endereco;
+                return proximo(contexto);
+            });
+            next(app);
+        };
     }
 
     /// <summary>
