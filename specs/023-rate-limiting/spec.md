@@ -44,6 +44,10 @@ Respostas dadas pelo usuário durante o specify:
 
 - Q: O login também tem um limite só por origem, além do limite por origem mais e-mail? → A: Sim. Sem ele, quem testa uma senha comum em muitos e-mails a partir de uma origem não seria contido nem pelo limite por e-mail nem pelo bloqueio de conta. O limite é mais folgado (padrão: 100 requisições por minuto).
 - Q: O que acontece quando o armazenamento compartilhado está indisponível? → A: A requisição é aceita sem o limite, com log e métrica. O login não cai por causa do limite, e o bloqueio de conta continua protegendo as senhas.
+- Q: Que tipo de janela conta as requisições? → A: Janela fixa, iniciada na primeira requisição de cada contagem. Ao fim dela, a contagem recomeça. O excesso de até 2 vezes o limite na virada entre duas janelas é aceito e fica como limitação conhecida no fluxo 1.
+- Q: Os valores padrão dos limites podem ser 10 logins por minuto por origem mais e-mail, 100 logins por minuto por origem e 20 registros por hora por origem? → A: Sim, como proposto (FR-019).
+- Q: Em IPv6, o limite por origem conta o endereço exato ou o bloco de rede `/64` inteiro? → A: O bloco `/64`, de tamanho fixo na regra. Em IPv4, conta o endereço exato.
+- Q: Uma tentativa de login barrada pelo limite de origem mais e-mail também consome o limite só por origem? → A: Não. Só a tentativa que passou pelo limite de origem mais e-mail conta no limite por origem, para que quem insiste em um e-mail não trave o login do resto da sua rede.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -69,6 +73,7 @@ espera informado.
 5. **Given** um e-mail escrito com outra caixa ou com espaços nas pontas, **When** a origem tenta de novo, **Then** ele conta como o mesmo e-mail.
 6. **Given** um e-mail sem conta cadastrada, **When** a origem excede o limite, **Then** a resposta é a mesma de um e-mail com conta, sem revelar quais e-mails existem.
 7. **Given** uma origem que tenta muitos e-mails diferentes, um de cada vez, **When** ela excede o limite de login por origem, **Then** a resposta é 429 para qualquer e-mail, em qualquer instância.
+8. **Given** uma origem barrada pelo limite de um e-mail, **When** ela insiste nesse e-mail, **Then** as tentativas barradas não consomem o limite por origem, e os outros e-mails da mesma origem continuam entrando.
 
 ---
 
@@ -132,10 +137,12 @@ chave sem o valor; depois, provocar um bloqueio e conferir o log e a métrica.
 
 - **Corpo do login ausente, inválido ou sem e-mail**: sem e-mail para contar, a tentativa conta só no limite por origem, para que não sirva de rota livre. A resposta, se estiver dentro do limite, é o 400 de hoje.
 - **Os dois limites do login excedidos ao mesmo tempo**: o `Retry-After` informa a maior espera, para que a próxima tentativa não seja barrada pelo outro limite.
+- **Virada entre duas janelas**: quem usa todo o limite no fim de uma janela e todo o limite no início da seguinte passa até 2 vezes o limite em pouco tempo. A média continua limitada, e o bloqueio de conta segue protegendo a senha.
 - **Requisição barrada pelo limite**: não avalia a senha nem conta para o bloqueio de conta. Assim, a rajada não bloqueia a conta além do que já passou pelo limite.
 - **Login certo**: conta como requisição e não zera a contagem do limite. Quem zera a contagem de erros de senha continua sendo o bloqueio de conta.
 - **Conta bloqueada e origem dentro do limite**: responde o 401 de hoje, sem revelar o bloqueio.
 - **Origem atrás de um intermediário** (balanceador ou proxy): o limite vale para o cliente real, não para o endereço do intermediário; caso contrário, todos os clientes dividiriam a mesma contagem. Um cabeçalho de origem enviado por quem não é intermediário confiável é ignorado, para que ninguém escape do limite forjando um endereço.
+- **Troca de endereço IPv6 dentro da mesma rede**: endereços do mesmo bloco `/64` dividem a contagem, para que trocar de endereço não renove as tentativas.
 - **Vários clientes atrás do mesmo endereço público** (rede corporativa): no login, a contagem por e-mail evita que um atrapalhe o outro, e só o limite por origem, mais folgado, é dividido; no registro, dividem o limite. Os limites padrão consideram esse caso e podem ser ajustados por configuração.
 - **Relógios diferentes entre as instâncias**: o resultado e o `Retry-After` não podem depender do relógio de cada instância.
 - **Reinício ou implantação de instâncias**: a contagem sobrevive, e nenhuma instância nova recomeça do zero.
@@ -149,16 +156,16 @@ chave sem o valor; depois, provocar um bloqueio e conferir o log e a métrica.
 **Limites**
 
 - **FR-001**: O sistema MUST limitar as requisições de login por origem mais e-mail, e as de registro por origem.
-- **FR-002**: O sistema MUST limitar também as requisições de login só por origem, com um limite próprio e mais folgado. Uma tentativa de login conta nos dois limites, e exceder qualquer um deles a barra.
+- **FR-002**: O sistema MUST limitar também as requisições de login só por origem, com um limite próprio e mais folgado. Exceder qualquer um dos dois limites barra a tentativa, e uma tentativa barrada por um deles não consome o outro.
 - **FR-003**: O e-mail MUST ser comparado sem diferenciar maiúsculas e sem os espaços das pontas, como no cadastro. Uma tentativa de login sem e-mail utilizável conta só no limite por origem.
-- **FR-004**: A origem MUST ser o cliente real. Por configuração, o sistema aceita a origem informada apenas por intermediários confiáveis, e ignora essa informação quando ela vem de qualquer outro.
+- **FR-004**: A origem MUST ser o cliente real. Por configuração, o sistema aceita a origem informada apenas por intermediários confiáveis, e ignora essa informação quando ela vem de qualquer outro. Em IPv4, a origem é o endereço exato; em IPv6, é o bloco `/64` do endereço. Um endereço IPv4 representado em IPv6 conta como IPv4.
 - **FR-005**: Só as rotas `POST /api/v1/auth/login` e `POST /api/v1/auth/register` são limitadas. As demais rotas e a contagem de uma rota sobre a outra não são afetadas.
 
 **Estado compartilhado**
 
 - **FR-006**: O estado dos limites MUST ser único para todas as instâncias da API: uma requisição é decidida com a contagem de todas elas, e o resultado independe da instância que a atende.
 - **FR-007**: A contagem MUST ser atômica entre as instâncias: requisições simultâneas nunca somam mais aceitas que o limite configurado.
-- **FR-008**: O início e o fim da janela MUST vir de uma única referência de tempo, para que o relógio de cada instância não altere o resultado nem o `Retry-After`.
+- **FR-008**: Cada contagem MUST usar uma janela fixa, iniciada na sua primeira requisição, e recomeçar quando a janela termina. O início e o fim da janela MUST vir de uma única referência de tempo, para que o relógio de cada instância não altere o resultado nem o `Retry-After`.
 - **FR-009**: A contagem MUST sobreviver ao reinício de qualquer instância da API.
 - **FR-010**: O armazenamento MUST NOT guardar o e-mail nem o endereço de origem de forma legível.
 - **FR-011**: Contagens vencidas MUST ser removidas, sem intervenção da operação.
@@ -199,7 +206,7 @@ chave sem o valor; depois, provocar um bloqueio e conferir o log e a métrica.
 
 ### Measurable Outcomes
 
-- **SC-001**: Em uma rajada de 100 tentativas de login da mesma origem contra o mesmo e-mail, repartidas entre duas instâncias, o número de tentativas com a senha avaliada nunca passa do limite configurado.
+- **SC-001**: Em uma rajada de 100 tentativas de login da mesma origem contra o mesmo e-mail, repartidas entre duas instâncias, o número de tentativas com a senha avaliada dentro de uma janela nunca passa do limite configurado.
 - **SC-002**: Depois de esgotado o limite em uma instância, 100% das tentativas seguintes em outra instância, dentro da janela, recebem 429.
 - **SC-003**: Em 100% dos 429, o cabeçalho `Retry-After` está presente, e a mesma contagem informa o mesmo tempo em qualquer instância, com diferença de até 1 segundo.
 - **SC-004**: Depois de esperar o tempo informado, a próxima tentativa é aceita em 100% dos casos.
@@ -207,7 +214,7 @@ chave sem o valor; depois, provocar um bloqueio e conferir o log e a métrica.
 - **SC-006**: O comparador de contrato não aponta nenhuma mudança incompatível no contrato v1.
 - **SC-007**: Nenhum log ou dimensão de métrica de bloqueio contém senha, e-mail completo ou endereço de origem completo.
 - **SC-008**: A verificação do limite acrescenta, em 95% das requisições às duas rotas, no máximo 50 ms ao tempo de resposta.
-- **SC-009**: Em uma rajada de login da mesma origem, com um e-mail diferente por tentativa e repartida entre duas instâncias, o número de tentativas com a senha avaliada nunca passa do limite por origem.
+- **SC-009**: Em uma rajada de login da mesma origem, com um e-mail diferente por tentativa e repartida entre duas instâncias, o número de tentativas com a senha avaliada dentro de uma janela nunca passa do limite por origem.
 - **SC-010**: Com o armazenamento compartilhado indisponível, 100% das requisições às duas rotas recebem a resposta normal da rota, e a falha aparece no log e na métrica.
 
 ## Assumptions
@@ -215,6 +222,7 @@ chave sem o valor; depois, provocar um bloqueio e conferir o log e a métrica.
 - A escolha do armazenamento compartilhado (por exemplo, o banco que o sistema já usa, ou um serviço novo) e o mecanismo de contagem ficam para o plano, com as alternativas comparadas no `research.md`. A issue sugere o limitador nativo da plataforma, sem pacote novo; o plano confere se isso continua valendo com o estado compartilhado, e qualquer dependência nova exige justificativa escrita (constituição).
 - O limite vale para a origem de rede: quem troca de endereço a cada tentativa não é contido por ele, e é o bloqueio de conta que protege a senha nesse caso.
 - Um atacante ainda pode bloquear a conta de outra pessoa errando a senha de propósito, a partir de várias origens. Esse risco já existe desde o REQ-03 e continua como limitação conhecida, a registrar no fluxo 1.
+- O excesso na virada da janela fixa é uma limitação aceita, a registrar no fluxo 1. Trocar o algoritmo depois não muda o contrato.
 - A API sobe com uma instância no compose, e a execução com várias instâncias é verificada nos testes de integração. Um balanceador na demonstração não faz parte do escopo.
 - Os ambientes de teste usam limites próprios, altos o bastante para os testes existentes, com o mesmo código e a mesma validação de produção. Só os testes do limite usam valores baixos.
 - Fora do escopo: WAF, CDN, CAPTCHA, limites em outras rotas, limites por usuário autenticado e mudança nas regras do bloqueio de conta.
