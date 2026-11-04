@@ -18,7 +18,7 @@
   e pool de conexões próprio (R-04). Um **bloqueio local** das recusas alivia o banco em uma inundação (R-05).
 - **Cliente real por intermediários confiáveis**, com o `UseForwardedHeaders` nativo; IPv6 pelo `/64` (R-06).
 - **Identidade por HMAC com chave própria** (`LimiteRequisicoes:ChaveContagem`), sem dados legíveis (R-08).
-- **Limpeza a cada 60 s no Worker** (R-07). Migration `LimiteRequisicoes`; logs 3007 e 3008; duas métricas; um
+- **Limpeza a cada 60 s no Worker** (R-07). Migration `LimiteRequisicoes`; logs 3007 a 3009; duas métricas; um
   código de erro novo; nenhum pacote novo.
 
 ## Technical Context

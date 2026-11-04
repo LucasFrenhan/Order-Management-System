@@ -31,7 +31,7 @@ em todas as instâncias) é o MVP. A US2 (registro), a US3 (contrato) e a US4 (o
 - **Armazenamento: SQL Server, confirmado pelo usuário** ([R-01](./research.md#r-01-armazenamento-compartilhado-sql-server-ou-redis)).
 - Janela fixa, iniciada na primeira requisição da contagem. Tempo sempre pelo relógio do banco (`SYSUTCDATETIME()`), nunca
   pelo `TimeProvider` da instância, exceto na pausa e no bloqueio local, que são por instância.
-- Logs só com os IDs 3007 e 3008; nenhum valor de senha, e-mail completo ou endereço de origem em logs ou métricas.
+- Logs só com os IDs 3007 a 3009; nenhum valor de senha, e-mail completo ou endereço de origem em logs ou métricas.
 - O bloqueio de conta do REQ-03 não muda (FR-017), e os testes existentes passam sem afrouxar asserções.
 - Sem opção de desligar o limite (FR-018). `README.md` **não recebe acréscimos** sem permissão do usuário.
 - Commit por fase: `tipo(escopo): descrição [REQ-23]`.
@@ -150,10 +150,10 @@ em todas as instâncias) é o MVP. A US2 (registro), a US3 (contrato) e a US4 (o
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T038 [P] Atualizar `docs/fluxos/01-autenticacao.md` (429 na tabela de erros; os limites, a janela, a origem e o `IntermediariosConfiaveis`; falha do armazenamento; logs 3007 e 3008; limitações: excesso na virada da janela, bloqueio de conta por terceiro, troca de endereço, inundação de muitas origens que deixa a instância sem o limite), `docs/fluxos/11-limpeza-e-reenvio-da-dlq.md` (rotina `LimpezaContagensLimite`), `docs/fluxos/12-rastreabilidade-e-metricas.md` e `specs/016-observabilidade-opentelemetry/contracts/telemetria.md` (duas métricas e o alvo `contagens_limite`), conferindo mensagens, códigos, limites e IDs no código e os links relativos
-- [ ] T039 [P] Atualizar `docs/proximos-passos.md`: acrescentar o REQ-23 ao resumo, numeração a partir do REQ-24, remover a #58 da fila e registrar a opção do Redis (R-01) em "Para análise futura". **Não acrescentar nada ao `README.md`**: se algo parecer necessário, perguntar antes
-- [ ] T040 Rodar `dotnet build`, `dotnet test` e `dotnet format --verify-no-changes`, comparando o total de testes com a T001
-- [ ] T041 Executar o [quickstart](./quickstart.md), inclusive a verificação sob carga (seção 4: p95 da criação de pedidos até 20% acima da linha de base e lote parado no banco), e registrar o resultado em `specs/023-rate-limiting/research.md` na R-01; se não atender, avisar o usuário antes de abrir o PR
+- [X] T038 [P] Atualizar `docs/fluxos/01-autenticacao.md` (429 na tabela de erros; os limites, a janela, a origem e o `IntermediariosConfiaveis`; falha do armazenamento; logs 3007 e 3008; limitações: excesso na virada da janela, bloqueio de conta por terceiro, troca de endereço, inundação de muitas origens que deixa a instância sem o limite), `docs/fluxos/11-limpeza-e-reenvio-da-dlq.md` (rotina `LimpezaContagensLimite`), `docs/fluxos/12-rastreabilidade-e-metricas.md` e `specs/016-observabilidade-opentelemetry/contracts/telemetria.md` (duas métricas e o alvo `contagens_limite`), conferindo mensagens, códigos, limites e IDs no código e os links relativos
+- [X] T039 [P] Atualizar `docs/proximos-passos.md`: acrescentar o REQ-23 ao resumo, numeração a partir do REQ-24, remover a #58 da fila e registrar a opção do Redis (R-01) em "Para análise futura". **Não acrescentar nada ao `README.md`**: se algo parecer necessário, perguntar antes
+- [X] T040 Rodar `dotnet build`, `dotnet test` e `dotnet format --verify-no-changes`, comparando o total de testes com a T001
+- [X] T041 Executar o [quickstart](./quickstart.md), inclusive a verificação sob carga (seção 4: p95 da criação de pedidos até 20% acima da linha de base e lote parado no banco), e registrar o resultado em `specs/023-rate-limiting/research.md` na R-01; se não atender, avisar o usuário antes de abrir o PR
 - [ ] T042 Abrir o PR em português (Resumo, Pontos de atenção, Validação) com `Closes #58`, citando em Validação os documentos de fluxo atualizados e, em Pontos de atenção, a nova chave obrigatória `LimiteRequisicoes:ChaveContagem`, o `IntermediariosConfiaveis` em produção e o desvio da issue (middleware próprio em vez do limitador nativo, R-02); depois, acompanhar os workflows, inclusive o `build-testes` e o Quality Gate, e usar `gh pr merge --rebase --auto`, sem apagar a branch. Marcar esta tarefa em `specs/023-rate-limiting/tasks.md`
 
 ---

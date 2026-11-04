@@ -62,6 +62,31 @@ banco fora, não existe login a proteger, o que torna o FR-012 mais simples.
 **Quando rever**: se a verificação sob carga do `quickstart` mostrar impacto nos pedidos, ou se o
 Redis entrar no projeto por outro motivo. Aí basta outra implementação da porta.
 
+### Verificação sob carga (T041, 2026-11-04)
+
+Na API real do compose, com o banco, o Worker e o gerador de carga **na mesma máquina**. O p95 é o de
+`POST /api/v1/pedidos`, só das respostas 201, com 4 clientes por 45 s e 32 clientes na inundação. Rodadas 1 e 2 são execuções completas.
+
+| Cenário | p95, rodada 1 | p95, rodada 2 | Inundação | Lote no banco |
+|---------|:-------------:|:-------------:|:---------:|---------------|
+| Sem inundação | 32,4 ms | 34,1 ms | — | — |
+| Inundação em `/health` (controle: sem limite e sem banco) | 68,9 ms | 50,2 ms | 18 a 20 mil/s | — |
+| Inundação de login barrado, mesma origem e mesmo e-mail | 71,3 ms | 34,5 ms | 16 a 18 mil/s | **Parado** (572 → 572 em 25 s) |
+| Inundação de muitas origens, uma contagem nova por tentativa | não medida | 258,7 ms | 226/s | Uma execução por tentativa |
+
+**Critério do `quickstart` (p95 até 20% acima da linha de base, com o lote parado)**:
+
+- **Lote parado**: atendido. O bloqueio local absorveu cerca de 800 mil tentativas por rodada, e a rodada 1, só com a mesma origem, não teve nenhum log 3008.
+- **p95**: **não atendido na rodada 1** (+120%) e atendido na rodada 2 (+1,2%). A variação entre as rodadas é grande, e o
+  controle, sem limite nenhum, também piora (+47% a +113%). Comparado ao controle, o login barrado ficou entre 3,5% acima e 31% abaixo.
+  A leitura é que a piora vem da saturação da máquina compartilhada, não do limite, mas o critério como foi escrito falhou uma vez.
+
+**Muitas origens**: o p95 foi a 258,7 ms (+659%), com a inundação em só 226/s. A rodada 2 teve **2 logs 3008** (`TaskCanceledException`, o
+tempo máximo de 250 ms), provavelmente deste cenário, porque a rodada 1 não teve nenhum: a instância ficou sem o limite por duas pausas
+de 5 s, como a limitação do R-04 prevê. Sem um controle
+para este caso, a causa não está isolada: a inferência é que o custo vem do próprio login, porque 226/s são cerca de 6% da capacidade
+medida do lote (3.752/s), mas o limite não foi retirado para confirmar. Também não foi medido com banco e API em máquinas separadas.
+
 **Alternativa descartada**: tabela em memória do SQL Server (In-Memory OLTP), porque exige um
 filegroup próprio, muda a preparação do banco e os dados não duráveis não sobrevivem a reinício.
 

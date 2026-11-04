@@ -136,6 +136,16 @@ Meter `PedidoFulfillment`, emitidas pelo Worker:
 | `oms.pagamentos.duracao` | histograma | `s` | `oms.pagamento.operacao`, `oms.resultado` | Duração da chamada, com as tentativas e esperas (REQ-19) |
 | `oms.pagamentos.circuito` | gauge | `{estado}` | — | Estado em memória do circuito: 0 fechado, 1 aberto, 2 meio-aberto (REQ-19) |
 
+Emitidas pela API, por instância (REQ-23, [fluxo 1](01-autenticacao.md#limite-de-requisições)):
+
+| Métrica | Tipo | Unidade | Atributos | Atualização |
+|---------|------|---------|-----------|-------------|
+| `oms.limite_requisicoes.recusadas` | contador | `{requisicao}` | `oms.limite.politica` (`login_origem_email`, `login_origem`, `registro`) | A cada recusa, inclusive pelo bloqueio local |
+| `oms.limite_requisicoes.falhas_armazenamento` | contador | `{requisicao}` | — | A cada requisição que seguiu sem o limite, inclusive durante a pausa |
+
+A rotina `LimpezaContagensLimite` (Worker) soma em `oms.limpeza.linhas_apagadas`, com o alvo `contagens_limite`, sem span próprio,
+porque roda a cada 60 s.
+
 Também saem as métricas nativas do .NET (`System.Runtime` e, desde o REQ-19, `System.Net.Http`,
 com a duração das requisições de saída) e do ASP.NET Core. Um consumidor pausado por
 dependência indisponível (REQ-19, fluxo 8) continua com `oms.mensageria.consumidor.inscrito`

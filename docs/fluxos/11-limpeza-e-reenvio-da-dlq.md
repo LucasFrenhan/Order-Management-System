@@ -36,6 +36,19 @@ Exemplo de rodada:
 info: LimpezaMensageria[5013] Limpeza: 1240 evento(s) enviado(s), 1188 registro(s) de processado, 37 chave(s) de idempotência, 0 pedido(s) de reenvio, 310 entrega(s) de webhook e 655 aviso(s) apagados.
 ```
 
+### Contagens do limite de requisições (REQ-23)
+
+O `LimpezaContagensLimite` apaga as linhas vencidas de `ContagensLimite`
+([fluxo 1](01-autenticacao.md#limite-de-requisições)) em uma rotina própria, a cada 60 s
+(`Limpeza:IntervaloContagensSegundos`, de 10 a 3.600), com lock próprio (`sp_getapplock 'oms-limpeza-contagens'`) e
+até 100 lotes por rodada (`Limpeza:LotesContagensPorRodada`, de 1 a 1.000). Obedece a `Limpeza:Habilitada` e soma em
+`oms.limpeza.linhas_apagadas`, com o alvo `contagens_limite`.
+
+**Por que não é um alvo da rotina acima**: ela roda de hora em hora, com até 10 mil linhas por alvo, e uma única origem pode
+criar 6 mil contagens por hora. **O que apaga**: só `FimJanela` no passado, pelo relógio do banco. **Em um deadlock**,
+a limpeza é quem perde (`DEADLOCK_PRIORITY LOW`) e tenta de novo na rodada seguinte. **Com o Worker fora**, a limitação continua
+certa, pois uma janela vencida conta como zero; só a tabela cresce.
+
 ## Reenvio da DLQ
 
 ```mermaid
