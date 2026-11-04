@@ -93,6 +93,10 @@ Continua sem pacote novo, como a issue pedia.
 3. Se nenhuma atingiu, incrementa as duas, ou reinicia a janela vencida, com
    `FimJanela = DATEADD(SECOND, @janela, SYSUTCDATETIME())`.
 
+**Execução pelo EF Core** (constituição; analyze C1): o lote roda por `Database.SqlQueryRaw`, com parâmetros, em um
+`ContextoBancoDados` criado com a string de conexão do pool próprio (R-04). A medição usou `SqlClient` direto, e o
+acréscimo do EF Core é conferido pelo p95 da T015.
+
 Uma só ida e volta mantém os bloqueios por microssegundos. A ordem fixa das chaves impede ciclos
 entre transações. O caminho "barrada" não escreve depois da primeira recusa, o que o deixa barato
 justamente sob ataque.
@@ -114,6 +118,12 @@ consumir e compensar em dois passos, porque abre uma janela em que uma tentativa
   durante uma queda. A pausa é por instância, e os bloqueios locais de R-05 continuam valendo.
 - **Pool próprio**: conexões com `Application Name=oms-limite-requisicoes` e `Max Pool Size=20`, em um pool
   separado do EF Core. Uma inundação fica sem conexão de limite, sem esgotar as dos pedidos.
+- **Aquecimento na partida** (analyze U1): a primeira conexão pode passar dos 250 ms, o que abriria a pausa a cada
+  reinício. Um serviço em segundo plano abre o pool ao subir, com `Min Pool Size=2`, sem o tempo máximo de 250 ms e sem
+  impedir a API de subir. Falhar nisso só gera um log de nível Debug: o banco fora tem seu próprio tratamento.
+- **Limitação conhecida** (analyze G3): uma inundação vinda de muitas origens pode esgotar as 20 conexões e deixar a
+  instância sem o limite enquanto durar. O bloqueio local só ajuda contra origens já barradas. Sobra o bloqueio de conta,
+  que protege as senhas, como aceito na decisão do FR-012.
 - **Log e métrica** na transição para falha, uma vez por pausa (R-08).
 
 Cancelamento pelo cliente não é falha: a requisição é abortada, sem log e sem métrica.
@@ -156,7 +166,7 @@ nunca deixa de limitar.
 ## R-07: limpeza das contagens vencidas (FR-011)
 
 **Decisão**: uma rotina própria no Worker, `LimpezaContagensLimite`, a cada 60 s, com lock de aplicação
-próprio, `DELETE TOP` por `FimJanela < SYSUTCDATETIME()` e `DEADLOCK_PRIORITY LOW`.
+próprio, `DELETE TOP` por `FimJanela < SYSUTCDATETIME()` e `DEADLOCK_PRIORITY LOW`, por `Database.ExecuteSql`.
 
 - **Por que não um alvo da `LimpezaMensageria`**: ela roda de hora em hora, com até 10 mil linhas por
   alvo. Uma única origem pode criar 6 mil contagens de e-mail por hora, então poucas origens já
@@ -193,6 +203,9 @@ e as respostas de sempre não mudam (FR-022).
   `StringConexao`, usa o armazenamento real.
 - **Limites altos por padrão** nas fábricas (1.000.000, o teto da validação): o código e a validação são
   os de produção (FR-022), sem opção de desligar.
+- **Testes com banco sem a saída por tempo** (analyze U2): os testes rodam com até 6 threads, e uma operação acima de
+  250 ms liberaria a requisição e faria um teste de limite exato falhar sem haver bug. Por isso, `TempoMaximoEsperaMs=5000`
+  e `PausaAposFalhaSegundos=0` nas fábricas. Só os testes de falha do armazenamento usam tempos curtos.
 - **Origem nos testes**: o `TestServer` não informa endereço. Um `IStartupFilter` define o endereço da
   conexão por teste, antes dos cabeçalhos encaminhados.
 - **Duas instâncias**: duas `FabricaApi` com o mesmo banco e a mesma chave, repartindo as tentativas.

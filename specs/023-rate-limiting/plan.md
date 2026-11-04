@@ -26,7 +26,7 @@
 **Language/Version**: C# 14 / .NET 10 (SDK 10.0.403)
 
 **Primary Dependencies**: as que já existem: ASP.NET Core 10 (`UseForwardedHeaders`, `IMemoryCache`),
-`Microsoft.Data.SqlClient` 7.1.1, EF Core SqlServer 10.0.13 (migration) e OpenTelemetry. **Nenhum pacote novo.**
+EF Core SqlServer 10.0.13 (migration, lote e limpeza) e OpenTelemetry. **Nenhum pacote novo.**
 
 **Storage**: SQL Server 2022 CU26; tabela `ContagensLimite` ([data-model](./data-model.md))
 
@@ -60,7 +60,7 @@ oasdiff. Duas `FabricaApi` sobre o mesmo banco simulam duas instâncias.
 | IV. Desacoplamento assíncrono | Sem efeito entre domínios e sem eventos: a decisão é síncrona por natureza | ✅ |
 | V. Qualidade verificável | Unitários das regras; integração com 429, duas instâncias, concorrência, volta depois da espera e armazenamento fora | ✅ |
 | Endpoint só roteia | As rotas só ganham metadados; a decisão fica no `ServicoLimiteRequisicoes` | ✅ |
-| Persistência em SQL Server via EF Core | Tabela e migration pelo EF Core. A operação usa `SqlClient` direto, como `LockAplicacao` e a limpeza, porque o lote atômico não cabe em LINQ | ✅ |
+| Persistência em SQL Server via EF Core | Tabela e migration pelo EF Core. O lote atômico não cabe em LINQ e usa `Database.SqlQueryRaw`, como `FromSqlRaw` e `Database.Execute…` já usados no projeto; a limpeza usa `Database.ExecuteSql`. Nada grava por `SqlClient` direto (analyze C1) | ✅ |
 | 400 em ProblemDetails | Não muda: a validação segue depois do limite | ✅ |
 | Nova dependência NuGet | Nenhuma | ✅ |
 
@@ -108,7 +108,8 @@ src/
 │   ├── Configuracao/OpcoesLimiteRequisicoes.cs  # novo, com validador
 │   ├── Configuracao/OpcoesLimpeza.cs            # + chaves das contagens
 │   ├── LimiteRequisicoes/                       # novo
-│   │   ├── ArmazenamentoContagensSql.cs         # lote de R-03, pool próprio
+│   │   ├── ArmazenamentoContagensSql.cs         # lote de R-03 pelo EF Core, pool próprio
+│   │   ├── AquecimentoLimiteRequisicoes.cs      # abre o pool na partida (R-04)
 │   │   ├── BloqueiosLocaisMemoria.cs, MetricasLimite.cs
 │   │   ├── LimpezaContagensLimite.cs            # rotina do Worker (R-07)
 │   │   └── ExtensoesLimiteRequisicoes.cs
@@ -127,6 +128,7 @@ tests/
     └── LimiteRequisicoes/                       # 429, duas instâncias, concorrência, espera, intermediários, falha, limpeza
 
 specs/001-contratos-api/contracts/openapi-v1.yaml  # + 429 nas duas rotas
+specs/016-observabilidade-opentelemetry/contracts/telemetria.md  # + métricas e alvo da limpeza
 docs/fluxos/01-autenticacao.md, 11-limpeza-e-reenvio-da-dlq.md, 12-rastreabilidade-e-metricas.md, docs/proximos-passos.md
 ```
 

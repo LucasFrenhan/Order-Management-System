@@ -53,5 +53,5 @@ Um login sem e-mail utilizável conta só em `login_origem`. Faixas válidas no
 
 ## Bloqueio local (memória, sem tabela)
 
-Por instância e nunca compartilhado ([R-05](./research.md#r-05-bloqueio-local-para-aliviar-o-banco)): a chave
+É por instância e nunca compartilhado ([R-05](./research.md#r-05-bloqueio-local-para-aliviar-o-banco)): a chave
 de uma contagem recusada e até quando vale, até 100 mil entradas. Some no reinício, e o armazenamento volta a decidir.
