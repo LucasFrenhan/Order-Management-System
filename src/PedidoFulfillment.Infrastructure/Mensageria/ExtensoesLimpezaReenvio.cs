@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using PedidoFulfillment.Infrastructure.Configuracao;
+using PedidoFulfillment.Infrastructure.LimiteRequisicoes;
 
 namespace PedidoFulfillment.Infrastructure.Mensageria;
 
@@ -19,6 +20,7 @@ public static class ExtensoesLimpezaReenvio
         services.AddOptions<OpcoesReenvioDlq>().BindConfiguration(OpcoesReenvioDlq.Secao).ValidateOnStart();
         services.TryAddSingleton(TimeProvider.System);
         services.AddHostedService<LimpezaMensageria>();
+        services.AddHostedService<LimpezaContagensLimite>();
         services.AddSingleton<ReenvioDlq>();
         services.AddHostedService<ExecutorReenviosDlq>();
         services.AddHostedService<MonitorDlq>();
