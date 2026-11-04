@@ -954,6 +954,33 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                         });
                 });
 
+            modelBuilder.Entity("PedidoFulfillment.Infrastructure.Persistencia.ContagemLimite", b =>
+                {
+                    b.Property<byte[]>("Chave")
+                        .HasMaxLength(32)
+                        .HasColumnType("binary(32)")
+                        .IsFixedLength();
+
+                    b.Property<bool>("BloqueioRegistrado")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<int>("Contador")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("FimJanela")
+                        .HasColumnType("datetime2(3)");
+
+                    b.HasKey("Chave")
+                        .HasName("PK_ContagensLimite");
+
+                    b.HasIndex("FimJanela")
+                        .HasDatabaseName("IX_ContagensLimite_FimJanela");
+
+                    b.ToTable("ContagensLimite", (string)null);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.HasOne("PedidoFulfillment.Infrastructure.Identidade.Perfil", null)

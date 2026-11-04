@@ -63,6 +63,9 @@ public sealed class ContextoBancoDados(DbContextOptions<ContextoBancoDados> opti
 
     internal DbSet<EventoProcessado> EventosProcessados => Set<EventoProcessado>();
 
+    /// <summary>Estado único do limite de requisições (REQ-23).</summary>
+    internal DbSet<ContagemLimite> ContagensLimite => Set<ContagemLimite>();
+
     public DbSet<PedidoReenvioDlq> PedidosReenvioDlq => Set<PedidoReenvioDlq>();
 
     public DbSet<AvisoPedido> AvisosPedido => Set<AvisoPedido>();

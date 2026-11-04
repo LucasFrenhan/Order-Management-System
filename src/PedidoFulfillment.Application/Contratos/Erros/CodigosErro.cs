@@ -7,6 +7,7 @@ namespace PedidoFulfillment.Application.Contratos.Erros;
 public static class CodigosErro
 {
     public const string UsuarioEmailJaCadastrado = "USUARIO_EMAIL_JA_CADASTRADO";
+    public const string LimiteRequisicoesExcedido = "LIMITE_REQUISICOES_EXCEDIDO";
     public const string IdempotenciaConteudoDivergente = "IDEMPOTENCIA_CONTEUDO_DIVERGENTE";
     public const string IdempotenciaEmProcessamento = "IDEMPOTENCIA_EM_PROCESSAMENTO";
     public const string ProdutoInexistente = "PRODUTO_INEXISTENTE";
