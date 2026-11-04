@@ -228,6 +228,24 @@ dividindo 31 GB, ficou sem memória); uma rodada completa depois, sem a coleta, 
 em 312 s. A confirmação é no runner: pelo menos 3 runs do PR. Se houver instabilidade, o
 próximo passo é 4.
 
+## Resultado no CI (PR #71, run 41808773891, 2026-11-04)
+
+Três execuções do mesmo commit, com 6 threads:
+
+| Execução | Imagem do SQL Server | Testar | Job "Build e testes" | Falhas |
+|---|---|---|---|---|
+| Antes (run 41732771799) | ~141 s, montada dentro de "Testar" | ~590 s | ~11,5 min | 0 |
+| 1 | 164 s, montada (push negado) | 364 s | 10,4 min | 0 |
+| 2 | 144 s, montada e publicada | 379 s | 10,2 min | 0 |
+| **3** | **33 s, baixada do GHCR** | **383 s** | **8,7 min (−24%)** | **0** |
+
+- Nos testes de integração, a concorrência média passou de 1,6 para 4,0, e a parede caiu de
+  ~590 s para ~345 s. O caminho crítico agora são as duas classes de queda do broker (~115 s
+  cada, em paralelo).
+- No primeiro push, o GHCR respondeu `denied`; o CI seguiu montando a imagem, como previsto, e
+  o push da execução seguinte funcionou. Se voltar a acontecer com um Dockerfile novo, o run
+  só fica mais lento; nada falha.
+
 ## Decisões
 
 O que foi adotado na issue #70, o que ficou de fora e por quê.
