@@ -74,10 +74,23 @@ Volte o banco com `docker compose start sqlserver`.
 
 ## 4. Verificação sob carga (R-01)
 
-Com o limite padrão, dispare 2 minutos de tentativas contra um mesmo e-mail e, ao mesmo tempo, crie pedidos.
+Com o limite padrão:
 
-**Esperado**: a origem é barrada pelo bloqueio local, sem consulta ao banco por tentativa, e a criação de pedidos
-mantém o tempo de resposta de antes. Se piorar, registre no PR e reveja a [decisão R-01](./research.md#r-01-armazenamento-compartilhado-sql-server-ou-redis).
+1. Meça o p95 de `POST /api/v1/pedidos`, com 4 clientes simultâneos, por 1 minuto, sem a inundação.
+2. Repita a medição com 32 clientes fazendo login, sem parar, contra um mesmo e-mail e da mesma origem.
+3. Durante a inundação, leia duas vezes, com 30 s de intervalo, quantas vezes o lote rodou no banco:
+
+   ```sql
+   SELECT SUM(s.execution_count) FROM sys.dm_exec_query_stats s
+   CROSS APPLY sys.dm_exec_sql_text(s.sql_handle) t WHERE t.text LIKE '%ContagensLimite%UPDLOCK%';
+   ```
+
+**Esperado**:
+
+- p95 da criação de pedidos com a inundação até **20% acima** do p95 sem ela;
+- contagem do lote praticamente parada entre as duas leituras: as tentativas são barradas pelo bloqueio local.
+
+Se não atender, registre no PR e reveja a [decisão R-01](./research.md#r-01-armazenamento-compartilhado-sql-server-ou-redis).
 
 ## 5. Log e métrica
 

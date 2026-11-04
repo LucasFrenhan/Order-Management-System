@@ -128,7 +128,7 @@ chave sem o valor; depois, provocar um bloqueio e conferir o log e a métrica.
 **Acceptance Scenarios**:
 
 1. **Given** um limite zero, negativo ou ausente na configuração, **When** a API parte, **Then** a partida falha com a mensagem citando a chave, como nas demais opções.
-2. **Given** um bloqueio de login, **When** o log é gravado, **Then** ele traz a política e o e-mail mascarado, nunca o e-mail completo, a senha ou o endereço de origem completo.
+2. **Given** um bloqueio de login, **When** o log é gravado, **Then** ele traz a política e o e-mail mascarado, nunca o e-mail completo, a senha ou o endereço de origem.
 3. **Given** uma rajada que recebe muitos 429 seguidos, **When** os logs são gravados, **Then** a mesma contagem gera um único log por janela, e a métrica registra todas as recusas.
 
 ---
@@ -189,7 +189,7 @@ chave sem o valor; depois, provocar um bloqueio e conferir o log e a métrica.
 
 **Observabilidade**
 
-- **FR-020**: O sistema MUST registrar o primeiro bloqueio de cada contagem em cada janela, em log com a política e, na política com e-mail, o e-mail mascarado, sem senha, e-mail completo ou endereço de origem completo.
+- **FR-020**: O sistema MUST registrar o primeiro bloqueio de cada contagem em cada janela, em log com a política e, na política com e-mail, o e-mail mascarado, sem senha, e-mail completo ou endereço de origem.
 - **FR-021**: O sistema MUST expor métricas das requisições recusadas por política e das falhas do armazenamento compartilhado, sem dados pessoais nas dimensões.
 
 **Compatibilidade e testes**
@@ -212,14 +212,15 @@ chave sem o valor; depois, provocar um bloqueio e conferir o log e a métrica.
 - **SC-004**: Depois de esperar o tempo informado, a próxima tentativa é aceita em 100% dos casos.
 - **SC-005**: Todos os testes e a demonstração existentes continuam passando, e as requisições dentro do limite recebem a mesma resposta de antes.
 - **SC-006**: O comparador de contrato não aponta nenhuma mudança incompatível no contrato v1.
-- **SC-007**: Nenhum log ou dimensão de métrica de bloqueio contém senha, e-mail completo ou endereço de origem completo.
+- **SC-007**: Nenhum log ou dimensão de métrica de bloqueio contém senha, e-mail completo ou endereço de origem.
 - **SC-008**: A verificação do limite acrescenta, em 95% das requisições às duas rotas, no máximo 50 ms ao tempo de resposta.
 - **SC-009**: Em uma rajada de login da mesma origem, com um e-mail diferente por tentativa e repartida entre duas instâncias, o número de tentativas com a senha avaliada dentro de uma janela nunca passa do limite por origem.
 - **SC-010**: Com o armazenamento compartilhado indisponível, 100% das requisições às duas rotas recebem a resposta normal da rota, e a falha aparece no log e na métrica.
 
 ## Assumptions
 
-- A escolha do armazenamento compartilhado (por exemplo, o banco que o sistema já usa, ou um serviço novo) e o mecanismo de contagem ficam para o plano, com as alternativas comparadas no `research.md`. A issue sugere o limitador nativo da plataforma, sem pacote novo; o plano confere se isso continua valendo com o estado compartilhado, e qualquer dependência nova exige justificativa escrita (constituição).
+- O armazenamento compartilhado é o banco que o sistema já usa, escolhido depois da comparação com um serviço novo no `research.md` (R-01). A issue sugeria o limitador nativo da plataforma, que não atende ao estado compartilhado (R-02); continua sem pacote novo.
+- Uma inundação vinda de muitas origens pode esgotar as conexões reservadas ao limite e deixar uma instância sem ele enquanto durar, pela regra do FR-012. O bloqueio de conta continua protegendo as senhas. É uma limitação conhecida, a registrar no fluxo 1.
 - O limite vale para a origem de rede: quem troca de endereço a cada tentativa não é contido por ele, e é o bloqueio de conta que protege a senha nesse caso.
 - Um atacante ainda pode bloquear a conta de outra pessoa errando a senha de propósito, a partir de várias origens. Esse risco já existe desde o REQ-03 e continua como limitação conhecida, a registrar no fluxo 1.
 - O excesso na virada da janela fixa é uma limitação aceita, a registrar no fluxo 1. Trocar o algoritmo depois não muda o contrato.
