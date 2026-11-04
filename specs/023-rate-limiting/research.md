@@ -87,6 +87,8 @@ de 5 s, como a limitação do R-04 prevê. Sem um controle
 para este caso, a causa não está isolada: a inferência é que o custo vem do próprio login, porque 226/s são cerca de 6% da capacidade
 medida do lote (3.752/s), mas o limite não foi retirado para confirmar. Também não foi medido com banco e API em máquinas separadas.
 
+**Decisão do usuário (2026-11-04)**: com esses números à vista, seguir com o SQL Server.
+
 **Alternativa descartada**: tabela em memória do SQL Server (In-Memory OLTP), porque exige um
 filegroup próprio, muda a preparação do banco e os dados não duráveis não sobrevivem a reinício.
 
