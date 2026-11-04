@@ -11,9 +11,21 @@ O workflow [`build-testes`](../.github/workflows/build-testes.yml) roda em todo 
   que falharam e a cobertura de linhas, sem as migrations nem o código gerado. A análise
   estática do SonarQube Cloud envolve esse build e esses testes (veja
   [Análise estática](analise-estatica.md)). Os resultados (TRX, Cobertura e o relatório de
-  cobertura enviado ao SonarQube) ficam 14 dias no artefato `resultados-testes`. O SQL Server
-  dos testes é a imagem própria com Full-Text Search (`docker/sqlserver/Dockerfile`, REQ-22),
-  montada pelo Testcontainers uma vez por execução: cerca de 2 minutos a mais por rodada.
+  cobertura enviado ao SonarQube) ficam 14 dias no artefato `resultados-testes`.
+  - **Imagem do SQL Server**: os testes usam a imagem própria com Full-Text Search
+    (`docker/sqlserver/Dockerfile`, REQ-22). O CI a baixa pronta do GHCR
+    (`ghcr.io/lucasfrenhan/oms-sqlserver-testes`, com tag pelo hash de `docker/sqlserver`) e
+    só a monta e publica quando a pasta muda, o que levaria ~2 min em toda rodada (issue #70).
+    Os testes recebem a imagem por `OMS_IMAGEM_SQLSERVER`; sem a variável, como na máquina
+    local, o Testcontainers monta a imagem uma vez e a reaproveita pelo cache do Docker. O
+    resumo da execução diz se a imagem foi baixada ou montada.
+  - **Paralelismo**: os testes de integração rodam até 6 de cada vez
+    ([`xunit.runner.json`](../tests/PedidoFulfillment.Testes.Integracao/xunit.runner.json)),
+    em qualquer máquina. Os testes de banco compartilham um SQL Server (cada um com o próprio
+    banco) e rodam em paralelo; os de mensageria ficam em coleções seriais por área, cada uma
+    com o próprio SQL Server e RabbitMQ, porque as filas do broker são compartilhadas; os de
+    desempenho ficam numa coleção serial. Com mais de 8, os testes com limite de tempo falham
+    ([medições](otimizacao-ci.md)).
 - **Demonstração**: só nos PRs; sobe o perfil `demo` (montando também a imagem do SQL Server
   com Full-Text Search) e confere a prontidão da API, do Worker e da API de pagamento simulada
   e o login do administrador de desenvolvimento.

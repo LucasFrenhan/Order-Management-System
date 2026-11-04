@@ -259,7 +259,7 @@ tests/
                                         com SQL Server e RabbitMQ reais (Testcontainers),
                                         schemas de eventos e arquitetura
 docs/                                estado atual, próximos passos, mensageria, integração contínua,
-                                     análise estática e fluxos/ (fluxos de ponta a ponta)
+                                     otimização do CI, análise estática e fluxos/ (fluxos de ponta a ponta)
 specs/                               especificações SDD (spec, plano, tarefas, contrato)
 ```
 
