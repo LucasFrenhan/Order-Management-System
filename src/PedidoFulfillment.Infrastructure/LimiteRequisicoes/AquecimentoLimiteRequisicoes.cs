@@ -23,7 +23,10 @@ internal sealed partial class AquecimentoLimiteRequisicoes(IArmazenamentoContage
         }
         catch (Exception excecao) when (excecao is not OperationCanceledException || !stoppingToken.IsCancellationRequested)
         {
-            AquecimentoIgnorado(logger, excecao.GetType().Name);
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                AquecimentoIgnorado(logger, excecao.GetType().Name);
+            }
         }
         catch (OperationCanceledException)
         {
