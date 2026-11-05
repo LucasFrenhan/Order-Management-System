@@ -172,7 +172,7 @@ do pedido, numa conexão de um pedido), em ordem, antes dos novos e sem repetiç
 | `pedidoId` inválido | 400 |
 | `pedidoId` inexistente ou de outro Cliente | 404, como no `GET` do pedido |
 | Quarta conexão do usuário na mesma instância | 429 `NOTIFICACAO_SSE_LIMITE_CONEXOES` "O limite de 3 conexões de eventos foi atingido." |
-| Token expira | A API encerra a conexão |
+| Token expira | A API encerra a conexão, a cada 15 minutos por padrão desde o REQ-24. O cliente renova a sessão ([fluxo 1](01-autenticacao.md#renovação)) e reconecta com `Last-Event-ID`, sem perder avisos dentro da retenção |
 | Aplicação lenta (100 avisos na fila) | `sincronizacao-necessaria` e fim da conexão |
 
 ## `ETag` na consulta

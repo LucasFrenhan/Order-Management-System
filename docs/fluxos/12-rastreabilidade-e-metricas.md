@@ -102,8 +102,9 @@ Por quê: o cliente sobrescreve o `traceparent` ao publicar; o reenvio lê o ori
 |--------|-----------|--------|------|
 | Reconciliação | `reconciliar` | `reconciliar pedido`, com `oms.etapa` e `oms.resultado` | Trace de criação do pedido |
 | Estornos | `processar_estornos` | `estornar pedido`, com `oms.resultado` | Trace de criação do pedido |
-| Limpeza | `limpar` | `limpar {alvo}`, com `oms.limpeza.linhas_apagadas` (alvos novos do REQ-18: `entregas_notificacao` e `avisos_pedido`) | — |
+| Limpeza | `limpar` | `limpar {alvo}`, com `oms.limpeza.linhas_apagadas` (alvos novos do REQ-18: `entregas_notificacao` e `avisos_pedido`; do REQ-24: `sessoes_autenticacao` e `tokens_uso_unico`) | — |
 | Webhooks (REQ-18) | `processar_notificacoes` | `notificacao enviar` (`Client`), com `oms.pedido.id` e `oms.resultado` (`entregue`, `falha`, `esgotada`) | Trace da mudança de status que gerou o aviso; o `traceparent` não vai para o receptor |
+| E-mails (REQ-24) | `processar_emails` | — | — |
 
 - A rodada que não pega o lock (logs 9006, 7011 e 5015) não gera span.
 - O evento gravado por uma rotina (por exemplo, `estoque.reservado` gravado pela
@@ -135,13 +136,15 @@ Meter `PedidoFulfillment`, emitidas pelo Worker:
 | `oms.pagamentos.chamadas` | contador | `{chamada}` | `oms.pagamento.operacao`, `oms.resultado`, `oms.pagamento.tipo_falha` (só nas falhas passageiras) | A cada chamada ao gateway, com o resultado final (REQ-19) |
 | `oms.pagamentos.duracao` | histograma | `s` | `oms.pagamento.operacao`, `oms.resultado` | Duração da chamada, com as tentativas e esperas (REQ-19) |
 | `oms.pagamentos.circuito` | gauge | `{estado}` | — | Estado em memória do circuito: 0 fechado, 1 aberto, 2 meio-aberto (REQ-19) |
+| `oms.emails` | contador | `{email}` | `oms.email.tipo`, `oms.resultado` (`enviado`, `falha`, `descartado`, `sem_conta`) | A cada solicitação tratada ([fluxo 16](16-envio-de-email.md), REQ-24) |
 
 Emitidas pela API, por instância (REQ-23, [fluxo 1](01-autenticacao.md#limite-de-requisições)):
 
 | Métrica | Tipo | Unidade | Atributos | Atualização |
 |---------|------|---------|-----------|-------------|
-| `oms.limite_requisicoes.recusadas` | contador | `{requisicao}` | `oms.limite.politica` (`login_origem_email`, `login_origem`, `registro`) | A cada recusa, inclusive pelo bloqueio local |
+| `oms.limite_requisicoes.recusadas` | contador | `{requisicao}` | `oms.limite.politica` (`login_origem_email`, `login_origem`, `registro` e, do REQ-24, as políticas do [fluxo 1](01-autenticacao.md#limite-de-requisições)) | A cada recusa, inclusive pelo bloqueio local |
 | `oms.limite_requisicoes.falhas_armazenamento` | contador | `{requisicao}` | — | A cada requisição que seguiu sem o limite, inclusive durante a pausa |
+| `oms.autenticacao.renovacoes` | contador | `{renovacao}` | `oms.resultado` (`renovada`, `recusada`, `reutilizada`) | A cada apresentação de token de renovação (REQ-24) |
 
 A rotina `LimpezaContagensLimite` (Worker) soma em `oms.limpeza.linhas_apagadas`, com o alvo `contagens_limite`, sem span próprio,
 porque roda a cada 60 s.

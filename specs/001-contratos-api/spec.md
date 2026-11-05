@@ -271,7 +271,8 @@ os perfis autorizados, a tabela de transições e as respostas 200, 400, 401, 40
 - **FR-015**: `LoginResponseDTO` MUST conter `tokenAcesso`, `tipoToken` (valor `Bearer`),
   `expiraEm` (data/hora UTC em ISO 8601) e `perfis`. O token MUST valer por 60 minutos a
   partir da emissão (`expiraEm` = emissão + 60 min); depois disso, toda operação protegida
-  responde 401.
+  responde 401. *Nota: o [REQ-24](../024-ciclo-autenticacao/spec.md) mudou o padrão para 15 minutos,
+  configurável, por decisão do usuário; o `expiraEm` continua informando o instante.*
 
 **Pedidos**
 

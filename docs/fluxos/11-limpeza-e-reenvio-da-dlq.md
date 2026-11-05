@@ -21,6 +21,8 @@ cada rodada; o resto fica para a seguinte):
 | `PedidosReenvioDlq` | Pedidos de reenvio concluídos ou com falha | 90 dias | Pedido pendente ou em execução |
 | `EntregasNotificacao` | Entregas de webhook finalizadas (entregues, esgotadas ou descartadas) (REQ-18, FR-018) | 7 dias (mínimo 24 h) | Entrega pendente |
 | `AvisosPedido` | Avisos de notificação que nenhuma entrega usa (REQ-18, R-18); a retenção também limita o reenvio do SSE | 7 dias (mínimo 24 h) | Aviso de uma entrega ainda guardada |
+| `SessoesAutenticacao`, com `TokensRenovacao` em cascata | Sessões encerradas ou vencidas (REQ-24, R-07) | 24 h (mínimo 1 h) | Sessão ativa, com os tokens já usados dela, que detectam a reutilização |
+| `TokensUsoUnico` | Tokens de recuperação e de confirmação usados ou vencidos (REQ-24, R-07) | 24 h (mínimo 1 h) | Token ainda válido |
 
 **Por que não atrapalha o resto**: o despachante só lê os pendentes, os consumidores só
 inserem processados novos e a API só lê chaves recentes. Cada lote é um `DELETE TOP` curto,
@@ -33,7 +35,7 @@ processada com sucesso por aquele consumidor, então o reenvio não depende do r
 Exemplo de rodada:
 
 ```text
-info: LimpezaMensageria[5013] Limpeza: 1240 evento(s) enviado(s), 1188 registro(s) de processado, 37 chave(s) de idempotência, 0 pedido(s) de reenvio, 310 entrega(s) de webhook e 655 aviso(s) apagados.
+info: LimpezaMensageria[5013] Limpeza: 1240 evento(s) enviado(s), 1188 registro(s) de processado, 37 chave(s) de idempotência, 0 pedido(s) de reenvio, 310 entrega(s) de webhook, 655 aviso(s), 12 sessão(ões) de autenticação e 8 token(s) de uso único apagados.
 ```
 
 ### Contagens do limite de requisições (REQ-23)
@@ -174,6 +176,8 @@ Seção `Limpeza` (validada na partida):
 | `RetencaoPedidosReenvioHoras` | 2 160 | 24 a 87 600 |
 | `RetencaoEntregasHoras` | 168 | 24 a 8 760 |
 | `RetencaoAvisosHoras` | 168 | 24 a 8 760 |
+| `RetencaoSessoesHoras` | 24 | 1 a 8 760 |
+| `RetencaoTokensUsoUnicoHoras` | 24 | 1 a 8 760 |
 
 Seção `ReenvioDlq`:
 
