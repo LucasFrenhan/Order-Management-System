@@ -11,6 +11,9 @@ public static class ExtensoesResultado
     public static IResult ParaResposta<T>(this Resultado<T> resultado, Func<T, IResult> sucesso) =>
         resultado.Sucesso ? sucesso(resultado.Valor!) : resultado.Falha!.ParaProblema();
 
+    /// <summary>Para as operações sem corpo de resposta: sem falha, 204 (REQ-24).</summary>
+    public static IResult ParaSemConteudo(this Falha? falha) => falha is null ? TypedResults.NoContent() : falha.ParaProblema();
+
     /// <param name="statusCode">Outro status para a mesma falha, como o 429 do limite de conexões SSE (REQ-18, FR-023).</param>
     public static IResult ParaProblema(this Falha falha, int? statusCode = null)
     {

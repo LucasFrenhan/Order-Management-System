@@ -4,6 +4,7 @@ using PedidoFulfillment.Application.Autenticacao;
 using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Contratos.Autenticacao;
 using PedidoFulfillment.Application.Contratos.Erros;
+using PedidoFulfillment.Application.Emails;
 using PedidoFulfillment.Domain.Usuarios;
 using PedidoFulfillment.Infrastructure.Persistencia;
 
@@ -12,7 +13,12 @@ namespace PedidoFulfillment.Infrastructure.Identidade;
 /// <summary>
 /// Contas e credenciais com o <see cref="UserManager{TUser}"/> do Identity (research R-02 a R-05).
 /// </summary>
-internal sealed class GestorIdentidade(UserManager<Usuario> usuarios, ContextoBancoDados contexto) : IGestorIdentidade
+internal sealed class GestorIdentidade(
+    UserManager<Usuario> usuarios,
+    ContextoBancoDados contexto,
+    IArmazenamentoSessoes sessoes,
+    IFilaEmails fila,
+    TimeProvider relogio) : IGestorIdentidade
 {
     private static readonly Falha EmailJaCadastrado = new(
         TipoFalha.Conflito, "E-mail já cadastrado.", "Já existe uma conta com este e-mail.", CodigosErro.UsuarioEmailJaCadastrado);
@@ -87,6 +93,27 @@ internal sealed class GestorIdentidade(UserManager<Usuario> usuarios, ContextoBa
     public async Task<IReadOnlyList<PerfilUsuario>> ObterPerfisAsync(Guid usuarioId, CancellationToken cancellationToken) =>
         await usuarios.FindByIdAsync(usuarioId.ToString()) is { } usuario ? await PerfisAsync(usuario) : [];
 
+    public async Task<Guid?> RedefinirSenhaAsync(byte[] hashToken, string novaSenha, CancellationToken cancellationToken)
+    {
+        var agora = relogio.GetUtcNow();
+        await using var transacao = await contexto.Database.BeginTransactionAsync(cancellationToken);
+        if (await sessoes.ConsumirTokenUsoUnicoAsync(FinalidadeTokenUsoUnico.RecuperacaoSenha, hashToken, agora, cancellationToken) is not { } usuarioId
+            || await usuarios.FindByIdAsync(usuarioId.ToString()) is not { } usuario)
+        {
+            return null;
+        }
+
+        usuario.PasswordHash = usuarios.PasswordHasher.HashPassword(usuario, novaSenha);
+        usuario.EmailConfirmed = true;
+        usuario.AccessFailedCount = 0;
+        usuario.LockoutEnd = null;
+        Garantir(await usuarios.UpdateSecurityStampAsync(usuario));
+        await sessoes.EncerrarSessoesDaContaAsync(usuarioId, agora, cancellationToken);
+        await fila.EnfileirarAsync(TipoEmail.AvisoSenhaRedefinida, usuario.Email!, cancellationToken);
+        await transacao.CommitAsync(cancellationToken);
+        return usuarioId;
+    }
+
     private async Task<PerfilUsuario[]> PerfisAsync(Usuario usuario) =>
         [.. (await usuarios.GetRolesAsync(usuario))
             .Select(nome => Enum.TryParse<PerfilUsuario>(nome, out var perfil) ? perfil : (PerfilUsuario?)null)
@@ -94,6 +121,14 @@ internal sealed class GestorIdentidade(UserManager<Usuario> usuarios, ContextoBa
 
     private string HashReferencia() =>
         hashReferencia ??= usuarios.PasswordHasher.HashPassword(new Usuario(), Guid.NewGuid().ToString());
+
+    private static void Garantir(IdentityResult resultado)
+    {
+        if (!resultado.Succeeded)
+        {
+            throw Inesperado(resultado);
+        }
+    }
 
     // Só os códigos do Identity: as descrições podem repetir o e-mail informado.
     private static InvalidOperationException Inesperado(IdentityResult resultado) =>

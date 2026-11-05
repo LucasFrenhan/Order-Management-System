@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using PedidoFulfillment.Application.Autenticacao;
 using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Contratos.Autenticacao;
+using PedidoFulfillment.Application.Emails;
 using PedidoFulfillment.Domain.Usuarios;
 
 namespace PedidoFulfillment.Testes.Unitarios.Autenticacao;
@@ -41,6 +42,30 @@ public sealed class GestorIdentidadeFalso : IGestorIdentidade
 
     public Task<IReadOnlyList<PerfilUsuario>> ObterPerfisAsync(Guid usuarioId, CancellationToken cancellationToken) =>
         Task.FromResult(PerfisAtuais);
+
+    public Guid? ResultadoRedefinicao { get; set; }
+
+    public int ConsultasConta { get; private set; }
+
+    public (byte[] Hash, string Senha)? UltimaRedefinicao { get; private set; }
+
+    public Task<Guid?> RedefinirSenhaAsync(byte[] hashToken, string novaSenha, CancellationToken cancellationToken)
+    {
+        ConsultasConta++;
+        UltimaRedefinicao = (hashToken, novaSenha);
+        return Task.FromResult(ResultadoRedefinicao);
+    }
+}
+
+public sealed class FilaEmailsFalsa : IFilaEmails
+{
+    public List<(TipoEmail Tipo, string Destino)> Solicitacoes { get; } = [];
+
+    public Task EnfileirarAsync(TipoEmail tipo, string destino, CancellationToken cancellationToken)
+    {
+        Solicitacoes.Add((tipo, destino));
+        return Task.CompletedTask;
+    }
 }
 
 /// <summary>Armazenamento de sessões falso: devolve a rotação pedida e guarda o que recebeu.</summary>

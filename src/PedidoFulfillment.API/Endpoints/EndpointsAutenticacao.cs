@@ -57,6 +57,28 @@ public static class EndpointsAutenticacao
             .Produces(StatusCodes.Status204NoContent)
             .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status429TooManyRequests);
 
+        grupo.MapPost("/recuperacao-senha", async (RecuperacaoSenhaRequestDTO pedido, IServicoSenhas servico, CancellationToken cancellationToken) =>
+            {
+                await servico.PedirRecuperacaoAsync(pedido, cancellationToken);
+                return TypedResults.Accepted((string?)null);
+            })
+            .WithName("PedirRecuperacaoSenha")
+            .WithSummary("Pede um e-mail de recuperação de senha.")
+            .AddEndpointFilter<FiltroValidacao<RecuperacaoSenhaRequestDTO>>()
+            .ComLimiteRequisicoes(RotaLimitada.RecuperacaoSenha)
+            .Produces(StatusCodes.Status202Accepted)
+            .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status429TooManyRequests);
+
+        grupo.MapPost("/redefinicao-senha", async (RedefinicaoSenhaRequestDTO redefinicao, IServicoSenhas servico, CancellationToken cancellationToken) =>
+                (await servico.RedefinirAsync(redefinicao, cancellationToken)).ParaSemConteudo())
+            .WithName("RedefinirSenha")
+            .WithSummary("Define uma senha nova com o token recebido por e-mail.")
+            .AddEndpointFilter<FiltroValidacao<RedefinicaoSenhaRequestDTO>>()
+            .ComLimiteRequisicoes(RotaLimitada.RedefinicaoSenha)
+            .Produces(StatusCodes.Status204NoContent)
+            .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status429TooManyRequests)
+            .ComErroToken();
+
         return app;
     }
 }
