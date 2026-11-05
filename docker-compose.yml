@@ -4,8 +4,8 @@
 # Portas e credenciais podem ser trocadas por variáveis OMS_* (veja .env.example).
 # Versões das imagens fixas, sem "latest"; atualizar de forma manual e deliberada.
 #
-#   docker compose up -d --wait --build               sobe e espera banco, broker e a API de pagamento simulada
-#   docker compose --profile demo up -d --wait --build  sobe banco, broker, pagamentos, API, Worker e o painel de telemetria
+#   docker compose up -d --wait --build               sobe e espera banco, broker, a API de pagamento simulada e o Mailpit
+#   docker compose --profile demo up -d --wait --build  sobe banco, broker, pagamentos, Mailpit, API, Worker e o painel de telemetria
 #   docker compose --profile observabilidade up -d     sobe só o painel, para a API e o Worker pelo SDK (REQ-16)
 #   docker compose down                               para (os dados continuam nos volumes)
 #   docker compose --profile demo down -v             para tudo e apaga os dados locais
