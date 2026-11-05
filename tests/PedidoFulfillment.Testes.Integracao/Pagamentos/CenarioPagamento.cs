@@ -45,10 +45,11 @@ internal static class CenarioPagamento
                 }
             }
         };
-        worker.CreateClient().Dispose();
-        (await mensageria.ConsumidorLigadoAsync(CenarioEstoque.FilaEstoque, TimeSpan.FromSeconds(10))).Should().BeTrue("o consumidor de estoque precisa estar pronto");
-        (await mensageria.ConsumidorLigadoAsync(FilaPagamento, TimeSpan.FromSeconds(10))).Should().BeTrue("o consumidor de pagamento precisa estar pronto");
-        return worker;
+        return await worker.ProntoAsync(async () =>
+        {
+            (await mensageria.ConsumidorLigadoAsync(CenarioEstoque.FilaEstoque, TimeSpan.FromSeconds(10))).Should().BeTrue("o consumidor de estoque precisa estar pronto");
+            (await mensageria.ConsumidorLigadoAsync(FilaPagamento, TimeSpan.FromSeconds(10))).Should().BeTrue("o consumidor de pagamento precisa estar pronto");
+        });
     }
 
     public static Task<int> PagamentosAsync(string stringConexao, Guid pedidoId) =>

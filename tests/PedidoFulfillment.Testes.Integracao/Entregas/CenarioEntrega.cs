@@ -33,11 +33,12 @@ internal static class CenarioEntrega
             Configuracoes = new Dictionary<string, string?> { [GatewayPagamentoMemoria.ChaveTaxa] = "100" },
             Servicos = logs is null ? null : servicos => servicos.AddSingleton<ILoggerProvider>(logs)
         };
-        worker.CreateClient().Dispose();
-        (await mensageria.ConsumidorLigadoAsync(CenarioEstoque.FilaEstoque, TimeSpan.FromSeconds(10))).Should().BeTrue("o consumidor de estoque precisa estar pronto");
-        (await mensageria.ConsumidorLigadoAsync(CenarioPagamento.FilaPagamento, TimeSpan.FromSeconds(10))).Should().BeTrue("o consumidor de pagamento precisa estar pronto");
-        (await mensageria.ConsumidorLigadoAsync(FilaEntrega, TimeSpan.FromSeconds(10))).Should().BeTrue("o consumidor de entrega precisa estar pronto");
-        return worker;
+        return await worker.ProntoAsync(async () =>
+        {
+            (await mensageria.ConsumidorLigadoAsync(CenarioEstoque.FilaEstoque, TimeSpan.FromSeconds(10))).Should().BeTrue("o consumidor de estoque precisa estar pronto");
+            (await mensageria.ConsumidorLigadoAsync(CenarioPagamento.FilaPagamento, TimeSpan.FromSeconds(10))).Should().BeTrue("o consumidor de pagamento precisa estar pronto");
+            (await mensageria.ConsumidorLigadoAsync(FilaEntrega, TimeSpan.FromSeconds(10))).Should().BeTrue("o consumidor de entrega precisa estar pronto");
+        });
     }
 
     public static Task<int> OrdensAsync(string stringConexao, Guid pedidoId) =>

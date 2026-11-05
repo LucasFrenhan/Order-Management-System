@@ -35,6 +35,26 @@ public sealed class FabricaWorker : WebApplicationFactory<ProgramaWorker>
     /// </summary>
     public FabricaPagamentos? ApiPagamentos { get; init; }
 
+    /// <summary>
+    /// Sobe o Worker e espera as verificações. Se alguma falhar, ele é descartado antes de a exceção
+    /// seguir: quem chamou não recebe o Worker e não teria como descartá-lo, e ele continuaria
+    /// consumindo do broker da coleção, derrubando os testes seguintes (issue #75).
+    /// </summary>
+    public async Task<FabricaWorker> ProntoAsync(Func<Task> verificacoes)
+    {
+        try
+        {
+            CreateClient().Dispose();
+            await verificacoes();
+            return this;
+        }
+        catch
+        {
+            await DisposeAsync();
+            throw;
+        }
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testes");
