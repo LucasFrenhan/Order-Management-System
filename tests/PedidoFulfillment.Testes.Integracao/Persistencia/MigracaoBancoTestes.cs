@@ -45,13 +45,16 @@ public sealed class MigracaoBancoTestes(BancoDadosTeste banco)
                 {
                     (await perfis.CreateAsync(new Perfil(nome))).Succeeded.Should().BeTrue();
                 }
-            }
 
-            var cliente = api.CreateClient();
-            foreach (var email in emails)
-            {
-                var registro = await cliente.PostAsJsonAsync("/api/v1/auth/register", new { nome = "Cliente", email, senha = Senha }, Cancelamento);
-                registro.StatusCode.Should().Be(HttpStatusCode.Created);
+                // Direto pelo Identity, e não pela rota: o registro de hoje também grava a solicitação de
+                // e-mail do REQ-24, em uma tabela que este banco antigo ainda não tem.
+                var usuarios = escopo.ServiceProvider.GetRequiredService<UserManager<Usuario>>();
+                foreach (var email in emails)
+                {
+                    var conta = new Usuario { UserName = email, Email = email, Nome = "Cliente" };
+                    (await usuarios.CreateAsync(conta, Senha)).Succeeded.Should().BeTrue();
+                    (await usuarios.AddToRoleAsync(conta, nameof(PerfilUsuario.Cliente))).Succeeded.Should().BeTrue();
+                }
             }
         }
 

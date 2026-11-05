@@ -109,7 +109,8 @@ public sealed partial class EnvioMailpitTestes(BancoDadosTeste banco, MailpitTes
 
         await RodadaEmailsAsync(api, conexao, opcoes);
 
-        var token = ExpressaoToken().Match((await mailpit.MensagensParaAsync(email)).Single().Texto).Groups[1].Value;
+        var capturado = (await mailpit.MensagensParaAsync(email)).Single(m => m.Assunto == "Recuperação de senha");
+        var token = ExpressaoToken().Match(capturado.Texto).Groups[1].Value;
         token.Should().NotBeEmpty();
         logs.Textos.Should().NotContain(t => t.Contains(token) || t.Contains(email));
         logs.Registros.Should().Contain(r => r.Evento.Id == 3016);
