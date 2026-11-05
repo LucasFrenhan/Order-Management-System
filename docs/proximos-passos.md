@@ -34,6 +34,7 @@ uma sugestão; o número do REQ é dado quando o trabalho começa.
 | 3 | a numerar | [#60](https://github.com/LucasFrenhan/Order-Management-System/issues/60) — Rotação da chave JWT | Várias chaves com `kid` e rotação sem derrubar sessões |
 | 4 | a numerar | [#57](https://github.com/LucasFrenhan/Order-Management-System/issues/57) — Estornos pela operação | Forçar tentativa, dar baixa manual e evento de estorno travado |
 | 5 | a numerar | [#56](https://github.com/LucasFrenhan/Order-Management-System/issues/56) — Evolução do pagamento | Estudo: nova cobrança após recusa, estorno parcial, devolução, pagamento em análise e gateway real |
+| 6 | a numerar | [#75](https://github.com/LucasFrenhan/Order-Management-System/issues/75) — Deadlock no limite de requisições | Investigar: teste intermitente na `main` e possível pausa sem o limite em um deadlock real (REQ-23) |
 | contínua | sem REQ | [#61](https://github.com/LucasFrenhan/Order-Management-System/issues/61) — Dívida técnica de code smells | Sem prazo: todo PR que corrigir code smells referencia a #61 (`Refs #61`) e atualiza a tabela dela |
 
 ### Para análise futura (sem issue)

@@ -40,6 +40,7 @@ docker compose --profile demo down                   # para; os dados continuam 
 | API de pagamento simulada (REQ-19) | <http://localhost:5232/health>; rota de controle com `X-Chave-Controle: controle-dev-local-2026` ([fluxo 14](docs/fluxos/14-gateway-de-pagamento.md)) |
 | Painel do RabbitMQ | <http://localhost:15672> (`oms` / `oms-dev-local`) |
 | Painel de telemetria (traces, métricas e logs) | <http://localhost:18888> (sem login; só local) |
+| E-mails capturados (Mailpit) | <http://localhost:8025> ([e-mails no ambiente local](docs/emails-locais.md)) |
 
 Usuários **somente de desenvolvimento**: `admin@oms.local` / `AdminDev2026` (Admin) e
 `operador@oms.local` / `OperadorDev2026` (OperadorLogistica). Clientes se registram em
@@ -56,7 +57,7 @@ catálogo inicial (`CAT-001` a `CAT-010`).
 ## Próximos passos
 
 As issues de negócio do roteiro original (#1 a #11) já foram entregues, e o próximo trabalho
-começa no REQ-24; a fila tem #54–#57, #59 e #60, e a #61 acompanha a dívida técnica de code smells. A fila de requisitos, o que os REQs anteriores deixaram pronto para
+começa no REQ-25; a fila tem #54, #56, #57, #59, #60 e #75, e a #61 acompanha a dívida técnica de code smells. A fila de requisitos, o que os REQs anteriores deixaram pronto para
 reaproveitar e as decisões já tomadas estão em [Próximos passos](docs/proximos-passos.md).
 
 ## Pré-requisitos
@@ -258,7 +259,7 @@ tests/
                                         saúde, autenticação, persistência, pedidos, mensageria, estoque e pagamento
                                         com SQL Server e RabbitMQ reais (Testcontainers),
                                         schemas de eventos e arquitetura
-docs/                                estado atual, próximos passos, mensageria, integração contínua,
+docs/                                estado atual, próximos passos, mensageria, e-mails locais, integração contínua,
                                      otimização do CI, análise estática e fluxos/ (fluxos de ponta a ponta)
 specs/                               especificações SDD (spec, plano, tarefas, contrato)
 ```
