@@ -241,6 +241,93 @@ paths:
         '500':
           $ref: '#/components/responses/ErroInterno'
 
+  /api/v1/auth/confirmacao-email:
+    post:
+      tags: [Autenticacao]
+      operationId: ConfirmarEmail
+      summary: Confirma o e-mail da conta com o token recebido por e-mail.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmacaoEmailRequestDTO'
+      responses:
+        '204':
+          description: E-mail confirmado.
+        '400':
+          description: Dados de entrada inválidos, ou token inválido, expirado ou já usado.
+          content:
+            application/problem+json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ValidacaoProblemDetails'
+                  - $ref: '#/components/schemas/NegocioProblemDetails'
+              example:
+                type: https://tools.ietf.org/html/rfc9110#section-15.5.1
+                title: Token inválido.
+                status: 400
+                detail: O token é inválido ou expirou. Peça um novo e-mail.
+                instance: /api/v1/auth/confirmacao-email
+                traceId: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00
+                codigo: TOKEN_INVALIDO
+        '429':
+          $ref: '#/components/responses/ErroLimiteRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /api/v1/auth/confirmacao-email/reenvio:
+    post:
+      tags: [Autenticacao]
+      operationId: ReenviarConfirmacaoEmail
+      summary: Pede um novo e-mail de confirmação.
+      description: A resposta é a mesma em qualquer caso, e só uma conta não confirmada recebe o e-mail (REQ-24).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReenvioConfirmacaoRequestDTO'
+      responses:
+        '202':
+          description: Pedido recebido, em qualquer caso.
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '429':
+          $ref: '#/components/responses/ErroLimiteRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /api/v1/auth/troca-senha:
+    post:
+      tags: [Autenticacao]
+      operationId: TrocarSenha
+      summary: Troca a senha da pessoa conectada e encerra todas as sessões da conta.
+      description: |
+        Perfis autorizados: todos. Uma senha atual errada conta para o bloqueio de conta, e a resposta
+        continua a mesma com a conta bloqueada. O token de acesso em uso vale até expirar (REQ-24).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrocaSenhaRequestDTO'
+      responses:
+        '204':
+          description: Senha trocada.
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
   /api/v1/pedidos:
     get:
       tags: [Pedidos]
@@ -1415,6 +1502,37 @@ components:
           type: string
           format: email
           maxLength: 256
+
+    ConfirmacaoEmailRequestDTO:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          maxLength: 128
+
+    ReenvioConfirmacaoRequestDTO:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 256
+
+    TrocaSenhaRequestDTO:
+      type: object
+      required: [senhaAtual, novaSenha]
+      properties:
+        senhaAtual:
+          type: string
+          format: password
+        novaSenha:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+          description: Ao menos uma letra maiúscula, uma minúscula e um dígito.
 
     RedefinicaoSenhaRequestDTO:
       type: object

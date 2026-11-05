@@ -43,6 +43,21 @@ public sealed class GestorIdentidadeFalso : IGestorIdentidade
     public Task<IReadOnlyList<PerfilUsuario>> ObterPerfisAsync(Guid usuarioId, CancellationToken cancellationToken) =>
         Task.FromResult(PerfisAtuais);
 
+    public ResultadoTrocaSenha ResultadoTroca { get; set; } = ResultadoTrocaSenha.Trocada;
+
+    public Task<ResultadoTrocaSenha> TrocarSenhaAsync(Guid usuarioId, string senhaAtual, string novaSenha, CancellationToken cancellationToken) =>
+        Task.FromResult(ResultadoTroca);
+
+    public Guid? ResultadoConfirmacao { get; set; }
+
+    public byte[]? UltimaConfirmacao { get; private set; }
+
+    public Task<Guid?> ConfirmarEmailAsync(byte[] hashToken, CancellationToken cancellationToken)
+    {
+        UltimaConfirmacao = hashToken;
+        return Task.FromResult(ResultadoConfirmacao);
+    }
+
     public Guid? ResultadoRedefinicao { get; set; }
 
     public int ConsultasConta { get; private set; }

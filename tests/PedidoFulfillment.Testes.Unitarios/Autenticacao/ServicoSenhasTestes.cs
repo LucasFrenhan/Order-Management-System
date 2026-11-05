@@ -59,4 +59,45 @@ public sealed class ServicoSenhasTestes
         evento.Propriedades["UsuarioId"].Should().Be(usuario);
         evento.Mensagem.Should().NotContain("token-do-email").And.NotContain(NovaSenha);
     }
+
+    private static TrocaSenhaRequestDTO Troca() => new() { SenhaAtual = "SenhaForte1", NovaSenha = NovaSenha };
+
+    [Fact]
+    public async Task Senha_atual_errada_tem_o_erro_no_campo_e_registra_o_log()
+    {
+        var usuario = Guid.NewGuid();
+        gestor.ResultadoTroca = ResultadoTrocaSenha.SenhaAtualIncorreta;
+
+        var falha = await Criar().TrocarAsync(usuario, Troca(), Cancelamento);
+
+        falha!.Tipo.Should().Be(TipoFalha.Validacao);
+        falha.Erros!["senhaAtual"].Should().Equal("A senha atual está incorreta.");
+        var evento = logger.Eventos.Should().ContainSingle().Subject;
+        evento.Id.Should().Be(new EventId(3013, "TrocaSenhaRecusada"));
+        evento.Propriedades["UsuarioId"].Should().Be(usuario);
+    }
+
+    [Fact]
+    public async Task Senha_nova_igual_a_atual_tem_o_erro_no_campo_sem_log()
+    {
+        gestor.ResultadoTroca = ResultadoTrocaSenha.MesmaSenha;
+
+        var falha = await Criar().TrocarAsync(Guid.NewGuid(), Troca(), Cancelamento);
+
+        falha!.Erros!["novaSenha"].Should().Equal("A nova senha deve ser diferente da atual.");
+        logger.Eventos.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Troca_concluida_registra_o_log()
+    {
+        var usuario = Guid.NewGuid();
+
+        var falha = await Criar().TrocarAsync(usuario, Troca(), Cancelamento);
+
+        falha.Should().BeNull();
+        var evento = logger.Eventos.Should().ContainSingle().Subject;
+        evento.Id.Should().Be(new EventId(3012, "SenhaTrocada"));
+        evento.Mensagem.Should().NotContain(NovaSenha).And.NotContain("SenhaForte1");
+    }
 }

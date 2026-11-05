@@ -25,12 +25,16 @@ public static class PoliticasAutorizacao
     /// <summary>Gestão do catálogo de produtos: só o Admin (REQ-22, FR-008).</summary>
     public const string PoliticaCatalogo = nameof(PoliticaCatalogo);
 
+    /// <summary>Operações da própria conta, como a troca de senha: qualquer perfil (REQ-24).</summary>
+    public const string PoliticaContaAutenticada = nameof(PoliticaContaAutenticada);
+
     private static readonly string[] TodosOsPerfis = Enum.GetNames<PerfilUsuario>();
 
     public static IServiceCollection AdicionarPoliticasAutorizacao(this IServiceCollection services)
     {
         services.AddAuthorizationBuilder()
             .AddPolicy(PoliticaCliente, p => p.RequireAuthenticatedUser().RequireRole(nameof(PerfilUsuario.Cliente)))
+            .AddPolicy(PoliticaContaAutenticada, p => p.RequireAuthenticatedUser().RequireRole(TodosOsPerfis))
             .AddPolicy(PoliticaConsultaPedido, p => p.RequireAuthenticatedUser().RequireRole(TodosOsPerfis))
             .AddPolicy(PoliticaAtualizacaoStatusPedido, p => p.RequireAuthenticatedUser().RequireRole(TodosOsPerfis))
             .AddPolicy(PoliticaRastreioPedido, p => p.RequireAuthenticatedUser()

@@ -2,6 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection;
+using PedidoFulfillment.Infrastructure.Identidade;
 using PedidoFulfillment.Testes.Integracao.Infraestrutura;
 
 namespace PedidoFulfillment.Testes.Integracao.Autenticacao;
@@ -42,6 +45,22 @@ public sealed class UsuariosIniciaisComBancoTestes(BancoDadosTeste banco)
 
         (await PerfisDoLogin(cliente, EmailAdmin, SenhaAdmin)).Should().Equal("Admin");
         (await PerfisDoLogin(cliente, EmailOperador, SenhaOperador)).Should().Equal("OperadorLogistica");
+    }
+
+    [Fact]
+    public async Task Usuarios_iniciais_entram_confirmados_e_os_ja_existentes_nao_mudam()
+    {
+        Assert.SkipUnless(banco.DockerDisponivel, "Docker indisponível");
+        await using var cenario = await CenarioIdentidade.CriarAsync(banco);
+        await cenario.ContaAsync(EmailAdmin);
+        await using var api = Api(cenario.StringConexao);
+        api.CreateClient().Dispose();
+
+        await using var escopo = api.Services.CreateAsyncScope();
+        var usuarios = escopo.ServiceProvider.GetRequiredService<UserManager<Usuario>>();
+
+        (await usuarios.FindByEmailAsync(EmailOperador))!.EmailConfirmed.Should().BeTrue();
+        (await usuarios.FindByEmailAsync(EmailAdmin))!.EmailConfirmed.Should().BeFalse("já existia");
     }
 
     [Fact]
