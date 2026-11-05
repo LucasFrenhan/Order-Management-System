@@ -43,7 +43,8 @@ sequenceDiagram
 ### Ambiente local
 
 Em Development e na demonstração, o Mailpit do `docker-compose.yml` captura os e-mails, sem sair para a internet: SMTP
-na porta 1025 (`OMS_MAILPIT_SMTP_PORTA`) e tela em `http://localhost:8025` (`OMS_MAILPIT_TELA_PORTA`).
+na porta 1025 (`OMS_MAILPIT_SMTP_PORTA`) e tela em `http://localhost:8025` (`OMS_MAILPIT_TELA_PORTA`). Os e-mails ficam só em
+memória: reiniciar o contêiner apaga os anteriores.
 
 ## Erros conhecidos e tratados
 

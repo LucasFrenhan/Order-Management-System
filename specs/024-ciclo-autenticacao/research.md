@@ -140,3 +140,14 @@ As solicitações de e-mail saem ao serem processadas e não precisam de limpeza
 - **`FabricaApi`**: limites altos para as políticas novas, como no REQ-23. **`FabricaWorker`**: `Email:Habilitado=false`, salvo nos testes dele.
 - **SC-005 (tempo)**: em uma coleção que não roda em paralelo, comparando as medianas de 100 pedidos de cada caso.
 - **SC-006 (despejo)**: o token devolvido ou capturado não aparece em nenhuma coluna, e o hash não autentica nada.
+
+## Resultado do quickstart (T067, 2026-11-05)
+
+Executado com o compose, no perfil `demo`, todas as seções de 3.1 a 3.8 e os logs da seção 4, sem falhas.
+
+- **R-05**: as portas do Mailpit são as documentadas: SMTP na 1025 e tela na 8025.
+- **SC-004**: recuperação de ponta a ponta em 9 s, com o limite de 2 minutos.
+- **SC-007**: com o contêiner parado de verdade, a rota respondeu o mesmo 202, o Worker registrou o log 3017, e o e-mail chegou 33 s depois da volta, com o limite de 5 minutos.
+- **SC-006**: as duas colunas `HashToken` são `binary(32)`, e o token capturado não está no banco.
+- **Nenhum e-mail completo nem token** nos logs da API e do Worker.
+- **O Mailpit guarda os e-mails em memória**: reiniciar o contêiner apaga os anteriores.
