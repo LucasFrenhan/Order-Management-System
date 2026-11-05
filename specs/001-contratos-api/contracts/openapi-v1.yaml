@@ -12,7 +12,9 @@ info:
     Todos os erros seguem RFC 7807 (application/problem+json).
 
     Evoluções compatíveis: REQ-11 acrescentou `historico` e `entrega` à resposta do pedido e
-    a operação `PATCH /api/v1/pedidos/{id}/rastreio`.
+    a operação `PATCH /api/v1/pedidos/{id}/rastreio`. REQ-24 acrescentou as rotas do ciclo de
+    autenticação e os campos `tokenRenovacao` e `tokenRenovacaoExpiraEm` à resposta do login, e
+    mudou o padrão da validade do token de acesso de 60 para 15 minutos: leia `expiraEm`.
 servers:
   - url: /
 tags:
@@ -90,6 +92,8 @@ paths:
                 tipoToken: Bearer
                 expiraEm: '2026-10-21T18:00:00Z'
                 perfis: [Cliente]
+                tokenRenovacao: 8sJq0rS1aVb3nXyZk7LmP2tQw9EeR4uIo6DfG5hJc1A
+                tokenRenovacaoExpiraEm: '2026-11-04T17:45:00Z'
         '400':
           $ref: '#/components/responses/ErroValidacao'
         '401':
@@ -105,6 +109,73 @@ paths:
                 detail: E-mail ou senha incorretos.
                 instance: /api/v1/auth/login
                 traceId: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00
+        '429':
+          $ref: '#/components/responses/ErroLimiteRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /api/v1/auth/renovacao:
+    post:
+      tags: [Autenticacao]
+      operationId: RenovarSessao
+      summary: Troca um token de renovação por um novo par de tokens.
+      description: |
+        Cada token de renovação serve uma só vez. Apresentar de novo um token já usado encerra toda
+        a sessão, inclusive o token mais recente dela: renove uma vez de cada vez (REQ-24).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RenovacaoRequestDTO'
+      responses:
+        '200':
+          description: Sessão renovada, com o mesmo corpo do login.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          description: Token inválido, expirado, reutilizado ou de sessão encerrada, sem indicar o motivo.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://tools.ietf.org/html/rfc9110#section-15.5.2
+                title: Sessão inválida.
+                status: 401
+                detail: Faça login novamente.
+                instance: /api/v1/auth/renovacao
+                traceId: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00
+        '429':
+          $ref: '#/components/responses/ErroLimiteRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Autenticacao]
+      operationId: EncerrarSessao
+      summary: Encerra a sessão do token de renovação informado.
+      description: |
+        Não exige token de acesso, para funcionar também com ele expirado. O token de acesso ainda
+        válido continua funcionando até expirar (REQ-24).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequestDTO'
+      responses:
+        '204':
+          description: Encerrada, ou o token já não valia. Repetir não é erro e não revela nada.
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
         '429':
           $ref: '#/components/responses/ErroLimiteRequisicoes'
         '500':
@@ -1237,7 +1308,7 @@ components:
 
     LoginResponseDTO:
       type: object
-      required: [tokenAcesso, tipoToken, expiraEm, perfis]
+      required: [tokenAcesso, tipoToken, expiraEm, perfis, tokenRenovacao, tokenRenovacaoExpiraEm]
       properties:
         tokenAcesso:
           type: string
@@ -1247,11 +1318,34 @@ components:
         expiraEm:
           type: string
           format: date-time
-          description: Instante de expiração (UTC), 60 minutos após a emissão.
+          description: Instante de expiração (UTC). A validade é configurável, 15 minutos por padrão.
         perfis:
           type: array
           items:
             $ref: '#/components/schemas/PerfilUsuario'
+        tokenRenovacao:
+          type: string
+          description: Token opaco, de uso único, para POST /api/v1/auth/renovacao.
+        tokenRenovacaoExpiraEm:
+          type: string
+          format: date-time
+          description: Instante de expiração (UTC) do token de renovação.
+
+    RenovacaoRequestDTO:
+      type: object
+      required: [tokenRenovacao]
+      properties:
+        tokenRenovacao:
+          type: string
+          maxLength: 128
+
+    LogoutRequestDTO:
+      type: object
+      required: [tokenRenovacao]
+      properties:
+        tokenRenovacao:
+          type: string
+          maxLength: 128
 
     ItemPedidoDTO:
       type: object

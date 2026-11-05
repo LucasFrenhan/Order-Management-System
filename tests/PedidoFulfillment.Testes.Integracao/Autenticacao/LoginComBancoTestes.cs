@@ -34,7 +34,7 @@ public sealed class LoginComBancoTestes(BancoDadosTeste banco)
         var corpo = await resposta.Content.ReadFromJsonAsync<JsonElement>(Cancelamento);
         corpo.GetProperty("tipoToken").GetString().Should().Be("Bearer");
         corpo.GetProperty("perfis").EnumerateArray().Select(p => p.GetString()).Should().Equal("Cliente");
-        corpo.GetProperty("expiraEm").GetDateTimeOffset().Should().BeCloseTo(DateTimeOffset.UtcNow.AddMinutes(60), TimeSpan.FromMinutes(1));
+        corpo.GetProperty("expiraEm").GetDateTimeOffset().Should().BeCloseTo(DateTimeOffset.UtcNow.AddMinutes(15), TimeSpan.FromMinutes(1));
     }
 
     [Fact]

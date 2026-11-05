@@ -28,7 +28,7 @@ public sealed partial class FluxoEventosTempoReal
     /// <summary>"Antes do primeiro aviso": o <c>id</c> do <c>conectado</c> com a tabela vazia.</summary>
     public static readonly string IdInicio = Guid.Empty.ToString();
 
-    /// <summary>Teto da duração, para um token sem <c>exp</c> (o do REQ-03 dura 60 minutos).</summary>
+    /// <summary>Teto da duração, para um token sem <c>exp</c> (o token de acesso dura 15 minutos por padrão, REQ-24).</summary>
     private static readonly TimeSpan MaximoConexao = TimeSpan.FromDays(1);
 
     private readonly LeituraAvisos leitura;

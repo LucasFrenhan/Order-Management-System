@@ -81,12 +81,16 @@ internal sealed class GestorIdentidade(UserManager<Usuario> usuarios, ContextoBa
             await usuarios.ResetAccessFailedCountAsync(usuario);
         }
 
-        var perfis = (await usuarios.GetRolesAsync(usuario))
-            .Select(nome => Enum.TryParse<PerfilUsuario>(nome, out var perfil) ? perfil : (PerfilUsuario?)null)
-            .OfType<PerfilUsuario>()
-            .ToArray();
-        return ResultadoCredenciais.Valida(usuario.Id, perfis);
+        return ResultadoCredenciais.Valida(usuario.Id, await PerfisAsync(usuario));
     }
+
+    public async Task<IReadOnlyList<PerfilUsuario>> ObterPerfisAsync(Guid usuarioId, CancellationToken cancellationToken) =>
+        await usuarios.FindByIdAsync(usuarioId.ToString()) is { } usuario ? await PerfisAsync(usuario) : [];
+
+    private async Task<PerfilUsuario[]> PerfisAsync(Usuario usuario) =>
+        [.. (await usuarios.GetRolesAsync(usuario))
+            .Select(nome => Enum.TryParse<PerfilUsuario>(nome, out var perfil) ? perfil : (PerfilUsuario?)null)
+            .OfType<PerfilUsuario>()];
 
     private string HashReferencia() =>
         hashReferencia ??= usuarios.PasswordHasher.HashPassword(new Usuario(), Guid.NewGuid().ToString());

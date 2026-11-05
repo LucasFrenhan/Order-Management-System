@@ -8,7 +8,7 @@ namespace PedidoFulfillment.Application.Autenticacao;
 /// Regras de registro e login (research R-01): aparo, respostas do contrato e eventos de
 /// segurança com e-mail mascarado (FR-019).
 /// </summary>
-public sealed class ServicoAutenticacao(IGestorIdentidade gestor, IEmissorToken emissor, ILogger<ServicoAutenticacao> logger)
+public sealed class ServicoAutenticacao(IGestorIdentidade gestor, IServicoSessoes sessoes, ILogger<ServicoAutenticacao> logger)
     : IServicoAutenticacao
 {
     // Única resposta para e-mail inexistente, senha errada e conta bloqueada (FR-008, FR-009).
@@ -33,7 +33,7 @@ public sealed class ServicoAutenticacao(IGestorIdentidade gestor, IEmissorToken 
         if (verificacao is { Situacao: SituacaoCredenciais.Valida, UsuarioId: { } usuarioId })
         {
             EventosAutenticacao.LoginRealizado(logger, usuarioId);
-            return emissor.Emitir(usuarioId, verificacao.Perfis);
+            return await sessoes.IniciarAsync(usuarioId, verificacao.Perfis, cancellationToken);
         }
 
         var emailMascarado = MascaraEmail.Mascarar(email);

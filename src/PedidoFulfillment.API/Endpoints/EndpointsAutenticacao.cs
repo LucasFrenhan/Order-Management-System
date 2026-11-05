@@ -35,6 +35,28 @@ public static class EndpointsAutenticacao
             .Produces<LoginResponseDTO>()
             .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status401Unauthorized, StatusCodes.Status429TooManyRequests);
 
+        grupo.MapPost("/renovacao", async (RenovacaoRequestDTO renovacao, IServicoSessoes servico, CancellationToken cancellationToken) =>
+                (await servico.RenovarAsync(renovacao, cancellationToken)).ParaResposta(token => TypedResults.Ok(token)))
+            .WithName("RenovarSessao")
+            .WithSummary("Troca um token de renovação por um novo par de tokens.")
+            .AddEndpointFilter<FiltroValidacao<RenovacaoRequestDTO>>()
+            .ComLimiteRequisicoes(RotaLimitada.Renovacao)
+            .Produces<LoginResponseDTO>()
+            .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status401Unauthorized, StatusCodes.Status429TooManyRequests);
+
+        // Sem exigir token de acesso: precisa funcionar também com ele expirado (FR-008).
+        grupo.MapPost("/logout", async (LogoutRequestDTO logout, IServicoSessoes servico, CancellationToken cancellationToken) =>
+            {
+                await servico.EncerrarAsync(logout, cancellationToken);
+                return TypedResults.NoContent();
+            })
+            .WithName("EncerrarSessao")
+            .WithSummary("Encerra a sessão do token de renovação informado.")
+            .AddEndpointFilter<FiltroValidacao<LogoutRequestDTO>>()
+            .ComLimiteRequisicoes(RotaLimitada.Logout)
+            .Produces(StatusCodes.Status204NoContent)
+            .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status429TooManyRequests);
+
         return app;
     }
 }

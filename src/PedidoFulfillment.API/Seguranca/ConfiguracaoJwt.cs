@@ -19,7 +19,7 @@ public sealed class OpcoesJwt
 
     public string ChaveAssinatura { get; set; } = "";
 
-    public int DuracaoTokenMinutos { get; set; } = 60;
+    public int DuracaoTokenMinutos { get; set; } = 15;
 }
 
 /// <summary>
