@@ -47,6 +47,8 @@ internal sealed class GestorIdentidade(
                 throw Inesperado(perfil);
             }
 
+            // Na mesma transação: sem conta, nenhum e-mail; e a resposta do registro não muda (FR-017).
+            await fila.EnfileirarAsync(TipoEmail.ConfirmacaoEmail, email, cancellationToken);
             await transacao.CommitAsync(cancellationToken);
         }
         catch (DbUpdateException excecao) when (ErrosBancoDados.EhViolacaoUnicidade(excecao))
@@ -110,6 +112,47 @@ internal sealed class GestorIdentidade(
         Garantir(await usuarios.UpdateSecurityStampAsync(usuario));
         await sessoes.EncerrarSessoesDaContaAsync(usuarioId, agora, cancellationToken);
         await fila.EnfileirarAsync(TipoEmail.AvisoSenhaRedefinida, usuario.Email!, cancellationToken);
+        await transacao.CommitAsync(cancellationToken);
+        return usuarioId;
+    }
+
+    public async Task<ResultadoTrocaSenha> TrocarSenhaAsync(Guid usuarioId, string senhaAtual, string novaSenha, CancellationToken cancellationToken)
+    {
+        if (await usuarios.FindByIdAsync(usuarioId.ToString()) is not { } usuario || await usuarios.IsLockedOutAsync(usuario))
+        {
+            return ResultadoTrocaSenha.SenhaAtualIncorreta;
+        }
+
+        if (!await usuarios.CheckPasswordAsync(usuario, senhaAtual))
+        {
+            await usuarios.AccessFailedAsync(usuario);
+            return ResultadoTrocaSenha.SenhaAtualIncorreta;
+        }
+
+        if (senhaAtual == novaSenha)
+        {
+            return ResultadoTrocaSenha.MesmaSenha;
+        }
+
+        await using var transacao = await contexto.Database.BeginTransactionAsync(cancellationToken);
+        Garantir(await usuarios.ChangePasswordAsync(usuario, senhaAtual, novaSenha));
+        Garantir(await usuarios.ResetAccessFailedCountAsync(usuario));
+        await sessoes.EncerrarSessoesDaContaAsync(usuarioId, relogio.GetUtcNow(), cancellationToken);
+        await transacao.CommitAsync(cancellationToken);
+        return ResultadoTrocaSenha.Trocada;
+    }
+
+    public async Task<Guid?> ConfirmarEmailAsync(byte[] hashToken, CancellationToken cancellationToken)
+    {
+        await using var transacao = await contexto.Database.BeginTransactionAsync(cancellationToken);
+        if (await sessoes.ConsumirTokenUsoUnicoAsync(FinalidadeTokenUsoUnico.ConfirmacaoEmail, hashToken, relogio.GetUtcNow(), cancellationToken) is not { } usuarioId
+            || await usuarios.FindByIdAsync(usuarioId.ToString()) is not { } usuario)
+        {
+            return null;
+        }
+
+        usuario.EmailConfirmed = true;
+        Garantir(await usuarios.UpdateAsync(usuario));
         await transacao.CommitAsync(cancellationToken);
         return usuarioId;
     }

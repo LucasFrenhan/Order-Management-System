@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using PedidoFulfillment.API.Erros;
 using PedidoFulfillment.API.LimiteRequisicoes;
 using PedidoFulfillment.API.OpenApi;
+using PedidoFulfillment.API.Seguranca;
 using PedidoFulfillment.Application.Autenticacao;
 using PedidoFulfillment.Application.Contratos.Autenticacao;
 using PedidoFulfillment.Application.LimiteRequisicoes;
@@ -8,8 +10,8 @@ using PedidoFulfillment.Application.LimiteRequisicoes;
 namespace PedidoFulfillment.API.Endpoints;
 
 /// <summary>
-/// Rotas públicas de autenticação (User Story 2). Só roteiam: validam, delegam ao serviço e
-/// traduzem o resultado.
+/// Rotas de autenticação: as públicas e a troca de senha, que exige token (REQ-24). Só roteiam:
+/// validam, delegam ao serviço e traduzem o resultado.
 /// </summary>
 public static class EndpointsAutenticacao
 {
@@ -78,6 +80,39 @@ public static class EndpointsAutenticacao
             .Produces(StatusCodes.Status204NoContent)
             .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status429TooManyRequests)
             .ComErroToken();
+
+        grupo.MapPost("/confirmacao-email", async (ConfirmacaoEmailRequestDTO confirmacao, IServicoConfirmacaoEmail servico, CancellationToken cancellationToken) =>
+                (await servico.ConfirmarAsync(confirmacao, cancellationToken)).ParaSemConteudo())
+            .WithName("ConfirmarEmail")
+            .WithSummary("Confirma o e-mail da conta com o token recebido por e-mail.")
+            .AddEndpointFilter<FiltroValidacao<ConfirmacaoEmailRequestDTO>>()
+            .ComLimiteRequisicoes(RotaLimitada.ConfirmacaoEmail)
+            .Produces(StatusCodes.Status204NoContent)
+            .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status429TooManyRequests)
+            .ComErroToken();
+
+        grupo.MapPost("/confirmacao-email/reenvio", async (ReenvioConfirmacaoRequestDTO pedido, IServicoConfirmacaoEmail servico, CancellationToken cancellationToken) =>
+            {
+                await servico.PedirReenvioAsync(pedido, cancellationToken);
+                return TypedResults.Accepted((string?)null);
+            })
+            .WithName("ReenviarConfirmacaoEmail")
+            .WithSummary("Pede um novo e-mail de confirmação.")
+            .AddEndpointFilter<FiltroValidacao<ReenvioConfirmacaoRequestDTO>>()
+            .ComLimiteRequisicoes(RotaLimitada.ReenvioConfirmacao)
+            .Produces(StatusCodes.Status202Accepted)
+            .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status429TooManyRequests);
+
+        // Fora do grupo: o AllowAnonymous dele prevaleceria sobre a política e deixaria a rota pública.
+        app.MapPost("/api/v1/auth/troca-senha", async (TrocaSenhaRequestDTO troca, ClaimsPrincipal usuario, IServicoSenhas servico, CancellationToken cancellationToken) =>
+                (await servico.TrocarAsync(usuario.ObterUsuarioId(), troca, cancellationToken)).ParaSemConteudo())
+            .WithTags("Autenticacao")
+            .WithName("TrocarSenha")
+            .WithSummary("Troca a senha da pessoa conectada e encerra todas as sessões da conta.")
+            .RequireAuthorization(PoliticasAutorizacao.PoliticaContaAutenticada)
+            .AddEndpointFilter<FiltroValidacao<TrocaSenhaRequestDTO>>()
+            .Produces(StatusCodes.Status204NoContent)
+            .ProduzErros(StatusCodes.Status400BadRequest);
 
         return app;
     }

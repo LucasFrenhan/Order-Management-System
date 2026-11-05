@@ -30,4 +30,22 @@ public sealed class ServicoSenhas(IFilaEmails fila, IGestorIdentidade gestor, IL
         EventosAutenticacao.SenhaRedefinida(logger, id);
         return null;
     }
+
+    public async Task<Falha?> TrocarAsync(Guid usuarioId, TrocaSenhaRequestDTO troca, CancellationToken cancellationToken)
+    {
+        switch (await gestor.TrocarSenhaAsync(usuarioId, troca.SenhaAtual, troca.NovaSenha, cancellationToken))
+        {
+            case ResultadoTrocaSenha.Trocada:
+                EventosAutenticacao.SenhaTrocada(logger, usuarioId);
+                return null;
+            case ResultadoTrocaSenha.MesmaSenha:
+                return ErroNoCampo("novaSenha", "A nova senha deve ser diferente da atual.");
+            default:
+                EventosAutenticacao.TrocaSenhaRecusada(logger, usuarioId);
+                return ErroNoCampo("senhaAtual", "A senha atual está incorreta.");
+        }
+    }
+
+    private static Falha ErroNoCampo(string campo, string mensagem) =>
+        new(TipoFalha.Validacao, "Dados de entrada inválidos.", Erros: new Dictionary<string, string[]> { [campo] = [mensagem] });
 }

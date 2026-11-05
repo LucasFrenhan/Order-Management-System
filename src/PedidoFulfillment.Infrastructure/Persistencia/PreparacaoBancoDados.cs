@@ -145,7 +145,8 @@ internal sealed partial class PreparacaoBancoDados(
                 continue;
             }
 
-            var usuario = new Usuario { UserName = email, Email = email, Nome = inicial.Nome.Trim() };
+            // Confirmados: são configurados pela operação (REQ-24). Os que já existem não mudam.
+            var usuario = new Usuario { UserName = email, Email = email, Nome = inicial.Nome.Trim(), EmailConfirmed = true };
             await using var transacao = await contexto.Database.BeginTransactionAsync(cancellationToken);
             try
             {

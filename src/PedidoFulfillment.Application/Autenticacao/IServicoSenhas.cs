@@ -11,4 +11,10 @@ public interface IServicoSenhas
 
     /// <summary>Troca a senha pelo token. Inválido, expirado ou usado devolve a mesma falha (FR-016); sucesso devolve nulo.</summary>
     Task<Falha?> RedefinirAsync(RedefinicaoSenhaRequestDTO redefinicao, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Troca a senha da pessoa conectada e encerra todas as sessões (FR-010, FR-011). Senha errada ou
+    /// conta bloqueada têm a mesma falha, em <c>senhaAtual</c>: o bloqueio não aparece (FR-012).
+    /// </summary>
+    Task<Falha?> TrocarAsync(Guid usuarioId, TrocaSenhaRequestDTO troca, CancellationToken cancellationToken);
 }
