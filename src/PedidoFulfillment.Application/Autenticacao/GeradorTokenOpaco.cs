@@ -13,8 +13,11 @@ public static class GeradorTokenOpaco
 {
     public const int TamanhoBytes = 32;
 
-    /// <summary>Base64 URL de 32 bytes, sem preenchimento. Limite para os DTOs que recebem um token.</summary>
+    /// <summary>Base64 URL de 32 bytes, sem preenchimento.</summary>
     public const int TamanhoTexto = 43;
+
+    /// <summary>O que os DTOs aceitam receber: limita o que é calculado, com folga para mudar a forma do token.</summary>
+    public const int TamanhoMaximoRecebido = 128;
 
     public static string Gerar() => Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(TamanhoBytes));
 

@@ -34,8 +34,8 @@ public sealed class EmissorTokenTestes(FabricaApi fabrica) : IClassFixture<Fabri
         token.GetClaim("iat").Value.Should().Be(instante.ToUnixTimeSeconds().ToString());
         token.Claims.Where(c => c.Type == "role").Select(c => c.Value).Should().BeEquivalentTo("Cliente", "Admin");
         token.Claims.Select(c => c.Type).Distinct().Should().BeEquivalentTo("sub", "jti", "role", "iss", "aud", "iat", "nbf", "exp");
-        token.ValidTo.Should().Be(instante.AddMinutes(60).UtcDateTime);
-        login.ExpiraEm.Should().Be(instante.AddMinutes(60));
+        token.ValidTo.Should().Be(instante.AddMinutes(15).UtcDateTime);
+        login.ExpiraEm.Should().Be(instante.AddMinutes(15));
         login.TipoToken.Should().Be("Bearer");
         login.Perfis.Should().Equal(PerfilUsuario.Cliente, PerfilUsuario.Admin);
     }

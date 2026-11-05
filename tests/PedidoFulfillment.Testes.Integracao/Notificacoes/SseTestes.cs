@@ -275,6 +275,43 @@ public sealed class SseTestes(BancoDadosTeste banco)
         (await conexao.EncerradoAsync(TimeSpan.FromSeconds(10))).Should().BeTrue();
     }
 
+    /// <summary>
+    /// O token de acesso vale 15 minutos por padrão (REQ-24), então a conexão cai com mais frequência:
+    /// o cliente renova a sessão e reconecta com <c>Last-Event-ID</c>, sem perder avisos (R-06).
+    /// </summary>
+    [Fact]
+    public async Task Depois_de_o_token_expirar_reconectar_com_um_token_renovado_recupera_os_avisos()
+    {
+        Assert.SkipUnless(banco.DockerDisponivel, "Docker indisponível");
+        // A queda em si está em A_conexao_termina_no_exp_do_token; aqui importa a volta, com outro token.
+        await using var api = ApiSse(banco.NovoBanco());
+        var operador = await OperadorAsync(api);
+        var email = $"cliente-{Guid.NewGuid():N}@exemplo.com.br";
+        var anonimo = api.CreateClient();
+        await CenarioAutenticacao.RegistrarAsync(anonimo, email);
+        var tokens = await CenarioAutenticacao.LoginAsync(anonimo, email);
+        var cliente = api.CreateClient().ComToken(tokens.Acesso);
+        var pedido = (await CriadoAsync(cliente, (Cat001, 1))).GetProperty("id").GetGuid();
+
+        string ultimo;
+        await using (var primeira = await LeitorSseTeste.AbrirAsync(cliente))
+        {
+            (await primeira.ProximoAsync(Prazo))!.Value.EventType.Should().Be("conectado");
+            (await MudarStatusAsync(operador, pedido, "Processando")).EnsureSuccessStatusCode();
+            ultimo = (await primeira.ProximoAvisoAsync(Prazo))!.Value.EventId!;
+        }
+
+        (await MudarStatusAsync(operador, pedido, "ProntoParaEnvio")).EnsureSuccessStatusCode();
+        var renovados = await CenarioAutenticacao.TokensAsync(await CenarioAutenticacao.RenovarAsync(anonimo, tokens.Renovacao));
+        var renovado = api.CreateClient().ComToken(renovados.Acesso);
+
+        await using var segunda = await LeitorSseTeste.AbrirAsync(renovado, ultimoEvento: ultimo);
+
+        var perdido = (await segunda.ProximoAvisoAsync(Prazo))!.Value;
+        Pedido(perdido.Data).Should().Be(pedido);
+        perdido.Data.Should().Contain("ProntoParaEnvio");
+    }
+
     [Fact]
     public async Task Com_o_broker_inalcancavel_o_aviso_chega_e_duas_instancias_recebem()
     {

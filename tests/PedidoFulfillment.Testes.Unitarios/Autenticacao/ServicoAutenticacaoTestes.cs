@@ -13,12 +13,21 @@ public sealed class ServicoAutenticacaoTestes
     private const string Senha = "SenhaForte1";
 
     private readonly GestorIdentidadeFalso gestor = new();
+    private readonly ArmazenamentoSessoesFalso armazenamento = new();
     private readonly LoggerFalso<ServicoAutenticacao> logger = new();
     private readonly ServicoAutenticacao servico;
 
     public ServicoAutenticacaoTestes()
     {
-        servico = new ServicoAutenticacao(gestor, new EmissorTokenFalso(), logger);
+        var sessoes = new ServicoSessoes(
+            armazenamento,
+            gestor,
+            new EmissorTokenFalso(),
+            new ConfiguracaoSessoes(TimeSpan.FromDays(14), TimeSpan.FromDays(30)),
+            new MetricasAutenticacaoFalsas(),
+            TimeProvider.System,
+            new LoggerFalso<ServicoSessoes>());
+        servico = new ServicoAutenticacao(gestor, sessoes, logger);
     }
 
     private static CancellationToken Cancelamento => TestContext.Current.CancellationToken;
@@ -78,6 +87,9 @@ public sealed class ServicoAutenticacaoTestes
 
         resultado.Valor!.TokenAcesso.Should().Be($"token-de-{usuarioId}");
         resultado.Valor.Perfis.Should().Equal(PerfilUsuario.Cliente);
+        resultado.Valor.TokenRenovacao.Should().NotBeEmpty();
+        resultado.Valor.TokenRenovacaoExpiraEm.Should().Be(ArmazenamentoSessoesFalso.ValidadeToken);
+        armazenamento.SessoesCriadas.Should().ContainSingle().Which.UsuarioId.Should().Be(usuarioId);
         var evento = logger.Eventos.Should().ContainSingle().Subject;
         evento.Id.Should().Be(new EventId(3002, "LoginRealizado"));
         evento.Propriedades["UsuarioId"].Should().Be(usuarioId);
@@ -97,6 +109,7 @@ public sealed class ServicoAutenticacaoTestes
         var resultado = await servico.AutenticarAsync(Login(), Cancelamento);
 
         resultado.Falha.Should().Be(new Falha(TipoFalha.NaoAutenticado, "Credenciais inválidas.", "E-mail ou senha incorretos."));
+        armazenamento.SessoesCriadas.Should().BeEmpty("login recusado não cria sessão");
         var recusa = logger.Eventos.Should().ContainSingle(e => e.Id.Id == 3003).Subject;
         recusa.Id.Name.Should().Be("LoginRecusado");
         recusa.Nivel.Should().Be(LogLevel.Warning);

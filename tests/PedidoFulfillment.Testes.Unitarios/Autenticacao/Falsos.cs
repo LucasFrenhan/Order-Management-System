@@ -36,6 +36,60 @@ public sealed class GestorIdentidadeFalso : IGestorIdentidade
         UltimaVerificacao = (email, senha);
         return Task.FromResult(ResultadoVerificacao);
     }
+
+    public IReadOnlyList<PerfilUsuario> PerfisAtuais { get; set; } = [PerfilUsuario.Cliente];
+
+    public Task<IReadOnlyList<PerfilUsuario>> ObterPerfisAsync(Guid usuarioId, CancellationToken cancellationToken) =>
+        Task.FromResult(PerfisAtuais);
+}
+
+/// <summary>Armazenamento de sessões falso: devolve a rotação pedida e guarda o que recebeu.</summary>
+public sealed class ArmazenamentoSessoesFalso : IArmazenamentoSessoes
+{
+    public static readonly DateTimeOffset ValidadeToken = new(2026, 11, 19, 12, 0, 0, TimeSpan.Zero);
+
+    public ResultadoRotacao ResultadoRotacao { get; set; } = new(SituacaoRotacao.Recusada);
+
+    public Guid? ResultadoEncerramento { get; set; }
+
+    public List<(Guid UsuarioId, byte[] Hash)> SessoesCriadas { get; } = [];
+
+    public List<(byte[] Apresentado, byte[] Novo)> Rotacoes { get; } = [];
+
+    public List<byte[]> Encerramentos { get; } = [];
+
+    public Task<DateTimeOffset> CriarSessaoAsync(Guid usuarioId, byte[] hashToken, DateTimeOffset agora, ConfiguracaoSessoes validades, CancellationToken cancellationToken)
+    {
+        SessoesCriadas.Add((usuarioId, hashToken));
+        return Task.FromResult(ValidadeToken);
+    }
+
+    public Task<ResultadoRotacao> RotacionarAsync(byte[] hashApresentado, byte[] hashNovo, DateTimeOffset agora, ConfiguracaoSessoes validades, CancellationToken cancellationToken)
+    {
+        Rotacoes.Add((hashApresentado, hashNovo));
+        return Task.FromResult(ResultadoRotacao);
+    }
+
+    public Task<Guid?> EncerrarSessaoAsync(byte[] hashToken, DateTimeOffset agora, CancellationToken cancellationToken)
+    {
+        Encerramentos.Add(hashToken);
+        return Task.FromResult(ResultadoEncerramento);
+    }
+
+    public Task EncerrarSessoesDaContaAsync(Guid usuarioId, DateTimeOffset agora, CancellationToken cancellationToken) => Task.CompletedTask;
+
+    public Task CriarTokenUsoUnicoAsync(Guid usuarioId, FinalidadeTokenUsoUnico finalidade, byte[] hashToken, DateTimeOffset expiraEm, CancellationToken cancellationToken) =>
+        Task.CompletedTask;
+
+    public Task<Guid?> ConsumirTokenUsoUnicoAsync(FinalidadeTokenUsoUnico finalidade, byte[] hashToken, DateTimeOffset agora, CancellationToken cancellationToken) =>
+        Task.FromResult<Guid?>(null);
+}
+
+public sealed class MetricasAutenticacaoFalsas : IMetricasAutenticacao
+{
+    public List<SituacaoRotacao> Renovacoes { get; } = [];
+
+    public void RenovacaoConcluida(SituacaoRotacao situacao) => Renovacoes.Add(situacao);
 }
 
 public sealed class EmissorTokenFalso : IEmissorToken

@@ -1,5 +1,6 @@
 using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Contratos.Autenticacao;
+using PedidoFulfillment.Domain.Usuarios;
 
 namespace PedidoFulfillment.Application.Autenticacao;
 
@@ -19,4 +20,7 @@ public interface IGestorIdentidade
     /// Verifica e-mail e senha, contando os erros seguidos e aplicando o bloqueio (FR-009).
     /// </summary>
     Task<ResultadoCredenciais> VerificarCredenciaisAsync(string email, string senha, CancellationToken cancellationToken);
+
+    /// <summary>Os perfis atuais da conta, para a renovação (REQ-24, FR-007).</summary>
+    Task<IReadOnlyList<PerfilUsuario>> ObterPerfisAsync(Guid usuarioId, CancellationToken cancellationToken);
 }
