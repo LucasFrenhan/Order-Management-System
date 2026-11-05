@@ -61,14 +61,15 @@ internal static class CenarioPagamentoHttp
                 }
             }
         };
-        worker.CreateClient().Dispose();
-        (await mensageria.ConsumidorLigadoAsync(CenarioEstoque.FilaEstoque, TimeSpan.FromSeconds(10))).Should().BeTrue("o consumidor de estoque precisa estar pronto");
-        (await mensageria.ConsumidorLigadoAsync(CenarioPagamento.FilaPagamento, TimeSpan.FromSeconds(10))).Should().BeTrue("o consumidor de pagamento precisa estar pronto");
-        if (comEntrega)
+        return await worker.ProntoAsync(async () =>
         {
-            (await mensageria.ConsumidorLigadoAsync(CenarioEntrega.FilaEntrega, TimeSpan.FromSeconds(10))).Should().BeTrue("o consumidor de entrega precisa estar pronto");
-        }
-        return worker;
+            (await mensageria.ConsumidorLigadoAsync(CenarioEstoque.FilaEstoque, TimeSpan.FromSeconds(10))).Should().BeTrue("o consumidor de estoque precisa estar pronto");
+            (await mensageria.ConsumidorLigadoAsync(CenarioPagamento.FilaPagamento, TimeSpan.FromSeconds(10))).Should().BeTrue("o consumidor de pagamento precisa estar pronto");
+            if (comEntrega)
+            {
+                (await mensageria.ConsumidorLigadoAsync(CenarioEntrega.FilaEntrega, TimeSpan.FromSeconds(10))).Should().BeTrue("o consumidor de entrega precisa estar pronto");
+            }
+        });
     }
 
     public static Task<RespostaOperacaoControle?> CobrancaAsync(FabricaPagamentos api, Guid pedidoId) => api.OperacaoAsync("cobranca", pedidoId);

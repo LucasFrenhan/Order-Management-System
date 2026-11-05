@@ -82,9 +82,8 @@ public abstract class CenarioRecuperacaoConsumo(MensageriaTeste mensageria)
                 servicos(colecao);
             }
         };
-        worker.CreateClient().Dispose();
-        (await UmConsumidorEmCadaFilaAsync(TimeSpan.FromSeconds(10))).Should().BeTrue("os três consumidores precisam estar prontos");
-        return worker;
+        return await worker.ProntoAsync(async () =>
+            (await UmConsumidorEmCadaFilaAsync(TimeSpan.FromSeconds(10))).Should().BeTrue("os três consumidores precisam estar prontos"));
     }
 
     /// <summary>Segura a primeira gravação até o teste liberar.</summary>

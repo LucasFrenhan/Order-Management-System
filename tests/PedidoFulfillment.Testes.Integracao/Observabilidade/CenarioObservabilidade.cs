@@ -50,13 +50,13 @@ internal static class CenarioObservabilidade
             Telemetria = coletor,
             Servicos = servicos
         };
-        worker.CreateClient().Dispose();
-        foreach (var fila in new[] { CenarioEstoque.FilaEstoque, CenarioPagamento.FilaPagamento, CenarioEntrega.FilaEntrega })
+        return await worker.ProntoAsync(async () =>
         {
-            (await mensageria.ConsumidorLigadoAsync(fila, TimeSpan.FromSeconds(10))).Should().BeTrue($"o consumidor de {fila} precisa estar pronto");
-        }
-
-        return worker;
+            foreach (var fila in new[] { CenarioEstoque.FilaEstoque, CenarioPagamento.FilaPagamento, CenarioEntrega.FilaEntrega })
+            {
+                (await mensageria.ConsumidorLigadoAsync(fila, TimeSpan.FromSeconds(10))).Should().BeTrue($"o consumidor de {fila} precisa estar pronto");
+            }
+        });
     }
 
     /// <summary>
