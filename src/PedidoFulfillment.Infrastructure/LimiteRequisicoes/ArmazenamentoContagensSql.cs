@@ -9,10 +9,12 @@ using PedidoFulfillment.Infrastructure.Persistencia;
 namespace PedidoFulfillment.Infrastructure.LimiteRequisicoes;
 
 /// <summary>
-/// O estado único dos limites no SQL Server (REQ-23, R-01 e R-03). Um só lote por requisição: lê as
-/// contagens com bloqueio, em ordem de chave, e só incrementa se nenhuma atingiu o limite. O relógio
-/// é o do banco (FR-008). Roda em um pool de conexões próprio, para uma inundação não esgotar as
-/// conexões dos pedidos (R-04).
+/// O estado único dos limites no SQL Server (REQ-23, R-01 e R-03). Um só lote por requisição: bloqueia
+/// cada chave pelo nome, em ordem, lê as contagens e só incrementa se nenhuma atingiu o limite. O
+/// bloqueio por nome existe porque <c>HOLDLOCK</c> em chave que ainda não existe bloqueia um intervalo
+/// do índice, e chaves em ordem não impedem ciclos entre intervalos (issue #75). O relógio é o do banco
+/// (FR-008). Roda em um pool de conexões próprio, para uma inundação não esgotar as conexões dos
+/// pedidos (R-04).
 /// </summary>
 internal sealed class ArmazenamentoContagensSql(IOptions<OpcoesSqlServer> sqlServer) : IArmazenamentoContagens
 {
@@ -20,23 +22,39 @@ internal sealed class ArmazenamentoContagensSql(IOptions<OpcoesSqlServer> sqlSer
 
     private const int MaximoConexoes = 20;
     private const int MinimoConexoes = 2;
-    private const int NumeroDeadlock = 1205;
+
+    /// <summary><c>sp_getapplock</c> não lança o erro 1205: devolve um código negativo, e o lote o relança com este número.</summary>
+    private const int NumeroBloqueioNaoObtido = 50075;
 
     private const string Lote = """
         SET NOCOUNT ON; SET XACT_ABORT ON; SET DEADLOCK_PRIORITY HIGH;
         DECLARE @agora datetime2(3) = SYSUTCDATETIME();
         DECLARE @c1 int = 0, @f1 datetime2(3), @b1 bit = 0, @c2 int = 0, @f2 datetime2(3), @b2 bit = 0;
+        DECLARE @bloqueio int, @recurso nvarchar(255);
 
         BEGIN TRANSACTION;
 
+        -- Só quem conta a mesma chave entra em fila. Sem HOLDLOCK, chaves diferentes não disputam intervalos.
+        SET @recurso = N'oms-limite-' + CONVERT(nvarchar(64), @k1, 2);
+        EXEC @bloqueio = sp_getapplock @Resource = @recurso, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = -1;
+        IF @bloqueio < 0 THROW 50075, N'Bloqueio da contagem não obtido.', 1;
+
+        IF @k2 IS NOT NULL
+        BEGIN
+            SET @recurso = N'oms-limite-' + CONVERT(nvarchar(64), @k2, 2);
+            EXEC @bloqueio = sp_getapplock @Resource = @recurso, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = -1;
+            IF @bloqueio < 0 THROW 50075, N'Bloqueio da contagem não obtido.', 1;
+        END
+
+        -- UPDLOCK segura a linha contra a limpeza, que apaga as contagens vencidas sem pegar o bloqueio por nome.
         SELECT @c1 = CASE WHEN FimJanela > @agora THEN Contador ELSE 0 END, @f1 = FimJanela,
                @b1 = CASE WHEN FimJanela > @agora THEN BloqueioRegistrado ELSE 0 END
-        FROM ContagensLimite WITH (UPDLOCK, HOLDLOCK) WHERE Chave = @k1;
+        FROM ContagensLimite WITH (UPDLOCK, ROWLOCK) WHERE Chave = @k1;
 
         IF @k2 IS NOT NULL
             SELECT @c2 = CASE WHEN FimJanela > @agora THEN Contador ELSE 0 END, @f2 = FimJanela,
                    @b2 = CASE WHEN FimJanela > @agora THEN BloqueioRegistrado ELSE 0 END
-            FROM ContagensLimite WITH (UPDLOCK, HOLDLOCK) WHERE Chave = @k2;
+            FROM ContagensLimite WITH (UPDLOCK, ROWLOCK) WHERE Chave = @k2;
 
         DECLARE @r1 bit = IIF(@c1 >= @l1, 1, 0), @r2 bit = IIF(@k2 IS NOT NULL AND @c2 >= @l2, 1, 0);
 
@@ -105,11 +123,18 @@ internal sealed class ArmazenamentoContagensSql(IOptions<OpcoesSqlServer> sqlSer
                 TimeSpan.FromMilliseconds(l.EsperaMs),
                 l.PrimeiroBloqueio))];
         }
-        catch (SqlException excecao) when (excecao.Number == NumeroDeadlock)
+        catch (Exception excecao) when (EhDisputa(excecao))
         {
             throw new DisputaContagemException("Deadlock na contagem do limite de requisições.", excecao);
         }
     }
+
+    /// <summary>
+    /// O EF Core embrulha o erro 1205 em <see cref="InvalidOperationException"/> (erro transitório sem
+    /// estratégia de nova tentativa), por isso a procura segue pelas exceções internas (issue #75).
+    /// </summary>
+    private static bool EhDisputa(Exception excecao) =>
+        ErrosBancoDados.EhDeadlock(excecao) || excecao is SqlException { Number: NumeroBloqueioNaoObtido };
 
     /// <summary>
     /// Abre o pool e prepara o EF Core, para a primeira requisição depois da partida não passar do

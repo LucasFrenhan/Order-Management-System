@@ -1,6 +1,9 @@
 using System.Diagnostics;
+using System.Net;
 using System.Security.Cryptography;
 using FluentAssertions;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using PedidoFulfillment.Application.LimiteRequisicoes;
 using PedidoFulfillment.Infrastructure.Configuracao;
@@ -163,8 +166,149 @@ public sealed class ArmazenamentoContagensSqlTestes(BancoDadosTeste banco)
         (await BancoDadosTeste.ConsultarAsync<int>(stringConexao, "SELECT COUNT(*) FROM ContagensLimite")).Should().Be(0);
     }
 
+    [Fact]
+    public async Task Deadlock_real_vira_disputa_e_nao_erro_generico()
+    {
+        // Issue #75: o EF Core embrulha o erro 1205, e o serviço só repete diante de uma disputa.
+        var (armazenamento, stringConexao) = await CriarAsync();
+        var (a, b) = await ChavesExistentesAsync(armazenamento);
+        await using var rival = await RivalAsync(stringConexao, b);
+
+        var contagem = armazenamento.ContarAsync([new(a, 100, JanelaLonga), new(b, 100, JanelaLonga)], Cancelamento);
+        await rival.FecharCicloAsync(a, stringConexao);
+
+        await contagem.Invoking(c => c).Should().ThrowAsync<DisputaContagemException>();
+    }
+
+    [Fact]
+    public async Task Deadlock_real_ganha_uma_nova_tentativa_sem_abrir_a_pausa()
+    {
+        // Issue #75, R-03: a mesma regra do dublê de ServicoLimiteRequisicoesTestes, com o erro de verdade.
+        var (armazenamento, stringConexao) = await CriarAsync();
+        var (a, b) = await ChavesExistentesAsync(armazenamento);
+        var fixas = new ArmazenamentoComChavesFixas(armazenamento, [new(a, 100, JanelaLonga), new(b, 100, JanelaLonga)]);
+        var metricas = new MetricasContadas();
+        var servico = new ServicoLimiteRequisicoes(
+            new ConfiguracaoLimites(
+                new PoliticaLimite(PoliticaLimite.LoginOrigemEmail, 100, JanelaLonga),
+                new PoliticaLimite(PoliticaLimite.LoginOrigem, 100, JanelaLonga),
+                new PoliticaLimite(PoliticaLimite.Registro, 100, JanelaLonga),
+                new byte[32],
+                // Acima dos 5 s do monitor de deadlocks do SQL Server: a falha precisa ser o deadlock, não o tempo.
+                TimeSpan.FromSeconds(30),
+                TimeSpan.FromMinutes(5)),
+            fixas,
+            new SemBloqueiosLocais(),
+            metricas,
+            TimeProvider.System,
+            NullLogger<ServicoLimiteRequisicoes>.Instance);
+        await using var rival = await RivalAsync(stringConexao, b);
+
+        var avaliacao = servico.AvaliarAsync(RotaLimitada.Registro, IPAddress.Loopback, null, Cancelamento);
+        await rival.FecharCicloAsync(a, stringConexao);
+
+        (await avaliacao).Aceita.Should().BeTrue();
+        fixas.Chamadas.Should().Be(2, "uma nova tentativa depois do deadlock");
+        metricas.SemLimite.Should().Be(0, "a segunda tentativa contou a requisição");
+        (await Contador(stringConexao, a)).Should().Be(2, "a primeira tentativa foi desfeita e só a segunda contou");
+
+        await servico.AvaliarAsync(RotaLimitada.Registro, IPAddress.Loopback, null, Cancelamento);
+
+        fixas.Chamadas.Should().Be(3, "a pausa não foi aberta: a instância continua consultando o armazenamento");
+    }
+
+    /// <summary>Duas chaves já gravadas, em ordem: a contagem bloqueia a primeira e depois a segunda.</summary>
+    private static async Task<(byte[] A, byte[] B)> ChavesExistentesAsync(ArmazenamentoContagensSql armazenamento)
+    {
+        var chaves = new[] { Chave(), Chave() };
+        Array.Sort(chaves, (x, y) => x.AsSpan().SequenceCompareTo(y));
+        await armazenamento.ContarAsync([new(chaves[0], 100, JanelaLonga), new(chaves[1], 100, JanelaLonga)], Cancelamento);
+        return (chaves[0], chaves[1]);
+    }
+
+    private static async Task<SessaoRival> RivalAsync(string stringConexao, byte[] b)
+    {
+        var conexao = new SqlConnection(stringConexao);
+        await conexao.OpenAsync(Cancelamento);
+        var transacao = (SqlTransaction)await conexao.BeginTransactionAsync(Cancelamento);
+        var rival = new SessaoRival(conexao, transacao);
+        // Prioridade acima da HIGH (5) do lote: a vítima do deadlock é sempre a contagem.
+        await rival.ExecutarAsync($"SET DEADLOCK_PRIORITY 10; UPDATE ContagensLimite SET Contador = Contador WHERE Chave = 0x{Convert.ToHexString(b)};");
+        return rival;
+    }
+
     private static Task<int> Contador(string stringConexao, byte[] chave) =>
         BancoDadosTeste.ConsultarAsync<int>(stringConexao, $"SELECT Contador FROM ContagensLimite WHERE Chave = 0x{Convert.ToHexString(chave)}");
+
+    /// <summary>Segura a segunda chave e, com a contagem presa nela, pede a primeira: um deadlock real.</summary>
+    private sealed class SessaoRival(SqlConnection conexao, SqlTransaction transacao) : IAsyncDisposable
+    {
+        public async Task FecharCicloAsync(byte[] a, string stringConexao)
+        {
+            await EsperarContagemBloqueadaAsync(stringConexao);
+            await ExecutarAsync($"UPDATE ContagensLimite SET Contador = Contador WHERE Chave = 0x{Convert.ToHexString(a)};");
+            await transacao.CommitAsync(Cancelamento);
+        }
+
+        public async Task ExecutarAsync(string sql)
+        {
+            await using var comando = new SqlCommand(sql, conexao, transacao) { CommandTimeout = 60 };
+            await comando.ExecuteNonQueryAsync(Cancelamento);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await transacao.DisposeAsync();
+            await conexao.DisposeAsync();
+        }
+
+        /// <summary>Espera a contagem parar nesta sessão, em vez de um tempo fixo que dependeria da máquina.</summary>
+        private async Task EsperarContagemBloqueadaAsync(string stringConexao)
+        {
+            var esperando = await MensageriaTeste.EsperarAteAsync(
+                async () => await BancoDadosTeste.ConsultarAsync<int>(
+                    stringConexao,
+                    $"SELECT COUNT(*) FROM sys.dm_exec_requests WHERE blocking_session_id = {conexao.ServerProcessId}") > 0,
+                TimeSpan.FromSeconds(30));
+            esperando.Should().BeTrue("a contagem precisa estar presa na chave segurada por esta sessão");
+        }
+    }
+
+    private sealed class ArmazenamentoComChavesFixas(IArmazenamentoContagens real, IReadOnlyList<ContagemSolicitada> chaves) : IArmazenamentoContagens
+    {
+        public int Chamadas { get; private set; }
+
+        public async Task<IReadOnlyList<RecusaContagem>> ContarAsync(IReadOnlyList<ContagemSolicitada> contagens, CancellationToken cancellationToken)
+        {
+            Chamadas++;
+            await real.ContarAsync(chaves, cancellationToken);
+            return [];
+        }
+    }
+
+    private sealed class SemBloqueiosLocais : IBloqueiosLocais
+    {
+        public void Registrar(byte[] chave, TimeSpan espera)
+        {
+        }
+
+        public bool TentarObter(byte[] chave, out TimeSpan espera)
+        {
+            espera = TimeSpan.Zero;
+            return false;
+        }
+    }
+
+    private sealed class MetricasContadas : IMetricasLimite
+    {
+        public int SemLimite { get; private set; }
+
+        public void RequisicaoRecusada(string politica)
+        {
+        }
+
+        public void RequisicaoSemLimite() => SemLimite++;
+    }
 }
 
 /// <summary>O custo por requisição (REQ-23, SC-008): serial, para não disputar o banco com outros testes.</summary>
