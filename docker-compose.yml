@@ -118,6 +118,8 @@ services:
         condition: service_healthy
       pagamentos:
         condition: service_healthy
+      mailpit:
+        condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__SqlServer: Server=sqlserver,1433;Database=PedidoFulfillment;User Id=sa;Password=${OMS_SQL_SENHA:-OmsDev_2026!Local};Encrypt=True;TrustServerCertificate=True
@@ -125,6 +127,11 @@ services:
       RabbitMQ__Porta: "5672"
       RabbitMQ__Usuario: ${OMS_RABBITMQ_USUARIO:-oms}
       RabbitMQ__Senha: ${OMS_RABBITMQ_SENHA:-oms-dev-local}
+      # E-mails capturados pelo Mailpit (REQ-24), sem sair para a internet.
+      Email__Servidor: mailpit
+      Email__Porta: "1025"
+      Email__Remetente: oms@exemplo.local
+      Email__Seguranca: Nenhuma
       # Gateway de pagamento pela rede (REQ-19): a API simulada, com a mesma chave dela.
       GatewayPagamento__UrlBase: http://pagamentos:8080
       GatewayPagamento__ChaveApi: ${OMS_PAGAMENTOS_CHAVE_API:-oms-pagamentos-dev-local-2026}
@@ -137,6 +144,20 @@ services:
       timeout: 5s
       retries: 12
       start_period: 20s
+
+  # Captura local de e-mails (REQ-24, research R-05): nada sai para a internet. Sem perfil, como o
+  # banco e o broker, porque o Worker pelo SDK também precisa dele. Tela em http://localhost:8025.
+  mailpit:
+    image: axllent/mailpit:v1.33.0
+    ports:
+      - "${OMS_MAILPIT_SMTP_PORTA:-1025}:1025"
+      - "${OMS_MAILPIT_TELA_PORTA:-8025}:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
 
   # Painel local de telemetria (REQ-16, research R-10): traces, métricas e logs por OTLP, só em
   # memória (reiniciar apaga). Contêiner independente: a demo continua exigindo só o Docker. A

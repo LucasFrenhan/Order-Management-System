@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Net;
 using Microsoft.Extensions.Logging;
 using PedidoFulfillment.Application.Autenticacao;
@@ -19,6 +20,11 @@ public sealed class ServicoLimiteRequisicoes(
 {
     private const string SemEmail = "-";
     private const int TentativasNaDisputa = 2;
+
+    private static readonly FrozenSet<string> PoliticasComEmail = new[]
+    {
+        PoliticaLimite.LoginOrigemEmail, PoliticaLimite.RecuperacaoOrigemEmail, PoliticaLimite.ReenvioOrigemEmail
+    }.ToFrozenSet();
 
     /// <summary>Fim da pausa, em ticks UTC; por instância, pois este serviço é único no processo.</summary>
     private long pausaAte;
@@ -71,14 +77,25 @@ public sealed class ServicoLimiteRequisicoes(
                 politica.Limite,
                 politica.JanelaSegundos));
 
-        if (rota == RotaLimitada.Registro)
-        {
-            return [Contagem(configuracao.Registro, null)];
-        }
+        // Com e-mail, conta pelo par e pela origem; sem um e-mail utilizável, só pela origem (FR-003).
+        (PoliticaLimite Politica, ContagemSolicitada Contagem)[] PorEmail(PoliticaLimite comEmail, PoliticaLimite soOrigem) =>
+            email is null
+                ? [Contagem(soOrigem, null)]
+                : [Contagem(comEmail, email), Contagem(soOrigem, null)];
 
-        return email is null
-            ? [Contagem(configuracao.LoginOrigem, null)]
-            : [Contagem(configuracao.LoginOrigemEmail, email), Contagem(configuracao.LoginOrigem, null)];
+        var ciclo = configuracao.CicloAutenticacao;
+        return rota switch
+        {
+            RotaLimitada.Login => PorEmail(configuracao.LoginOrigemEmail, configuracao.LoginOrigem),
+            RotaLimitada.RecuperacaoSenha => PorEmail(ciclo.RecuperacaoOrigemEmail, ciclo.RecuperacaoOrigem),
+            RotaLimitada.ReenvioConfirmacao => PorEmail(ciclo.ReenvioOrigemEmail, ciclo.ReenvioOrigem),
+            RotaLimitada.Registro => [Contagem(configuracao.Registro, null)],
+            RotaLimitada.RedefinicaoSenha => [Contagem(ciclo.Redefinicao, null)],
+            RotaLimitada.ConfirmacaoEmail => [Contagem(ciclo.Confirmacao, null)],
+            RotaLimitada.Renovacao => [Contagem(ciclo.Renovacao, null)],
+            RotaLimitada.Logout => [Contagem(ciclo.Logout, null)],
+            _ => throw new ArgumentOutOfRangeException(nameof(rota))
+        };
     }
 
     private DecisaoLimite? RecusaLocal(IReadOnlyList<(PoliticaLimite Politica, ContagemSolicitada Contagem)> contagens)
@@ -127,7 +144,7 @@ public sealed class ServicoLimiteRequisicoes(
             metricas.RequisicaoRecusada(politica.Nome);
             if (recusa.PrimeiroBloqueio)
             {
-                var emailMascarado = politica.Nome == PoliticaLimite.LoginOrigemEmail ? MascaraEmail.Mascarar(email?.Trim()) : SemEmail;
+                var emailMascarado = PoliticasComEmail.Contains(politica.Nome) ? MascaraEmail.Mascarar(email?.Trim()) : SemEmail;
                 EventosLimiteRequisicoes.LimiteExcedido(logger, politica.Nome, emailMascarado);
             }
 

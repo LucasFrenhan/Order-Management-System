@@ -17,6 +17,8 @@
     <PackageReference Include="OpenTelemetry.Instrumentation.SqlClient" />
     <!-- Resiliência do cliente HTTP do gateway de pagamento (REQ-19, research R-06). -->
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
+    <!-- Envio de e-mail por SMTP (REQ-24, research R-04). -->
+    <PackageReference Include="MailKit" />
   </ItemGroup>
 
   <ItemGroup>

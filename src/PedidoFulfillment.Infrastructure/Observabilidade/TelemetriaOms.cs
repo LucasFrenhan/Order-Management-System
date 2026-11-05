@@ -104,6 +104,14 @@ internal static class TelemetriaOms
     public static readonly Counter<long> FalhasArmazenamentoLimite = Medidor.CreateCounter<long>(
         "oms.limite_requisicoes.falhas_armazenamento", "{requisicao}", "Requisições que seguiram sem o limite por falha do armazenamento.");
 
+    /// <summary>Métrica 19 (REQ-24, R-10): renovações de sessão por resultado (renovada, recusada, reutilizada).</summary>
+    public static readonly Counter<long> Renovacoes = Medidor.CreateCounter<long>(
+        "oms.autenticacao.renovacoes", "{renovacao}", "Apresentações de token de renovação, por resultado.");
+
+    /// <summary>Métrica 20 (REQ-24, R-10): e-mails por tipo e resultado (enviado, falha, descartado, sem_conta).</summary>
+    public static readonly Counter<long> Emails = Medidor.CreateCounter<long>(
+        "oms.emails", "{email}", "Solicitações de e-mail tratadas, por tipo e resultado.");
+
     /// <summary>Atributos dos spans e das métricas (prefixo <c>oms.</c> para os de domínio).</summary>
     public static class Atributos
     {
@@ -126,6 +134,7 @@ internal static class TelemetriaOms
         public const string PagamentoTentativas = "oms.pagamento.tentativas";
         public const string PagamentoTipoFalha = "oms.pagamento.tipo_falha";
         public const string LimitePolitica = "oms.limite.politica";
+        public const string EmailTipo = "oms.email.tipo";
         public const string UsuarioId = "user.id";
         public const string MensagemId = "messaging.message.id";
         public const string TipoErro = "error.type";
@@ -160,6 +169,16 @@ internal static class TelemetriaOms
 
         /// <summary>Mensagem devolvida à fila porque o consumo pausou (REQ-19, R-09).</summary>
         public const string Pausado = "pausado";
+
+        // Renovação de sessão (REQ-24, R-10).
+        public const string Renovada = "renovada";
+        public const string Recusada = "recusada";
+        public const string Reutilizada = "reutilizada";
+
+        // Envio de e-mail (REQ-24, R-10).
+        public const string Enviado = "enviado";
+        public const string Descartado = "descartado";
+        public const string SemConta = "sem_conta";
     }
 
     /// <summary>Valores de <c>oms.rotina</c>.</summary>
@@ -170,6 +189,7 @@ internal static class TelemetriaOms
         public const string ReenvioDlq = "reenvio_dlq";
         public const string Limpeza = "limpeza";
         public const string Notificacoes = "notificacoes";
+        public const string Emails = "emails";
     }
 
     /// <summary>Nomes dos spans próprios.</summary>
@@ -181,6 +201,7 @@ internal static class TelemetriaOms
         public const string EstornarPedido = "estornar pedido";
         public const string Limpar = "limpar";
         public const string ProcessarNotificacoes = "processar_notificacoes";
+        public const string ProcessarEmails = "processar_emails";
         public const string EnviarNotificacao = "notificacao enviar";
         public const string CobrarPagamento = "cobrar pagamento";
         public const string EstornarPagamento = "estornar pagamento";

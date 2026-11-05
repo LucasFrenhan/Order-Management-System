@@ -31,6 +31,13 @@ public class FabricaApi : WebApplicationFactory<Program>
 
     /// <summary>O teto da validação: os testes que não tratam do limite nunca o atingem (REQ-23, R-10).</summary>
     public const string LimiteAltoTeste = "1000000";
+
+    /// <summary>As políticas das rotas do ciclo de autenticação (REQ-24, FR-024).</summary>
+    private static readonly string[] PoliticasCicloAutenticacao =
+    [
+        "RecuperacaoOrigemEmail", "RecuperacaoOrigem", "ReenvioOrigemEmail", "ReenvioOrigem", "Redefinicao", "Confirmacao", "Renovacao", "Logout"
+    ];
+
     public const string EmissorTeste = "PedidoFulfillment";
     public const string AudienciaTeste = "PedidoFulfillment";
     public const string RotaExcecaoTeste = "/_teste/excecao";
@@ -95,6 +102,11 @@ public class FabricaApi : WebApplicationFactory<Program>
         builder.UseSetting("LimiteRequisicoes:LoginOrigemEmail:Limite", LimiteAltoTeste);
         builder.UseSetting("LimiteRequisicoes:LoginOrigem:Limite", LimiteAltoTeste);
         builder.UseSetting("LimiteRequisicoes:Registro:Limite", LimiteAltoTeste);
+        foreach (var politica in PoliticasCicloAutenticacao)
+        {
+            builder.UseSetting($"LimiteRequisicoes:{politica}:Limite", LimiteAltoTeste);
+        }
+
         builder.UseSetting("LimiteRequisicoes:TempoMaximoEsperaMs", "5000");
         builder.UseSetting("LimiteRequisicoes:PausaAposFalhaSegundos", "0");
         builder.UseSetting("Jwt:ChaveAssinatura", ChaveTeste);

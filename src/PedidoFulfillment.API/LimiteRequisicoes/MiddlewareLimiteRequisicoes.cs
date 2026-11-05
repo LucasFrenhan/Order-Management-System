@@ -29,7 +29,9 @@ public sealed class MiddlewareLimiteRequisicoes(RequestDelegate proximo)
         }
 
         var cancelamento = contexto.RequestAborted;
-        var email = metadados.Rota == RotaLimitada.Login ? await LeitorEmailLogin.LerAsync(contexto.Request, cancelamento) : null;
+        var email = metadados.Rota is RotaLimitada.Login or RotaLimitada.RecuperacaoSenha or RotaLimitada.ReenvioConfirmacao
+            ? await LeitorEmailCorpo.LerAsync(contexto.Request, cancelamento)
+            : null;
         var decisao = await servico.AvaliarAsync(metadados.Rota, contexto.Connection.RemoteIpAddress, email, cancelamento);
         if (decisao.Aceita)
         {

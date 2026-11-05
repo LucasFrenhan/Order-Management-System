@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using PedidoFulfillment.Application.Autenticacao;
 
 namespace PedidoFulfillment.Application.Contratos.Autenticacao;
 
@@ -17,7 +18,7 @@ public sealed record RegistrarUsuarioRequestDTO : IValidatableObject
     public string Email { get; init; } = "";
 
     [Required(ErrorMessage = "A senha é obrigatória.")]
-    [StringLength(128, MinimumLength = 8, ErrorMessage = "A senha deve ter entre 8 e 128 caracteres.")]
+    [StringLength(RegrasSenha.TamanhoMaximo, MinimumLength = RegrasSenha.TamanhoMinimo, ErrorMessage = RegrasSenha.MensagemTamanho)]
     [DataType(DataType.Password)]
     public string Senha { get; init; } = "";
 
@@ -30,10 +31,9 @@ public sealed record RegistrarUsuarioRequestDTO : IValidatableObject
             yield return new ValidationResult("O nome deve ter entre 2 e 100 caracteres, sem contar espaços nas pontas.", [nameof(Nome)]);
         }
 
-        if (!Senha.Any(char.IsUpper) || !Senha.Any(char.IsLower) || !Senha.Any(char.IsDigit))
+        if (!RegrasSenha.AtendeComposicao(Senha))
         {
-            yield return new ValidationResult(
-                "A senha deve ter ao menos uma letra maiúscula, uma letra minúscula e um dígito.", [nameof(Senha)]);
+            yield return new ValidationResult(RegrasSenha.MensagemComposicao, [nameof(Senha)]);
         }
     }
 }
