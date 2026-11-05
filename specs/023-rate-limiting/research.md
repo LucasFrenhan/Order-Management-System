@@ -131,6 +131,41 @@ justamente sob ataque.
 **Deadlock**: o lote usa `SET DEADLOCK_PRIORITY HIGH`, e a limpeza, `LOW`. Um erro 1205 ganha
 uma nova tentativa. Se persistir, segue o FR-012, sem acionar a pausa de R-04.
 
+**Revisão (issue #75, 2026-11-05)**: a frase "a ordem fixa das chaves impede ciclos" estava errada, e a nova
+tentativa nunca funcionou.
+
+- **Causa, confirmada pelo grafo do deadlock**: as transações disputavam `RangeS-U` em `PK_ContagensLimite`, inclusive no
+  fim do índice (`ffffffffffff`). `UPDLOCK, HOLDLOCK` em uma chave que ainda não existe bloqueia um intervalo do índice: a
+  ordem evita cruzar chaves, não intervalos. Por isso só falhavam os cenários com uma chave nova por chamada.
+- **A nova tentativa não acontecia**: o EF Core embrulha o erro 1205 em `InvalidOperationException`, que o `catch` de
+  `SqlException` não reconhecia. O deadlock seguia como falha comum e abria a pausa.
+- **O efeito, reproduzido pela API com os valores de produção**: em 3 de 40 rajadas de 40 logins, com um e-mail por
+  tentativa e o limite de 10 por origem, passaram 40, 40 e 28 logins sem recusa (log 3008, `TaskCanceledException`). O
+  grafo mostra `waittime` de ~4 s: o tempo máximo de 250 ms corta a espera bem antes de o SQL Server detectar o deadlock.
+  Logo, reconhecer o erro não bastaria: era preciso evitá-lo.
+
+**Decisão**: cada chave é bloqueada pelo nome, em ordem, com `sp_getapplock` (`Exclusive`, dono `Transaction`), e a leitura
+usa `UPDLOCK, ROWLOCK`, sem `HOLDLOCK`. Só quem conta a mesma chave entra em fila, e a atomicidade exata de FR-002 continua,
+porque duas transações na mesma chave nunca ficam juntas. `UPDLOCK` segue segurando a linha contra a limpeza, que não pega
+o bloqueio por nome. O deadlock restante é com a limpeza, que perde pela prioridade, e passa a ser reconhecido pela cadeia
+de exceções (`ErrosBancoDados.EhDeadlock`). `sp_getapplock` não lança 1205, e sim devolve um código negativo: o lote o relança
+como erro 50075, tratado como a mesma disputa.
+
+| Medição, mesmo teste e mesma máquina (2.000 contagens, duas chaves novas) | p50 | p95 | p99 |
+|---|---|---|---|
+| Antes, 1 por vez | 2,84 ms | 3,59 ms | 24,19 ms |
+| **Depois, 1 por vez** | 2,98 ms | 3,65 ms | 24,35 ms |
+| Antes, 16 simultâneas | 4,09 ms | 29,79 ms | 34,90 ms |
+| **Depois, 16 simultâneas** | 4,30 ms | 28,08 ms | 33,44 ms |
+
+Sem custo mensurável, e o p95 segue abaixo do limite de 50 ms do SC-008. Depois da correção, foram 60 de 60 rajadas
+corretas com os valores de produção, e 50 de 50 execuções de cada um destes testes:
+`Com_duas_contagens_simultaneas…`, `Um_email_por_tentativa…` e `Rajada_simultanea…`. O caminho da nova tentativa agora tem
+teste com deadlock real, sem dublê (`Deadlock_real_ganha_uma_nova_tentativa_sem_abrir_a_pausa`).
+
+**O que o armazenamento garante quando chamado direto**: a disputa chega a quem chamou como `DisputaContagemException`,
+sem nova tentativa, que é papel do serviço.
+
 **Alternativas descartadas**: `MERGE`, sem ganho aqui e com histórico de problemas de concorrência;
 consumir e compensar em dois passos, porque abre uma janela em que uma tentativa barrada conta.
 
