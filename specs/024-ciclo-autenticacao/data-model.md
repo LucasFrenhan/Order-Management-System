@@ -11,7 +11,7 @@ Uma linha por login.
 | Coluna | Tipo | Regras |
 |--------|------|--------|
 | `Id` | `uniqueidentifier`, PK | |
-| `UsuarioId` | `uniqueidentifier`, FK para `Usuarios` | Índice, para encerrar as sessões da conta (FR-011) |
+| `UsuarioId` | `uniqueidentifier`, FK para `Usuarios`, em cascata | Índice, para encerrar as sessões da conta (FR-011) |
 | `IniciadaEm` | `datetimeoffset` | |
 | `ExpiraEm` | `datetimeoffset` | `IniciadaEm` + 30 dias por padrão; a rotação não estende (FR-005). Índice, para a limpeza |
 | `EncerradaEm` | `datetimeoffset`, nulo | Preenchida no logout, na reutilização e na troca ou redefinição de senha |
@@ -38,7 +38,7 @@ expirado, ou sessão encerrada -> 401
 | Coluna | Tipo | Regras |
 |--------|------|--------|
 | `HashToken` | `binary(32)`, PK | SHA-256 do token |
-| `UsuarioId` | `uniqueidentifier`, FK para `Usuarios` | Índice com `Finalidade` |
+| `UsuarioId` | `uniqueidentifier`, FK para `Usuarios`, em cascata | Índice com `Finalidade` |
 | `Finalidade` | `varchar(30)` | `RecuperacaoSenha` ou `ConfirmacaoEmail` |
 | `ExpiraEm` | `datetimeoffset` | 30 minutos ou 24 horas por padrão. Índice, para a limpeza |
 | `UsadoEm` | `datetimeoffset`, nulo | Consumido de forma atômica |
@@ -53,7 +53,7 @@ A fila do envio. Não guarda token nem corpo (R-03).
 |--------|------|--------|
 | `Id` | `uniqueidentifier`, PK | |
 | `Tipo` | `varchar(30)` | `RecuperacaoSenha`, `ConfirmacaoEmail` ou `AvisoSenhaRedefinida` |
-| `Destino` | `nvarchar(256)` | Como foi informado, aparado. Pode não ter conta |
+| `Destino` | `nvarchar(256)` | Como foi informado, aparado. Pode não ter conta. Serve só para achar a conta: o e-mail vai ao endereço guardado nela |
 | `CriadaEm` | `datetimeoffset` | Descarte depois de 24 h |
 | `ProximaTentativaEm` | `datetimeoffset` | Índice, para a rodada do Worker |
 | `Tentativas` | `int` | Espera crescente, de 30 s a 2 min |

@@ -48,9 +48,9 @@
 | Princípio / regra | Avaliação | Situação |
 |-------------------|-----------|----------|
 | I. Specification-First | Spec, clarify e plano antes do código; issue #55 | ✅ |
-| II. Contratos imutáveis | Só acréscimos: rotas, dois campos na resposta do login e um código. O 409 do registro continua. A duração do token muda só o valor do `expiraEm`, que o contrato já informa | ✅ |
+| II. Contratos imutáveis | Só acréscimos: rotas, dois campos na resposta do login e um código. O 409 do registro continua. **Mudança de comportamento assumida**: o contrato prometia 60 minutos na descrição de `expiraEm`, e o padrão passa a 15 (decisão do usuário). Quem lê `expiraEm` não quebra; a descrição é corrigida e o PR avisa | ✅ justificado |
 | III. Segurança por padrão | Rotas públicas só de autenticação, como a constituição permite; a troca de senha exige token e perfil; tokens só como hash; respostas sem revelar contas | ✅ |
-| IV. Desacoplamento assíncrono | O envio não é síncrono: tabela na mesma transação e processador no Worker, "mecanismo equivalente" ao outbox, como os webhooks do REQ-18 | ✅ |
+| IV. Desacoplamento assíncrono | O envio não é síncrono: tabela na mesma transação e processador no Worker, como os webhooks do REQ-18. **Exceção aprovada pelo usuário** à passagem pela mensageria; ver Complexity Tracking | ✅ justificado |
 | V. Qualidade verificável | Unitários das regras; integração com sucesso, 401 e 403; concorrência; envio real pelo Mailpit | ✅ |
 | Endpoint só roteia | As rotas delegam aos serviços da Application | ✅ |
 | Persistência em SQL Server via EF Core | Tabelas e operações pelo EF Core, inclusive os `UPDATE` condicionais, por `ExecuteUpdate`. `SqlConnection` só para o lock de aplicação, como as demais rotinas | ✅ |
@@ -143,3 +143,4 @@ docs/proximos-passos.md
 |-------|---------|-------------------------------------------|
 | Pacote novo (MailKit), que não é violação, mas exige justificativa | O .NET não tem hoje um cliente SMTP recomendado (R-04) | `SmtpClient` é considerado obsoleto e gera o aviso DE0005 |
 | Dependência operacional nova: o Worker passa a exigir a seção `Email` fora de Development | A recuperação não pode falhar em silêncio (R-04) | Um envio opcional deixaria a produção subir sem recuperação de senha |
+| E-mail por tabela e processador, sem o RabbitMQ (Princípio IV) | É um efeito do próprio sistema, sem outro domínio interessado, e o destino pode ser um e-mail digitado por qualquer pessoa, sem conta | O RabbitMQ poria esses endereços no broker, sem ganho real: a garantia de envio já vem da tabela na transação |

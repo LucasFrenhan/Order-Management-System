@@ -10,7 +10,7 @@
 
 ```bash
 dotnet build
-dotnet test --filter "FullyQualifiedName~Sessoes|FullyQualifiedName~Senha|FullyQualifiedName~ConfirmacaoEmail|FullyQualifiedName~Emails"
+dotnet test --filter "FullyQualifiedName~Sessoes|FullyQualifiedName~Logout|FullyQualifiedName~Senha|FullyQualifiedName~ConfirmacaoEmail|FullyQualifiedName~Emails|FullyQualifiedName~SigiloTokens"
 dotnet test
 dotnet format --verify-no-changes
 ```
