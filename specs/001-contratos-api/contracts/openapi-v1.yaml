@@ -181,6 +181,66 @@ paths:
         '500':
           $ref: '#/components/responses/ErroInterno'
 
+  /api/v1/auth/recuperacao-senha:
+    post:
+      tags: [Autenticacao]
+      operationId: PedirRecuperacaoSenha
+      summary: Pede um e-mail de recuperação de senha.
+      description: A resposta é a mesma com ou sem conta, e o e-mail só é enviado se a conta existir (REQ-24).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecuperacaoSenhaRequestDTO'
+      responses:
+        '202':
+          description: Pedido recebido, em qualquer caso.
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '429':
+          $ref: '#/components/responses/ErroLimiteRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /api/v1/auth/redefinicao-senha:
+    post:
+      tags: [Autenticacao]
+      operationId: RedefinirSenha
+      summary: Define uma senha nova com o token recebido por e-mail.
+      description: Encerra todas as sessões da conta e zera o bloqueio por erros de senha (REQ-24).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RedefinicaoSenhaRequestDTO'
+      responses:
+        '204':
+          description: Senha redefinida.
+        '400':
+          description: Dados de entrada inválidos, ou token inválido, expirado ou já usado.
+          content:
+            application/problem+json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ValidacaoProblemDetails'
+                  - $ref: '#/components/schemas/NegocioProblemDetails'
+              example:
+                type: https://tools.ietf.org/html/rfc9110#section-15.5.1
+                title: Token inválido.
+                status: 400
+                detail: O token é inválido ou expirou. Peça uma nova recuperação.
+                instance: /api/v1/auth/redefinicao-senha
+                traceId: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00
+                codigo: TOKEN_INVALIDO
+        '429':
+          $ref: '#/components/responses/ErroLimiteRequisicoes'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
   /api/v1/pedidos:
     get:
       tags: [Pedidos]
@@ -1346,6 +1406,29 @@ components:
         tokenRenovacao:
           type: string
           maxLength: 128
+
+    RecuperacaoSenhaRequestDTO:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 256
+
+    RedefinicaoSenhaRequestDTO:
+      type: object
+      required: [token, novaSenha]
+      properties:
+        token:
+          type: string
+          maxLength: 128
+        novaSenha:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+          description: Ao menos uma letra maiúscula, uma minúscula e um dígito.
 
     ItemPedidoDTO:
       type: object

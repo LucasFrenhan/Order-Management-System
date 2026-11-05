@@ -86,6 +86,28 @@ public sealed class TransformadorSchemasErroOpenApi : IOpenApiDocumentTransforme
             operation.Responses[codigo.ToString()] = RespostaErro(descricao, schema, context.Document);
         }
 
+        if (metadados.OfType<MetadadosErroToken>().Any())
+        {
+            operation.Responses["400"] = new OpenApiResponse
+            {
+                Description = "Dados de entrada inválidos, ou token inválido, expirado ou já usado.",
+                Content = new Dictionary<string, OpenApiMediaType>
+                {
+                    [TipoProblema] = new()
+                    {
+                        Schema = new OpenApiSchema
+                        {
+                            OneOf =
+                            [
+                                new OpenApiSchemaReference(SchemaValidacao, context.Document),
+                                new OpenApiSchemaReference(SchemaNegocio, context.Document)
+                            ]
+                        }
+                    }
+                }
+            };
+        }
+
         operation.Responses.TryAdd("500", RespostaErro("Erro inesperado. Não expõe detalhes internos.", SchemaProblemDetails, context.Document));
         return Task.CompletedTask;
     }

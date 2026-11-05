@@ -59,6 +59,7 @@ builder.Services.TryAddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IEmissorToken, EmissorTokenJwt>();
 builder.Services.AddScoped<IServicoAutenticacao, ServicoAutenticacao>();
 builder.Services.AddScoped<IServicoSessoes, ServicoSessoes>();
+builder.Services.AddScoped<IServicoSenhas, ServicoSenhas>();
 builder.Services.AddScoped<IServicoPedidos, ServicoPedidos>();
 // Chave do cursor da listagem (REQ-21, research R-04): hoje derivada da chave do JWT. Para usar
 // uma chave própria do cursor, troque só esta linha por outra IChaveCursor.

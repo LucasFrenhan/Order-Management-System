@@ -23,4 +23,10 @@ public interface IGestorIdentidade
 
     /// <summary>Os perfis atuais da conta, para a renovação (REQ-24, FR-007).</summary>
     Task<IReadOnlyList<PerfilUsuario>> ObterPerfisAsync(Guid usuarioId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Em uma transação: consome o token, troca a senha, zera o bloqueio, confirma o e-mail, encerra as
+    /// sessões e pede o e-mail de aviso (FR-011, FR-015). Devolve a conta; token que não vale, nulo.
+    /// </summary>
+    Task<Guid?> RedefinirSenhaAsync(byte[] hashToken, string novaSenha, CancellationToken cancellationToken);
 }

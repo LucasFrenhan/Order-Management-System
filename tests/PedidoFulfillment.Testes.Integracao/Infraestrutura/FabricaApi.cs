@@ -93,6 +93,9 @@ public class FabricaApi : WebApplicationFactory<Program>
     /// <summary>Outro relógio, como o de uma instância com a hora errada (REQ-23, FR-008).</summary>
     public TimeProvider? Relogio { get; init; }
 
+    /// <summary>Registros extras, como o enviador de e-mail dos testes (REQ-24, R-11).</summary>
+    public Action<IServiceCollection>? Servicos { get; init; }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment(Ambiente);
@@ -175,6 +178,7 @@ public class FabricaApi : WebApplicationFactory<Program>
                 services.Replace(ServiceDescriptor.Singleton(ServicoPedidos));
             }
 
+            Servicos?.Invoke(services);
             Telemetria?.RegistrarEm(services);
         });
     }
