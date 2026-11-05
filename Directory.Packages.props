@@ -48,5 +48,7 @@
     <PackageVersion Include="Testcontainers.RabbitMq" Version="4.15.0" />
     <!-- Conformidade de schema dos eventos (specs/006-mensageria, R-12); a 9.4.1 tinha menos de duas semanas. -->
     <PackageVersion Include="JsonSchema.Net" Version="9.4.0" />
+    <!-- Cliente SMTP do envio de e-mail (specs/024-ciclo-autenticacao, R-04): o .NET não tem um recomendado. -->
+    <PackageVersion Include="MailKit" Version="4.18.2" />
   </ItemGroup>
 </Project>

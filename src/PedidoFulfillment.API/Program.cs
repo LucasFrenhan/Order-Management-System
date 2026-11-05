@@ -14,6 +14,7 @@ using PedidoFulfillment.Application.Notificacoes;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Application.Produtos;
 using PedidoFulfillment.Infrastructure;
+using PedidoFulfillment.Infrastructure.Autenticacao;
 using PedidoFulfillment.Infrastructure.LimiteRequisicoes;
 using PedidoFulfillment.Infrastructure.Notificacoes;
 using PedidoFulfillment.Infrastructure.Observabilidade;
@@ -40,6 +41,8 @@ builder.Services.AdicionarNotificacoes();
 builder.Services.AdicionarEventosTempoReal();
 // Limite de requisições no login e no registro, com estado único entre as instâncias (REQ-23).
 builder.Services.AdicionarLimiteRequisicoes();
+// Sessões renováveis (REQ-24).
+builder.Services.AdicionarSessoes();
 // Traces, métricas e logs por OTLP, só com destino configurado (REQ-16).
 builder.AdicionarObservabilidade("oms-api");
 builder.Services.AddOpenApi("v1", opcoes =>

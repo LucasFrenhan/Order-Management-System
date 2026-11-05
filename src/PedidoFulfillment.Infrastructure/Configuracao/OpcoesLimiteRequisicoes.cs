@@ -29,6 +29,23 @@ public sealed class OpcoesLimiteRequisicoes
 
     public OpcoesPoliticaLimite Registro { get; set; } = new() { Limite = 20, JanelaSegundos = 3600 };
 
+    // Rotas do ciclo de autenticação (REQ-24, FR-024).
+    public OpcoesPoliticaLimite RecuperacaoOrigemEmail { get; set; } = new() { Limite = 3, JanelaSegundos = 3600 };
+
+    public OpcoesPoliticaLimite RecuperacaoOrigem { get; set; } = new() { Limite = 20, JanelaSegundos = 3600 };
+
+    public OpcoesPoliticaLimite ReenvioOrigemEmail { get; set; } = new() { Limite = 3, JanelaSegundos = 3600 };
+
+    public OpcoesPoliticaLimite ReenvioOrigem { get; set; } = new() { Limite = 20, JanelaSegundos = 3600 };
+
+    public OpcoesPoliticaLimite Redefinicao { get; set; } = new() { Limite = 10, JanelaSegundos = 60 };
+
+    public OpcoesPoliticaLimite Confirmacao { get; set; } = new() { Limite = 10, JanelaSegundos = 60 };
+
+    public OpcoesPoliticaLimite Renovacao { get; set; } = new() { Limite = 120, JanelaSegundos = 60 };
+
+    public OpcoesPoliticaLimite Logout { get; set; } = new() { Limite = 120, JanelaSegundos = 60 };
+
     /// <summary>Acima disso, a requisição segue sem o limite (FR-012, R-04).</summary>
     public int TempoMaximoEsperaMs { get; set; } = 250;
 
@@ -45,7 +62,18 @@ public sealed class OpcoesLimiteRequisicoes
         new PoliticaLimite(PoliticaLimite.Registro, Registro.Limite, Registro.JanelaSegundos),
         Convert.FromBase64String(ChaveContagem),
         TimeSpan.FromMilliseconds(TempoMaximoEsperaMs),
-        TimeSpan.FromSeconds(PausaAposFalhaSegundos));
+        TimeSpan.FromSeconds(PausaAposFalhaSegundos))
+    {
+        CicloAutenticacao = new PoliticasCicloAutenticacao(
+            new PoliticaLimite(PoliticaLimite.RecuperacaoOrigemEmail, RecuperacaoOrigemEmail.Limite, RecuperacaoOrigemEmail.JanelaSegundos),
+            new PoliticaLimite(PoliticaLimite.RecuperacaoOrigem, RecuperacaoOrigem.Limite, RecuperacaoOrigem.JanelaSegundos),
+            new PoliticaLimite(PoliticaLimite.ReenvioOrigemEmail, ReenvioOrigemEmail.Limite, ReenvioOrigemEmail.JanelaSegundos),
+            new PoliticaLimite(PoliticaLimite.ReenvioOrigem, ReenvioOrigem.Limite, ReenvioOrigem.JanelaSegundos),
+            new PoliticaLimite(PoliticaLimite.Redefinicao, Redefinicao.Limite, Redefinicao.JanelaSegundos),
+            new PoliticaLimite(PoliticaLimite.Confirmacao, Confirmacao.Limite, Confirmacao.JanelaSegundos),
+            new PoliticaLimite(PoliticaLimite.Renovacao, Renovacao.Limite, Renovacao.JanelaSegundos),
+            new PoliticaLimite(PoliticaLimite.Logout, Logout.Limite, Logout.JanelaSegundos))
+    };
 }
 
 /// <summary>Acumula todas as falhas, nomeando cada chave sem mostrar valores.</summary>
@@ -66,6 +94,14 @@ public sealed class ValidadorOpcoesLimiteRequisicoes : IValidateOptions<OpcoesLi
         Politica(faixas, options.LoginOrigemEmail, nameof(OpcoesLimiteRequisicoes.LoginOrigemEmail));
         Politica(faixas, options.LoginOrigem, nameof(OpcoesLimiteRequisicoes.LoginOrigem));
         Politica(faixas, options.Registro, nameof(OpcoesLimiteRequisicoes.Registro));
+        Politica(faixas, options.RecuperacaoOrigemEmail, nameof(OpcoesLimiteRequisicoes.RecuperacaoOrigemEmail));
+        Politica(faixas, options.RecuperacaoOrigem, nameof(OpcoesLimiteRequisicoes.RecuperacaoOrigem));
+        Politica(faixas, options.ReenvioOrigemEmail, nameof(OpcoesLimiteRequisicoes.ReenvioOrigemEmail));
+        Politica(faixas, options.ReenvioOrigem, nameof(OpcoesLimiteRequisicoes.ReenvioOrigem));
+        Politica(faixas, options.Redefinicao, nameof(OpcoesLimiteRequisicoes.Redefinicao));
+        Politica(faixas, options.Confirmacao, nameof(OpcoesLimiteRequisicoes.Confirmacao));
+        Politica(faixas, options.Renovacao, nameof(OpcoesLimiteRequisicoes.Renovacao));
+        Politica(faixas, options.Logout, nameof(OpcoesLimiteRequisicoes.Logout));
         faixas.Limitar(options.TempoMaximoEsperaMs, 50, 5000, nameof(OpcoesLimiteRequisicoes.TempoMaximoEsperaMs));
         faixas.Limitar(options.PausaAposFalhaSegundos, 0, 300, nameof(OpcoesLimiteRequisicoes.PausaAposFalhaSegundos));
 

@@ -76,6 +76,15 @@ public sealed class ContextoBancoDados(DbContextOptions<ContextoBancoDados> opti
 
     internal DbSet<CursorNotificacoes> CursorNotificacoes => Set<CursorNotificacoes>();
 
+    // Ciclo de vida da autenticação (REQ-24, data-model).
+    internal DbSet<SessaoAutenticacao> SessoesAutenticacao => Set<SessaoAutenticacao>();
+
+    internal DbSet<TokenRenovacao> TokensRenovacao => Set<TokenRenovacao>();
+
+    internal DbSet<TokenUsoUnico> TokensUsoUnico => Set<TokenUsoUnico>();
+
+    internal DbSet<SolicitacaoEmail> SolicitacoesEmail => Set<SolicitacaoEmail>();
+
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         try

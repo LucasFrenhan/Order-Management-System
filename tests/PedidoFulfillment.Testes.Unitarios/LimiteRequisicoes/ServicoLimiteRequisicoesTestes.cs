@@ -62,6 +62,58 @@ public sealed class ServicoLimiteRequisicoesTestes
     }
 
     [Theory]
+    [InlineData(RotaLimitada.RecuperacaoSenha)]
+    [InlineData(RotaLimitada.ReenvioConfirmacao)]
+    public async Task Recuperacao_e_reenvio_com_email_avaliam_as_duas_politicas(RotaLimitada rota)
+    {
+        await Criar().AvaliarAsync(rota, Origem, Email, Cancelamento);
+
+        armazenamento.Chamadas.Should().ContainSingle().Which.Select(c => c.Limite).Should().Equal(3, 20);
+    }
+
+    [Theory]
+    [InlineData(RotaLimitada.RecuperacaoSenha)]
+    [InlineData(RotaLimitada.ReenvioConfirmacao)]
+    public async Task Recuperacao_e_reenvio_sem_email_avaliam_so_a_origem(RotaLimitada rota)
+    {
+        await Criar().AvaliarAsync(rota, Origem, null, Cancelamento);
+
+        armazenamento.Chamadas.Should().ContainSingle().Which.Select(c => c.Limite).Should().Equal(20);
+    }
+
+    [Theory]
+    [InlineData(RotaLimitada.RedefinicaoSenha, 10, 60)]
+    [InlineData(RotaLimitada.ConfirmacaoEmail, 10, 60)]
+    [InlineData(RotaLimitada.Renovacao, 120, 60)]
+    [InlineData(RotaLimitada.Logout, 120, 60)]
+    public async Task As_demais_rotas_do_ciclo_avaliam_uma_politica_por_origem(RotaLimitada rota, int limite, int janela)
+    {
+        await Criar().AvaliarAsync(rota, Origem, null, Cancelamento);
+
+        armazenamento.Chamadas.Should().ContainSingle().Which.Should().ContainSingle()
+            .Which.Should().Match<ContagemSolicitada>(c => c.Limite == limite && c.JanelaSegundos == janela);
+    }
+
+    [Fact]
+    public async Task Rotas_diferentes_nao_dividem_a_contagem()
+    {
+        var servico = Criar();
+        var rotas = new[] { RotaLimitada.RedefinicaoSenha, RotaLimitada.ConfirmacaoEmail, RotaLimitada.Renovacao, RotaLimitada.Logout };
+
+        foreach (var rota in rotas)
+        {
+            await servico.AvaliarAsync(rota, Origem, null, Cancelamento);
+        }
+
+        armazenamento.Chamadas.Select(c => Convert.ToHexString(c[0].Chave)).Should().OnlyHaveUniqueItems();
+    }
+
+    [Fact]
+    public async Task Rota_desconhecida_e_um_erro_de_programacao() =>
+        await FluentActions.Awaiting(() => Criar().AvaliarAsync((RotaLimitada)999, Origem, null, Cancelamento))
+            .Should().ThrowAsync<ArgumentOutOfRangeException>();
+
+    [Theory]
     [InlineData(100, 1)]
     [InlineData(1000, 1)]
     [InlineData(1001, 2)]

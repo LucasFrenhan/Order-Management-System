@@ -6,7 +6,7 @@ using PedidoFulfillment.API.LimiteRequisicoes;
 namespace PedidoFulfillment.Testes.Integracao.LimiteRequisicoes;
 
 /// <summary>O e-mail do login, lido antes da rota e sem consumir o corpo (REQ-23, FR-003, R-09).</summary>
-public sealed class LeitorEmailLoginTestes
+public sealed class LeitorEmailCorpoTestes
 {
     private static HttpRequest Requisicao(string corpo)
     {
@@ -15,7 +15,7 @@ public sealed class LeitorEmailLoginTestes
         return contexto.Request;
     }
 
-    private static Task<string?> Ler(string corpo) => LeitorEmailLogin.LerAsync(Requisicao(corpo), TestContext.Current.CancellationToken);
+    private static Task<string?> Ler(string corpo) => LeitorEmailCorpo.LerAsync(Requisicao(corpo), TestContext.Current.CancellationToken);
 
     [Theory]
     [InlineData("""{ "email": "maria@exemplo.com.br", "senha": "x" }""")]
@@ -54,7 +54,7 @@ public sealed class LeitorEmailLoginTestes
     {
         var requisicao = Requisicao(corpo);
 
-        await LeitorEmailLogin.LerAsync(requisicao, TestContext.Current.CancellationToken);
+        await LeitorEmailCorpo.LerAsync(requisicao, TestContext.Current.CancellationToken);
 
         using var leitor = new StreamReader(requisicao.Body);
         (await leitor.ReadToEndAsync(TestContext.Current.CancellationToken)).Should().Be(corpo);
@@ -66,7 +66,7 @@ public sealed class LeitorEmailLoginTestes
         var corpo = new string('a', 64 * 1024);
         var requisicao = Requisicao(corpo);
 
-        await LeitorEmailLogin.LerAsync(requisicao, TestContext.Current.CancellationToken);
+        await LeitorEmailCorpo.LerAsync(requisicao, TestContext.Current.CancellationToken);
 
         using var leitor = new StreamReader(requisicao.Body);
         (await leitor.ReadToEndAsync(TestContext.Current.CancellationToken)).Should().HaveLength(corpo.Length);

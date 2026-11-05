@@ -3,6 +3,7 @@ using PedidoFulfillment.Application.Entregas;
 using PedidoFulfillment.Application.Estoque;
 using PedidoFulfillment.Application.Pagamentos;
 using PedidoFulfillment.Infrastructure;
+using PedidoFulfillment.Infrastructure.Emails;
 using PedidoFulfillment.Infrastructure.Mensageria;
 using PedidoFulfillment.Infrastructure.Notificacoes;
 using PedidoFulfillment.Infrastructure.Observabilidade;
@@ -36,6 +37,7 @@ public sealed class ProgramaWorker
         builder.Services.AdicionarLimpezaEReenvio();
         builder.Services.AdicionarNotificacoes();
         builder.Services.AdicionarProcessamentoNotificacoes();
+        builder.Services.AdicionarProcessamentoEmails();
 
         var app = builder.Build();
         app.MapearEndpointsSaude();

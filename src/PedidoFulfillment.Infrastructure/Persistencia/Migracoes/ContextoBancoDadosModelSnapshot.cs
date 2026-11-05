@@ -981,6 +981,118 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                     b.ToTable("ContagensLimite", (string)null);
                 });
 
+            modelBuilder.Entity("PedidoFulfillment.Infrastructure.Persistencia.SessaoAutenticacao", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("EncerradaEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("ExpiraEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("IniciadaEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiraEm");
+
+                    b.HasIndex("UsuarioId");
+
+                    b.ToTable("SessoesAutenticacao", (string)null);
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Infrastructure.Persistencia.SolicitacaoEmail", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CriadaEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Destino")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTimeOffset>("ProximaTentativaEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Tentativas")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProximaTentativaEm");
+
+                    b.ToTable("SolicitacoesEmail", (string)null);
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Infrastructure.Persistencia.TokenRenovacao", b =>
+                {
+                    b.Property<byte[]>("HashToken")
+                        .HasMaxLength(32)
+                        .HasColumnType("binary(32)")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset>("ExpiraEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("SessaoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("UsadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("HashToken");
+
+                    b.HasIndex("SessaoId");
+
+                    b.ToTable("TokensRenovacao", (string)null);
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Infrastructure.Persistencia.TokenUsoUnico", b =>
+                {
+                    b.Property<byte[]>("HashToken")
+                        .HasMaxLength(32)
+                        .HasColumnType("binary(32)")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset>("ExpiraEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Finalidade")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<DateTimeOffset?>("UsadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("HashToken");
+
+                    b.HasIndex("ExpiraEm");
+
+                    b.HasIndex("UsuarioId", "Finalidade");
+
+                    b.ToTable("TokensUsoUnico", (string)null);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.HasOne("PedidoFulfillment.Infrastructure.Identidade.Perfil", null)
@@ -1117,6 +1229,33 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                         .WithMany()
                         .HasForeignKey("ClienteId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Infrastructure.Persistencia.SessaoAutenticacao", b =>
+                {
+                    b.HasOne("PedidoFulfillment.Infrastructure.Identidade.Usuario", null)
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Infrastructure.Persistencia.TokenRenovacao", b =>
+                {
+                    b.HasOne("PedidoFulfillment.Infrastructure.Persistencia.SessaoAutenticacao", null)
+                        .WithMany()
+                        .HasForeignKey("SessaoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PedidoFulfillment.Infrastructure.Persistencia.TokenUsoUnico", b =>
+                {
+                    b.HasOne("PedidoFulfillment.Infrastructure.Identidade.Usuario", null)
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

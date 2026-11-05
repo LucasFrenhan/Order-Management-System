@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PedidoFulfillment.Application.Reconciliacao;
 using PedidoFulfillment.Infrastructure.Configuracao;
+using PedidoFulfillment.Infrastructure.Emails;
 using PedidoFulfillment.Infrastructure.Mensageria;
 using PedidoFulfillment.Infrastructure.Notificacoes;
 using PedidoFulfillment.Infrastructure.Observabilidade;
@@ -45,6 +46,9 @@ public sealed class RotinasSemDependenciasTestes : IDisposable
     private ProcessadorNotificacoes Notificacoes() =>
         new(Escopos, Options.Create(new OpcoesNotificacoes()), Sql, TimeProvider.System, logs.Para<ProcessadorNotificacoes>());
 
+    private ProcessadorEmails Emails() =>
+        new(Escopos, Options.Create(new OpcoesEmail()), Sql, TimeProvider.System, logs.Para<ProcessadorEmails>());
+
     private ProcessadorEstornos Estornos() =>
         new(Escopos, Options.Create(new OpcoesEstornos()), Sql, TimeProvider.System, logs.Para<ProcessadorEstornos>());
 
@@ -69,10 +73,11 @@ public sealed class RotinasSemDependenciasTestes : IDisposable
     private static IConfiguration ConfiguracaoComTelemetria() =>
         new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Observabilidade:Habilitada"] = "true" }).Build();
 
-    public static TheoryData<string> Rotinas => ["notificacoes", "estornos", "reconciliacao", "reenvios", "limpeza", "amostrador"];
+    public static TheoryData<string> Rotinas => ["emails", "notificacoes", "estornos", "reconciliacao", "reenvios", "limpeza", "amostrador"];
 
     private Func<CancellationToken, Task> Rodada(string rotina) => rotina switch
     {
+        "emails" => Emails().ExecutarRodadaAsync,
         "notificacoes" => Notificacoes().ExecutarRodadaAsync,
         "estornos" => t => Estornos().ExecutarRodadaAsync(new OpcoesEstornos(), t),
         "reconciliacao" => t => Reconciliador().ExecutarCicloAsync(new OpcoesReconciliacao(), t),
@@ -84,6 +89,7 @@ public sealed class RotinasSemDependenciasTestes : IDisposable
 
     private BackgroundService Servico(string rotina) => rotina switch
     {
+        "emails" => Emails(),
         "notificacoes" => Notificacoes(),
         "estornos" => Estornos(),
         "reconciliacao" => Reconciliador(),
@@ -141,6 +147,27 @@ public sealed class RotinasSemDependenciasTestes : IDisposable
 
         logs.Registros.Should().Contain(r => r.Nivel >= LogLevel.Warning);
         await cancelada.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public void A_espera_do_email_dobra_de_30_s_ate_2_min()
+    {
+        ProcessadorEmails.Espera(0).Should().Be(TimeSpan.FromSeconds(30));
+        ProcessadorEmails.Espera(1).Should().Be(TimeSpan.FromMinutes(1));
+        ProcessadorEmails.Espera(2).Should().Be(TimeSpan.FromMinutes(2));
+        ProcessadorEmails.Espera(50).Should().Be(TimeSpan.FromMinutes(2));
+    }
+
+    [Fact]
+    public async Task Envio_de_email_desligado_nao_comeca()
+    {
+        using var emails = new ProcessadorEmails(Escopos, Options.Create(new OpcoesEmail { Habilitado = false }), Sql, TimeProvider.System, logs.Para<ProcessadorEmails>());
+
+        await emails.StartAsync(Token);
+        await emails.ExecuteTask!.WaitAsync(TimeSpan.FromSeconds(10), Token);
+
+        emails.ExecuteTask.IsCompletedSuccessfully.Should().BeTrue("termina sozinho, sem esperar o encerramento");
+        logs.Registros.Should().BeEmpty();
     }
 
     [Fact]

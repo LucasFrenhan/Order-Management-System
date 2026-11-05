@@ -1,4 +1,5 @@
 using FluentAssertions;
+using PedidoFulfillment.Application.LimiteRequisicoes;
 using PedidoFulfillment.Infrastructure.Configuracao;
 
 namespace PedidoFulfillment.Testes.Unitarios.LimiteRequisicoes;
@@ -28,6 +29,65 @@ public sealed class ValidadorOpcoesLimiteRequisicoesTestes
         opcoes.TempoMaximoEsperaMs.Should().Be(250);
         opcoes.PausaAposFalhaSegundos.Should().Be(5);
         opcoes.IntermediariosConfiaveis.Should().BeEmpty();
+    }
+
+    public static TheoryData<string, int, int> PoliticasDoCiclo => new()
+    {
+        { nameof(OpcoesLimiteRequisicoes.RecuperacaoOrigemEmail), 3, 3600 },
+        { nameof(OpcoesLimiteRequisicoes.RecuperacaoOrigem), 20, 3600 },
+        { nameof(OpcoesLimiteRequisicoes.ReenvioOrigemEmail), 3, 3600 },
+        { nameof(OpcoesLimiteRequisicoes.ReenvioOrigem), 20, 3600 },
+        { nameof(OpcoesLimiteRequisicoes.Redefinicao), 10, 60 },
+        { nameof(OpcoesLimiteRequisicoes.Confirmacao), 10, 60 },
+        { nameof(OpcoesLimiteRequisicoes.Renovacao), 120, 60 },
+        { nameof(OpcoesLimiteRequisicoes.Logout), 120, 60 }
+    };
+
+    private static OpcoesPoliticaLimite Politica(OpcoesLimiteRequisicoes opcoes, string nome) =>
+        (OpcoesPoliticaLimite)typeof(OpcoesLimiteRequisicoes).GetProperty(nome)!.GetValue(opcoes)!;
+
+    [Theory]
+    [MemberData(nameof(PoliticasDoCiclo))]
+    public void Os_padroes_das_rotas_do_ciclo_sao_os_da_spec(string nome, int limite, int janela)
+    {
+        var politica = Politica(Validas(), nome);
+
+        (politica.Limite, politica.JanelaSegundos).Should().Be((limite, janela));
+    }
+
+    [Theory]
+    [InlineData(nameof(OpcoesLimiteRequisicoes.RecuperacaoOrigemEmail))]
+    [InlineData(nameof(OpcoesLimiteRequisicoes.RecuperacaoOrigem))]
+    [InlineData(nameof(OpcoesLimiteRequisicoes.ReenvioOrigemEmail))]
+    [InlineData(nameof(OpcoesLimiteRequisicoes.ReenvioOrigem))]
+    [InlineData(nameof(OpcoesLimiteRequisicoes.Redefinicao))]
+    [InlineData(nameof(OpcoesLimiteRequisicoes.Confirmacao))]
+    [InlineData(nameof(OpcoesLimiteRequisicoes.Renovacao))]
+    [InlineData(nameof(OpcoesLimiteRequisicoes.Logout))]
+    public void As_faixas_das_rotas_do_ciclo_sao_recusadas_nas_pontas(string nome)
+    {
+        var opcoes = Validas();
+        var politica = Politica(opcoes, nome);
+        politica.Limite = 0;
+        politica.JanelaSegundos = 86_401;
+
+        Falhas(opcoes).Should().HaveCount(2)
+            .And.Contain(f => f.Contains($"LimiteRequisicoes:{nome}:Limite"))
+            .And.Contain(f => f.Contains($"LimiteRequisicoes:{nome}:JanelaSegundos"));
+    }
+
+    [Fact]
+    public void A_configuracao_pronta_traz_as_politicas_do_ciclo_com_os_valores_configurados()
+    {
+        var opcoes = Validas();
+        opcoes.Renovacao.Limite = 7;
+
+        var ciclo = opcoes.ParaConfiguracao().CicloAutenticacao;
+
+        ciclo.Renovacao.Should().Be(new PoliticaLimite(PoliticaLimite.Renovacao, 7, 60));
+        ciclo.RecuperacaoOrigemEmail.Nome.Should().Be("recuperacao_origem_email");
+        ciclo.ReenvioOrigemEmail.Nome.Should().Be("reenvio_origem_email");
+        ciclo.Logout.Nome.Should().Be("logout");
     }
 
     [Theory]

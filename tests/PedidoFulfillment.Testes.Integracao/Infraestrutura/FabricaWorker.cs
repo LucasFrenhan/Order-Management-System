@@ -70,6 +70,8 @@ public sealed class FabricaWorker : WebApplicationFactory<ProgramaWorker>
         builder.UseSetting("Notificacoes:ChaveCifra", FabricaApi.ChaveCifraTeste);
         builder.UseSetting("Notificacoes:PermitirRedeLocal", "true");
         builder.UseSetting("Notificacoes:Envio:Habilitado", "false");
+        // Envio de e-mail (REQ-24, R-11): só os testes dele o ligam.
+        builder.UseSetting("Email:Habilitado", "false");
         if (Telemetria is not null)
         {
             builder.UseSetting("Observabilidade:Habilitada", "true");

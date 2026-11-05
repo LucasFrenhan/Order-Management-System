@@ -3,11 +3,11 @@ using System.Text.Json;
 namespace PedidoFulfillment.API.LimiteRequisicoes;
 
 /// <summary>
-/// Lê o e-mail do corpo do login antes da rota, sem consumir o corpo (R-09). Qualquer corpo sem um
+/// Lê o e-mail do corpo do login, da recuperação e do reenvio antes da rota, sem consumir o corpo (R-09). Qualquer corpo sem um
 /// e-mail utilizável devolve nulo, e a tentativa conta só pela origem (FR-003). A rota segue com a
 /// sua validação de hoje (FR-022).
 /// </summary>
-public static class LeitorEmailLogin
+public static class LeitorEmailCorpo
 {
     private const int TamanhoMaximoCorpo = 16 * 1024;
     private const int TamanhoMaximoEmail = 256;

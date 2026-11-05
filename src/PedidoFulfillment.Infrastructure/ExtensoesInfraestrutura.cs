@@ -4,10 +4,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using PedidoFulfillment.Application.Autenticacao;
+using PedidoFulfillment.Application.Emails;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Application.Produtos;
+using PedidoFulfillment.Infrastructure.Autenticacao;
 using PedidoFulfillment.Infrastructure.Configuracao;
+using PedidoFulfillment.Infrastructure.Emails;
 using PedidoFulfillment.Infrastructure.Identidade;
 using PedidoFulfillment.Infrastructure.Persistencia;
 using PedidoFulfillment.Infrastructure.Saude;
@@ -71,6 +74,9 @@ public static class ExtensoesInfraestrutura
             .AddRoles<Perfil>()
             .AddEntityFrameworkStores<ContextoBancoDados>();
         services.AddScoped<IGestorIdentidade, GestorIdentidade>();
+        // Ciclo da autenticação (REQ-24): na mesma instância do contexto, para entrar nas transações do gestor.
+        services.AddScoped<IArmazenamentoSessoes, ArmazenamentoSessoes>();
+        services.AddScoped<IFilaEmails, FilaEmails>();
         services.AddScoped<IArmazenamentoPedidos, ArmazenamentoPedidos>();
         services.AddScoped<IArmazenamentoProdutos, ArmazenamentoProdutos>();
         services.AddScoped<IGeradorNumeroPedido, GeradorNumeroPedido>();
