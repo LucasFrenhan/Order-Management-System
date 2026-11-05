@@ -60,10 +60,13 @@ Rodadas que não pegam o lock e ciclos do despachante sem eventos não geram spa
 | `oms.resultado` (estornos) | `confirmado`, `falhou` |
 | `oms.resultado` (reenvio da DLQ) | `concluido`, `falhou` |
 | `oms.resultado` (webhooks, REQ-18) | `entregue`, `falha`, `esgotada` |
-| `oms.rotina` | `reconciliacao`, `estornos`, `reenvio_dlq`, `limpeza`; `notificacoes` (REQ-18) |
+| `oms.resultado` (renovações, REQ-24) | `renovada`, `recusada`, `reutilizada` |
+| `oms.resultado` (e-mails, REQ-24) | `enviado`, `falha`, `descartado`, `sem_conta` |
+| `oms.email.tipo` (REQ-24) | `RecuperacaoSenha`, `ConfirmacaoEmail`, `AvisoSenhaRedefinida` |
+| `oms.rotina` | `reconciliacao`, `estornos`, `reenvio_dlq`, `limpeza`; `notificacoes` (REQ-18); `emails` (REQ-24) |
 | `oms.etapa` | `Estoque`, `Pagamento`, `Entrega` |
-| `oms.limpeza.alvo` | `enviados`, `processados`, `chaves`, `pedidos_reenvio`; `entregas_notificacao`, `avisos_pedido` (REQ-18); `contagens_limite` (REQ-23, sem span próprio) |
-| `oms.limite.politica` (REQ-23) | `login_origem_email`, `login_origem`, `registro` |
+| `oms.limpeza.alvo` | `enviados`, `processados`, `chaves`, `pedidos_reenvio`; `entregas_notificacao`, `avisos_pedido` (REQ-18); `contagens_limite` (REQ-23, sem span próprio); `sessoes_autenticacao`, `tokens_uso_unico` (REQ-24) |
+| `oms.limite.politica` (REQ-23) | `login_origem_email`, `login_origem`, `registro`; `recuperacao_origem_email`, `recuperacao_origem`, `reenvio_origem_email`, `reenvio_origem`, `redefinicao`, `confirmacao`, `renovacao`, `logout` (REQ-24) |
 
 ## Métricas próprias (meter `PedidoFulfillment`)
 
@@ -93,6 +96,14 @@ As métricas 14 a 16 são do REQ-19. O REQ-23 acrescentou ([contrato](../../023-
 |---|------|-------------|---------|-----------|-------------|
 | 17 | `oms.limite_requisicoes.recusadas` | Counter (long) | `{requisicao}` | `oms.limite.politica` | API (por instância) |
 | 18 | `oms.limite_requisicoes.falhas_armazenamento` | Counter (long) | `{requisicao}` | — | API (por instância) |
+
+O REQ-24 acrescentou, com o span `processar_emails`, raiz, com `oms.rotina = emails`
+([research R-10](../../024-ciclo-autenticacao/research.md#r-10-logs-e-métricas-fr-026)):
+
+| # | Nome | Instrumento | Unidade | Atributos | Emitida por |
+|---|------|-------------|---------|-----------|-------------|
+| 19 | `oms.autenticacao.renovacoes` | Counter (long) | `{renovacao}` | `oms.resultado` | API (por instância) |
+| 20 | `oms.emails` | Counter (long) | `{email}` | `oms.email.tipo`, `oms.resultado` | Worker |
 
 - **Várias instâncias**: os gauges 1 a 3 saem iguais de cada instância; agregue com `max`.
   Os contadores 4 a 6 se somam.

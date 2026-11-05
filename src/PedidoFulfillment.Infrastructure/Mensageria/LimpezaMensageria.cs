@@ -35,6 +35,8 @@ internal sealed class LimpezaMensageria(
     internal const string AlvoPedidosReenvio = "pedidos_reenvio";
     internal const string AlvoEntregas = "entregas_notificacao";
     internal const string AlvoAvisos = "avisos_pedido";
+    internal const string AlvoSessoes = "sessoes_autenticacao";
+    internal const string AlvoTokensUsoUnico = "tokens_uso_unico";
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -122,8 +124,19 @@ internal sealed class LimpezaMensageria(
             .Where(a => a.CriadoEm < limiteAvisos && !contexto.EntregasNotificacao.Any(e => e.AvisoId == a.Id))
             .OrderBy(a => a.CriadoEm).Take(lote).ExecuteDeleteAsync(ct), cancellationToken);
 
-        var nivel = enviados + processados + chaves + pedidos + entregas + avisos > 0 ? LogLevel.Information : LogLevel.Debug;
-        EventosLimpezaReenvio.LimpezaConcluida(logger, nivel, enviados, processados, chaves, pedidos, entregas, avisos);
+        // REQ-24 (R-07): os tokens de renovação saem em cascata com a sessão. Os usados de uma sessão ativa
+        // ficam, porque são eles que detectam a reutilização.
+        var limiteSessoes = agora - configuracao.RetencaoSessoes;
+        var limiteTokens = agora - configuracao.RetencaoTokensUsoUnico;
+        var sessoes = await EmLotesAsync(configuracao, AlvoSessoes, (contexto, lote, ct) => contexto.SessoesAutenticacao
+            .Where(s => (s.EncerradaEm != null && s.EncerradaEm < limiteSessoes) || s.ExpiraEm < limiteSessoes)
+            .OrderBy(s => s.ExpiraEm).Take(lote).ExecuteDeleteAsync(ct), cancellationToken);
+        var tokens = await EmLotesAsync(configuracao, AlvoTokensUsoUnico, (contexto, lote, ct) => contexto.TokensUsoUnico
+            .Where(t => (t.UsadoEm != null && t.UsadoEm < limiteTokens) || t.ExpiraEm < limiteTokens)
+            .OrderBy(t => t.ExpiraEm).Take(lote).ExecuteDeleteAsync(ct), cancellationToken);
+
+        var nivel = enviados + processados + chaves + pedidos + entregas + avisos + sessoes + tokens > 0 ? LogLevel.Information : LogLevel.Debug;
+        EventosLimpezaReenvio.LimpezaConcluida(logger, nivel, enviados, processados, chaves, pedidos, entregas, avisos, sessoes, tokens);
     }
 
     /// <summary>Até <c>LotesPorRodada</c> lotes, cada um num escopo e numa transação curta; para quando um lote vem incompleto.</summary>

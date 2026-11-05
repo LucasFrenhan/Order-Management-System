@@ -38,6 +38,8 @@ public sealed class OpcoesLimpezaTestes
     [InlineData(nameof(OpcoesLimpeza.TamanhoLote), 1, 10000)]
     [InlineData(nameof(OpcoesLimpeza.LotesPorRodada), 1, 1000)]
     [InlineData(nameof(OpcoesLimpeza.RetencaoEnviadosHoras), 1, 8760)]
+    [InlineData(nameof(OpcoesLimpeza.RetencaoSessoesHoras), 1, 8760)]
+    [InlineData(nameof(OpcoesLimpeza.RetencaoTokensUsoUnicoHoras), 1, 8760)]
     [InlineData(nameof(OpcoesLimpeza.RetencaoProcessadosHoras), 24, 8760)]
     [InlineData(nameof(OpcoesLimpeza.RetencaoChavesHoras), 24, 8760)]
     [InlineData(nameof(OpcoesLimpeza.RetencaoPedidosReenvioHoras), 24, 87600)]

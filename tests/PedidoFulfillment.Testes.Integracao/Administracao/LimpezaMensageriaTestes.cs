@@ -1,14 +1,19 @@
 using System.Net;
+using System.Security.Cryptography;
 using FluentAssertions;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using PedidoFulfillment.Application.Autenticacao;
 using PedidoFulfillment.Application.Contratos.Eventos;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Infrastructure.Configuracao;
+using PedidoFulfillment.Infrastructure.Identidade;
 using PedidoFulfillment.Infrastructure.Mensageria;
+using PedidoFulfillment.Infrastructure.Persistencia;
 using PedidoFulfillment.Testes.Integracao.Infraestrutura;
 using static PedidoFulfillment.Testes.Integracao.Pedidos.CenarioPedidos;
 
@@ -106,6 +111,82 @@ public sealed class LimpezaMensageriaTestes(MensageriaTeste mensageria)
 
     private static Task<int> ContarAsync(string stringConexao, string tabela, string condicao) =>
         BancoDadosTeste.ConsultarAsync<int>(stringConexao, $"SELECT COUNT(*) FROM {tabela} WHERE {condicao}");
+
+    /// <summary>Sessões e tokens de uma conta, datados em relação ao instante atual (REQ-24, R-07).</summary>
+    private static async Task<Guid> ContaAsync(FabricaWorker worker)
+    {
+        await using var escopo = worker.Services.CreateAsyncScope();
+        var usuarios = escopo.ServiceProvider.GetRequiredService<UserManager<Usuario>>();
+        var usuario = new Usuario { UserName = "maria@exemplo.com.br", Email = "maria@exemplo.com.br", Nome = "Maria Silva" };
+        (await usuarios.CreateAsync(usuario, "SenhaForte1")).Succeeded.Should().BeTrue();
+        return usuario.Id;
+    }
+
+    private static async Task<Guid> SessaoAsync(string stringConexao, Guid usuario, TimeSpan expiraEm, TimeSpan? encerradaHa = null)
+    {
+        await using var contexto = BancoDadosTeste.NovoContexto(stringConexao);
+        var sessao = new SessaoAutenticacao
+        {
+            Id = Guid.CreateVersion7(),
+            UsuarioId = usuario,
+            IniciadaEm = Agora.AddDays(-40),
+            ExpiraEm = Agora + expiraEm,
+            EncerradaEm = encerradaHa is { } ha ? Agora - ha : null
+        };
+        contexto.SessoesAutenticacao.Add(sessao);
+        contexto.TokensRenovacao.Add(new TokenRenovacao
+        {
+            HashToken = RandomNumberGenerator.GetBytes(TokenRenovacao.TamanhoHash),
+            SessaoId = sessao.Id,
+            ExpiraEm = Agora.AddDays(-1),
+            UsadoEm = Agora.AddDays(-2)
+        });
+        await contexto.SaveChangesAsync(Cancelamento);
+        return sessao.Id;
+    }
+
+    private static async Task<byte[]> TokenUsoUnicoAsync(string stringConexao, Guid usuario, TimeSpan expiraEm, TimeSpan? usadoHa = null)
+    {
+        await using var contexto = BancoDadosTeste.NovoContexto(stringConexao);
+        var hash = RandomNumberGenerator.GetBytes(TokenRenovacao.TamanhoHash);
+        contexto.TokensUsoUnico.Add(new TokenUsoUnico
+        {
+            HashToken = hash,
+            UsuarioId = usuario,
+            Finalidade = FinalidadeTokenUsoUnico.RecuperacaoSenha,
+            ExpiraEm = Agora + expiraEm,
+            UsadoEm = usadoHa is { } ha ? Agora - ha : null
+        });
+        await contexto.SaveChangesAsync(Cancelamento);
+        return hash;
+    }
+
+    [Fact]
+    public async Task Sessoes_e_tokens_passados_da_retencao_sao_apagados_e_os_ativos_ficam()
+    {
+        Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
+        var stringConexao = await mensageria.NovoBancoMigradoAsync();
+        await using var worker = Worker(stringConexao);
+        var usuario = await ContaAsync(worker);
+        var encerradaAntiga = await SessaoAsync(stringConexao, usuario, TimeSpan.FromDays(10), TimeSpan.FromHours(25));
+        var vencidaAntiga = await SessaoAsync(stringConexao, usuario, -TimeSpan.FromHours(25));
+        var encerradaRecente = await SessaoAsync(stringConexao, usuario, TimeSpan.FromDays(10), TimeSpan.FromHours(23));
+        var vencidaRecente = await SessaoAsync(stringConexao, usuario, -TimeSpan.FromHours(23));
+        var ativa = await SessaoAsync(stringConexao, usuario, TimeSpan.FromDays(10));
+        var usadoAntigo = await TokenUsoUnicoAsync(stringConexao, usuario, TimeSpan.FromHours(1), TimeSpan.FromHours(25));
+        var vencidoAntigo = await TokenUsoUnicoAsync(stringConexao, usuario, -TimeSpan.FromHours(25));
+        var usadoRecente = await TokenUsoUnicoAsync(stringConexao, usuario, TimeSpan.FromHours(1), TimeSpan.FromHours(23));
+        var valido = await TokenUsoUnicoAsync(stringConexao, usuario, TimeSpan.FromMinutes(30));
+
+        await Limpeza(worker).ExecutarRodadaAsync(Opcoes(), Cancelamento);
+
+        (await ContarAsync(stringConexao, "SessoesAutenticacao", $"Id IN ('{encerradaAntiga}', '{vencidaAntiga}')")).Should().Be(0);
+        (await ContarAsync(stringConexao, "SessoesAutenticacao", $"Id IN ('{encerradaRecente}', '{vencidaRecente}', '{ativa}')")).Should().Be(3);
+        (await ContarAsync(stringConexao, "TokensRenovacao", $"SessaoId IN ('{encerradaAntiga}', '{vencidaAntiga}')")).Should().Be(0, "em cascata");
+        (await ContarAsync(stringConexao, "TokensRenovacao", $"SessaoId = '{ativa}'")).Should().Be(1, "o usado de uma sessão ativa detecta a reutilização");
+        (await ContarAsync(stringConexao, "TokensUsoUnico", $"HashToken IN (0x{Convert.ToHexString(usadoAntigo)}, 0x{Convert.ToHexString(vencidoAntigo)})")).Should().Be(0);
+        (await ContarAsync(stringConexao, "TokensUsoUnico", $"HashToken IN (0x{Convert.ToHexString(usadoRecente)}, 0x{Convert.ToHexString(valido)})")).Should().Be(2);
+    }
 
     [Fact]
     public async Task So_o_que_passou_da_retencao_e_apagado_e_os_pendentes_ficam()

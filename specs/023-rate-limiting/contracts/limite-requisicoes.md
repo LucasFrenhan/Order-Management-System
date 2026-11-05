@@ -46,6 +46,10 @@ chave, sem o valor.
 | `LoginOrigem:JanelaSegundos` | 60 | 1 a 86.400 | |
 | `Registro:Limite` | 20 | 1 a 1.000.000 | |
 | `Registro:JanelaSegundos` | 3.600 | 1 a 86.400 | |
+| `RecuperacaoOrigemEmail`, `ReenvioOrigemEmail` | 3 por 3.600 s | As mesmas | `Limite` e `JanelaSegundos`; REQ-24 |
+| `RecuperacaoOrigem`, `ReenvioOrigem` | 20 por 3.600 s | As mesmas | REQ-24 |
+| `Redefinicao`, `Confirmacao` | 10 por 60 s | As mesmas | REQ-24 |
+| `Renovacao`, `Logout` | 120 por 60 s | As mesmas | REQ-24 |
 | `TempoMaximoEsperaMs` | 250 | 50 a 5.000 | Acima disso, a requisição segue sem o limite |
 | `PausaAposFalhaSegundos` | 5 | 0 a 300 | Tempo sem tentar o armazenamento depois de uma falha |
 | `IntermediariosConfiaveis` | vazia | IPs ou faixas CIDR | Quem pode informar a origem por `X-Forwarded-For` |
@@ -66,10 +70,10 @@ Seção `Limpeza`, no Worker:
 
 | Sinal | Quando | Conteúdo |
 |-------|--------|----------|
-| Log 3007 `LimiteRequisicoesExcedido` (Warning) | Primeira recusa de cada contagem em cada janela | Política e, em `login_origem_email`, o e-mail mascarado |
+| Log 3007 `LimiteRequisicoesExcedido` (Warning) | Primeira recusa de cada contagem em cada janela | Política e, nas políticas por origem + e-mail, o e-mail mascarado |
 | Log 3008 `FalhaArmazenamentoLimite` (Warning) | Falha do armazenamento, uma por pausa | O tipo da falha |
 | Log 3009 `AquecimentoLimiteIgnorado` (Debug) | O pool de conexões não pôde ser aberto ao subir (R-04) | O tipo da falha |
-| `oms.limite_requisicoes.recusadas` (contador) | Toda recusa, inclusive pelo bloqueio local | Atributo `oms.limite.politica`: `login_origem_email`, `login_origem` ou `registro` |
+| `oms.limite_requisicoes.recusadas` (contador) | Toda recusa, inclusive pelo bloqueio local | Atributo `oms.limite.politica`: `login_origem_email`, `login_origem`, `registro` ou uma das políticas do REQ-24 |
 | `oms.limite_requisicoes.falhas_armazenamento` (contador) | Toda requisição que seguiu sem o limite, inclusive durante a pausa | Sem atributos |
 
 Nenhum sinal contém senha, e-mail completo ou endereço de origem (FR-020, FR-021, SC-007).

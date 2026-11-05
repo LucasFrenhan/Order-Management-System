@@ -21,7 +21,7 @@ documento fixa o conteúdo do token emitido, que as rotas protegidas validam des
 | `aud` | `Jwt:Audiencia` (`PedidoFulfillment`) | validação |
 | `iat` | instante da emissão (Unix) | — |
 | `nbf` | igual a `iat` | validação |
-| `exp` | `iat` + `Jwt:DuracaoTokenMinutos` (60) | validação (tolerância de 30 s) |
+| `exp` | `iat` + `Jwt:DuracaoTokenMinutos` (15 por padrão desde o REQ-24; era 60) | validação (tolerância de 30 s) |
 | `jti` | Guid novo por token | — |
 
 O token não leva nome, e-mail nem nenhum outro dado pessoal.

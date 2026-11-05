@@ -33,12 +33,22 @@ public sealed class OpcoesLimpeza
     /// <summary>Entregas de webhook finalizadas (REQ-18, FR-018).</summary>
     public int RetencaoEntregasHoras { get; set; } = 168;
 
+    /// <summary>Sessões encerradas ou vencidas, com os tokens delas (REQ-24, R-07).</summary>
+    public int RetencaoSessoesHoras { get; set; } = 24;
+
+    /// <summary>Tokens de recuperação e de confirmação usados ou vencidos (REQ-24, R-07).</summary>
+    public int RetencaoTokensUsoUnicoHoras { get; set; } = 24;
+
     /// <summary>Rotina das contagens vencidas do limite de requisições (REQ-23, R-07).</summary>
     public int IntervaloContagensSegundos { get; set; } = 60;
 
     public int LotesContagensPorRodada { get; set; } = 100;
 
     public TimeSpan IntervaloContagens => TimeSpan.FromSeconds(IntervaloContagensSegundos);
+
+    public TimeSpan RetencaoSessoes => TimeSpan.FromHours(RetencaoSessoesHoras);
+
+    public TimeSpan RetencaoTokensUsoUnico => TimeSpan.FromHours(RetencaoTokensUsoUnicoHoras);
 
     public TimeSpan RetencaoAvisos => TimeSpan.FromHours(RetencaoAvisosHoras);
 
@@ -70,6 +80,8 @@ public sealed class ValidadorOpcoesLimpeza : IValidateOptions<OpcoesLimpeza>
         faixas.Limitar(options.RetencaoPedidosReenvioHoras, 24, 87600, nameof(OpcoesLimpeza.RetencaoPedidosReenvioHoras));
         faixas.Limitar(options.RetencaoAvisosHoras, 24, 8760, nameof(OpcoesLimpeza.RetencaoAvisosHoras));
         faixas.Limitar(options.RetencaoEntregasHoras, 24, 8760, nameof(OpcoesLimpeza.RetencaoEntregasHoras));
+        faixas.Limitar(options.RetencaoSessoesHoras, 1, 8760, nameof(OpcoesLimpeza.RetencaoSessoesHoras));
+        faixas.Limitar(options.RetencaoTokensUsoUnicoHoras, 1, 8760, nameof(OpcoesLimpeza.RetencaoTokensUsoUnicoHoras));
         faixas.Limitar(options.IntervaloContagensSegundos, 10, 3600, nameof(OpcoesLimpeza.IntervaloContagensSegundos));
         faixas.Limitar(options.LotesContagensPorRodada, 1, 1000, nameof(OpcoesLimpeza.LotesContagensPorRodada));
         return faixas.Resultado();

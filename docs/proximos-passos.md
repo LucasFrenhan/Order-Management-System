@@ -17,10 +17,12 @@ consumo (issue #46). O REQ-20 pôs a análise estática do SonarQube Cloud em to
 O REQ-21 trouxe a listagem de pedidos por perfil, com filtros e paginação por cursor (issue #52),
 e o REQ-22, o catálogo de produtos pela API, com busca em português pelo Full-Text Search do
 SQL Server (issue #53). O REQ-23 limitou as requisições do login e do registro, com uma contagem
-única para todas as instâncias da API (issue #58).
+única para todas as instâncias da API (issue #58), e o REQ-24 completou o ciclo da autenticação:
+renovação com rotação, logout, troca e recuperação de senha e confirmação de e-mail, com o envio
+de e-mail no Worker (issue #55).
 Cada trabalho novo segue o fluxo SDD (`/speckit-specify` → `/speckit-clarify` →
 `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`), em uma
-branch `feature/req-XX-...`, com a numeração a partir do REQ-24.
+branch `feature/req-XX-...`, com a numeração a partir do REQ-25.
 
 A fila abaixo saiu do levantamento das pendências de todas as specs (2026-11-02). A ordem é
 uma sugestão; o número do REQ é dado quando o trabalho começa.
@@ -29,10 +31,9 @@ uma sugestão; o número do REQ é dado quando o trabalho começa.
 |-------|-----------|--------|--------|
 | 1 | a numerar | [#59](https://github.com/LucasFrenhan/Order-Management-System/issues/59) — Dependabot e CodeQL | Dependências vulneráveis e análise do CodeQL na cadeia de build |
 | 2 | a numerar | [#54](https://github.com/LucasFrenhan/Order-Management-System/issues/54) — Gestão de usuários | Usuários internos e perfis pelo Admin |
-| 3 | a numerar | [#55](https://github.com/LucasFrenhan/Order-Management-System/issues/55) — Ciclo da autenticação | Refresh token, logout, troca e recuperação de senha, confirmação de e-mail |
-| 4 | a numerar | [#60](https://github.com/LucasFrenhan/Order-Management-System/issues/60) — Rotação da chave JWT | Várias chaves com `kid` e rotação sem derrubar sessões |
-| 5 | a numerar | [#57](https://github.com/LucasFrenhan/Order-Management-System/issues/57) — Estornos pela operação | Forçar tentativa, dar baixa manual e evento de estorno travado |
-| 6 | a numerar | [#56](https://github.com/LucasFrenhan/Order-Management-System/issues/56) — Evolução do pagamento | Estudo: nova cobrança após recusa, estorno parcial, devolução, pagamento em análise e gateway real |
+| 3 | a numerar | [#60](https://github.com/LucasFrenhan/Order-Management-System/issues/60) — Rotação da chave JWT | Várias chaves com `kid` e rotação sem derrubar sessões |
+| 4 | a numerar | [#57](https://github.com/LucasFrenhan/Order-Management-System/issues/57) — Estornos pela operação | Forçar tentativa, dar baixa manual e evento de estorno travado |
+| 5 | a numerar | [#56](https://github.com/LucasFrenhan/Order-Management-System/issues/56) — Evolução do pagamento | Estudo: nova cobrança após recusa, estorno parcial, devolução, pagamento em análise e gateway real |
 | contínua | sem REQ | [#61](https://github.com/LucasFrenhan/Order-Management-System/issues/61) — Dívida técnica de code smells | Sem prazo: todo PR que corrigir code smells referencia a #61 (`Refs #61`) e atualiza a tabela dela |
 
 ### Para análise futura (sem issue)
@@ -50,6 +51,8 @@ Itens do mesmo levantamento que ficaram anotados, sem issue, para decidir depois
   - Pedidos pagos e cancelados antes do REQ-13 não foram estornados (passivo de dados; consulta
     no [quickstart do REQ-13](../specs/013-cancelamento-com-estorno/quickstart.md#5-pedidos-pagos-e-cancelados-antes-do-req-13)).
 - **Segurança**
+  - Autenticação: exigir o e-mail confirmado em ações específicas, lista de sessões e "encerrar todas" como rota, MFA e
+    login social (REQ-24).
   - Limite de requisições: as contagens ficam no SQL Server, e um armazenamento próprio, como o Redis, isolaria o limite do
     banco dos pedidos em uma inundação. A troca é só outra implementação de `IArmazenamentoContagens` (REQ-23,
     [research R-01](../specs/023-rate-limiting/research.md#r-01-armazenamento-compartilhado-sql-server-ou-redis)).
@@ -59,6 +62,8 @@ Itens do mesmo levantamento que ficaram anotados, sem issue, para decidir depois
     na API. Vale decidir junto com a rotação da chave do JWT (#60), que hoje invalidaria os
     cursores em uso (REQ-21, [research R-04](../specs/021-listagem-pedidos/research.md#r-04--chave-do-hmac-do-cursor)).
 - **Operação e infraestrutura**
+  - Provedor real de e-mail em produção: o envio é SMTP puro, e a escolha é uma decisão de implantação; os e-mails são
+    só texto, sem HTML nem modelos configuráveis (REQ-24, [fluxo 16](fluxos/16-envio-de-email.md)).
   - Ambientes de homologação e produção, deploy e publicação de imagem (REQ-02, REQ-07).
   - Alertas sobre as métricas que já existem (REQ-14, REQ-16).
   - Purga da DLQ (apagar sem reenviar) pela API; hoje é pelo painel do RabbitMQ (REQ-14).
