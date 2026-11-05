@@ -131,9 +131,9 @@ public sealed class TraceRotinasTestes(MensageriaTeste mensageria)
         rodada.Should().NotBeNull();
         rodada!.ParentSpanId.Should().Be(default(ActivitySpanId));
         var alvos = coletor.Spans.Where(s => s.ParentSpanId == rodada.SpanId && s.DisplayName.StartsWith("limpar ", StringComparison.Ordinal)).ToList();
-        // REQ-18 acrescentou as entregas de webhook e os avisos de notificação.
+        // REQ-18 acrescentou as entregas de webhook e os avisos de notificação; REQ-24, as sessões e os tokens de uso único.
         alvos.Select(s => s.Atributo("oms.limpeza.alvo")).Should().BeEquivalentTo(
-            ["enviados", "processados", "chaves", "pedidos_reenvio", "entregas_notificacao", "avisos_pedido"]);
+            ["enviados", "processados", "chaves", "pedidos_reenvio", "entregas_notificacao", "avisos_pedido", "sessoes_autenticacao", "tokens_uso_unico"]);
         alvos.Single(s => Equals(s.Atributo("oms.limpeza.alvo"), "enviados")).Atributo("oms.limpeza.linhas_apagadas").Should().Be(1);
         coletor.Soma("oms.limpeza.linhas_apagadas", ("oms.limpeza.alvo", "enviados")).Should().Be(1, "métrica 6 (US5)");
     }

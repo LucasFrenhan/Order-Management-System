@@ -9,14 +9,19 @@ namespace PedidoFulfillment.Testes.Integracao.Seguranca;
 
 /// <summary>
 /// Varre todas as rotas mapeadas e garante o Princípio III também para rotas futuras: só
-/// register, login, os endereços de saúde (<c>/health</c> e <c>/health/pronto</c>, REQ-02) e a
+/// register, login, as rotas públicas do ciclo da autenticação (REQ-24), os endereços de saúde (<c>/health</c> e <c>/health/pronto</c>, REQ-02) e a
 /// documentação (fora de produção) podem ser anônimas; todas as outras declaram autorização
 /// explicitamente.
 /// </summary>
 public sealed class AutorizacaoEndpointsTestes(FabricaApi fabrica) : IClassFixture<FabricaApi>
 {
     private static readonly string[] RotasAnonimasPermitidas =
-        ["/api/v1/auth/register", "/api/v1/auth/login", "/health", "/health/pronto"];
+        [
+            "/api/v1/auth/register", "/api/v1/auth/login", "/health", "/health/pronto",
+            // Ciclo da autenticação (REQ-24): a troca de senha não está aqui, porque exige token.
+            "/api/v1/auth/renovacao", "/api/v1/auth/logout", "/api/v1/auth/recuperacao-senha", "/api/v1/auth/redefinicao-senha",
+            "/api/v1/auth/confirmacao-email", "/api/v1/auth/confirmacao-email/reenvio"
+        ];
     private static readonly string[] PrefixosDocumentacao = ["/openapi/", "/scalar"];
 
     [Fact]

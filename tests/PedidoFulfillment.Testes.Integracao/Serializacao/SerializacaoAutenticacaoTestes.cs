@@ -41,7 +41,7 @@ public sealed class SerializacaoAutenticacaoTestes(FabricaApi fabrica) : IClassF
 
         var json = Serializar(login);
 
-        json.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo("tokenAcesso", "tipoToken", "expiraEm", "perfis");
+        json.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo("tokenAcesso", "tipoToken", "expiraEm", "perfis", "tokenRenovacao", "tokenRenovacaoExpiraEm");
         json.GetProperty("tipoToken").GetString().Should().Be("Bearer");
         json.GetProperty("expiraEm").GetString().Should().Be("2026-10-21T18:00:00+00:00");
         json.GetProperty("perfis").EnumerateArray().Select(p => p.GetString()).Should().Equal("Cliente", "Admin");
