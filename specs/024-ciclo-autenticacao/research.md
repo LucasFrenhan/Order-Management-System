@@ -45,15 +45,16 @@ Worker: acha a conta -> sem conta: apaga, sem enviar
 - **O token em claro nunca é gravado**: existe só na memória do Worker e no e-mail. Atende ao FR-003 sem cifra e sem mais uma chave para operar. Esta é uma revisão do que o clarify supunha, que era cifrar a mensagem pendente.
 - **A resposta é igual com e sem conta**: a API faz exatamente a mesma gravação nos dois casos e nem consulta a conta, o que também resolve o tempo (FR-013, SC-005).
 - **Nova tentativa, token novo**: o token anterior é invalidado. Uma queda entre o envio e a remoção da solicitação gera um segundo e-mail, e só o do último vale, o que não duplica o efeito (FR-021).
+- **O destino é o endereço da conta**: o `Destino` digitado só serve para achar a conta. O e-mail vai ao endereço guardado nela, para um e-mail apenas equivalente na comparação não desviar o token.
 - **Validade conta do envio**: um e-mail atrasado pela queda do SMTP ainda chega com os 30 minutos completos.
 - **Tipos**: `RecuperacaoSenha`, `ConfirmacaoEmail` e `AvisoSenhaRedefinida`.
 - **Na transação do que a originou**: no registro, a solicitação grava junto com a conta, e na redefinição, junto com a senha nova.
 
-**Molde**: o mesmo do `ProcessadorNotificacoes` (REQ-18), uma tabela e um `BackgroundService` no Worker, com lock de aplicação (`oms-emails`), sem passar pelo RabbitMQ. Atende ao Princípio IV da constituição, que aceita "outbox ou mecanismo equivalente", e não põe dado pessoal em mensagens.
+**Molde**: o mesmo do `ProcessadorNotificacoes` (REQ-18), uma tabela e um `BackgroundService` no Worker, com lock de aplicação (`oms-emails`), sem passar pelo RabbitMQ. É uma exceção ao Princípio IV da constituição, aprovada pelo usuário e registrada no plano: não põe no broker endereços digitados por qualquer pessoa.
 
 **Novas tentativas**: a cada 10 s, até 50 solicitações por rodada. Depois de uma falha, a espera dobra de 30 s até no máximo 2 min, o que cumpre o SC-007 (até 5 min depois da volta). Depois de 24 h, a solicitação é descartada com o log 3018. Uma recusa permanente do servidor (código 5xx para o destinatário) também descarta, sem insistir.
 
-**Alternativas descartadas**: enviar durante a requisição (o tempo revelaria a conta e o SMTP fora derrubaria a rota); cifrar a mensagem pendente (uma chave a mais, e o token em claro ainda existiria em algum momento); usar o outbox do RabbitMQ (poria o token no broker).
+**Alternativas descartadas**: enviar durante a requisição (o tempo revelaria a conta e o SMTP fora derrubaria a rota); cifrar a mensagem pendente (uma chave a mais, e o token em claro ainda existiria em algum momento); usar o outbox do RabbitMQ (poria no broker o e-mail digitado, com ou sem conta, sem ganho na garantia de envio).
 
 ## R-04: pacote e configuração do envio (FR-022, FR-023)
 
@@ -74,6 +75,7 @@ Worker: acha a conta -> sem conta: apaga, sem enviar
 | `UrlBaseAplicacao` | vazio | Opcional; com ela, o e-mail traz um link |
 | `ValidadeRecuperacaoMinutos` | 30 | 5 a 1.440 |
 | `ValidadeConfirmacaoHoras` | 24 | 1 a 168 |
+| `TempoLimiteSegundos` | 10 | 1 a 60; por operação SMTP. Com o servidor fora, a rodada termina na primeira falha de conexão, sem gerar um token por linha |
 | `IntervaloSegundos` | 10 | 1 a 300 |
 | `TamanhoLote` | 50 | 1 a 1.000 |
 
@@ -89,9 +91,13 @@ A imagem precisa ser confirmada ao subir o compose, na implementação, porque a
 
 **Decisão**: rotas em português, como as de pedidos e produtos. `register` e `login` ficam como estão, pois mudar quebraria o contrato. O contrato está em [contracts/autenticacao.md](./contracts/autenticacao.md).
 
+**`/troca-senha` fora do grupo atual**: o grupo de `/api/v1/auth` tem `.AllowAnonymous()`, que prevalece sobre a autorização da rota e a deixaria pública.
+
 **`LoginResponseDTO`**: dois campos novos, com `[Required]` e valor padrão, como `TipoToken`. O emissor do JWT continua só com o token de acesso, e o serviço completa o restante com `with`. Por isso, os testes que montam o DTO continuam compilando.
 
-**Token de acesso de 15 minutos**: só muda o padrão de `DuracaoTokenMinutos`. Os testes que conferem os 60 minutos mudam, e essa é a exceção prevista no SC-009.
+**Token de acesso de 15 minutos**: muda o padrão de `DuracaoTokenMinutos` e a descrição de `expiraEm` no contrato, que prometia 60 minutos. Os testes que conferem os 60 minutos mudam, e essa é a exceção prevista no SC-009.
+
+**Efeito no SSE (REQ-18)**: a API encerra a conexão quando o token expira, então ela passa a cair a cada 15 minutos por padrão. O cliente renova e reconecta com `Last-Event-ID`, que recupera os avisos perdidos. Aceito pelo usuário.
 
 ## R-07: limpeza (FR-027)
 
@@ -115,15 +121,15 @@ As solicitações de e-mail saem ao serem processadas e não precisam de limpeza
 
 ## R-09: troca e redefinição de senha
 
-**Decisão**: pelo `UserManager`, dentro de uma transação do `ContextoBancoDados`, com o encerramento das sessões (FR-011) e a solicitação de aviso.
+**Decisão**: pelo `UserManager`, dentro de uma transação do `ContextoBancoDados`, com o encerramento das sessões (FR-011). Só a redefinição grava a solicitação de aviso (FR-015); a troca não envia e-mail, por decisão do usuário.
 
 - **Troca**: `CheckPasswordAsync` da senha atual. Se errar, `AccessFailedAsync` (FR-012), e o bloqueio continua invisível: a resposta é sempre o 400 da senha atual. Em uma conta já bloqueada, a senha nem é verificada, e a resposta é a mesma.
 - **Redefinição**: consome o token com um `UPDATE` condicional, como na rotação, e troca o hash da senha pelo `PasswordHasher`. Zera o bloqueio e a contagem, marca o e-mail como confirmado e atualiza o `SecurityStamp`.
-- **Regras da senha**: as do contrato v1, pelo mesmo atributo de validação do registro.
+- **Regras da senha**: as do contrato v1, com as mesmas mensagens. Hoje são um `StringLength` e um trecho do `Validate` do registro, sem atributo reutilizável; o trecho passa para `RegrasSenha`, usada pelos três DTOs.
 
 ## R-10: logs e métricas (FR-026)
 
-- **Logs** na faixa 3010 a 3018: 3010 `RenovacaoReutilizada`, 3011 `SessaoEncerrada`, 3012 `SenhaTrocada`, 3013 `TrocaSenhaRecusada`, 3014 `SenhaRedefinida`, 3015 `EmailConfirmado`, 3016 `EmailEnviado`, 3017 `FalhaEnvioEmail`, 3018 `EmailDescartado`. Com o id da conta e, quando houver, o e-mail mascarado. **O pedido de recuperação não gera log na API**, pois ela nem sabe se a conta existe.
+- **Logs** na faixa 3010 a 3018: 3010 `RenovacaoReutilizada`, 3011 `SessaoEncerrada`, 3012 `SenhaTrocada`, 3013 `TrocaSenhaRecusada`, 3014 `SenhaRedefinida`, 3015 `EmailConfirmado`, 3016 `EmailEnviado`, 3017 `FalhaEnvioEmail`, 3018 `EmailDescartado`. Com o id da conta e, quando houver, o e-mail mascarado. **O pedido de recuperação não gera log na API**, pois ela nem sabe se a conta existe. O registro desse pedido é o log 3016 do Worker, quando há conta; sem conta, conta só a métrica `sem_conta`.
 - **Métricas**: `oms.autenticacao.renovacoes` (`oms.resultado`: `renovada`, `recusada`, `reutilizada`), na API, e `oms.emails` (`oms.email.tipo`, `oms.resultado`: `enviado`, `falha`, `descartado`, `sem_conta`), no Worker.
 - **MailKit sem registro de protocolo**: esse registro poria o corpo do e-mail, com o token, no log.
 

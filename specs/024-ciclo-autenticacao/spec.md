@@ -130,11 +130,12 @@ Depois do registro, a pessoa recebe um e-mail com um token e confirma que o ende
 - **Duas renovações simultâneas com o mesmo token**: só uma é aceita, e a outra é tratada como reutilização, o que encerra a sessão. O par recém-emitido também deixa de renovar, e o cliente faz login de novo. Um cliente deve renovar uma vez de cada vez.
 - **A resposta da renovação se perde na rede**: o cliente fica com um token já usado e, ao repetir, é tratado como reutilização. Precisa fazer login de novo (decisão do usuário: sem tolerância).
 - **Clientes que não usam a renovação**: fazem login com mais frequência, porque o token de acesso passa a valer 15 minutos por padrão. O contrato não muda, pois a resposta já informa `expiraEm`, e a validade é configurável.
+- **Eventos em tempo real (SSE)**: a conexão é encerrada quando o token de acesso expira, o que passa a ocorrer a cada 15 minutos por padrão. O cliente renova a sessão e reconecta com `Last-Event-ID`, sem perder avisos dentro da retenção.
 - **E-mail fora do ar**: as respostas não mudam, e o envio é tentado de novo depois. A falha fica em log e métrica, sem chegar ao cliente.
 - **Token em logs**: nenhum token, senha ou endereço completo aparece em logs, métricas ou spans.
 - **E-mail escrito com outra caixa ou espaços**: é o mesmo e-mail, como no login.
 - **Conta criada antes deste requisito**: não tem e-mail confirmado nem sessão, e continua entrando normalmente pelo login. Quem tem um token de acesso antigo continua usando até expirar.
-- **Usuários iniciais**: entram como confirmados, pois são configurados pela operação.
+- **Usuários iniciais**: entram como confirmados ao serem criados, pois são configurados pela operação. Os que já existem não mudam, como as demais contas anteriores a este requisito.
 - **E-mail já cadastrado no registro**: continua respondendo 409, como no contrato v1. Mudar isso seria incompatível, então fica como limitação conhecida: a rota de registro revela e-mails cadastrados, e o limite do REQ-23 reduz o abuso.
 - **Rotas públicas novas sob rajada**: seguem o limite de requisições do REQ-23, com estado único entre as instâncias.
 - **Troca de senha repetida com a senha atual errada**: chega ao bloqueio de conta, e a resposta continua sendo o 400 da senha atual, sem revelar o bloqueio.
@@ -185,7 +186,7 @@ Depois do registro, a pessoa recebe um e-mail com um token e confirma que o ende
 
 - **FR-024**: As rotas públicas novas MUST seguir o limite de requisições do REQ-23, com a mesma resposta 429 e o estado único. Os padrões, configuráveis, são: pedido de recuperação e reenvio, 3 por hora por origem mais e-mail e 20 por hora por origem; redefinição e confirmação, 10 por minuto por origem; renovação e logout, 120 por minuto por origem.
 - **FR-025**: Respostas de rotas públicas MUST NOT revelar se um e-mail tem conta, exceto o 409 já existente no registro.
-- **FR-026**: O sistema MUST registrar em log, com o e-mail mascarado, renovação recusada por reutilização, logout, troca, pedido e conclusão de recuperação e confirmação, e expor métricas de renovações por resultado e de e-mails por resultado, sem token, senha, e-mail completo ou endereço de origem.
+- **FR-026**: O sistema MUST registrar em log, com o e-mail mascarado, renovação recusada por reutilização, logout, troca, envio do e-mail de recuperação e conclusão de recuperação e confirmação, e expor métricas de renovações por resultado e de e-mails por resultado, sem token, senha, e-mail completo ou endereço de origem.
 - **FR-027**: Tokens vencidos ou revogados MUST ser removidos periodicamente, sem intervenção da operação.
 
 **Contrato e compatibilidade**
@@ -195,7 +196,7 @@ Depois do registro, a pessoa recebe um e-mail com um token e confirma que o ende
 
 ### Key Entities
 
-- **Sessão de renovação**: agrupa os tokens de renovação gerados a partir de um login: conta, início, limite de 30 dias e se foi encerrada.
+- **Sessão de autenticação**: agrupa os tokens de renovação gerados a partir de um login: conta, início, limite de 30 dias e se foi encerrada.
 - **Token de renovação**: pertence a uma sessão, em forma não legível, com validade e o momento em que foi usado.
 - **Token de uso único**: de recuperação de senha ou de confirmação de e-mail: conta, finalidade, forma não legível, validade e se foi usado.
 - **Solicitação de e-mail**: pedido de envio pendente, com destino, tipo e tentativas, sem o token nem o corpo da mensagem. O token é gerado só no momento de enviar.
