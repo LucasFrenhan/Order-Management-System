@@ -11,7 +11,8 @@ public enum SituacaoCredenciais
     Valida,
     Invalida,
     Bloqueada,
-    BloqueadaAgora
+    BloqueadaAgora,
+    Desativada
 }
 
 /// <summary>
@@ -28,4 +29,6 @@ public sealed record ResultadoCredenciais(SituacaoCredenciais Situacao, Guid? Us
     public static ResultadoCredenciais Bloqueada(Guid usuarioId) => new(SituacaoCredenciais.Bloqueada, usuarioId, []);
 
     public static ResultadoCredenciais BloqueadaAgora(Guid usuarioId) => new(SituacaoCredenciais.BloqueadaAgora, usuarioId, []);
+
+    public static ResultadoCredenciais Desativada(Guid usuarioId) => new(SituacaoCredenciais.Desativada, usuarioId, []);
 }

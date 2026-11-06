@@ -138,8 +138,10 @@ internal sealed class ProcessadorEmails(
             return null;
         }
 
-        // O convite é só para quem ainda não tem senha: a recuperação pode ter chegado antes (REQ-25, R-05).
-        if ((solicitacao.Tipo == TipoEmail.ConfirmacaoEmail && usuario.EmailConfirmed)
+        // Conta desativada não recebe e-mail, de nenhum tipo (REQ-25, FR-018). O convite é só para quem ainda
+        // não tem senha: a recuperação pode ter chegado antes (R-05).
+        if (usuario.DesativadoEm is not null
+            || (solicitacao.Tipo == TipoEmail.ConfirmacaoEmail && usuario.EmailConfirmed)
             || (solicitacao.Tipo == TipoEmail.ConviteUsuario && usuario.PasswordHash is not null))
         {
             await ApagarAsync(contexto, solicitacao, TelemetriaOms.Resultados.Descartado, cancellationToken);

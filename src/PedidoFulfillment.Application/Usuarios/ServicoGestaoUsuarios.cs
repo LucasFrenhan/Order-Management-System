@@ -17,6 +17,10 @@ public interface IServicoGestaoUsuarios
     Task<Resultado<UsuarioGestaoResponseDTO>> AtribuirPerfilAsync(Guid usuarioId, string perfil, Guid atorId, CancellationToken cancellationToken);
 
     Task<Resultado<UsuarioGestaoResponseDTO>> RetirarPerfilAsync(Guid usuarioId, string perfil, Guid atorId, CancellationToken cancellationToken);
+
+    Task<Resultado<UsuarioGestaoResponseDTO>> DesativarAsync(Guid usuarioId, Guid atorId, CancellationToken cancellationToken);
+
+    Task<Resultado<UsuarioGestaoResponseDTO>> ReativarAsync(Guid usuarioId, Guid atorId, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -78,6 +82,12 @@ public sealed class ServicoGestaoUsuarios(
 
     public Task<Resultado<UsuarioGestaoResponseDTO>> RetirarPerfilAsync(Guid usuarioId, string perfil, Guid atorId, CancellationToken cancellationToken) =>
         AlterarPerfilAsync(TipoAlteracaoUsuario.RetirarPerfil, usuarioId, perfil, atorId, cancellationToken);
+
+    public Task<Resultado<UsuarioGestaoResponseDTO>> DesativarAsync(Guid usuarioId, Guid atorId, CancellationToken cancellationToken) =>
+        AlterarAsync(usuarioId, new AlteracaoUsuario(TipoAlteracaoUsuario.Desativar), atorId, cancellationToken);
+
+    public Task<Resultado<UsuarioGestaoResponseDTO>> ReativarAsync(Guid usuarioId, Guid atorId, CancellationToken cancellationToken) =>
+        AlterarAsync(usuarioId, new AlteracaoUsuario(TipoAlteracaoUsuario.Reativar), atorId, cancellationToken);
 
     private async Task<Resultado<UsuarioGestaoResponseDTO>> AlterarPerfilAsync(
         TipoAlteracaoUsuario tipo, Guid usuarioId, string perfil, Guid atorId, CancellationToken cancellationToken) =>

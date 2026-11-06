@@ -70,12 +70,12 @@ internal sealed class GestorIdentidade(
             return ResultadoCredenciais.Invalida(null);
         }
 
-        // Sem senha, o CheckPassword recusaria sem calcular hash, o que revelaria a conta pelo tempo, e contaria
-        // erro para o bloqueio. Aqui, o mesmo custo de um e-mail inexistente, sem contar erro (REQ-25, R-08).
-        if (usuario.PasswordHash is null)
+        // Desativada, ou sem senha (o CheckPassword recusaria sem calcular hash, o que revelaria a conta pelo
+        // tempo, e contaria erro para o bloqueio): o mesmo custo de um e-mail inexistente, sem contar erro (REQ-25, R-08).
+        if (usuario.DesativadoEm is not null || usuario.PasswordHash is null)
         {
             usuarios.PasswordHasher.VerifyHashedPassword(new Usuario(), HashReferencia(), senha);
-            return ResultadoCredenciais.Invalida(usuario.Id);
+            return usuario.DesativadoEm is not null ? ResultadoCredenciais.Desativada(usuario.Id) : ResultadoCredenciais.Invalida(usuario.Id);
         }
 
         // Em bloqueio, nem a senha é verificada (FR-009).
@@ -107,8 +107,9 @@ internal sealed class GestorIdentidade(
     {
         var agora = relogio.GetUtcNow();
         await using var transacao = await contexto.Database.BeginTransactionAsync(cancellationToken);
+        // Sair sem confirmar desfaz o consumo. A desativação já apaga os tokens; isto cobre o gerado no mesmo instante (R-08).
         if (await sessoes.ConsumirTokenSenhaAsync(hashToken, agora, cancellationToken) is not { } token
-            || await usuarios.FindByIdAsync(token.UsuarioId.ToString()) is not { } usuario)
+            || await usuarios.FindByIdAsync(token.UsuarioId.ToString()) is not { DesativadoEm: null } usuario)
         {
             return null;
         }
@@ -133,7 +134,8 @@ internal sealed class GestorIdentidade(
 
     public async Task<ResultadoTrocaSenha> TrocarSenhaAsync(Guid usuarioId, string senhaAtual, string novaSenha, CancellationToken cancellationToken)
     {
-        if (await usuarios.FindByIdAsync(usuarioId.ToString()) is not { } usuario || await usuarios.IsLockedOutAsync(usuario))
+        // Conta desativada, com um token de acesso ainda válido: sem verificar a senha nem contar erro (REQ-25, FR-018).
+        if (await usuarios.FindByIdAsync(usuarioId.ToString()) is not { DesativadoEm: null } usuario || await usuarios.IsLockedOutAsync(usuario))
         {
             return ResultadoTrocaSenha.SenhaAtualIncorreta;
         }
@@ -161,7 +163,7 @@ internal sealed class GestorIdentidade(
     {
         await using var transacao = await contexto.Database.BeginTransactionAsync(cancellationToken);
         if (await sessoes.ConsumirTokenUsoUnicoAsync(FinalidadeTokenUsoUnico.ConfirmacaoEmail, hashToken, relogio.GetUtcNow(), cancellationToken) is not { } usuarioId
-            || await usuarios.FindByIdAsync(usuarioId.ToString()) is not { } usuario)
+            || await usuarios.FindByIdAsync(usuarioId.ToString()) is not { DesativadoEm: null } usuario)
         {
             return null;
         }
