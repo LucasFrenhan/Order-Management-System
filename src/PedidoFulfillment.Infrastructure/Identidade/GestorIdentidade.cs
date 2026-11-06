@@ -70,6 +70,14 @@ internal sealed class GestorIdentidade(
             return ResultadoCredenciais.Invalida(null);
         }
 
+        // Sem senha, o CheckPassword recusaria sem calcular hash, o que revelaria a conta pelo tempo, e contaria
+        // erro para o bloqueio. Aqui, o mesmo custo de um e-mail inexistente, sem contar erro (REQ-25, R-08).
+        if (usuario.PasswordHash is null)
+        {
+            usuarios.PasswordHasher.VerifyHashedPassword(new Usuario(), HashReferencia(), senha);
+            return ResultadoCredenciais.Invalida(usuario.Id);
+        }
+
         // Em bloqueio, nem a senha é verificada (FR-009).
         if (await usuarios.IsLockedOutAsync(usuario))
         {
@@ -95,25 +103,32 @@ internal sealed class GestorIdentidade(
     public async Task<IReadOnlyList<PerfilUsuario>> ObterPerfisAsync(Guid usuarioId, CancellationToken cancellationToken) =>
         await usuarios.FindByIdAsync(usuarioId.ToString()) is { } usuario ? await PerfisAsync(usuario) : [];
 
-    public async Task<Guid?> RedefinirSenhaAsync(byte[] hashToken, string novaSenha, CancellationToken cancellationToken)
+    public async Task<RedefinicaoConcluida?> RedefinirSenhaAsync(byte[] hashToken, string novaSenha, CancellationToken cancellationToken)
     {
         var agora = relogio.GetUtcNow();
         await using var transacao = await contexto.Database.BeginTransactionAsync(cancellationToken);
-        if (await sessoes.ConsumirTokenUsoUnicoAsync(FinalidadeTokenUsoUnico.RecuperacaoSenha, hashToken, agora, cancellationToken) is not { } usuarioId
-            || await usuarios.FindByIdAsync(usuarioId.ToString()) is not { } usuario)
+        if (await sessoes.ConsumirTokenSenhaAsync(hashToken, agora, cancellationToken) is not { } token
+            || await usuarios.FindByIdAsync(token.UsuarioId.ToString()) is not { } usuario)
         {
             return null;
         }
+
+        var peloConvite = token.Finalidade == FinalidadeTokenUsoUnico.ConviteUsuario;
 
         usuario.PasswordHash = usuarios.PasswordHasher.HashPassword(usuario, novaSenha);
         usuario.EmailConfirmed = true;
         usuario.AccessFailedCount = 0;
         usuario.LockoutEnd = null;
         Garantir(await usuarios.UpdateSecurityStampAsync(usuario));
-        await sessoes.EncerrarSessoesDaContaAsync(usuarioId, agora, cancellationToken);
-        await fila.EnfileirarAsync(TipoEmail.AvisoSenhaRedefinida, usuario.Email!, cancellationToken);
+        await sessoes.EncerrarSessoesDaContaAsync(usuario.Id, agora, cancellationToken);
+        // Quem acabou de aceitar o convite não precisa de um aviso de senha redefinida.
+        if (!peloConvite)
+        {
+            await fila.EnfileirarAsync(TipoEmail.AvisoSenhaRedefinida, usuario.Email!, cancellationToken);
+        }
+
         await transacao.CommitAsync(cancellationToken);
-        return usuarioId;
+        return new RedefinicaoConcluida(usuario.Id, peloConvite);
     }
 
     public async Task<ResultadoTrocaSenha> TrocarSenhaAsync(Guid usuarioId, string senhaAtual, string novaSenha, CancellationToken cancellationToken)

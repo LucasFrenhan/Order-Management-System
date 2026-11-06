@@ -32,6 +32,32 @@ public sealed class ValidadorOpcoesEmailTestes
         opcoes.TamanhoLote.Should().Be(50);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(721)]
+    public void Validade_do_convite_fora_da_faixa_cita_a_chave(int horas)
+    {
+        var opcoes = Validas();
+        opcoes.ValidadeConviteHoras = horas;
+
+        Falhas(opcoes).Should().ContainSingle().Which.Should().Contain("ValidadeConviteHoras");
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(720)]
+    public void Validade_do_convite_na_faixa_e_aceita(int horas)
+    {
+        var opcoes = Validas();
+        opcoes.ValidadeConviteHoras = horas;
+
+        Falhas(opcoes).Should().BeEmpty();
+        opcoes.ValidadeConvite.Should().Be(TimeSpan.FromHours(horas));
+    }
+
+    [Fact]
+    public void A_validade_padrao_do_convite_e_de_72_horas() => Validas().ValidadeConvite.Should().Be(TimeSpan.FromHours(72));
+
     [Fact]
     public void Desligado_nao_exige_servidor_nem_remetente() =>
         Falhas(new OpcoesEmail { Habilitado = false }).Should().BeEmpty();

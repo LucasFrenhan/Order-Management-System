@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.RegularExpressions;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
@@ -50,6 +51,31 @@ public sealed partial class EnvioMailpitTestes(BancoDadosTeste banco, MailpitTes
         Stopwatch.GetElapsedTime(inicio).Should().BeLessThan(TimeSpan.FromMinutes(2));
         await RodadaEmailsAsync(api, conexao, opcoes);
         (await mailpit.MensagensParaAsync(email)).Should().Contain(m => m.Assunto == "Sua senha foi redefinida");
+    }
+
+    [Fact]
+    public async Task Convite_de_ponta_a_ponta_em_menos_de_2_minutos_sem_aviso_de_senha_redefinida()
+    {
+        Assert.SkipUnless(banco.DockerDisponivel && mailpit.DockerDisponivel, "Docker indisponível");
+        var conexao = banco.NovoBanco();
+        var opcoes = Opcoes();
+        var email = EmailUnico();
+        await using var api = ApiComEmail(conexao, new EnviadorEmailSmtp(Options.Create(opcoes)), Usuarios.CenarioGestaoUsuarios.AdminInicial);
+        var admin = await Usuarios.CenarioGestaoUsuarios.ClienteDeAsync(api);
+        var inicio = Stopwatch.GetTimestamp();
+
+        (await admin.PostAsJsonAsync(Usuarios.CenarioGestaoUsuarios.Rota, new { nome = "Ana Lima", email, perfil = "OperadorLogistica" }, Cancelamento))
+            .StatusCode.Should().Be(HttpStatusCode.Created);
+        await RodadaEmailsAsync(api, conexao, opcoes);
+        var capturado = (await mailpit.MensagensParaAsync(email)).Should().ContainSingle(m => m.Assunto == "Convite para acessar o sistema").Subject;
+        var token = ExpressaoToken().Match(capturado.Texto).Groups[1].Value;
+        var cliente = api.CreateClient();
+        (await RedefinirAsync(cliente, token)).StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await TentarLoginAsync(cliente, email, NovaSenha)).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        Stopwatch.GetElapsedTime(inicio).Should().BeLessThan(TimeSpan.FromMinutes(2));
+        await RodadaEmailsAsync(api, conexao, opcoes);
+        (await mailpit.MensagensParaAsync(email)).Should().ContainSingle();
     }
 
     [Fact]

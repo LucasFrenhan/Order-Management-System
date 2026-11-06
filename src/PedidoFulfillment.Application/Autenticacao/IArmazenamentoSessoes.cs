@@ -26,6 +26,9 @@ public enum SituacaoRotacao
 /// <param name="TokenExpiraEm">A validade do token novo, em <see cref="SituacaoRotacao.Renovada"/>.</param>
 public sealed record ResultadoRotacao(SituacaoRotacao Situacao, Guid? UsuarioId = null, DateTimeOffset? TokenExpiraEm = null);
 
+/// <summary>O dono e a finalidade de um token de senha consumido (REQ-25, R-05).</summary>
+public sealed record TokenSenhaConsumido(Guid UsuarioId, FinalidadeTokenUsoUnico Finalidade);
+
 /// <summary>
 /// Sessões e tokens de autenticação (REQ-24, R-02). Só recebe hashes. As validades vêm por parâmetro
 /// porque o Worker também usa esta porta, e a configuração de sessões só existe na API. Usa o
@@ -53,4 +56,10 @@ public interface IArmazenamentoSessoes
 
     /// <summary>Consome o token de forma atômica e devolve o dono; inválido, vencido ou usado devolve nulo.</summary>
     Task<Guid?> ConsumirTokenUsoUnicoAsync(FinalidadeTokenUsoUnico finalidade, byte[] hashToken, DateTimeOffset agora, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Consome um token de recuperação ou de convite e apaga os demais tokens de senha da conta: o
+    /// primeiro a definir a senha invalida o outro (REQ-25, R-05). Inválido, vencido ou usado devolve nulo.
+    /// </summary>
+    Task<TokenSenhaConsumido?> ConsumirTokenSenhaAsync(byte[] hashToken, DateTimeOffset agora, CancellationToken cancellationToken);
 }

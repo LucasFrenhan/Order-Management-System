@@ -41,6 +41,16 @@ public static class EndpointsUsuarios
             .Produces<UsuarioGestaoResponseDTO>()
             .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status404NotFound);
 
+        grupo.MapPost("", async (CriarUsuarioInternoRequestDTO novo, ClaimsPrincipal usuario, IServicoGestaoUsuarios servico, CancellationToken cancellationToken) =>
+                (await servico.CriarAsync(novo, usuario.ObterUsuarioId(), cancellationToken))
+                    .ParaResposta(criado => TypedResults.Created($"/api/v1/admin/usuarios/{criado.Id}", criado)))
+            .WithName("CriarUsuarioInterno")
+            .WithSummary("Cria um usuário interno sem senha; a pessoa recebe um convite por e-mail para defini-la.")
+            .AddEndpointFilter<FiltroValidacao<CriarUsuarioInternoRequestDTO>>()
+            .Produces<UsuarioGestaoResponseDTO>(StatusCodes.Status201Created)
+            .ComCabecalhoLocation()
+            .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status409Conflict);
+
         return app;
     }
 }

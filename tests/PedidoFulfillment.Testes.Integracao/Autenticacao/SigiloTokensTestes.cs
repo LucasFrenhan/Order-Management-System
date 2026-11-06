@@ -75,6 +75,27 @@ public sealed class SigiloTokensTestes(BancoDadosTeste banco)
     }
 
     [Fact]
+    public async Task O_token_de_convite_nao_esta_no_banco_nem_nos_logs()
+    {
+        Assert.SkipUnless(banco.DockerDisponivel, "Docker indisponível");
+        var conexao = banco.NovoBanco();
+        var enviador = new EnviadorEmailFalso();
+        var logs = new CapturaLogs();
+        await using var api = Usuarios.CenarioGestaoUsuarios.Api(conexao, logs, enviador: enviador);
+        var admin = await Usuarios.CenarioGestaoUsuarios.ClienteDeAsync(api);
+        (await admin.PostAsJsonAsync(Usuarios.CenarioGestaoUsuarios.Rota, new { nome = "Ana Lima", email = "ana@exemplo.com.br", perfil = "Admin" }, Cancelamento))
+            .StatusCode.Should().Be(HttpStatusCode.Created);
+        await RodadaEmailsAsync(api, conexao);
+        var convite = ProcessadorEmailsTestes.TokenDe(enviador.Mensagens[^1]);
+
+        var despejo = await DespejoAsync(conexao);
+
+        despejo.Should().NotContain(convite);
+        logs.Textos.Should().NotContain(t => t.Contains(convite, StringComparison.Ordinal));
+        (await RedefinirAsync(api.CreateClient(), Convert.ToHexString(GeradorTokenOpaco.Hash(convite)))).StatusCode.Should().Be(HttpStatusCode.BadRequest, "o hash não serve como token");
+    }
+
+    [Fact]
     public async Task A_solicitacao_nao_guarda_token_e_some_depois_de_processada()
     {
         Assert.SkipUnless(banco.DockerDisponivel, "Docker indisponível");

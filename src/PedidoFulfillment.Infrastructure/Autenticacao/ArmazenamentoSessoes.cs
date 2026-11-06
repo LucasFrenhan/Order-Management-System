@@ -10,6 +10,8 @@ namespace PedidoFulfillment.Infrastructure.Autenticacao;
 /// </summary>
 internal sealed class ArmazenamentoSessoes(ContextoBancoDados contexto) : IArmazenamentoSessoes
 {
+    private static readonly FinalidadeTokenUsoUnico[] DefinemSenha = [FinalidadeTokenUsoUnico.RecuperacaoSenha, FinalidadeTokenUsoUnico.ConviteUsuario];
+
     public async Task<DateTimeOffset> CriarSessaoAsync(
         Guid usuarioId, byte[] hashToken, DateTimeOffset agora, ConfiguracaoSessoes validades, CancellationToken cancellationToken)
     {
@@ -107,6 +109,26 @@ internal sealed class ArmazenamentoSessoes(ContextoBancoDados contexto) : IArmaz
             .Where(t => t.HashToken == hashToken)
             .Select(t => t.UsuarioId)
             .SingleAsync(cancellationToken);
+    }
+
+    public async Task<TokenSenhaConsumido?> ConsumirTokenSenhaAsync(byte[] hashToken, DateTimeOffset agora, CancellationToken cancellationToken)
+    {
+        var consumidos = await contexto.TokensUsoUnico
+            .Where(t => t.HashToken == hashToken && DefinemSenha.Contains(t.Finalidade) && t.UsadoEm == null && t.ExpiraEm > agora)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.UsadoEm, agora), cancellationToken);
+        if (consumidos == 0)
+        {
+            return null;
+        }
+
+        var token = await contexto.TokensUsoUnico.AsNoTracking()
+            .Where(t => t.HashToken == hashToken)
+            .Select(t => new TokenSenhaConsumido(t.UsuarioId, t.Finalidade))
+            .SingleAsync(cancellationToken);
+        await contexto.TokensUsoUnico
+            .Where(t => t.UsuarioId == token.UsuarioId && DefinemSenha.Contains(t.Finalidade) && t.HashToken != hashToken)
+            .ExecuteDeleteAsync(cancellationToken);
+        return token;
     }
 
     /// <summary>Só um token já usado é reutilização, e encerra a sessão (FR-004). Quem a encerrou é o único a relatar.</summary>

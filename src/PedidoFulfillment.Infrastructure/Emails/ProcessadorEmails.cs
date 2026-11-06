@@ -138,7 +138,9 @@ internal sealed class ProcessadorEmails(
             return null;
         }
 
-        if (solicitacao.Tipo == TipoEmail.ConfirmacaoEmail && usuario.EmailConfirmed)
+        // O convite é só para quem ainda não tem senha: a recuperação pode ter chegado antes (REQ-25, R-05).
+        if ((solicitacao.Tipo == TipoEmail.ConfirmacaoEmail && usuario.EmailConfirmed)
+            || (solicitacao.Tipo == TipoEmail.ConviteUsuario && usuario.PasswordHash is not null))
         {
             await ApagarAsync(contexto, solicitacao, TelemetriaOms.Resultados.Descartado, cancellationToken);
             return null;
@@ -178,6 +180,9 @@ internal sealed class ProcessadorEmails(
             case TipoEmail.ConfirmacaoEmail:
                 var confirmacao = await GerarTokenAsync(servicos, usuario.Id, FinalidadeTokenUsoUnico.ConfirmacaoEmail, configuracao.ValidadeConfirmacao, cancellationToken);
                 return ModelosEmail.Confirmacao(destino, confirmacao, configuracao.ValidadeConfirmacao, configuracao.UrlBaseAplicacao);
+            case TipoEmail.ConviteUsuario:
+                var convite = await GerarTokenAsync(servicos, usuario.Id, FinalidadeTokenUsoUnico.ConviteUsuario, configuracao.ValidadeConvite, cancellationToken);
+                return ModelosEmail.Convite(destino, convite, configuracao.ValidadeConvite, configuracao.UrlBaseAplicacao);
             default:
                 return ModelosEmail.AvisoSenhaRedefinida(destino);
         }

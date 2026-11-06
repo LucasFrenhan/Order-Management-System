@@ -211,7 +211,7 @@ paths:
       tags: [Autenticacao]
       operationId: RedefinirSenha
       summary: Define uma senha nova com o token recebido por e-mail.
-      description: Encerra todas as sessões da conta e zera o bloqueio por erros de senha (REQ-24).
+      description: Encerra todas as sessões da conta e zera o bloqueio por erros de senha (REQ-24). Aceita também o token do convite de um usuário criado pelo Admin (REQ-25).
       security: []
       requestBody:
         required: true
@@ -1044,6 +1044,45 @@ paths:
           $ref: '#/components/responses/ErroSemPermissao'
         '500':
           $ref: '#/components/responses/ErroInterno'
+    post:
+      tags: [Usuarios]
+      operationId: CriarUsuarioInterno
+      summary: Cria um usuário interno sem senha; a pessoa recebe um convite por e-mail para defini-la.
+      description: |
+        Perfil autorizado: **Admin ativo** (REQ-25). O perfil é `Admin` ou `OperadorLogistica`: conta de
+        Cliente nasce no registro público. A pessoa define a senha com o token do convite em
+        `POST /api/v1/auth/redefinicao-senha`. O convite vale 72 horas por padrão, a contar do envio;
+        vencido, ela usa a recuperação de senha. E-mail repetido: 409 `USUARIO_EMAIL_JA_CADASTRADO`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CriarUsuarioInternoRequestDTO'
+      responses:
+        '201':
+          description: Usuário criado, com o convite pedido.
+          headers:
+            Location:
+              description: URI do usuário criado.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioGestaoResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '409':
+          $ref: '#/components/responses/ErroConflito'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
 
   /api/v1/admin/usuarios/{id}:
     get:
@@ -1503,6 +1542,23 @@ components:
       type: string
       description: Se a conta pode entrar no sistema (REQ-25). Independente do bloqueio por erros de senha.
       enum: [Ativa, Desativada]
+
+    CriarUsuarioInternoRequestDTO:
+      type: object
+      description: Conta interna criada pelo Admin (REQ-25). Sem senha, definida pela pessoa no convite.
+      required: [nome, email, perfil]
+      properties:
+        nome:
+          type: string
+          minLength: 2
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 256
+        perfil:
+          type: string
+          enum: [Admin, OperadorLogistica]
 
     UsuarioGestaoResponseDTO:
       type: object
