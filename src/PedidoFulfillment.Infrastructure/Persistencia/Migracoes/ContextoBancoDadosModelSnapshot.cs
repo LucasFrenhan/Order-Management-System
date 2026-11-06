@@ -849,6 +849,9 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                         .IsConcurrencyToken()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTimeOffset?>("DesativadoEm")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<string>("Email")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
@@ -884,6 +887,9 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("bit");
 
+                    b.Property<DateTimeOffset?>("ReativadoEm")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
 
@@ -905,6 +911,9 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex")
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
+
+                    b.HasIndex("Nome", "Id")
+                        .HasDatabaseName("IX_Usuarios_Nome_Id");
 
                     b.ToTable("Usuarios", (string)null);
                 });

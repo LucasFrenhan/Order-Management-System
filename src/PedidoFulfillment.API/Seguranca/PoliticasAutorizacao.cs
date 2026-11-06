@@ -28,11 +28,19 @@ public static class PoliticasAutorizacao
     /// <summary>Operações da própria conta, como a troca de senha: qualquer perfil (REQ-24).</summary>
     public const string PoliticaContaAutenticada = nameof(PoliticaContaAutenticada);
 
+    /// <summary>Gestão de usuários e perfis: Admin no token e ainda Admin ativo no banco (REQ-25, R-02).</summary>
+    public const string PoliticaGestaoUsuarios = nameof(PoliticaGestaoUsuarios);
+
     private static readonly string[] TodosOsPerfis = Enum.GetNames<PerfilUsuario>();
 
     public static IServiceCollection AdicionarPoliticasAutorizacao(this IServiceCollection services)
     {
+        services.AddHttpContextAccessor();
+        services.AddScoped<IAuthorizationHandler, ManipuladorAdminAtivo>();
         services.AddAuthorizationBuilder()
+            .AddPolicy(PoliticaGestaoUsuarios, p => p.RequireAuthenticatedUser()
+                .RequireRole(nameof(PerfilUsuario.Admin))
+                .AddRequirements(new RequisitoAdminAtivo()))
             .AddPolicy(PoliticaCliente, p => p.RequireAuthenticatedUser().RequireRole(nameof(PerfilUsuario.Cliente)))
             .AddPolicy(PoliticaContaAutenticada, p => p.RequireAuthenticatedUser().RequireRole(TodosOsPerfis))
             .AddPolicy(PoliticaConsultaPedido, p => p.RequireAuthenticatedUser().RequireRole(TodosOsPerfis))

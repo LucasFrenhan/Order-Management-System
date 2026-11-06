@@ -4,7 +4,10 @@ namespace PedidoFulfillment.Application.Autenticacao;
 public enum FinalidadeTokenUsoUnico
 {
     RecuperacaoSenha,
-    ConfirmacaoEmail
+    ConfirmacaoEmail,
+
+    /// <summary>Define a primeira senha da conta criada pelo Admin (REQ-25, R-05).</summary>
+    ConviteUsuario
 }
 
 /// <summary>Como terminou a apresentação de um token de renovação (REQ-24, R-02).</summary>
