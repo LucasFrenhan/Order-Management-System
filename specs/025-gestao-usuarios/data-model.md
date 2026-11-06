@@ -47,8 +47,8 @@ Conta com linha em `UsuariosPerfis` para o perfil Admin, `DesativadoEm` nula e `
 
 | Enum | Valor novo | Observação |
 |------|------------|------------|
-| `FinalidadeTokenUsoUnico` | `ConviteUsuario` | No fim do enum, para não mudar os valores já gravados. Mesma forma da recuperação: só o SHA-256 |
-| `TipoEmail` | `ConviteUsuario` | No fim do enum, pelo mesmo motivo. O corpo vem de `ModelosEmail`, em português |
+| `FinalidadeTokenUsoUnico` | `ConviteUsuario` | Gravado como texto em `varchar(30)`, sem mudar a coluna. Mesma forma da recuperação: só o SHA-256 |
+| `TipoEmail` | `ConviteUsuario` | Gravado como texto em `varchar(30)`, sem mudar a coluna. O corpo vem de `ModelosEmail`, em português |
 
 A limpeza do REQ-24 já cobre a tabela de tokens, sem distinção de finalidade.
 

@@ -87,7 +87,7 @@ Todas as decisões abaixo partem do código da `main` em 2026-11-06. Nenhuma med
 
 **Decisão**: `GET /api/v1/admin/usuarios?perfil=&situacao=&busca=&tamanho=&cursor=`, ordenada por `Nome` e `Id`, com índice novo `IX_Usuarios_Nome_Id`. A paginação segue REQ-21 e REQ-22: `tamanho` de 1 a 100 (padrão 20), `proximo` e `anterior`, sem total, cursor assinado e ligado a quem chama e aos filtros (rótulo `usuarios`).
 
-A `busca`, de 2 a 100 caracteres sem os espaços das pontas, usa `Contains` do EF Core em `Nome` e `Email`. Sem diferenciar maiúsculas, pela collation do banco. O EF escapa `%` e `_`.
+A `busca`, de 2 a 100 caracteres sem os espaços das pontas, usa `Contains` do EF Core em `Nome` e `Email`, com `EF.Functions.Collate` em uma collation explícita que ignora maiúsculas e acentos (`Latin1_General_100_CI_AI`). Assim, "joao" acha "João", em qualquer servidor. O custo é baixo, porque essa busca já lê a tabela inteira. O EF escapa `%` e `_`.
 
 **Por quê**: o que se procura aqui é um trecho exato de e-mail ou de nome, para o que o Full-Text do catálogo serve mal: ele não acha o meio de uma palavra, e criar outro catálogo sobre uma tabela do Identity custaria caro para pouco ganho.
 

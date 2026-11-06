@@ -86,7 +86,7 @@ HTTP/1.1 409 Conflict
 |-----------|-------|------|
 | `perfil` | `Admin`, `OperadorLogistica` ou `Cliente` | 400, `erros.perfil` |
 | `situacao` | `Ativa` ou `Desativada` | 400, `erros.situacao` |
-| `busca` | 2 a 100 caracteres, sem os espaços das pontas; trecho do nome ou do e-mail, sem diferenciar maiúsculas | 400, `erros.busca` |
+| `busca` | 2 a 100 caracteres, sem os espaços das pontas; trecho do nome ou do e-mail, sem diferenciar maiúsculas nem acentos | 400, `erros.busca` |
 | `tamanho` | 1 a 100, padrão 20 | 400, `erros.tamanho` |
 | `cursor` | Opaco. Só vale para quem o recebeu e para os mesmos filtros | 400, `erros.cursor` |
 

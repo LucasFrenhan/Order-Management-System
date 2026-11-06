@@ -34,7 +34,7 @@ Use o token de login do Admin inicial em `Authorization: Bearer <token>`. As rot
 | 1 | Criar um OperadorLogistica | 201, `convitePendente: true`, sem dado de credencial; login com qualquer senha dá 401 | US2 |
 | 2 | Ler o convite no Mailpit e definir a senha | 204; login funciona; rotas de operação respondem; gestão dá 403. Tudo em menos de 2 min desde o passo 1, sem reiniciar nada | SC-001, SC-002 |
 | 3 | Criar um segundo Admin e aceitar o convite | Lista com `perfil=Admin` mostra os dois | US1 |
-| 4 | Como segundo Admin, retirar o perfil Admin do primeiro; com o token antigo do primeiro, chamar a listagem de usuários | 200 na retirada; 403 na listagem, mesmo com o token válido. Devolva depois o perfil ao primeiro | SC-002 |
+| 4 | Como segundo Admin, tentar retirar o perfil Admin do primeiro; atribuir `OperadorLogistica` ao primeiro e retirar de novo; com o token antigo do primeiro, chamar a listagem de usuários | 409 `USUARIO_ULTIMO_PERFIL` na tentativa; 200 na retirada; 403 na listagem, mesmo com o token válido. Devolva depois o perfil Admin ao primeiro | SC-002 |
 | 5 | Como um Admin, retirar o próprio perfil Admin e desativar a própria conta | 409 `USUARIO_PROPRIA_CONTA` nos dois | US3, US4 |
 | 6 | Desativar o outro Admin e repetir o passo anterior com o Admin restante | 409 `USUARIO_ULTIMO_ADMIN` nos dois | US3, US4 |
 | 7 | Atribuir `Admin` a uma conta criada no registro público | 409 `USUARIO_PERFIS_INCOMPATIVEIS` | US3 |
