@@ -106,13 +106,21 @@ internal sealed class ProcessadorNotificacoes(
 
             var destinos = await contexto.DestinosNotificacao.AsNoTracking()
                 .Where(d => d.Ativo)
-                .Select(d => new { d.Id, d.ClienteId, d.CriadoEm })
+                .Select(d => new
+                {
+                    d.Id,
+                    d.ClienteId,
+                    d.CriadoEm,
+                    DonoDesativadoEm = contexto.Users.Where(u => u.Id == d.ClienteId).Select(u => u.DesativadoEm).FirstOrDefault(),
+                    DonoReativadoEm = contexto.Users.Where(u => u.Id == d.ClienteId).Select(u => u.ReativadoEm).FirstOrDefault()
+                })
                 .ToListAsync(cancellationToken);
             var agora = relogio.GetUtcNow();
             foreach (var aviso in lidos)
             {
                 // Globais e os do Cliente dono, cadastrados até o aviso (o destino novo não recebe o passado).
-                foreach (var destino in destinos.Where(d => (d.ClienteId == null || d.ClienteId == aviso.ClienteId) && d.CriadoEm <= aviso.CriadoEm))
+                foreach (var destino in destinos.Where(d => (d.ClienteId == null || d.ClienteId == aviso.ClienteId) && d.CriadoEm <= aviso.CriadoEm
+                    && !ContaImpedeEntrega(d.DonoDesativadoEm, d.DonoReativadoEm, aviso.CriadoEm)))
                 {
                     contexto.EntregasNotificacao.Add(EntregaNotificacao.Criar(destino.Id, aviso.Id, aviso.ContextoRastreio, agora));
                     entregas++;
@@ -181,6 +189,13 @@ internal sealed class ProcessadorNotificacoes(
         EventosNotificacao.ResumoEnvio(logger, LogLevel.Information, entregues, falhas, esgotadas);
     }
 
+    /// <summary>
+    /// Destino de uma conta desativada não recebe, e o aviso anterior à reativação não sai depois dela
+    /// (REQ-25, R-06). Destinos globais não têm dono: as duas datas são nulas e nada muda.
+    /// </summary>
+    internal static bool ContaImpedeEntrega(DateTimeOffset? donoDesativadoEm, DateTimeOffset? donoReativadoEm, DateTimeOffset avisoCriadoEm) =>
+        donoDesativadoEm is not null || avisoCriadoEm < donoReativadoEm;
+
     /// <summary>Uma entrega num escopo próprio: a falha de uma não interrompe as demais.</summary>
     private async Task<SituacaoEntrega?> EnviarAsync(long entregaId, CancellationToken cancellationToken)
     {
@@ -206,7 +221,11 @@ internal sealed class ProcessadorNotificacoes(
                 links: TelemetriaOms.LigacaoPara(entrega.ContextoRastreio));
             span?.SetTag(TelemetriaOms.Atributos.PedidoId, aviso.PedidoId.ToString());
 
-            if (!destino.Ativo)
+            var dono = destino.ClienteId is { } clienteId
+                ? await contexto.Users.AsNoTracking().Where(u => u.Id == clienteId)
+                    .Select(u => new { u.DesativadoEm, u.ReativadoEm }).SingleOrDefaultAsync(cancellationToken)
+                : null;
+            if (!destino.Ativo || ContaImpedeEntrega(dono?.DesativadoEm, dono?.ReativadoEm, aviso.CriadoEm))
             {
                 entrega.Descartar(relogio.GetUtcNow());
                 await contexto.SaveChangesAsync(cancellationToken);

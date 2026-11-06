@@ -44,7 +44,9 @@ internal sealed class ArmazenamentoSessoes(ContextoBancoDados contexto) : IArmaz
         }
 
         var sessao = await SessaoDoToken(hashApresentado).SingleAsync(cancellationToken);
-        if (sessao.EncerradaEm is not null || sessao.ExpiraEm <= agora)
+        // A desativação encerra as sessões; conferir a conta cobre o login simultâneo a ela (REQ-25, R-08).
+        if (sessao.EncerradaEm is not null || sessao.ExpiraEm <= agora
+            || await contexto.Users.AsNoTracking().AnyAsync(u => u.Id == sessao.UsuarioId && u.DesativadoEm != null, cancellationToken))
         {
             // Sai sem confirmar: a sessão acabou, e o token não precisa mudar.
             return new ResultadoRotacao(SituacaoRotacao.Recusada);

@@ -11,7 +11,7 @@ namespace PedidoFulfillment.Application.Autenticacao;
 public sealed class ServicoAutenticacao(IGestorIdentidade gestor, IServicoSessoes sessoes, ILogger<ServicoAutenticacao> logger)
     : IServicoAutenticacao
 {
-    // Única resposta para e-mail inexistente, senha errada e conta bloqueada (FR-008, FR-009).
+    // Única resposta para e-mail inexistente, senha errada, conta bloqueada e conta desativada (FR-008, FR-009; REQ-25, FR-017).
     private static readonly Falha CredenciaisInvalidas = new(TipoFalha.NaoAutenticado, "Credenciais inválidas.", "E-mail ou senha incorretos.");
 
     public async Task<Resultado<UsuarioResponseDTO>> RegistrarAsync(RegistrarUsuarioRequestDTO usuario, CancellationToken cancellationToken)
@@ -37,7 +37,12 @@ public sealed class ServicoAutenticacao(IGestorIdentidade gestor, IServicoSessoe
         }
 
         var emailMascarado = MascaraEmail.Mascarar(email);
-        var motivo = verificacao.Situacao == SituacaoCredenciais.Bloqueada ? "ContaBloqueada" : "CredenciaisInvalidas";
+        var motivo = verificacao.Situacao switch
+        {
+            SituacaoCredenciais.Bloqueada => "ContaBloqueada",
+            SituacaoCredenciais.Desativada => "ContaDesativada",
+            _ => "CredenciaisInvalidas"
+        };
         EventosAutenticacao.LoginRecusado(logger, emailMascarado, verificacao.UsuarioId, motivo);
         if (verificacao is { Situacao: SituacaoCredenciais.BloqueadaAgora, UsuarioId: { } bloqueadoId })
         {

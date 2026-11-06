@@ -66,6 +66,20 @@ public static class EndpointsUsuarios
             .Produces<UsuarioGestaoResponseDTO>()
             .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status404NotFound, StatusCodes.Status409Conflict);
 
+        grupo.MapPost("/{id}/desativacao", async (Guid id, ClaimsPrincipal usuario, IServicoGestaoUsuarios servico, CancellationToken cancellationToken) =>
+                (await servico.DesativarAsync(id, usuario.ObterUsuarioId(), cancellationToken)).ParaResposta(conta => TypedResults.Ok(conta)))
+            .WithName("DesativarUsuario")
+            .WithSummary("Desativa a conta sem apagá-la: encerra as sessões e impede o login; repetir não muda nada.")
+            .Produces<UsuarioGestaoResponseDTO>()
+            .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status404NotFound, StatusCodes.Status409Conflict);
+
+        grupo.MapPost("/{id}/reativacao", async (Guid id, ClaimsPrincipal usuario, IServicoGestaoUsuarios servico, CancellationToken cancellationToken) =>
+                (await servico.ReativarAsync(id, usuario.ObterUsuarioId(), cancellationToken)).ParaResposta(conta => TypedResults.Ok(conta)))
+            .WithName("ReativarUsuario")
+            .WithSummary("Reativa a conta, com a mesma senha e os mesmos perfis; repetir não muda nada.")
+            .Produces<UsuarioGestaoResponseDTO>()
+            .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status404NotFound);
+
         return app;
     }
 }

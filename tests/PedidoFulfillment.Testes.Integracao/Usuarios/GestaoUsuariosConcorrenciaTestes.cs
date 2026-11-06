@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using PedidoFulfillment.Domain.Usuarios;
 using PedidoFulfillment.Infrastructure.Persistencia;
+using PedidoFulfillment.Testes.Integracao.Autenticacao;
 using PedidoFulfillment.Testes.Integracao.Infraestrutura;
 using static PedidoFulfillment.Testes.Integracao.Usuarios.CenarioGestaoUsuarios;
 
@@ -79,6 +80,69 @@ public sealed class GestaoUsuariosConcorrenciaTestes(BancoDadosTeste banco)
 
             respostas.Select(r => r.StatusCode).Should().BeEquivalentTo([HttpStatusCode.OK, HttpStatusCode.Forbidden], $"na rodada {rodada}");
             (await AdminsAtivosAsync(c)).Should().Be(1, $"na rodada {rodada}");
+        }
+    }
+
+    [Fact]
+    public async Task Dois_Admins_desativando_um_ao_outro_sempre_sobra_um()
+    {
+        Assert.SkipUnless(banco.DockerDisponivel, "Docker indisponível");
+        await using var c = await PrepararAsync();
+
+        for (var rodada = 0; rodada < Rodadas; rodada++)
+        {
+            await RestaurarAdminsAsync(c);
+
+            var respostas = await Task.WhenAll(
+                c.ClienteA.PostAsync($"{Rota}/{c.AdminB}/desativacao", null, Cancelamento),
+                c.ClienteB.PostAsync($"{Rota}/{c.AdminA}/desativacao", null, Cancelamento));
+
+            respostas.Select(r => r.StatusCode).Should().BeEquivalentTo([HttpStatusCode.OK, HttpStatusCode.Forbidden], $"na rodada {rodada}");
+            (await AdminsAtivosAsync(c)).Should().Be(1, $"na rodada {rodada}");
+        }
+    }
+
+    [Fact]
+    public async Task Desativacao_e_retirada_de_perfil_cruzadas_sempre_deixam_um()
+    {
+        Assert.SkipUnless(banco.DockerDisponivel, "Docker indisponível");
+        await using var c = await PrepararAsync();
+
+        for (var rodada = 0; rodada < Rodadas; rodada++)
+        {
+            await RestaurarAdminsAsync(c);
+
+            var respostas = await Task.WhenAll(
+                c.ClienteA.PostAsync($"{Rota}/{c.AdminB}/desativacao", null, Cancelamento),
+                c.ClienteB.DeleteAsync($"{Rota}/{c.AdminA}/perfis/Admin", Cancelamento));
+
+            respostas.Select(r => r.StatusCode).Should().BeEquivalentTo([HttpStatusCode.OK, HttpStatusCode.Forbidden], $"na rodada {rodada}");
+            (await AdminsAtivosAsync(c)).Should().Be(1, $"na rodada {rodada}");
+        }
+    }
+
+    [Fact]
+    public async Task Login_simultaneo_a_desativacao_nao_deixa_sessao_que_volte_a_valer()
+    {
+        Assert.SkipUnless(banco.DockerDisponivel, "Docker indisponível");
+        await using var c = await PrepararAsync();
+        var id = await ContaAsync(c.InstanciaA, "cliente@exemplo.com.br", perfis: PerfilUsuario.Cliente);
+        var anonimo = c.InstanciaA.CreateClient();
+
+        for (var rodada = 0; rodada < 20; rodada++)
+        {
+            var login = CenarioAutenticacao.TentarLoginAsync(anonimo, "cliente@exemplo.com.br", SenhaPadrao);
+            var desativacao = c.ClienteA.PostAsync($"{Rota}/{id}/desativacao", null, Cancelamento);
+            await Task.WhenAll(login, desativacao);
+            (await desativacao).StatusCode.Should().Be(HttpStatusCode.OK);
+            var resposta = await login;
+            (await c.ClienteA.PostAsync($"{Rota}/{id}/reativacao", null, Cancelamento)).StatusCode.Should().Be(HttpStatusCode.OK);
+
+            if (resposta.StatusCode == HttpStatusCode.OK)
+            {
+                var tokens = await CenarioAutenticacao.TokensAsync(resposta);
+                (await CenarioAutenticacao.RenovarAsync(anonimo, tokens.Renovacao)).StatusCode.Should().Be(HttpStatusCode.Unauthorized, $"na rodada {rodada}");
+            }
         }
     }
 }

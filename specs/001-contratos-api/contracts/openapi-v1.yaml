@@ -1178,6 +1178,68 @@ paths:
         '500':
           $ref: '#/components/responses/ErroInterno'
 
+  /api/v1/admin/usuarios/{id}/desativacao:
+    post:
+      tags: [Usuarios]
+      operationId: DesativarUsuario
+      summary: Desativa a conta sem apagá-la; encerra as sessões e impede o login; repetir não muda nada.
+      description: |
+        Perfil autorizado: **Admin ativo** (REQ-25). Os pedidos da conta continuam como estão. O token de
+        acesso já emitido vale até expirar, fora das rotas de gestão. Responde 409 com `USUARIO_ULTIMO_ADMIN`
+        quando o único Admin ativo tenta se desativar, e `USUARIO_PROPRIA_CONTA` quando um Admin tenta o mesmo
+        com outro Admin ativo.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdUsuario'
+      responses:
+        '200':
+          description: Conta desativada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioGestaoResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '404':
+          $ref: '#/components/responses/ErroNaoEncontrado'
+        '409':
+          $ref: '#/components/responses/ErroConflito'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /api/v1/admin/usuarios/{id}/reativacao:
+    post:
+      tags: [Usuarios]
+      operationId: ReativarUsuario
+      summary: Reativa a conta, com a mesma senha e os mesmos perfis; repetir não muda nada.
+      description: Perfil autorizado - **Admin ativo** (REQ-25). As sessões encerradas continuam encerradas.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdUsuario'
+      responses:
+        '200':
+          description: Conta ativa.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioGestaoResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '404':
+          $ref: '#/components/responses/ErroNaoEncontrado'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
   /api/v1/notificacoes/destinos:
     post:
       tags: [Notificacoes]
