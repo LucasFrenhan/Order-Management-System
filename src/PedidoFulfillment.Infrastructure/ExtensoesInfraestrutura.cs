@@ -74,6 +74,7 @@ public static class ExtensoesInfraestrutura
             .AddRoles<Perfil>()
             .AddEntityFrameworkStores<ContextoBancoDados>();
         services.AddScoped<IGestorIdentidade, GestorIdentidade>();
+        services.AddScoped<PedidoFulfillment.Application.Usuarios.IGestorUsuarios, GestorUsuarios>();
         // Ciclo da autenticação (REQ-24): na mesma instância do contexto, para entrar nas transações do gestor.
         services.AddScoped<IArmazenamentoSessoes, ArmazenamentoSessoes>();
         services.AddScoped<IFilaEmails, FilaEmails>();

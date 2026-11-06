@@ -14,4 +14,10 @@ public sealed class Usuario : IdentityUser<Guid>
     }
 
     public string Nome { get; set; } = "";
+
+    /// <summary>Não nula = conta desativada (REQ-25, R-01). Independente do bloqueio por erros de senha.</summary>
+    public DateTimeOffset? DesativadoEm { get; set; }
+
+    /// <summary>Preenchida na reativação e mantida depois: avisos anteriores a ela não vão aos destinos próprios da conta (R-06).</summary>
+    public DateTimeOffset? ReativadoEm { get; set; }
 }

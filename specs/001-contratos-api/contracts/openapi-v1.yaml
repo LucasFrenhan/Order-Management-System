@@ -26,6 +26,8 @@ tags:
     description: Operação da mensageria, só para Admin (REQ-14).
   - name: Notificacoes
     description: Destinos de webhook e eventos em tempo real das mudanças de status (REQ-18).
+  - name: Usuarios
+    description: Gestão de usuários e perfis, só para o Admin ativo (REQ-25).
 
 paths:
   /api/v1/auth/register:
@@ -984,6 +986,93 @@ paths:
         '500':
           $ref: '#/components/responses/ErroInterno'
 
+  /api/v1/admin/usuarios:
+    get:
+      tags: [Usuarios]
+      operationId: ListarUsuarios
+      summary: Lista os usuários pelo nome, com filtros por perfil, situação e trecho do nome ou do e-mail.
+      description: |
+        Perfil autorizado: **Admin ativo**, conferido no banco a cada chamada: quem perdeu o perfil ou
+        foi desativado recebe 403, mesmo com o token válido (REQ-25). Os filtros se combinam por "e".
+        A ordem é pelo nome e, no empate, pelo id. Paginação por cursor, como em `GET /api/v1/pedidos`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: perfil
+          in: query
+          description: Só as contas com este perfil.
+          schema:
+            type: string
+            enum: [Cliente, Admin, OperadorLogistica]
+        - name: situacao
+          in: query
+          description: Só as contas nesta situação.
+          schema:
+            type: string
+            enum: [Ativa, Desativada]
+        - name: busca
+          in: query
+          description: Trecho do nome ou do e-mail, sem diferenciar maiúsculas nem acentos (de 2 a 100 caracteres).
+          schema:
+            type: string
+        - name: tamanho
+          in: query
+          description: Usuários por página, de 1 a 100.
+          schema:
+            type: integer
+            format: int32
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: cursor
+          in: query
+          description: O `proximo` ou o `anterior` de uma resposta anterior.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Página de usuários.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginaUsuariosResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /api/v1/admin/usuarios/{id}:
+    get:
+      tags: [Usuarios]
+      operationId: ObterUsuario
+      summary: Consulta um usuário, sem nenhum dado de credencial.
+      description: Perfil autorizado - **Admin ativo** (REQ-25).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdUsuario'
+      responses:
+        '200':
+          description: Usuário encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioGestaoResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '404':
+          $ref: '#/components/responses/ErroNaoEncontrado'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
   /api/v1/notificacoes/destinos:
     post:
       tags: [Notificacoes]
@@ -1246,6 +1335,15 @@ components:
         type: string
         format: uuid
 
+    IdUsuario:
+      name: id
+      in: path
+      required: true
+      description: Identificador do usuário.
+      schema:
+        type: string
+        format: uuid
+
   responses:
     ErroLimiteRequisicoes:
       description: Limite de requisições excedido. Igual em todos os casos, sem revelar os limites nem se a conta existe (REQ-23).
@@ -1400,6 +1498,55 @@ components:
     PerfilUsuario:
       type: string
       enum: [Cliente, Admin, OperadorLogistica]
+
+    SituacaoUsuario:
+      type: string
+      description: Se a conta pode entrar no sistema (REQ-25). Independente do bloqueio por erros de senha.
+      enum: [Ativa, Desativada]
+
+    UsuarioGestaoResponseDTO:
+      type: object
+      description: Conta vista pelo Admin (REQ-25). Nunca traz senha, hash, carimbo de segurança nem token.
+      required: [id, nome, email, perfis, situacao, emailConfirmado, convitePendente]
+      properties:
+        id:
+          type: string
+          format: uuid
+        nome:
+          type: string
+        email:
+          type: string
+          format: email
+        perfis:
+          type: array
+          items:
+            $ref: '#/components/schemas/PerfilUsuario'
+        situacao:
+          $ref: '#/components/schemas/SituacaoUsuario'
+        emailConfirmado:
+          type: boolean
+        convitePendente:
+          type: boolean
+          description: A conta ainda não definiu a senha.
+
+    PaginaUsuariosResponseDTO:
+      type: object
+      description: Uma página da listagem de usuários (REQ-25), como a de produtos.
+      required: [itens, tamanho, proximo, anterior]
+      properties:
+        itens:
+          type: array
+          items:
+            $ref: '#/components/schemas/UsuarioGestaoResponseDTO'
+        tamanho:
+          type: integer
+          format: int32
+        proximo:
+          type: ['null', string]
+          description: Cursor da próxima página; null na última.
+        anterior:
+          type: ['null', string]
+          description: Cursor da página anterior; null na primeira.
 
     StatusPedido:
       type: string

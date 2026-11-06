@@ -136,3 +136,9 @@ Hoje, com `PasswordHash` nulo, `CheckPasswordAsync` devolve falso sem calcular h
 | 3025 | `AlteracaoUsuarioRecusada` | Warning | Recusa por último Admin ou por própria conta |
 
 Os ids 3001 a 3018 estão em uso. Nenhuma métrica nova: a issue pede só logs. `oms.emails` ganha o tipo `ConviteUsuario` pelo atributo que já existe.
+
+## Conferências da implementação
+
+- **Linha de base** (T001, 2026-11-06): 1.244 unitários + 846 de integração, sem falhas.
+- **`busca` fora da telemetria** (T022): o valor não aparece em logs, em atributos nem em nomes de spans, conferido em `GestaoUsuariosConsultaTestes`. Nenhuma mudança foi preciso.
+- **Manipulador da política**: sem o perfil Admin no token, o 403 sai sem consultar o banco. Na primeira versão, um Cliente recebia 500 com o banco fora do ar.

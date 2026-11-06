@@ -7,6 +7,10 @@ namespace PedidoFulfillment.Application.Contratos.Erros;
 public static class CodigosErro
 {
     public const string UsuarioEmailJaCadastrado = "USUARIO_EMAIL_JA_CADASTRADO";
+    public const string UsuarioUltimoAdmin = "USUARIO_ULTIMO_ADMIN";
+    public const string UsuarioPropriaConta = "USUARIO_PROPRIA_CONTA";
+    public const string UsuarioUltimoPerfil = "USUARIO_ULTIMO_PERFIL";
+    public const string UsuarioPerfisIncompativeis = "USUARIO_PERFIS_INCOMPATIVEIS";
     public const string LimiteRequisicoesExcedido = "LIMITE_REQUISICOES_EXCEDIDO";
     public const string TokenInvalido = "TOKEN_INVALIDO";
     public const string IdempotenciaConteudoDivergente = "IDEMPOTENCIA_CONTEUDO_DIVERGENTE";

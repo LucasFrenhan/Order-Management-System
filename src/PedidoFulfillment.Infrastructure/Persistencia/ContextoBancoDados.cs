@@ -124,6 +124,8 @@ public sealed class ContextoBancoDados(DbContextOptions<ContextoBancoDados> opti
         {
             usuario.ToTable("Usuarios");
             usuario.Property(u => u.Nome).HasMaxLength(100).IsRequired();
+            // Listagem da gestão de usuários, por cursor (REQ-25, R-07).
+            usuario.HasIndex(u => new { u.Nome, u.Id }).HasDatabaseName("IX_Usuarios_Nome_Id");
             // Único: o segundo de dois registros simultâneos esbarra aqui (research R-03).
             usuario.HasIndex(u => u.NormalizedEmail).HasDatabaseName("EmailIndex").IsUnique();
         });

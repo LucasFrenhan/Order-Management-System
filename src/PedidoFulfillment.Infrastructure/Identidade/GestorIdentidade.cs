@@ -20,7 +20,7 @@ internal sealed class GestorIdentidade(
     IFilaEmails fila,
     TimeProvider relogio) : IGestorIdentidade
 {
-    private static readonly Falha EmailJaCadastrado = new(
+    internal static readonly Falha EmailJaCadastrado = new(
         TipoFalha.Conflito, "E-mail já cadastrado.", "Já existe uma conta com este e-mail.", CodigosErro.UsuarioEmailJaCadastrado);
 
     // Hash de uma senha aleatória, gerado uma vez, para verificar quando o e-mail não existe.
@@ -165,7 +165,7 @@ internal sealed class GestorIdentidade(
     private string HashReferencia() =>
         hashReferencia ??= usuarios.PasswordHasher.HashPassword(new Usuario(), Guid.NewGuid().ToString());
 
-    private static void Garantir(IdentityResult resultado)
+    internal static void Garantir(IdentityResult resultado)
     {
         if (!resultado.Succeeded)
         {
@@ -174,6 +174,6 @@ internal sealed class GestorIdentidade(
     }
 
     // Só os códigos do Identity: as descrições podem repetir o e-mail informado.
-    private static InvalidOperationException Inesperado(IdentityResult resultado) =>
+    internal static InvalidOperationException Inesperado(IdentityResult resultado) =>
         new($"O Identity recusou a operação: {string.Join(", ", resultado.Errors.Select(e => e.Code))}.");
 }
