@@ -19,10 +19,11 @@ e o REQ-22, o catálogo de produtos pela API, com busca em português pelo Full-
 SQL Server (issue #53). O REQ-23 limitou as requisições do login e do registro, com uma contagem
 única para todas as instâncias da API (issue #58), e o REQ-24 completou o ciclo da autenticação:
 renovação com rotação, logout, troca e recuperação de senha e confirmação de e-mail, com o envio
-de e-mail no Worker (issue #55).
+de e-mail no Worker (issue #55). O REQ-25 trouxe a gestão de usuários e perfis pelo Admin, com
+convite por e-mail, desativação e a garantia de nunca ficar sem Admin (issue #54).
 Cada trabalho novo segue o fluxo SDD (`/speckit-specify` → `/speckit-clarify` →
 `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`), em uma
-branch `feature/req-XX-...`, com a numeração a partir do REQ-25.
+branch `feature/req-XX-...`, com a numeração a partir do REQ-26.
 
 A fila abaixo saiu do levantamento das pendências de todas as specs (2026-11-02). A ordem é
 uma sugestão; o número do REQ é dado quando o trabalho começa.
@@ -30,11 +31,10 @@ uma sugestão; o número do REQ é dado quando o trabalho começa.
 | Ordem | Requisito | Origem | Escopo |
 |-------|-----------|--------|--------|
 | 1 | a numerar | [#59](https://github.com/LucasFrenhan/Order-Management-System/issues/59) — Dependabot e CodeQL | Dependências vulneráveis e análise do CodeQL na cadeia de build |
-| 2 | a numerar | [#54](https://github.com/LucasFrenhan/Order-Management-System/issues/54) — Gestão de usuários | Usuários internos e perfis pelo Admin |
-| 3 | a numerar | [#60](https://github.com/LucasFrenhan/Order-Management-System/issues/60) — Rotação da chave JWT | Várias chaves com `kid` e rotação sem derrubar sessões |
-| 4 | a numerar | [#57](https://github.com/LucasFrenhan/Order-Management-System/issues/57) — Estornos pela operação | Forçar tentativa, dar baixa manual e evento de estorno travado |
-| 5 | a numerar | [#56](https://github.com/LucasFrenhan/Order-Management-System/issues/56) — Evolução do pagamento | Estudo: nova cobrança após recusa, estorno parcial, devolução, pagamento em análise e gateway real |
-| 6 | a numerar | [#77](https://github.com/LucasFrenhan/Order-Management-System/issues/77) — Falhas intermitentes dos testes | Investigar: conexões que caem no Docker Desktop e busca full-text fora do prazo no CI |
+| 2 | a numerar | [#60](https://github.com/LucasFrenhan/Order-Management-System/issues/60) — Rotação da chave JWT | Várias chaves com `kid` e rotação sem derrubar sessões |
+| 3 | a numerar | [#57](https://github.com/LucasFrenhan/Order-Management-System/issues/57) — Estornos pela operação | Forçar tentativa, dar baixa manual e evento de estorno travado |
+| 4 | a numerar | [#56](https://github.com/LucasFrenhan/Order-Management-System/issues/56) — Evolução do pagamento | Estudo: nova cobrança após recusa, estorno parcial, devolução, pagamento em análise e gateway real |
+| 5 | a numerar | [#77](https://github.com/LucasFrenhan/Order-Management-System/issues/77) — Falhas intermitentes dos testes | Investigar: conexões que caem no Docker Desktop e busca full-text fora do prazo no CI |
 | contínua | sem REQ | [#61](https://github.com/LucasFrenhan/Order-Management-System/issues/61) — Dívida técnica de code smells | Sem prazo: todo PR que corrigir code smells referencia a #61 (`Refs #61`) e atualiza a tabela dela |
 
 ### Para análise futura (sem issue)
