@@ -26,6 +26,11 @@ Respostas dadas pelo usuário durante o specify:
 - Q: Um Admin pode desativar a própria conta ou retirar o próprio perfil Admin? → A: Não. Outro Admin precisa fazer isso, e a operação sobre a própria conta é recusada com 409.
 - Q: Como a pessoa criada pelo Admin obtém a senha? → A: Por um convite enviado por e-mail, com um token de uso único válido por 72 horas, configurável. A conta nasce sem senha, o Admin nunca a conhece, e um convite vencido é resolvido pela recuperação de senha.
 
+Respostas dadas pelo usuário no clarify:
+
+- Q: Uma conta pode ter o perfil Cliente junto com um perfil interno (Admin ou OperadorLogistica)? → A: Não. Admin e OperadorLogistica podem se combinar entre si, mas não com Cliente. Uma conta interna só nasce pela criação feita pelo Admin, e atribuir um perfil do outro grupo recebe 409.
+- Q: Enquanto uma conta de Cliente estiver desativada, os webhooks cadastrados por ela continuam recebendo os avisos de status dos pedidos? → A: Não. Os avisos gerados durante a desativação não são entregues nem reenviados depois. A reativação retoma os envios a partir dali, com os mesmos destinos e segredos.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Consultar os usuários (Priority: P1)
@@ -38,7 +43,7 @@ O Admin lista os usuários, filtra por perfil, situação ou texto, e consulta u
 
 **Acceptance Scenarios**:
 
-1. **Given** um Admin autenticado, **When** ele lista os usuários, **Then** recebe uma página com id, nome, e-mail, perfis, situação e confirmação do e-mail de cada conta, e o indicador para a página seguinte.
+1. **Given** um Admin autenticado, **When** ele lista os usuários, **Then** recebe uma página com id, nome, e-mail, perfis, situação, confirmação do e-mail e convite pendente de cada conta, e o indicador para a página seguinte.
 2. **Given** a listagem, **When** o Admin filtra por perfil, por situação ou por um trecho do nome ou do e-mail, **Then** só as contas que atendem a todos os filtros aparecem.
 3. **Given** o id de uma conta existente, **When** o Admin a consulta, **Then** recebe os mesmos dados da listagem.
 4. **Given** um id sem conta, **When** o Admin o consulta, **Then** a resposta é 404. **Given** um id mal formado, **Then** a resposta é 400.
@@ -71,7 +76,7 @@ O Admin cria uma conta com o perfil Admin ou OperadorLogistica, sem depender de 
 
 ### User Story 3 - Atribuir e retirar perfis (Priority: P1)
 
-O Admin promove ou rebaixa uma conta. O sistema nunca fica sem um Admin capaz de administrá-lo.
+O Admin promove ou rebaixa uma conta interna, entre Admin e OperadorLogistica. Uma conta de Cliente nunca vira interna, e o sistema nunca fica sem um Admin capaz de administrá-lo.
 
 **Why this priority**: É a regra central da issue. Sem ela, um único engano tira de todos o acesso à gestão, e a recuperação exigiria mexer direto no banco.
 
@@ -79,7 +84,7 @@ O Admin promove ou rebaixa uma conta. O sistema nunca fica sem um Admin capaz de
 
 **Acceptance Scenarios**:
 
-1. **Given** uma conta sem o perfil, **When** o Admin o atribui, **Then** a conta passa a tê-lo, e a resposta traz os perfis atuais.
+1. **Given** uma conta interna sem o perfil interno pedido, **When** o Admin o atribui, **Then** a conta passa a tê-lo, e a resposta traz os perfis atuais.
 2. **Given** uma conta com dois ou mais perfis, **When** o Admin retira um deles, **Then** a conta perde esse perfil e mantém os demais.
 3. **Given** o único Admin ativo, **When** ele tenta retirar o próprio perfil Admin, **Then** a resposta é 409 com o código do último Admin, e nada muda.
 4. **Given** uma conta com um único perfil, **When** ele é retirado, **Then** a resposta é 409 com um código próprio: toda conta mantém ao menos um perfil.
@@ -87,6 +92,7 @@ O Admin promove ou rebaixa uma conta. O sistema nunca fica sem um Admin capaz de
 6. **Given** dois Admins ativos, **When** cada um tenta, ao mesmo tempo, retirar o perfil Admin do outro, **Then** só uma operação é aceita, a outra recebe 403 porque quem a pediu já não é Admin, e continua havendo um Admin ativo.
 7. **Given** um perfil alterado, **When** a sessão da conta é renovada, **Then** o novo token de acesso traz os perfis atuais (REQ-24, FR-007).
 8. **Given** dois ou mais Admins ativos, **When** um deles tenta retirar o próprio perfil Admin, **Then** a resposta é 409 com o código de operação sobre a própria conta, e nada muda.
+9. **Given** uma conta de Cliente, **When** o Admin tenta atribuir a ela um perfil interno, ou **Given** uma conta interna, **When** ele tenta atribuir o perfil Cliente, **Then** a resposta é 409 com um código próprio, e nada muda.
 
 ---
 
@@ -126,9 +132,11 @@ O Admin impede o acesso de uma pessoa sem apagar a conta nem o histórico dos pe
 - **Convite e recuperação ao mesmo tempo**: o primeiro a definir a senha invalida o outro token.
 - **Serviço de e-mail fora do ar na criação**: a criação responde como de costume, e o convite é enviado depois (REQ-24, FR-021). A validade do token conta a partir do envio.
 - **Rotas administrativas de outros REQs (reenvio da DLQ e catálogo)**: seguem só o perfil do token, então um Admin removido ainda as usa até o token expirar. É a limitação aceita na Q1, a registrar no fluxo 1.
-- **Conta sem nenhum perfil, de dado inconsistente anterior**: aparece na listagem com a lista vazia, e o Admin pode atribuir um perfil.
+- **Conta sem nenhum perfil, de dado inconsistente anterior**: aparece na listagem com a lista vazia, e o Admin pode atribuir um perfil de qualquer grupo.
+- **Conta que já mistura Cliente e perfil interno, de dado anterior**: continua funcionando como está. O Admin pode retirar um dos perfis, mas não atribuir outro enquanto os grupos estiverem misturados.
+- **Quem é cliente e também da operação**: usa duas contas, com e-mails diferentes.
 - **Pedidos em andamento de uma conta desativada**: seguem até o fim, e o estorno devido também. A desativação tira o acesso, e não desfaz compromissos.
-- **Destinos de notificação da conta desativada**: os destinos próprios dela não recebem os avisos gerados durante a desativação. Os destinos globais são da operação e não mudam, mesmo que a conta tenha cadastrado algum deles.
+- **Destinos de notificação da conta desativada**: os destinos próprios dela não recebem os avisos gerados durante a desativação nem os que estavam pendentes ao desativar, e nada disso é reenviado depois. Os destinos e os segredos são mantidos, e a reativação retoma os envios a partir dali. Os destinos globais são da operação e não mudam, mesmo que a conta tenha cadastrado algum deles.
 - **Eventos em tempo real**: a conexão de uma conta desativada termina, no máximo, quando o token de acesso expira, como já ocorre hoje.
 - **E-mail pendente de envio quando a conta é desativada**: não é enviado.
 - **Falha no meio de uma operação**: 500 e nada muda. A alteração, o encerramento das sessões e a invalidação dos tokens acontecem juntos.
@@ -147,7 +155,7 @@ O Admin impede o acesso de uma pessoa sem apagar a conta nem o histórico dos pe
 
 - **FR-004**: O Admin MUST poder listar os usuários com paginação por cursor, como nos pedidos e nos produtos, em ordem estável, com filtros combináveis por perfil, por situação e por trecho do nome ou do e-mail.
 - **FR-005**: O Admin MUST poder consultar um usuário pelo id.
-- **FR-006**: As respostas MUST trazer id, nome, e-mail, perfis, situação e confirmação do e-mail, e MUST NOT trazer senha, hash, carimbo de segurança, token ou outro dado de credencial.
+- **FR-006**: As respostas MUST trazer id, nome, e-mail, perfis, situação, confirmação do e-mail e se o convite está pendente, isto é, se a conta ainda não definiu a senha, e MUST NOT trazer senha, hash, carimbo de segurança, token ou outro dado de credencial.
 
 **Criação**
 
@@ -157,7 +165,7 @@ O Admin impede o acesso de uma pessoa sem apagar a conta nem o histórico dos pe
 
 **Perfis**
 
-- **FR-010**: O Admin MUST poder atribuir e retirar os perfis Admin, OperadorLogistica e Cliente de qualquer conta. Os perfis são cumulativos.
+- **FR-010**: O Admin MUST poder atribuir e retirar os perfis Admin e OperadorLogistica de uma conta interna, e eles podem se combinar. O perfil Cliente MUST NOT se combinar com um perfil interno: uma atribuição que misturaria os grupos MUST ser recusada com 409 e um código próprio. Uma conta interna só nasce pela criação feita pelo Admin (FR-007).
 - **FR-011**: Toda conta MUST manter ao menos um perfil. A retirada do único perfil MUST ser recusada com 409 e um código próprio.
 - **FR-012**: Repetir uma atribuição ou uma remoção já em vigor MUST responder com sucesso, sem alterar nada nem registrar auditoria.
 
@@ -173,7 +181,7 @@ O Admin impede o acesso de uma pessoa sem apagar a conta nem o histórico dos pe
 - **FR-017**: Uma conta desativada MUST NOT conseguir login nem renovação. As respostas MUST ser as mesmas 401 de hoje, em tempo equivalente ao de uma senha errada, sem revelar a desativação.
 - **FR-018**: Uma conta desativada MUST NOT receber e-mails, e MUST NOT ter a senha alterada por redefinição ou troca. As respostas públicas MUST continuar iguais às de uma conta inexistente ou de um token inválido.
 - **FR-019**: A desativação MUST ser independente do bloqueio por erros de senha: nenhuma das duas situações altera a outra, e a redefinição de senha não reativa a conta.
-- **FR-020**: Os pedidos de uma conta desativada MUST continuar consultáveis por quem já tem acesso a eles e seguir o fluxo normal. Os destinos de notificação próprios da conta MUST NOT receber os avisos gerados durante a desativação.
+- **FR-020**: Os pedidos de uma conta desativada MUST continuar consultáveis por quem já tem acesso a eles e seguir o fluxo normal. Os destinos de notificação próprios da conta MUST NOT receber avisos durante a desativação, nem os pendentes ao desativar, e esses avisos MUST NOT ser reenviados depois. A reativação MUST retomar os envios a partir dali, com os mesmos destinos e segredos.
 
 **Auditoria**
 
@@ -182,14 +190,14 @@ O Admin impede o acesso de uma pessoa sem apagar a conta nem o histórico dos pe
 **Contrato e compatibilidade**
 
 - **FR-022**: O contrato v1 MUST mudar só por acréscimo, com os erros em `ProblemDetails` e mensagens em português. As respostas das rotas existentes não mudam para as contas ativas.
-- **FR-023**: As rotas novas MUST ficar fora do limite de requisições do REQ-23, como a troca de senha, por serem protegidas e restritas ao Admin.
-- **FR-024**: Todas as rotas novas MUST ter testes de sucesso, de 401 e de 403, e as regras de negócio MUST ter testes unitários (constituição).
+- **FR-023**: As rotas de gestão MUST ficar fora do limite de requisições do REQ-23, como a troca de senha, por serem protegidas e restritas ao Admin. A definição da senha pelo convite é pública e MUST seguir o limite da redefinição de senha, de 10 por minuto por origem por padrão, com a mesma resposta 429.
+- **FR-024**: Todas as rotas de gestão MUST ter testes de sucesso, de 401 e de 403, a definição da senha pelo convite MUST ter testes de sucesso e de falha, e as regras de negócio MUST ter testes unitários (constituição).
 - **FR-025**: O documento do fluxo 1 (autenticação) e os demais fluxos afetados MUST ser atualizados no mesmo PR, e a limitação "Não há rota de gestão de usuários ou de perfis" MUST sair da lista, com a referência a esta issue.
 
 ### Key Entities
 
 - **Usuário**: conta existente, com nome, e-mail, perfis e confirmação do e-mail. Ganha a **situação** (ativa ou desativada), independente do bloqueio por erros de senha.
-- **Perfil**: Admin, OperadorLogistica ou Cliente. Uma conta tem um ou mais.
+- **Perfil**: Admin, OperadorLogistica ou Cliente. Uma conta tem um ou mais, de um único grupo: internos (Admin e OperadorLogistica) ou Cliente.
 - **Admin ativo**: conta com o perfil Admin, a situação ativa e a senha já definida. É o que a regra do último Admin conta.
 - **Token de convite**: token de uso único para definir a primeira senha: conta, forma não legível, validade e se foi usado.
 - **Registro de auditoria**: entrada de log com a ação, o id de quem fez, o id da conta alterada e o perfil, quando houver. Não é uma entidade guardada no banco.
@@ -212,7 +220,6 @@ O Admin impede o acesso de uma pessoa sem apagar a conta nem o histórico dos pe
 - O primeiro Admin de um ambiente continua vindo da carga inicial de usuários, que já pode ser configurada em qualquer ambiente. Este requisito não muda isso.
 - O Admin não edita o nome nem o e-mail de outra conta nesta versão.
 - Não há exclusão de conta: a desativação é o único meio de tirar o acesso, o que preserva o histórico dos pedidos.
-- Atribuir um perfil interno a uma conta criada pelo registro público é permitido, porque o Admin assume essa decisão. O e-mail da conta não precisa estar confirmado, como no login (REQ-24, FR-020).
 - Desativar uma conta com o perfil Cliente é permitido, e os pedidos dela seguem as mesmas regras das demais contas.
 - A desativação e a reativação não enviam e-mail à pessoa. Um aviso pode ser acrescentado depois.
 - Não há rota para reenviar o convite: a recuperação de senha cobre o convite vencido.
