@@ -116,12 +116,13 @@ internal sealed class GestorIdentidade(
 
         var peloConvite = token.Finalidade == FinalidadeTokenUsoUnico.ConviteUsuario;
 
+        // A conta por último, como na desativação: o login insere a sessão e só então lê a conta (REQ-25, R-08).
+        await sessoes.EncerrarSessoesDaContaAsync(usuario.Id, agora, cancellationToken);
         usuario.PasswordHash = usuarios.PasswordHasher.HashPassword(usuario, novaSenha);
         usuario.EmailConfirmed = true;
         usuario.AccessFailedCount = 0;
         usuario.LockoutEnd = null;
         Garantir(await usuarios.UpdateSecurityStampAsync(usuario));
-        await sessoes.EncerrarSessoesDaContaAsync(usuario.Id, agora, cancellationToken);
         // Quem acabou de aceitar o convite não precisa de um aviso de senha redefinida.
         if (!peloConvite)
         {
@@ -152,9 +153,10 @@ internal sealed class GestorIdentidade(
         }
 
         await using var transacao = await contexto.Database.BeginTransactionAsync(cancellationToken);
+        // A conta por último, como na desativação: o login insere a sessão e só então lê a conta (REQ-25, R-08).
+        await sessoes.EncerrarSessoesDaContaAsync(usuarioId, relogio.GetUtcNow(), cancellationToken);
         Garantir(await usuarios.ChangePasswordAsync(usuario, senhaAtual, novaSenha));
         Garantir(await usuarios.ResetAccessFailedCountAsync(usuario));
-        await sessoes.EncerrarSessoesDaContaAsync(usuarioId, relogio.GetUtcNow(), cancellationToken);
         await transacao.CommitAsync(cancellationToken);
         return ResultadoTrocaSenha.Trocada;
     }
