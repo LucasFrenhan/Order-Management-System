@@ -13,6 +13,10 @@ public interface IServicoGestaoUsuarios
     Task<Resultado<UsuarioGestaoResponseDTO>> ObterAsync(Guid usuarioId, CancellationToken cancellationToken);
 
     Task<Resultado<UsuarioGestaoResponseDTO>> CriarAsync(CriarUsuarioInternoRequestDTO usuario, Guid atorId, CancellationToken cancellationToken);
+
+    Task<Resultado<UsuarioGestaoResponseDTO>> AtribuirPerfilAsync(Guid usuarioId, string perfil, Guid atorId, CancellationToken cancellationToken);
+
+    Task<Resultado<UsuarioGestaoResponseDTO>> RetirarPerfilAsync(Guid usuarioId, string perfil, Guid atorId, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -27,6 +31,10 @@ public sealed class ServicoGestaoUsuarios(
     private static readonly Falha CursorInvalido = new(
         TipoFalha.Validacao, "Um ou mais campos são inválidos.",
         Erros: new Dictionary<string, string[]> { [ServicoListagemPedidos.ChaveCursor] = [ServicoListagemPedidos.MensagemCursorInvalido] });
+
+    private static readonly Falha PerfilDesconhecido = new(
+        TipoFalha.Validacao, "Um ou mais campos são inválidos.",
+        Erros: new Dictionary<string, string[]> { ["perfil"] = [ListarUsuariosRequestDTO.MensagemPerfilDesconhecido] });
 
     public async Task<Resultado<PaginaUsuariosResponseDTO>> ListarAsync(ListarUsuariosRequestDTO requisicao, Guid atorId, CancellationToken cancellationToken)
     {
@@ -63,6 +71,59 @@ public sealed class ServicoGestaoUsuarios(
 
         EventosGestaoUsuarios.UsuarioInternoCriado(logger, conta.Id, atorId, perfil);
         return Resposta(conta);
+    }
+
+    public Task<Resultado<UsuarioGestaoResponseDTO>> AtribuirPerfilAsync(Guid usuarioId, string perfil, Guid atorId, CancellationToken cancellationToken) =>
+        AlterarPerfilAsync(TipoAlteracaoUsuario.AtribuirPerfil, usuarioId, perfil, atorId, cancellationToken);
+
+    public Task<Resultado<UsuarioGestaoResponseDTO>> RetirarPerfilAsync(Guid usuarioId, string perfil, Guid atorId, CancellationToken cancellationToken) =>
+        AlterarPerfilAsync(TipoAlteracaoUsuario.RetirarPerfil, usuarioId, perfil, atorId, cancellationToken);
+
+    private async Task<Resultado<UsuarioGestaoResponseDTO>> AlterarPerfilAsync(
+        TipoAlteracaoUsuario tipo, Guid usuarioId, string perfil, Guid atorId, CancellationToken cancellationToken) =>
+        ListarUsuariosRequestDTO.TentarPerfil(perfil, out var pedido)
+            ? await AlterarAsync(usuarioId, new AlteracaoUsuario(tipo, pedido), atorId, cancellationToken)
+            : PerfilDesconhecido;
+
+    /// <summary>A auditoria sai depois de a transação terminar, e só para o que mudou de fato ou para as recusas auditadas (FR-021).</summary>
+    private async Task<Resultado<UsuarioGestaoResponseDTO>> AlterarAsync(Guid usuarioId, AlteracaoUsuario alteracao, Guid atorId, CancellationToken cancellationToken)
+    {
+        var resultado = await gestor.AlterarAsync(atorId, usuarioId, alteracao, cancellationToken);
+        if (resultado.Decisao.Falha is { } falha)
+        {
+            if (RegrasGestaoUsuarios.RecusaAuditada(falha))
+            {
+                EventosGestaoUsuarios.AlteracaoUsuarioRecusada(logger, alteracao.Tipo, alteracao.Perfil, usuarioId, atorId, falha.Codigo);
+            }
+
+            return falha;
+        }
+
+        if (resultado.Decisao.Desfecho == DesfechoAlteracao.Aplicar)
+        {
+            Auditar(usuarioId, alteracao, atorId);
+        }
+
+        return Resposta(resultado.Conta!);
+    }
+
+    private void Auditar(Guid usuarioId, AlteracaoUsuario alteracao, Guid atorId)
+    {
+        switch (alteracao.Tipo)
+        {
+            case TipoAlteracaoUsuario.AtribuirPerfil:
+                EventosGestaoUsuarios.PerfilAtribuido(logger, alteracao.Perfil!.Value, usuarioId, atorId);
+                break;
+            case TipoAlteracaoUsuario.RetirarPerfil:
+                EventosGestaoUsuarios.PerfilRetirado(logger, alteracao.Perfil!.Value, usuarioId, atorId);
+                break;
+            case TipoAlteracaoUsuario.Desativar:
+                EventosGestaoUsuarios.UsuarioDesativado(logger, usuarioId, atorId);
+                break;
+            default:
+                EventosGestaoUsuarios.UsuarioReativado(logger, usuarioId, atorId);
+                break;
+        }
     }
 
     private PaginaUsuariosResponseDTO MontarPagina(
