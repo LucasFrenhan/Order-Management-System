@@ -1112,6 +1112,72 @@ paths:
         '500':
           $ref: '#/components/responses/ErroInterno'
 
+  /api/v1/admin/usuarios/{id}/perfis/{perfil}:
+    put:
+      tags: [Usuarios]
+      operationId: AtribuirPerfilUsuario
+      summary: Atribui um perfil à conta; repetir não muda nada.
+      description: |
+        Perfil autorizado: **Admin ativo** (REQ-25). `Admin` e `OperadorLogistica` podem se combinar, mas
+        não com `Cliente`: a atribuição que misturaria os grupos responde 409 `USUARIO_PERFIS_INCOMPATIVEIS`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdUsuario'
+        - $ref: '#/components/parameters/PerfilDoUsuario'
+      responses:
+        '200':
+          description: Conta com os perfis atuais.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioGestaoResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '404':
+          $ref: '#/components/responses/ErroNaoEncontrado'
+        '409':
+          $ref: '#/components/responses/ErroConflito'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+    delete:
+      tags: [Usuarios]
+      operationId: RetirarPerfilUsuario
+      summary: Retira um perfil da conta; repetir não muda nada, e nunca fica sem nenhum Admin ativo.
+      description: |
+        Perfil autorizado: **Admin ativo** (REQ-25). Responde 409 com `USUARIO_ULTIMO_ADMIN` quando o único
+        Admin ativo tenta retirar o próprio perfil, `USUARIO_PROPRIA_CONTA` quando um Admin tenta o mesmo com
+        outro Admin ativo, e `USUARIO_ULTIMO_PERFIL` quando a conta ficaria sem perfil. Para rebaixar um Admin
+        que só tem esse perfil, atribua `OperadorLogistica` antes.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdUsuario'
+        - $ref: '#/components/parameters/PerfilDoUsuario'
+      responses:
+        '200':
+          description: Conta com os perfis atuais.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioGestaoResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '404':
+          $ref: '#/components/responses/ErroNaoEncontrado'
+        '409':
+          $ref: '#/components/responses/ErroConflito'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
   /api/v1/notificacoes/destinos:
     post:
       tags: [Notificacoes]
@@ -1382,6 +1448,14 @@ components:
       schema:
         type: string
         format: uuid
+
+    PerfilDoUsuario:
+      name: perfil
+      in: path
+      required: true
+      description: Admin, OperadorLogistica ou Cliente. Um valor desconhecido responde 400.
+      schema:
+        type: string
 
   responses:
     ErroLimiteRequisicoes:

@@ -51,6 +51,21 @@ public static class EndpointsUsuarios
             .ComCabecalhoLocation()
             .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status409Conflict);
 
+        // O perfil chega como texto: um valor desconhecido deve dar 400, e não 404 (R-09).
+        grupo.MapPut("/{id}/perfis/{perfil}", async (Guid id, string perfil, ClaimsPrincipal usuario, IServicoGestaoUsuarios servico, CancellationToken cancellationToken) =>
+                (await servico.AtribuirPerfilAsync(id, perfil, usuario.ObterUsuarioId(), cancellationToken)).ParaResposta(conta => TypedResults.Ok(conta)))
+            .WithName("AtribuirPerfilUsuario")
+            .WithSummary("Atribui um perfil à conta; repetir não muda nada.")
+            .Produces<UsuarioGestaoResponseDTO>()
+            .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status404NotFound, StatusCodes.Status409Conflict);
+
+        grupo.MapDelete("/{id}/perfis/{perfil}", async (Guid id, string perfil, ClaimsPrincipal usuario, IServicoGestaoUsuarios servico, CancellationToken cancellationToken) =>
+                (await servico.RetirarPerfilAsync(id, perfil, usuario.ObterUsuarioId(), cancellationToken)).ParaResposta(conta => TypedResults.Ok(conta)))
+            .WithName("RetirarPerfilUsuario")
+            .WithSummary("Retira um perfil da conta; repetir não muda nada, e nunca fica sem nenhum Admin ativo.")
+            .Produces<UsuarioGestaoResponseDTO>()
+            .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status404NotFound, StatusCodes.Status409Conflict);
+
         return app;
     }
 }
