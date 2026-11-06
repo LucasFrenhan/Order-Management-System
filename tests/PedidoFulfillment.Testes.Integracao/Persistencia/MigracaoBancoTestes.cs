@@ -46,14 +46,20 @@ public sealed class MigracaoBancoTestes(BancoDadosTeste banco)
                     (await perfis.CreateAsync(new Perfil(nome))).Succeeded.Should().BeTrue();
                 }
 
-                // Direto pelo Identity, e não pela rota: o registro de hoje também grava a solicitação de
-                // e-mail do REQ-24, em uma tabela que este banco antigo ainda não tem.
-                var usuarios = escopo.ServiceProvider.GetRequiredService<UserManager<Usuario>>();
+                // Por SQL, nas colunas que existiam no REQ-03: o modelo de hoje grava colunas que este banco
+                // antigo ainda não tem (REQ-25), e o registro, uma solicitação de e-mail (REQ-24).
+                var hash = escopo.ServiceProvider.GetRequiredService<UserManager<Usuario>>().PasswordHasher.HashPassword(new Usuario(), Senha);
                 foreach (var email in emails)
                 {
-                    var conta = new Usuario { UserName = email, Email = email, Nome = "Cliente" };
-                    (await usuarios.CreateAsync(conta, Senha)).Succeeded.Should().BeTrue();
-                    (await usuarios.AddToRoleAsync(conta, nameof(PerfilUsuario.Cliente))).Succeeded.Should().BeTrue();
+                    var id = Guid.CreateVersion7();
+                    var normalizado = email.ToUpperInvariant();
+                    await BancoDadosTeste.ExecutarAsync(stringConexao, $"""
+                        INSERT INTO Usuarios (Id, Nome, UserName, NormalizedUserName, Email, NormalizedEmail, EmailConfirmed, PasswordHash, SecurityStamp,
+                            ConcurrencyStamp, PhoneNumberConfirmed, TwoFactorEnabled, LockoutEnabled, AccessFailedCount)
+                        VALUES ('{id}', N'Cliente', N'{email}', N'{normalizado}', N'{email}', N'{normalizado}', 0, N'{hash}', N'{Guid.NewGuid()}',
+                            N'{Guid.NewGuid()}', 0, 0, 1, 0);
+                        INSERT INTO UsuariosPerfis (UserId, RoleId) SELECT '{id}', Id FROM Perfis WHERE Name = N'{nameof(PerfilUsuario.Cliente)}';
+                        """);
                 }
             }
         }
@@ -66,6 +72,8 @@ public sealed class MigracaoBancoTestes(BancoDadosTeste banco)
 
         (await BancoDadosTeste.ConsultarAsync<int>(stringConexao, ContarTabelasNegocio)).Should().Be(6);
         (await BancoDadosTeste.ConsultarAsync<int>(stringConexao, "SELECT COUNT(*) FROM Usuarios")).Should().Be(3);
+        (await BancoDadosTeste.ConsultarAsync<int>(stringConexao, "SELECT COUNT(*) FROM Usuarios WHERE DesativadoEm IS NULL AND ReativadoEm IS NULL"))
+            .Should().Be(3, "as contas existentes ficam ativas (REQ-25)");
         await using var apiAtualizada = new FabricaApi { StringConexao = stringConexao };
         var clienteAtualizado = apiAtualizada.CreateClient();
         foreach (var email in emails)
@@ -89,7 +97,7 @@ public sealed class MigracaoBancoTestes(BancoDadosTeste banco)
         (await BancoDadosTeste.ConsultarAsync<int>(stringConexao, ContarTabelasNegocio)).Should().Be(6);
         (await BancoDadosTeste.ConsultarAsync<string>(stringConexao,
             "SELECT STRING_AGG(SUBSTRING(MigrationId, 16, 100), ',') WITHIN GROUP (ORDER BY MigrationId) FROM __EFMigrationsHistory"))
-            .Should().Be("InicialIdentidade,EntidadesNegocio,ChavesIdempotencia,MensageriaOutbox,ReservaEstoque,RastreioSemCaixa,PagamentoNaoProcessado,EstornoPagamento,LimpezaEReenvioDlq,ContextoRastreio,NotificacaoStatus,ListagemPedidos,CatalogoProdutos,LimiteRequisicoes,CicloAutenticacao");
+            .Should().Be("InicialIdentidade,EntidadesNegocio,ChavesIdempotencia,MensageriaOutbox,ReservaEstoque,RastreioSemCaixa,PagamentoNaoProcessado,EstornoPagamento,LimpezaEReenvioDlq,ContextoRastreio,NotificacaoStatus,ListagemPedidos,CatalogoProdutos,LimiteRequisicoes,CicloAutenticacao,GestaoUsuarios");
     }
 
     [Fact]
