@@ -157,17 +157,18 @@ internal sealed class GestorUsuarios(
                     .ExecuteDeleteAsync(cancellationToken);
                 break;
             case TipoAlteracaoUsuario.Desativar:
+                // A conta por último: o login insere a sessão e só então lê a conta, pela chave estrangeira (R-08).
+                await contexto.TokensUsoUnico.Where(t => t.UsuarioId == alvoId).ExecuteDeleteAsync(cancellationToken);
+                await sessoes.EncerrarSessoesDaContaAsync(alvoId, agora, cancellationToken);
                 await contexto.Users.Where(u => u.Id == alvoId)
                     .ExecuteUpdateAsync(s => s.SetProperty(u => u.DesativadoEm, agora), cancellationToken);
-                await sessoes.EncerrarSessoesDaContaAsync(alvoId, agora, cancellationToken);
-                await contexto.TokensUsoUnico.Where(t => t.UsuarioId == alvoId).ExecuteDeleteAsync(cancellationToken);
                 break;
             case TipoAlteracaoUsuario.Reativar:
+                // Um login simultâneo à desativação pode ter criado uma sessão depois de as demais serem encerradas (R-08).
+                await sessoes.EncerrarSessoesDaContaAsync(alvoId, agora, cancellationToken);
                 await contexto.Users.Where(u => u.Id == alvoId).ExecuteUpdateAsync(s => s
                     .SetProperty(u => u.DesativadoEm, (DateTimeOffset?)null)
                     .SetProperty(u => u.ReativadoEm, agora), cancellationToken);
-                // Um login simultâneo à desativação pode ter criado uma sessão depois de as demais serem encerradas (R-08).
-                await sessoes.EncerrarSessoesDaContaAsync(alvoId, agora, cancellationToken);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(alteracao));

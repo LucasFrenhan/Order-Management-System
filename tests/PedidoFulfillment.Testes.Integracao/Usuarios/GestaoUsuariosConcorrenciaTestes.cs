@@ -1,7 +1,10 @@
 using System.Net;
+using System.Net.Http.Json;
+using System.Security.Cryptography;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using PedidoFulfillment.Application.Autenticacao;
 using PedidoFulfillment.Domain.Usuarios;
 using PedidoFulfillment.Infrastructure.Persistencia;
 using PedidoFulfillment.Testes.Integracao.Autenticacao;
@@ -17,6 +20,8 @@ namespace PedidoFulfillment.Testes.Integracao.Usuarios;
 public sealed class GestaoUsuariosConcorrenciaTestes(BancoDadosTeste banco)
 {
     private const int Rodadas = 50;
+    private const int LoginsSimultaneos = 6;
+    private const int SessoesDuranteTroca = 40;
 
     private sealed record Cenario(FabricaApi InstanciaA, FabricaApi InstanciaB, Guid AdminA, Guid AdminB, HttpClient ClienteA, HttpClient ClienteB) : IAsyncDisposable
     {
@@ -127,22 +132,55 @@ public sealed class GestaoUsuariosConcorrenciaTestes(BancoDadosTeste banco)
         Assert.SkipUnless(banco.DockerDisponivel, "Docker indisponível");
         await using var c = await PrepararAsync();
         var id = await ContaAsync(c.InstanciaA, "cliente@exemplo.com.br", perfis: PerfilUsuario.Cliente);
-        var anonimo = c.InstanciaA.CreateClient();
+        var anonimos = Enumerable.Range(0, LoginsSimultaneos).Select(_ => c.InstanciaA.CreateClient()).ToList();
 
-        for (var rodada = 0; rodada < 20; rodada++)
+        for (var rodada = 0; rodada < Rodadas; rodada++)
         {
-            var login = CenarioAutenticacao.TentarLoginAsync(anonimo, "cliente@exemplo.com.br", SenhaPadrao);
-            var desativacao = c.ClienteA.PostAsync($"{Rota}/{id}/desativacao", null, Cancelamento);
-            await Task.WhenAll(login, desativacao);
-            (await desativacao).StatusCode.Should().Be(HttpStatusCode.OK);
-            var resposta = await login;
-            (await c.ClienteA.PostAsync($"{Rota}/{id}/reativacao", null, Cancelamento)).StatusCode.Should().Be(HttpStatusCode.OK);
+            // Vários logins, com a desativação em instantes diferentes do fim deles: o momento do deadlock é estreito.
+            var logins = anonimos.Select(a => CenarioAutenticacao.TentarLoginAsync(a, "cliente@exemplo.com.br", SenhaPadrao)).ToList();
+            await Task.Delay(Random.Shared.Next(0, 120), Cancelamento);
+            var desativacao = await c.ClienteA.PostAsync($"{Rota}/{id}/desativacao", null, Cancelamento);
+            var respostas = await Task.WhenAll(logins);
+            desativacao.StatusCode.Should().Be(HttpStatusCode.OK, $"na rodada {rodada}");
+            respostas.Select(r => r.StatusCode).Should().OnlyContain(s => s == HttpStatusCode.OK || s == HttpStatusCode.Unauthorized, $"na rodada {rodada}");
+            (await c.ClienteA.PostAsync($"{Rota}/{id}/reativacao", null, Cancelamento)).StatusCode.Should().Be(HttpStatusCode.OK, $"na rodada {rodada}");
 
-            if (resposta.StatusCode == HttpStatusCode.OK)
+            foreach (var resposta in respostas.Where(r => r.StatusCode == HttpStatusCode.OK))
             {
                 var tokens = await CenarioAutenticacao.TokensAsync(resposta);
-                (await CenarioAutenticacao.RenovarAsync(anonimo, tokens.Renovacao)).StatusCode.Should().Be(HttpStatusCode.Unauthorized, $"na rodada {rodada}");
+                (await CenarioAutenticacao.RenovarAsync(anonimos[0], tokens.Renovacao)).StatusCode.Should().Be(HttpStatusCode.Unauthorized, $"na rodada {rodada}");
             }
         }
+    }
+
+    /// <summary>
+    /// A sessão é criada direto, sem o login: um login que perde a corrida para a senha nova conta erro para o
+    /// bloqueio, e isso não é o que este teste observa.
+    /// </summary>
+    [Fact]
+    public async Task Sessao_criada_durante_a_troca_de_senha_nao_gera_deadlock()
+    {
+        Assert.SkipUnless(banco.DockerDisponivel, "Docker indisponível");
+        await using var c = await PrepararAsync();
+        var (atual, nova) = (SenhaPadrao, "OutraSenha2");
+        var validades = new ConfiguracaoSessoes(TimeSpan.FromMinutes(30), TimeSpan.FromHours(8));
+
+        for (var rodada = 0; rodada < Rodadas; rodada++)
+        {
+            // A transação só começa depois dos hashes da senha: as sessões se espalham para alcançá-la.
+            var sessoes = Enumerable.Range(0, SessoesDuranteTroca).Select(_ => CriarSessaoAsync(c.InstanciaA, c.AdminA, validades, Random.Shared.Next(0, 500))).ToList();
+            var troca = await c.ClienteA.PostAsJsonAsync(CenarioAutenticacao.RotaTroca, new { senhaAtual = atual, novaSenha = nova }, Cancelamento);
+            await Task.WhenAll(sessoes);
+            troca.StatusCode.Should().Be(HttpStatusCode.NoContent, $"na rodada {rodada}");
+            (atual, nova) = (nova, atual);
+        }
+    }
+
+    private static async Task CriarSessaoAsync(FabricaApi api, Guid usuarioId, ConfiguracaoSessoes validades, int esperaMilissegundos)
+    {
+        await Task.Delay(esperaMilissegundos, Cancelamento);
+        await using var escopo = api.Services.CreateAsyncScope();
+        await escopo.ServiceProvider.GetRequiredService<IArmazenamentoSessoes>()
+            .CriarSessaoAsync(usuarioId, RandomNumberGenerator.GetBytes(32), DateTimeOffset.UtcNow, validades, Cancelamento);
     }
 }

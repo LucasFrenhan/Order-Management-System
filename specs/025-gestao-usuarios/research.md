@@ -107,6 +107,8 @@ Hoje, com `PasswordHash` nulo, `CheckPasswordAsync` devolve falso sem calcular h
 
 **Corrida entre login e desativação**: um login já avaliado pode criar a sessão logo depois de as sessões serem encerradas. Enquanto a conta está desativada, a renovação recusa; e a reativação encerra de novo todas as sessões da conta, o que garante que nenhuma volte a valer.
 
+**Ordem das gravações**: nas transações que encerram sessões, a conta é gravada por último (tokens de uso único, sessões, conta). O login insere a sessão e só então lê a conta, pela chave estrangeira; na ordem inversa, os dois se bloqueiam em deadlock e um deles responde 500. Vale para a desativação, a reativação, a redefinição e a troca de senha.
+
 **Demais caminhos**:
 
 - `RedefinirSenhaAsync` e `ConfirmarEmailAsync` conferem a situação depois de consumir o token e, desativada, saem sem confirmar. Isso cobre o token gerado pelo Worker no instante da desativação.
@@ -142,3 +144,4 @@ Os ids 3001 a 3018 estão em uso. Nenhuma métrica nova: a issue pede só logs. 
 - **Linha de base** (T001, 2026-11-06): 1.244 unitários + 846 de integração, sem falhas.
 - **`busca` fora da telemetria** (T022): o valor não aparece em logs, em atributos nem em nomes de spans, conferido em `GestaoUsuariosConsultaTestes`. Nenhuma mudança foi preciso.
 - **Manipulador da política**: sem o perfil Admin no token, o 403 sai sem consultar o banco. Na primeira versão, um Cliente recebia 500 com o banco fora do ar.
+- **Deadlock entre login e encerramento de sessões** (suíte completa da T056): a desativação respondeu 500 com o erro 1205 do SQL Server. Forçando a corrida com 6 logins por rodada, em 400 rodadas, houve 15 desativações e 22 logins com 500. A troca de senha, do REQ-24, tinha o mesmo ciclo, reproduzido em teste. Corrigido pela ordem das gravações do [R-08](#r-08-login-e-renovação-da-conta-desativada-fr-017-fr-018).
