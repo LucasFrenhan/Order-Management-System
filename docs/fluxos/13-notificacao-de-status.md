@@ -149,6 +149,12 @@ O receptor confere a assinatura, deduplica por `webhook-id` e ignora `sequencia`
 Um destino desativado não recebe entregas novas; os avisos do período não são recuperados
 depois da reativação.
 
+**Conta desativada** (REQ-25, [fluxo 1](01-autenticacao.md#conta-desativada)): os destinos próprios dela não recebem os avisos
+gerados durante a desativação nem os que estavam pendentes, que viram `Descartada`, e nada disso é reenviado. Um aviso anterior à
+reativação também não sai depois dela, mesmo atrasado no Worker. Os destinos e os segredos são mantidos, e nem o `Ativo` nem as falhas
+seguidas do destino mudam: a reativação retoma os envios a partir dali. Os destinos globais não mudam, mesmo que a conta tenha cadastrado
+algum deles.
+
 ## Eventos em tempo real (SSE)
 
 `GET /api/v1/notificacoes/eventos[?pedidoId=…]`, com o token de sempre. O Cliente recebe os
@@ -164,6 +170,10 @@ próprios pedidos; Admin e OperadorLogistica, todos.
 A aplicação abre a conexão **antes** de consultar o pedido: o que mudar entre o `conectado` e o
 `GET` chega pela conexão. Ao reconectar com `Last-Event-ID`, recebe os avisos perdidos (só os
 do pedido, numa conexão de um pedido), em ordem, antes dos novos e sem repetição.
+
+A conexão de uma conta desativada termina, no máximo, quando o token de acesso expira. Depois de reativar, uma reconexão com
+`Last-Event-ID` pode trazer avisos do período desativado, dentro da retenção. É o esperado: a suspensão vale para os webhooks, e a conta
+já recuperou o acesso a esses pedidos (REQ-25).
 
 | Situação | Resposta |
 |----------|----------|

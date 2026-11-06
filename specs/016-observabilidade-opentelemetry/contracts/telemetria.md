@@ -62,7 +62,7 @@ Rodadas que não pegam o lock e ciclos do despachante sem eventos não geram spa
 | `oms.resultado` (webhooks, REQ-18) | `entregue`, `falha`, `esgotada` |
 | `oms.resultado` (renovações, REQ-24) | `renovada`, `recusada`, `reutilizada` |
 | `oms.resultado` (e-mails, REQ-24) | `enviado`, `falha`, `descartado`, `sem_conta` |
-| `oms.email.tipo` (REQ-24) | `RecuperacaoSenha`, `ConfirmacaoEmail`, `AvisoSenhaRedefinida` |
+| `oms.email.tipo` (REQ-24) | `RecuperacaoSenha`, `ConfirmacaoEmail`, `AvisoSenhaRedefinida`; `ConviteUsuario` (REQ-25) |
 | `oms.rotina` | `reconciliacao`, `estornos`, `reenvio_dlq`, `limpeza`; `notificacoes` (REQ-18); `emails` (REQ-24) |
 | `oms.etapa` | `Estoque`, `Pagamento`, `Entrega` |
 | `oms.limpeza.alvo` | `enviados`, `processados`, `chaves`, `pedidos_reenvio`; `entregas_notificacao`, `avisos_pedido` (REQ-18); `contagens_limite` (REQ-23, sem span próprio); `sessoes_autenticacao`, `tokens_uso_unico` (REQ-24) |

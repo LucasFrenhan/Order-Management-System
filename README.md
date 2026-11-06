@@ -57,7 +57,7 @@ catálogo inicial (`CAT-001` a `CAT-010`).
 ## Próximos passos
 
 As issues de negócio do roteiro original (#1 a #11) já foram entregues, e o próximo trabalho
-começa no REQ-25; a fila tem #54, #56, #57, #59, #60 e #75, e a #61 acompanha a dívida técnica de code smells. A fila de requisitos, o que os REQs anteriores deixaram pronto para
+começa no REQ-26; a fila tem #56, #57, #59, #60 e #77, e a #61 acompanha a dívida técnica de code smells. A fila de requisitos, o que os REQs anteriores deixaram pronto para
 reaproveitar e as decisões já tomadas estão em [Próximos passos](docs/proximos-passos.md).
 
 ## Pré-requisitos

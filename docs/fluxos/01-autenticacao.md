@@ -1,7 +1,8 @@
 # Fluxo 1: autenticação
 
 **Rotas**: em `/api/v1/auth`, as públicas `register`, `login`, `renovacao`, `logout`, `recuperacao-senha`,
-`redefinicao-senha`, `confirmacao-email` e `confirmacao-email/reenvio`; e `troca-senha`, que exige token.
+`redefinicao-senha`, `confirmacao-email` e `confirmacao-email/reenvio`; e `troca-senha`, que exige token. A gestão pelo
+Admin fica em `/api/v1/admin/usuarios`.
 **Origem**: REQ-01 ([contrato](../../specs/001-contratos-api/contracts/openapi-v1.yaml)),
 REQ-03 ([spec](../../specs/003-autenticacao-identity/spec.md),
 [token](../../specs/003-autenticacao-identity/contracts/token-acesso.md),
@@ -9,7 +10,9 @@ REQ-03 ([spec](../../specs/003-autenticacao-identity/spec.md),
 REQ-23 ([spec](../../specs/023-rate-limiting/spec.md),
 [contrato do limite](../../specs/023-rate-limiting/contracts/limite-requisicoes.md)) e
 REQ-24 ([spec](../../specs/024-ciclo-autenticacao/spec.md),
-[contrato](../../specs/024-ciclo-autenticacao/contracts/autenticacao.md)). O envio dos e-mails está no
+[contrato](../../specs/024-ciclo-autenticacao/contracts/autenticacao.md)) e
+REQ-25 ([spec](../../specs/025-gestao-usuarios/spec.md),
+[contrato](../../specs/025-gestao-usuarios/contracts/gestao-usuarios.md)). O envio dos e-mails está no
 [fluxo 16](16-envio-de-email.md).
 
 ## Perfis
@@ -17,11 +20,13 @@ REQ-24 ([spec](../../specs/024-ciclo-autenticacao/spec.md),
 | Perfil | Como surge | O que pode |
 |--------|------------|------------|
 | `Cliente` | Registro pela API | Criar pedidos, consultar os próprios e cancelar o próprio pedido enquanto ele está `Pendente` |
-| `Admin` | Usuário inicial, por configuração | Consultar e operar qualquer pedido, inclusive o despacho; pedir e consultar o reenvio da DLQ (fluxo 11) |
-| `OperadorLogistica` | Usuário inicial, por configuração | O mesmo que o Admin nas rotas de pedido; sem acesso às rotas administrativas (403) |
+| `Admin` | Usuário inicial, por configuração, ou [criação pelo Admin](#gestão-de-usuários) | Consultar e operar qualquer pedido, inclusive o despacho; pedir e consultar o reenvio da DLQ (fluxo 11); gerir usuários e perfis |
+| `OperadorLogistica` | Usuário inicial, por configuração, ou [criação pelo Admin](#gestão-de-usuários) | O mesmo que o Admin nas rotas de pedido; sem acesso às rotas administrativas (403) |
 
-Não existe rota para promover um usuário. Os usuários iniciais de desenvolvimento são
-`admin@oms.local` / `AdminDev2026` e `operador@oms.local` / `OperadorDev2026`.
+`Admin` e `OperadorLogistica` podem se combinar, mas não com `Cliente`: uma conta do registro público nunca vira interna,
+e quem é cliente e também da operação usa duas contas, com e-mails diferentes. O primeiro Admin de um ambiente vem da carga
+inicial. Os usuários iniciais de desenvolvimento são `admin@oms.local` / `AdminDev2026` e
+`operador@oms.local` / `OperadorDev2026`.
 
 ## Caminho feliz
 
@@ -127,6 +132,81 @@ um e-mail de aviso, tudo em uma transação.
 existente e não confirmada recebe o e-mail. Os usuários iniciais nascem confirmados, e as contas anteriores ao REQ-24
 continuam como estão: nada depende da confirmação por enquanto.
 
+## Gestão de usuários
+
+Todas as rotas exigem um **Admin ativo**: ter o perfil no token e, conferido no banco a cada chamada, ainda ter o perfil,
+estar ativo e já ter definido a senha. Quem perdeu o Admin ou foi desativado recebe 403 na hora, mesmo com o token válido.
+O bloqueio por erros de senha não tira ninguém dessa conta, porque é temporário. As rotas ficam fora do limite de requisições.
+
+| Rota | O que faz | Sucesso |
+|------|-----------|---------|
+| `GET /api/v1/admin/usuarios?perfil=&situacao=&busca=&tamanho=&cursor=` | Lista por nome, com cursor, de 1 a 100 por página (padrão 20) | 200 |
+| `GET /api/v1/admin/usuarios/{id}` | Consulta uma conta | 200 |
+| `POST /api/v1/admin/usuarios` | Cria uma conta interna sem senha e pede o convite | 201 + `Location` |
+| `PUT /api/v1/admin/usuarios/{id}/perfis/{perfil}` | Atribui um perfil; repetir não muda nada | 200 |
+| `DELETE /api/v1/admin/usuarios/{id}/perfis/{perfil}` | Retira um perfil; repetir não muda nada | 200 |
+| `POST /api/v1/admin/usuarios/{id}/desativacao` | Desativa a conta; repetir não muda nada | 200 |
+| `POST /api/v1/admin/usuarios/{id}/reativacao` | Reativa a conta; repetir não muda nada | 200 |
+
+```http
+HTTP/1.1 201 Created
+Location: /api/v1/admin/usuarios/0199f1a2-…
+
+{ "id": "0199f1a2-…", "nome": "Ana Lima", "email": "ana@exemplo.com.br", "perfis": ["OperadorLogistica"],
+  "situacao": "Ativa", "emailConfirmado": false, "convitePendente": true }
+```
+
+- **Nenhuma resposta traz dado de credencial**: nem senha, hash, carimbo de segurança ou token.
+- **Busca**: trecho do nome ou do e-mail, de 2 a 100 caracteres, sem diferenciar maiúsculas nem acentos. Lê a tabela inteira.
+- **O Admin não edita** o nome nem o e-mail de outra conta, e não há exclusão: a desativação é o único meio de tirar o acesso
+  de uma conta com um só perfil.
+
+### Convite
+
+A conta nasce sem senha, e o Admin nunca a conhece. O Worker envia um token de uso único, que vale 72 horas a contar do envio
+(`Email:ValidadeConviteHoras`). A pessoa define a senha em `POST /api/v1/auth/redefinicao-senha`, a mesma rota e as mesmas
+respostas da recuperação. Isso confirma o e-mail e não gera o e-mail de aviso de senha redefinida.
+
+Enquanto a senha não é definida, a consulta mostra `convitePendente: true`, o login responde o 401 de sempre, sem contar erro
+para o bloqueio, e um Admin convidado não conta como Admin ativo. Não há rota para reenviar o convite: vencido, ou descartado
+depois de 24 horas sem conseguir enviar ([fluxo 16](16-envio-de-email.md)), basta a recuperação de senha. O primeiro token de
+convite ou de recuperação a ser usado invalida o outro.
+
+### Último Admin e ordem das regras
+
+Toda alteração roda uma de cada vez, entre todas as instâncias (lock de aplicação `oms-gestao-usuarios`), e confere de novo quem
+chama. Se dois Admins tentam tirar o acesso um do outro ao mesmo tempo, um é aceito, e o outro recebe 403. As regras são
+avaliadas nesta ordem:
+
+1. Quem chama deixou de ser Admin ativo: 403.
+2. Conta inexistente: 404.
+3. A conta já está no estado pedido: 200, sem alterar nem auditar.
+4. A operação tiraria o único Admin ativo: 409 `USUARIO_ULTIMO_ADMIN`.
+5. Um Admin desativando a própria conta ou retirando o próprio perfil Admin: 409 `USUARIO_PROPRIA_CONTA`.
+6. A retirada deixaria a conta sem perfil: 409 `USUARIO_ULTIMO_PERFIL`. Para rebaixar um Admin que só tem esse perfil, atribua
+   `OperadorLogistica` e depois retire `Admin`.
+7. A atribuição misturaria `Cliente` com perfil interno: 409 `USUARIO_PERFIS_INCOMPATIVEIS`.
+
+### Conta desativada
+
+A desativação é um estado próprio, independente do bloqueio por erros de senha: a redefinição de senha não reativa, e a
+reativação não mexe no bloqueio. Em uma transação, ela encerra todas as sessões e apaga os tokens de uso único da conta.
+Nenhuma resposta pública revela a situação:
+
+| Rota | Resposta para a conta desativada |
+|------|----------------------------------|
+| Login, com a senha certa ou errada | O mesmo 401 "Credenciais inválidas.", em tempo equivalente e sem contar erro; o motivo fica só no log 3003 (`ContaDesativada`) |
+| Renovação | O mesmo 401 "Sessão inválida." |
+| Recuperação e reenvio | O mesmo 202, sem e-mail |
+| Redefinição e confirmação | O mesmo 400 `TOKEN_INVALIDO` |
+| Troca de senha, com token ainda válido | O mesmo 400 de `senhaAtual`, sem contar erro |
+| Registro com o mesmo e-mail | O mesmo 409 `USUARIO_EMAIL_JA_CADASTRADO` |
+
+Os pedidos continuam como estão e seguem o fluxo normal, inclusive o estorno devido. Os webhooks próprios da conta ficam suspensos
+([fluxo 13](13-notificacao-de-status.md#entrega-do-webhook)). A reativação devolve o login com a mesma senha e os mesmos perfis, e
+encerra de novo as sessões: nenhuma sessão anterior volta a valer. Quem nunca definiu a senha usa a recuperação, porque o convite foi
+apagado. A carga inicial nunca altera uma conta existente, então uma conta dela desativada continua assim depois de reiniciar.
+
 ## Limite de requisições
 
 O limite é uma regra do sistema, e não de uma instância: quem esgota as tentativas pela API A continua
@@ -198,7 +278,16 @@ Seção `LimiteRequisicoes`, validada na partida; os limites e as faixas estão 
 | Troca com a senha atual errada, ou com a conta bloqueada | 400, `erros.senhaAtual`: "A senha atual está incorreta."; log 3013 | — | O erro conta para o bloqueio, e a resposta é a mesma com a conta bloqueada, sem revelá-lo (FR-012) |
 | Troca com a senha nova igual à atual | 400, `erros.novaSenha`: "A nova senha deve ser diferente da atual." | — | FR-010 |
 | Troca sem token, ou com token sem perfil | 401, ou 403 | — | É a única rota nova protegida |
-| Conta sem nenhum perfil (dado inconsistente) | Login funciona, mas toda rota protegida responde 403 | — | Nenhum acesso sem perfil |
+| Conta sem nenhum perfil (dado inconsistente) | Login funciona, mas toda rota protegida responde 403. Aparece na gestão com a lista vazia, e o Admin pode atribuir um perfil de qualquer grupo | — | Nenhum acesso sem perfil |
+| Gestão com token válido de quem perdeu o Admin ou foi desativado | 403 "Acesso negado." | Admin rebaixado por outro | A rota confere o banco a cada chamada (REQ-25, FR-002) |
+| Único Admin ativo retirando o próprio perfil ou se desativando | 409 `USUARIO_ULTIMO_ADMIN`: "Último Admin." / "O sistema precisa de ao menos um Admin ativo."; log 3025 | — | O sistema nunca fica sem Admin (FR-013) |
+| Admin retirando o próprio perfil Admin ou se desativando, com outro Admin ativo | 409 `USUARIO_PROPRIA_CONTA`: "Operação sobre a própria conta." / "Peça a outro Admin para fazer esta alteração."; log 3025 | — | Evita perder o acesso por engano (FR-003) |
+| Retirada do único perfil | 409 `USUARIO_ULTIMO_PERFIL`: "Último perfil da conta." / "A conta precisa manter ao menos um perfil." | `Admin` de quem só tem esse perfil | FR-011 |
+| Atribuição que mistura `Cliente` com perfil interno | 409 `USUARIO_PERFIS_INCOMPATIVEIS`: "Perfis incompatíveis." / "O perfil Cliente não se combina com perfis internos." | `Admin` em conta do registro público | FR-010 |
+| Criação com `Cliente` ou perfil desconhecido | 400, `erros.perfil`: "O perfil deve ser Admin ou OperadorLogistica." | `"perfil": "Cliente"` | Conta de Cliente nasce no registro |
+| Perfil desconhecido na rota de atribuição, retirada ou no filtro | 400, `erros.perfil`: "O perfil deve ser Admin, OperadorLogistica ou Cliente." | `/perfis/Auditor` | Não é um 404 de rota (R-09) |
+| Conta inexistente na gestão | 404 "Usuário não encontrado." / "Não existe usuário com este identificador." | — | — |
+| Lock da gestão indisponível por 10 s | 500 "Erro interno.", e nada muda | Banco sobrecarregado | R-03 |
 
 ## Falhas externas
 
@@ -234,6 +323,14 @@ O ciclo da autenticação (REQ-24) acrescenta:
 
 Nenhum sinal traz token, senha, e-mail completo ou endereço de origem (SC-008).
 
+A gestão de usuários (REQ-25) acrescenta a auditoria, nos logs, depois de a transação terminar, com a ação, o id de quem fez,
+o id da conta e o perfil, quando houver, e sem nome, e-mail ou endereço de origem. Repetir uma operação sem efeito não gera log.
+
+- **Log 3019** (`ConviteAceito`): a senha foi definida pelo convite.
+- **Log 3020** (`UsuarioInternoCriado`), **3021** (`PerfilAtribuido`), **3022** (`PerfilRetirado`), **3023** (`UsuarioDesativado`) e
+  **3024** (`UsuarioReativado`), todos Information.
+- **Log 3025** (`AlteracaoUsuarioRecusada`, Warning): recusa por último Admin ou por própria conta, com o código.
+
 O limite de requisições (REQ-23) acrescenta:
 
 - **Log 3007** (`LimiteRequisicoesExcedido`, Warning): a primeira recusa de cada contagem em cada janela, com a política
@@ -248,9 +345,10 @@ vencidas ([fluxo 11](11-limpeza-e-reenvio-da-dlq.md#limpeza)).
 
 ## Limitações
 
-- Não há rota de gestão de usuários ou de perfis.
-- **Token de acesso depois do logout ou da troca de senha**: continua valendo até expirar, em no máximo 15 minutos por
-  padrão, porque não há consulta por requisição. É o limite do risco de um token vazado (REQ-24, FR-009).
+- **Token de acesso depois do logout, da troca de senha, da desativação ou da retirada de perfil**: continua valendo até
+  expirar, em no máximo 15 minutos por padrão, porque não há consulta por requisição. É o limite do risco de um token vazado
+  (REQ-24, FR-009; REQ-25, FR-002). Só as rotas de gestão conferem o banco: um Admin removido ainda usa o reenvio da DLQ e o
+  catálogo até o token expirar.
 - **Duas renovações simultâneas encerram a sessão**: o cliente precisa renovar uma vez de cada vez. Sem tolerância para
   repetição, por decisão do usuário (REQ-24, FR-004).
 - **O registro revela e-mails cadastrados**: o 409 continua, porque mudá-lo quebraria o contrato v1. O limite do REQ-23
@@ -266,3 +364,6 @@ vencidas ([fluxo 11](11-limpeza-e-reenvio-da-dlq.md#limpeza)).
   pessoa por 15 minutos. Vem do REQ-03, e o limite não resolve quando as origens são muitas.
 - **Inundação de muitas origens**: pode esgotar as 20 conexões reservadas ao limite e deixar uma instância sem ele
   enquanto durar, pela regra de seguir sem o limite. O bloqueio de conta continua protegendo as senhas (REQ-23).
+
+A falta de rotas de gestão de usuários e de perfis foi resolvida pela issue
+[#54](https://github.com/LucasFrenhan/Order-Management-System/issues/54) (REQ-25).

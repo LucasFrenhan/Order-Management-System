@@ -3,7 +3,7 @@
 **Onde roda**: a API e o registro gravam o pedido; o `ProcessadorEmails`, no Worker, envia.
 **Origem**: REQ-24 ([spec](../../specs/024-ciclo-autenticacao/spec.md),
 [research R-03 a R-05](../../specs/024-ciclo-autenticacao/research.md#r-03-envio-de-e-mail-quem-envia-e-como-o-token-fica-em-sigilo-fr-003-fr-013-fr-021),
-[contrato](../../specs/024-ciclo-autenticacao/contracts/autenticacao.md)). As rotas que pedem os e-mails estão no
+[contrato](../../specs/024-ciclo-autenticacao/contracts/autenticacao.md)) e REQ-25 (convite). As rotas que pedem os e-mails estão no
 [fluxo 1](01-autenticacao.md).
 
 ## Caminho feliz
@@ -28,7 +28,8 @@ sequenceDiagram
 |------|-----------|-------|
 | `RecuperacaoSenha` | `POST /recuperacao-senha` | Vale 30 minutos |
 | `ConfirmacaoEmail` | O registro e `POST /confirmacao-email/reenvio` | Vale 24 horas |
-| `AvisoSenhaRedefinida` | A redefinição concluída | Sem token |
+| `AvisoSenhaRedefinida` | A redefinição concluída, exceto pelo convite | Sem token |
+| `ConviteUsuario` | A criação de um usuário interno pelo Admin (REQ-25, [fluxo 1](01-autenticacao.md#convite)) | Vale 72 horas |
 
 - **O token em claro nunca é gravado**: existe só na memória do Worker e no e-mail. O banco guarda o SHA-256, e a
   tabela `SolicitacoesEmail` não tem token nem corpo.
@@ -54,9 +55,11 @@ memória: reiniciar o contêiner apaga os anteriores.
 |----------|---------------|---------|---------|
 | E-mail sem conta | Apaga a solicitação, sem enviar nem gerar token; soma `sem_conta`, sem log | Recuperação de `ninguem@exemplo.com.br` | Um e-mail sem conta fica no banco só até a rodada seguinte |
 | Confirmação de conta já confirmada | Apaga, sem enviar; soma `descartado` | Reenvio depois de confirmar | FR-019 |
+| Conta desativada, em qualquer tipo | Apaga, sem enviar nem gerar token; soma `descartado`, sem log | Recuperação pedida depois de desativar | Conta desativada não recebe e-mail, e a resposta pública não muda (REQ-25, FR-018) |
+| Convite de conta que já tem senha | Apaga, sem enviar; soma `descartado` | A recuperação chegou antes | O convite é só para quem ainda não tem senha (REQ-25) |
 | Servidor recusa o destinatário com 5xx, ou endereço mal formado | Apaga, sem insistir; log 3018 | Caixa inexistente | Tentar de novo não adianta |
 | Falha temporária do servidor | Reagenda com espera de 30 s, 1 min e 2 min (máximo); log 3017 | Código 4xx | A tentativa seguinte gera outro token, e só o último vale |
-| Solicitação com mais de 24 h | Apaga, sem enviar; log 3018 | Servidor fora por dias | Um pedido tão antigo já não serve à pessoa |
+| Solicitação com mais de 24 h | Apaga, sem enviar; log 3018 | Servidor fora por dias | Um pedido tão antigo já não serve à pessoa. Se for um convite, a conta fica com ele pendente, e a recuperação de senha resolve (REQ-25) |
 | Queda entre o envio e a remoção | Sai um segundo e-mail, e só o token dele vale | Worker reiniciado no meio | Não duplica o efeito do token (FR-021) |
 | Dois pedidos seguidos da mesma conta | Cada um gera um e-mail, e só o último token vale | Recuperação pedida duas vezes | FR-014 |
 | Duas instâncias do Worker | Só a que pega o lock `oms-emails` roda a rodada | — | Evita envio duplicado |
@@ -84,6 +87,7 @@ Seção `Email`, validada na partida do Worker. A API não precisa dela.
 | `UrlBaseAplicacao` | vazio | Com ela, o e-mail traz um link para a aplicação |
 | `ValidadeRecuperacaoMinutos` | 30 | 5 a 1.440 |
 | `ValidadeConfirmacaoHoras` | 24 | 1 a 168 |
+| `ValidadeConviteHoras` | 72 | 1 a 720 |
 | `TempoLimiteSegundos` | 10 | 1 a 60, por operação SMTP |
 | `IntervaloSegundos` | 10 | 1 a 300 |
 | `TamanhoLote` | 50 | 1 a 1.000 |
