@@ -47,4 +47,8 @@ internal static partial class EventosAutenticacao
     [LoggerMessage(EventId = 3015, EventName = "EmailConfirmado", Level = LogLevel.Information,
         Message = "E-mail do usuário {UsuarioId} confirmado.")]
     public static partial void EmailConfirmado(ILogger logger, Guid usuarioId);
+
+    [LoggerMessage(EventId = 3019, EventName = "ConviteAceito", Level = LogLevel.Information,
+        Message = "Convite aceito: o usuário {UsuarioId} definiu a senha.")]
+    public static partial void ConviteAceito(ILogger logger, Guid usuarioId);
 }

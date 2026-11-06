@@ -37,6 +37,9 @@ public sealed class OpcoesEmail
 
     public int ValidadeConfirmacaoHoras { get; set; } = 24;
 
+    /// <summary>A contar do envio; vencido, a pessoa usa a recuperação de senha (REQ-25, R-05).</summary>
+    public int ValidadeConviteHoras { get; set; } = 72;
+
     /// <summary>Por operação SMTP (analyze U2).</summary>
     public int TempoLimiteSegundos { get; set; } = 10;
 
@@ -47,6 +50,8 @@ public sealed class OpcoesEmail
     public TimeSpan ValidadeRecuperacao => TimeSpan.FromMinutes(ValidadeRecuperacaoMinutos);
 
     public TimeSpan ValidadeConfirmacao => TimeSpan.FromHours(ValidadeConfirmacaoHoras);
+
+    public TimeSpan ValidadeConvite => TimeSpan.FromHours(ValidadeConviteHoras);
 
     public TimeSpan TempoLimite => TimeSpan.FromSeconds(TempoLimiteSegundos);
 
@@ -76,6 +81,7 @@ public sealed class ValidadorOpcoesEmail(string ambiente) : IValidateOptions<Opc
         faixas.Limitar(options.Porta, 1, 65535, nameof(OpcoesEmail.Porta));
         faixas.Limitar(options.ValidadeRecuperacaoMinutos, 5, 1440, nameof(OpcoesEmail.ValidadeRecuperacaoMinutos));
         faixas.Limitar(options.ValidadeConfirmacaoHoras, 1, 168, nameof(OpcoesEmail.ValidadeConfirmacaoHoras));
+        faixas.Limitar(options.ValidadeConviteHoras, 1, 720, nameof(OpcoesEmail.ValidadeConviteHoras));
         faixas.Limitar(options.TempoLimiteSegundos, 1, 60, nameof(OpcoesEmail.TempoLimiteSegundos));
         faixas.Limitar(options.IntervaloSegundos, 1, 300, nameof(OpcoesEmail.IntervaloSegundos));
         faixas.Limitar(options.TamanhoLote, 1, 1000, nameof(OpcoesEmail.TamanhoLote));

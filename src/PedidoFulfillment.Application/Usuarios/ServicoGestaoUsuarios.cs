@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Contratos.Usuarios;
 using PedidoFulfillment.Application.Pedidos;
@@ -10,6 +11,8 @@ public interface IServicoGestaoUsuarios
     Task<Resultado<PaginaUsuariosResponseDTO>> ListarAsync(ListarUsuariosRequestDTO requisicao, Guid atorId, CancellationToken cancellationToken);
 
     Task<Resultado<UsuarioGestaoResponseDTO>> ObterAsync(Guid usuarioId, CancellationToken cancellationToken);
+
+    Task<Resultado<UsuarioGestaoResponseDTO>> CriarAsync(CriarUsuarioInternoRequestDTO usuario, Guid atorId, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -18,7 +21,8 @@ public interface IServicoGestaoUsuarios
 /// </summary>
 public sealed class ServicoGestaoUsuarios(
     IGestorUsuarios gestor,
-    CodificadorCursorUsuarios codificador) : IServicoGestaoUsuarios
+    CodificadorCursorUsuarios codificador,
+    ILogger<ServicoGestaoUsuarios> logger) : IServicoGestaoUsuarios
 {
     private static readonly Falha CursorInvalido = new(
         TipoFalha.Validacao, "Um ou mais campos são inválidos.",
@@ -46,6 +50,20 @@ public sealed class ServicoGestaoUsuarios(
 
     public async Task<Resultado<UsuarioGestaoResponseDTO>> ObterAsync(Guid usuarioId, CancellationToken cancellationToken) =>
         await gestor.ObterAsync(usuarioId, cancellationToken) is { } conta ? Resposta(conta) : RegrasGestaoUsuarios.NaoEncontrado;
+
+    public async Task<Resultado<UsuarioGestaoResponseDTO>> CriarAsync(CriarUsuarioInternoRequestDTO usuario, Guid atorId, CancellationToken cancellationToken)
+    {
+        var perfil = usuario.PerfilPedido();
+        // O contrato aceita espaços nas pontas do e-mail; sem aparo eles furariam a unicidade, como no registro.
+        var resultado = await gestor.CriarAsync(atorId, usuario.Nome.Trim(), usuario.Email.Trim(), perfil, cancellationToken);
+        if (resultado.Valor is not { } conta)
+        {
+            return resultado.Falha!;
+        }
+
+        EventosGestaoUsuarios.UsuarioInternoCriado(logger, conta.Id, atorId, perfil);
+        return Resposta(conta);
+    }
 
     private PaginaUsuariosResponseDTO MontarPagina(
         IReadOnlyList<ContaGestao> lidas, int tamanho, PosicaoCursorUsuarios? posicao, Guid atorId, FiltroListagemUsuarios filtro)

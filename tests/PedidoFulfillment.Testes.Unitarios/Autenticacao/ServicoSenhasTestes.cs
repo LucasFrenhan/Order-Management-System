@@ -44,6 +44,21 @@ public sealed class ServicoSenhasTestes
     }
 
     [Fact]
+    public async Task Convite_aceito_registra_o_log_proprio()
+    {
+        var usuario = Guid.NewGuid();
+        gestor.ResultadoRedefinicao = usuario;
+        gestor.RedefinicaoPeloConvite = true;
+
+        var falha = await Criar().RedefinirAsync(new RedefinicaoSenhaRequestDTO { Token = "token-do-convite", NovaSenha = NovaSenha }, Cancelamento);
+
+        falha.Should().BeNull();
+        var evento = logger.Eventos.Should().ContainSingle().Subject;
+        evento.Id.Should().Be(new EventId(3019, "ConviteAceito"));
+        evento.Propriedades["UsuarioId"].Should().Be(usuario);
+    }
+
+    [Fact]
     public async Task Redefinicao_concluida_passa_o_hash_e_registra_o_log()
     {
         var usuario = Guid.NewGuid();

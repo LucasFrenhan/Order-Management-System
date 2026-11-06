@@ -64,11 +64,13 @@ public sealed class GestorIdentidadeFalso : IGestorIdentidade
 
     public (byte[] Hash, string Senha)? UltimaRedefinicao { get; private set; }
 
-    public Task<Guid?> RedefinirSenhaAsync(byte[] hashToken, string novaSenha, CancellationToken cancellationToken)
+    public bool RedefinicaoPeloConvite { get; set; }
+
+    public Task<RedefinicaoConcluida?> RedefinirSenhaAsync(byte[] hashToken, string novaSenha, CancellationToken cancellationToken)
     {
         ConsultasConta++;
         UltimaRedefinicao = (hashToken, novaSenha);
-        return Task.FromResult(ResultadoRedefinicao);
+        return Task.FromResult(ResultadoRedefinicao is { } id ? new RedefinicaoConcluida(id, RedefinicaoPeloConvite) : null);
     }
 }
 
@@ -123,6 +125,9 @@ public sealed class ArmazenamentoSessoesFalso : IArmazenamentoSessoes
 
     public Task<Guid?> ConsumirTokenUsoUnicoAsync(FinalidadeTokenUsoUnico finalidade, byte[] hashToken, DateTimeOffset agora, CancellationToken cancellationToken) =>
         Task.FromResult<Guid?>(null);
+
+    public Task<TokenSenhaConsumido?> ConsumirTokenSenhaAsync(byte[] hashToken, DateTimeOffset agora, CancellationToken cancellationToken) =>
+        Task.FromResult<TokenSenhaConsumido?>(null);
 }
 
 public sealed class MetricasAutenticacaoFalsas : IMetricasAutenticacao

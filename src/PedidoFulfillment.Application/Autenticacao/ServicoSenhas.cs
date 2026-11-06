@@ -21,14 +21,18 @@ public sealed class ServicoSenhas(IFilaEmails fila, IGestorIdentidade gestor, IL
 
     public async Task<Falha?> RedefinirAsync(RedefinicaoSenhaRequestDTO redefinicao, CancellationToken cancellationToken)
     {
-        var usuarioId = await gestor.RedefinirSenhaAsync(GeradorTokenOpaco.Hash(redefinicao.Token), redefinicao.NovaSenha, cancellationToken);
-        if (usuarioId is not { } id)
+        var concluida = await gestor.RedefinirSenhaAsync(GeradorTokenOpaco.Hash(redefinicao.Token), redefinicao.NovaSenha, cancellationToken);
+        switch (concluida)
         {
-            return TokenInvalido;
+            case null:
+                return TokenInvalido;
+            case { PeloConvite: true }:
+                EventosAutenticacao.ConviteAceito(logger, concluida.UsuarioId);
+                return null;
+            default:
+                EventosAutenticacao.SenhaRedefinida(logger, concluida.UsuarioId);
+                return null;
         }
-
-        EventosAutenticacao.SenhaRedefinida(logger, id);
-        return null;
     }
 
     public async Task<Falha?> TrocarAsync(Guid usuarioId, TrocaSenhaRequestDTO troca, CancellationToken cancellationToken)

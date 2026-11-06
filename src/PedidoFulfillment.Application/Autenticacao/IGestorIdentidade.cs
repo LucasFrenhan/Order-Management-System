@@ -12,6 +12,9 @@ public enum ResultadoTrocaSenha
     MesmaSenha
 }
 
+/// <param name="PeloConvite">A senha foi definida pelo convite, e não pela recuperação (REQ-25).</param>
+public sealed record RedefinicaoConcluida(Guid UsuarioId, bool PeloConvite);
+
 /// <summary>
 /// Contas e credenciais guardadas pelo provedor de identidade (research R-01). Recebe valores
 /// já aparados pelo <c>ServicoAutenticacao</c>.
@@ -34,9 +37,10 @@ public interface IGestorIdentidade
 
     /// <summary>
     /// Em uma transação: consome o token, troca a senha, zera o bloqueio, confirma o e-mail, encerra as
-    /// sessões e pede o e-mail de aviso (FR-011, FR-015). Devolve a conta; token que não vale, nulo.
+    /// sessões e, se não veio de um convite, pede o e-mail de aviso (FR-011, FR-015; REQ-25, R-05). Token
+    /// que não vale: nulo.
     /// </summary>
-    Task<Guid?> RedefinirSenhaAsync(byte[] hashToken, string novaSenha, CancellationToken cancellationToken);
+    Task<RedefinicaoConcluida?> RedefinirSenhaAsync(byte[] hashToken, string novaSenha, CancellationToken cancellationToken);
 
     /// <summary>
     /// Verifica a senha atual, contando os erros para o bloqueio (FR-012), e, em uma transação, troca a

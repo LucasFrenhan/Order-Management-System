@@ -22,7 +22,8 @@ internal static class CenarioGestaoUsuarios
 
     public static CancellationToken Cancelamento => TestContext.Current.CancellationToken;
 
-    private static readonly Dictionary<string, string?> AdminInicial = new()
+    public static readonly IReadOnlyDictionary<string, string?> AdminInicial = new Dictionary<string, string?>
+
     {
         ["UsuariosIniciais:0:Nome"] = "Admin Inicial",
         ["UsuariosIniciais:0:Email"] = EmailAdmin,

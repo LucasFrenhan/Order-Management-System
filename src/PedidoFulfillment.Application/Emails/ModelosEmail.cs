@@ -35,6 +35,20 @@ public static class ModelosEmail
         Se não foi você, ignore este e-mail.
         """);
 
+    /// <summary>Sem a senha, que ninguém informou, e sem o nome de quem criou a conta (REQ-25, contrato).</summary>
+    public static MensagemEmail Convite(string destino, string token, TimeSpan validade, string? urlBase) => new(
+        destino,
+        "Convite para acessar o sistema",
+        $"""
+        Uma conta foi criada para você. Defina a sua senha para começar a usar.
+
+        {Instrucao(token, urlBase, CaminhoRedefinicao)}
+
+        O token vale por {Descrever(validade)} e serve uma só vez. Depois desse prazo, use a recuperação de senha com este e-mail.
+
+        Se não esperava este convite, ignore este e-mail.
+        """);
+
     public static MensagemEmail AvisoSenhaRedefinida(string destino) => new(
         destino,
         "Sua senha foi redefinida",
