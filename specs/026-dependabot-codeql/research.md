@@ -59,6 +59,11 @@ máquina de desenvolvimento (Windows com Git Bash), e o roteiro precisa rodar no
 `pwsh` vem no runner `ubuntu-latest` e no ambiente local e lê JSON sem ferramenta extra
 (`ConvertFrom-Json`).
 
+**Cobertura no Sonar** (achado no CI do PR #81): o SonarQube Cloud analisa PowerShell e contou as
+161 linhas dos dois roteiros como código novo a cobrir, sem relatório de cobertura (0%, Quality
+Gate reprovado). `.github/**` entrou em `sonar.coverage.exclusions`: os roteiros continuam
+analisados quanto a bugs e vulnerabilidades, e a prova deles é o `conferir.ps1` no próprio CI.
+
 Falha logo depois do restore: o PR fica vermelho em ~1 min, sem gastar os testes. Custo medido:
 ~17 s com o restore feito (SC-006: até 1 min).
 

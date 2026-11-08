@@ -18,7 +18,9 @@ passos do scanner.
   de segurança que é seguro (como uma credencial só de desenvolvimento), é marcado no painel
   com a justificativa, sem desligar a regra.
 - **Fora da análise**: as migrations, o código gerado, `specs/` e `.specify/`; os projetos de
-  `tests/` contam como teste. A cobertura soma os testes unitários e os de integração.
+  `tests/` contam como teste. A cobertura soma os testes unitários e os de integração. Os
+  roteiros do CI em `.github/` são analisados, mas ficam fora da cobertura: são conferidos pelos
+  próprios exemplos no CI (REQ-26).
 - **No editor** (opcional): o SonarQube for IDE, em modo conectado ao projeto, mostra os
   mesmos problemas antes do push.
 
