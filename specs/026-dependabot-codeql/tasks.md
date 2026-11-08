@@ -153,10 +153,10 @@ a fase 8 acontece depois do merge e forma o **PR 2** (`Closes #59`).
 - [X] T036 [US2] Prova do SC-007 (quickstart §5): PR descartável com um alerta de segurança alta (caminho de arquivo a partir de parâmetro da requisição), conferir o merge bloqueado pela regra, fechar sem merge e apagar a branch
 - [X] T037 [US4] Triar os alertas do CodeQL da `main` (`gh api repos/LucasFrenhan/Order-Management-System/code-scanning/alerts?state=open`) e os do Dependabot: corrigir neste PR, dispensar com `dismissed_reason` e `dismissed_comment`, ou abrir issue; registrar cada um na tabela de `docs/seguranca-cadeia-build.md` (origem, alerta, regra/aviso, severidade, decisão, data). Avaliar em especial o `pull_request_target` de `.github/workflows/prs-de-fork.yml`
 - [X] T038 [US3] Disparar ou esperar a primeira verificação do Dependabot e conferir cada ecossistema na tela de dependências (quickstart §6); registrar em `docs/seguranca-cadeia-build.md` o que ele fez com a base do SQL Server (`2022-CU26-ubuntu-22.04`, R-04) e ajustar o `dependabot.yml` neste PR se for preciso
-- [ ] T039 [US3] Conferir os PRs do Dependabot (`gh pr list --author app/dependabot`): títulos `build(deps)`/`ci(deps)`, grupos, major separado, nenhuma versão com menos de 14 dias e todas as verificações exigidas, incluindo o Quality Gate; com o aval do dono, mergear pelo menos um por rebase (SC-004) e anotar o número no PR 2
+- [X] T039 [US3] Conferir os PRs do Dependabot (`gh pr list --author app/dependabot`): títulos `build(deps)`/`ci(deps)`, grupos, major separado, nenhuma versão com menos de 14 dias e todas as verificações exigidas, incluindo o Quality Gate; com o aval do dono, mergear pelo menos um por rebase (SC-004) e anotar o número no PR 2
 - [X] T040 Atualizar `docs/proximos-passos.md` (a #59 sai da fila e o texto de abertura cita o REQ-26) e, se autorizado na T025, o `README.md`
 - [X] T041 Rodar `dotnet build`, `dotnet test` e `dotnet format --verify-no-changes`; conferir o Docker como na T028
-- [ ] T042 Marcar as tarefas, abrir o PR 2 em português com `Closes #59` (Resumo, Pontos de atenção, Validação: links dos runs da T032 e da T036, PR do Dependabot mergeado, tabela da triagem, `docs/fluxos/` sem mudança) e ligar o auto-merge por rebase, sem apagar a branch
+- [X] T042 Marcar as tarefas, abrir o PR 2 em português com `Closes #59` (Resumo, Pontos de atenção, Validação: links dos runs da T032 e da T036, PR do Dependabot mergeado, tabela da triagem, `docs/fluxos/` sem mudança) e ligar o auto-merge por rebase, sem apagar a branch
 
 ---
 
