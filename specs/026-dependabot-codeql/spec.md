@@ -43,6 +43,23 @@ O projeto tem uma regra já em uso: só adotar uma versão publicada há pelo me
   novo de segurança alta ou crítica (ou de erro) bloqueia o merge até ser corrigido ou dispensado
   com justificativa; numa queda do serviço, vale o procedimento do REQ-20 (FR-009).
 
+### Session 2026-11-08 (clarify)
+
+- Q: Uma vulnerabilidade alta ou crítica publicada para uma dependência que já está na `main`
+  reprova todos os PRs, mesmo os que não mexem em dependências? → A: Sim. Todo PR reprova
+  enquanto ela existir; sai pela correção (em geral o PR de segurança do Dependabot) ou por uma
+  exceção registrada (FR-011, FR-013).
+- Q: Como manter alinhadas as imagens fixadas no código dos testes (RabbitMQ, Mailpit) com as do
+  ambiente, que o Dependabot atualiza? → A: Os testes passam a ler a versão de uma fonte única
+  que o Dependabot atualiza; um PR de imagem atualiza ambiente e testes de uma vez (FR-019).
+- Q: Qual conjunto de regras o CodeQL usa? → A: O padrão (`default`), só com regras de
+  segurança de alta precisão, para que falsos positivos não travem PRs; a troca pelo estendido
+  fica para depois, com a triagem limpa (FR-009).
+- Q: As atualizações menores e de correção do NuGet vêm num PR único ou por família de pacotes?
+  → A: Por família (por exemplo, EF Core e SqlClient com a ferramenta `dotnet-ef`,
+  OpenTelemetry, bibliotecas de teste), mais um PR para o restante; Actions e Docker com um PR
+  cada (FR-002).
+
 ## User Scenarios & Testing *(mandatory)*
 
 Os "usuários" deste requisito são o dono do repositório, que revisa e mergeia os PRs, e quem
@@ -122,7 +139,7 @@ das duas semanas e recebem todas as verificações exigidas, incluindo o Quality
 
 1. **Given** uma versão nova de um pacote NuGet publicada há mais de duas semanas, **When** o
    Dependabot roda na frequência configurada, **Then** abre um PR (agrupado com as outras
-   atualizações do mesmo ecossistema) que altera o `Directory.Packages.props`.
+   atualizações da mesma família de pacotes, FR-002) que altera o `Directory.Packages.props`.
 2. **Given** uma versão publicada há menos de duas semanas, **When** o Dependabot roda, **Then**
    ela não é proposta (exceto correções de segurança, conforme FR-004).
 3. **Given** uma action fixada por SHA com versão nova, **When** o Dependabot propõe a
@@ -165,6 +182,9 @@ alerta existente tem uma decisão registrada.
 - **Verificação estrita com vários PRs do Dependabot**: o ruleset exige a branch atualizada com a
   `main`; depois de cada merge, os outros PRs precisam ser rebaseados (o Dependabot faz isso
   sozinho, ou pelo comando `@dependabot rebase`).
+- **Vulnerabilidade nova numa dependência que já está na `main`**: todos os PRs passam a
+  reprovar, mesmo os que não mexem em dependências, até o PR de segurança do Dependabot entrar
+  ou uma exceção ser registrada (FR-011).
 - **Vulnerabilidade sem correção publicada**: não há versão para atualizar. O CI segue
   reprovando até haver uma decisão registrada; a exceção é explícita, por pacote e aviso, com
   motivo e data de revisão (FR-013).
@@ -172,6 +192,8 @@ alerta existente tem uma decisão registrada.
   semanas (FR-004).
 - **Atualização que quebra o build ou os testes**: o PR do Dependabot fica vermelho e não entra;
   o dono decide entre corrigir na branch dele, ignorar a versão ou fechar.
+- **Imagem atualizada no ambiente e esquecida nos testes**: não pode acontecer, porque os testes
+  leem a versão da mesma fonte (FR-019).
 - **Imagem com tag de CU (SQL Server) ou variantes `-noble`**: o Dependabot precisa propor só
   tags da mesma família, sem trocar a distribuição base.
 - **Alerta do CodeQL nos workflows sobre o `pull_request_target`** do `prs-de-fork.yml`: é um
@@ -189,9 +211,11 @@ alerta existente tem uma decisão registrada.
 - **FR-001**: O repositório MUST ter o Dependabot configurado para os ecossistemas NuGet
   (incluindo as ferramentas locais de `.config/dotnet-tools.json`), GitHub Actions e Docker
   (`Dockerfile`s e `docker-compose.yml`).
-- **FR-002**: As atualizações de versão MUST ser agrupadas por ecossistema, com as atualizações
-  menores e de correção (minor/patch) num PR por ecossistema e as maiores (major) em PRs
-  separados.
+- **FR-002**: As atualizações de versão menores e de correção (minor/patch) MUST ser agrupadas:
+  no NuGet, um PR por família de pacotes que evoluem juntos (por exemplo, EF Core e SqlClient com
+  a ferramenta `dotnet-ef`, OpenTelemetry, bibliotecas de teste) e um PR para os demais pacotes;
+  em GitHub Actions e em Docker, um PR por ecossistema. As atualizações maiores (major) MUST vir
+  em PRs separados.
 - **FR-003**: A frequência MUST ser semanal, com limite de PRs abertos por ecossistema para não
   inundar a fila.
 - **FR-004**: As atualizações de versão MUST respeitar a regra das duas semanas: só propor
@@ -206,6 +230,12 @@ alerta existente tem uma decisão registrada.
 - **FR-007**: Os PRs do Dependabot MUST entrar pela mesma regra de qualquer PR (só rebase, todas
   as verificações verdes, sem contorno do ruleset). O dono revisa cada PR do Dependabot e liga o
   auto-merge por rebase; nenhum PR do Dependabot é mergeado sem essa ação.
+- **FR-019**: Cada imagem de terceiros usada pelos testes de integração e pelo ambiente local
+  (RabbitMQ, Mailpit, base do SQL Server) MUST ter a versão declarada num único lugar que o
+  Dependabot atualiza, e os testes MUST ler a versão dali, sem cópia no código. Um PR de imagem
+  do Dependabot atualiza o ambiente e os testes juntos. As tags das imagens construídas pelo
+  projeto (como a do SQL Server com Full-Text Search) não podem ficar presas a uma versão da base
+  que o Dependabot muda sem atualizá-las.
 
 **Alertas**
 
@@ -217,7 +247,8 @@ alerta existente tem uma decisão registrada.
 - **FR-009**: O CodeQL MUST analisar C# e os workflows do GitHub Actions em todo PR para a `main`
   e em todo push na `main`. O ruleset "Proteção da main" MUST exigir o resultado do CodeQL e
   bloquear o merge de PR com alerta novo de segurança alta ou crítica, ou de severidade erro,
-  até o alerta ser corrigido ou dispensado com justificativa.
+  até o alerta ser corrigido ou dispensado com justificativa. O CodeQL MUST usar o conjunto de
+  regras padrão (`default`); o estendido e o de qualidade ficam fora deste REQ.
 - **FR-010**: Os alertas do CodeQL MUST aparecer anotados no PR e na aba de segurança do
   repositório.
 
@@ -225,7 +256,9 @@ alerta existente tem uma decisão registrada.
 
 - **FR-011**: A verificação `Build e testes` MUST conferir todas as dependências NuGet (diretas e
   transitivas) de todos os projetos contra a base de vulnerabilidades conhecidas e reprovar
-  quando houver alguma de severidade alta ou crítica.
+  quando houver alguma de severidade alta ou crítica, em qualquer PR, inclusive os que não
+  alteram dependências (a vulnerabilidade pode ter sido publicada depois de a dependência entrar
+  na `main`).
 - **FR-012**: O resumo do job MUST listar cada vulnerabilidade encontrada (pacote, versão,
   severidade, link do aviso), separando as que reprovam das que são só aviso; sem nenhuma, MUST
   dizer isso.
@@ -261,6 +294,8 @@ alerta existente tem uma decisão registrada.
 - **Exceção de vulnerabilidade**: decisão registrada de aceitar temporariamente uma
   vulnerabilidade alta ou crítica, com pacote, aviso, motivo e data de revisão.
 - **Registro de triagem**: lista dos alertas iniciais com a decisão tomada para cada um.
+- **Fonte das versões de imagem**: o lugar único onde cada imagem de terceiros tem a versão
+  declarada, lido pelo ambiente local e pelos testes e atualizado pelo Dependabot.
 
 ## Success Criteria *(mandatory)*
 
@@ -290,8 +325,8 @@ alerta existente tem uma decisão registrada.
 - A conferência de FR-011 cobre o NuGet. Para actions e imagens Docker, a proteção vem do
   Dependabot (alertas e PRs) e do CodeQL dos workflows; uma varredura de imagens fica fora do
   escopo.
-- A frequência semanal e o agrupamento por ecossistema seguem a prática comum e o volume do
-  projeto (um mantenedor). Podem ser ajustados no `/speckit-clarify`.
+- A frequência semanal segue a prática comum e o volume do projeto (um mantenedor); com o
+  agrupamento por família (FR-002), a fila fica em poucos PRs por semana.
 - O secret scanning (também desligado hoje) não está no escopo da issue; pode virar uma issue
   à parte.
 - O procedimento de queda de serviço do REQ-20 (desligar temporariamente uma exigência do
