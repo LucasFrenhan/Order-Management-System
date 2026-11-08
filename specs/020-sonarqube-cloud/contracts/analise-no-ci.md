@@ -45,7 +45,7 @@ aplicação e dos testes, não o vê.
 | `/d:sonar.coverageReportPaths` | `resultados-sonar/SonarQube.xml` |
 | `/d:sonar.cs.vstest.reportsPaths` | `resultados/**/*.trx` |
 | `/d:sonar.exclusions` | `specs/**,.specify/**,**/Persistencia/Migracoes/**,**/obj/**,**/bin/**` |
-| `/d:sonar.coverage.exclusions` | `**/Persistencia/Migracoes/**` |
+| `/d:sonar.coverage.exclusions` | `**/Persistencia/Migracoes/**,.github/**` (`.github/**` desde o REQ-26: roteiros do CI em PowerShell, conferidos pelos próprios exemplos) |
 
 A branch, o número do PR e a branch de destino são detectados pelo scanner a partir das
 variáveis do GitHub Actions.

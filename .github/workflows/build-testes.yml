@@ -116,7 +116,7 @@ jobs:
           /d:sonar.coverageReportPaths="resultados-sonar/SonarQube.xml"
           /d:sonar.cs.vstest.reportsPaths="resultados/**/*.trx"
           /d:sonar.exclusions="specs/**,.specify/**,**/Persistencia/Migracoes/**,**/obj/**,**/bin/**"
-          /d:sonar.coverage.exclusions="**/Persistencia/Migracoes/**"
+          /d:sonar.coverage.exclusions="**/Persistencia/Migracoes/**,.github/**"
 
       - name: Restaurar
         run: dotnet restore PedidoFulfillment.sln
