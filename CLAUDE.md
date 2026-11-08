@@ -65,6 +65,25 @@ repositório (`LucasFrenhan`), junto com o sync acima e antes de qualquer outro 
   de mudar.
 - Confirme a mudança no relatório do sync (issue, projeto, status novo e responsável).
 
+## Regra: checkboxes da issue acompanham o que entrou na `main`
+
+Quando o corpo da issue tiver checkboxes (critérios de aceite, escopo, tarefas), marque como
+feito cada item que o trabalho entregou, assim que o PR que o entrega for mergeado na `main`
+(com auto-merge, depois de confirmar o merge).
+
+- Marque só o que foi entregue por inteiro e pode ser apontado no PR, no código ou na
+  validação. Item parcial, adiado ou fora do escopo decidido na spec fica desmarcado, com um
+  comentário na issue dizendo o motivo e para onde foi (outra issue, PR seguinte).
+- Num REQ entregue em mais de um PR, marque a cada merge o que aquele PR fechou.
+- Edite só o marcador (`- [ ]` → `- [x]`), sem mudar o texto da issue:
+
+  ```bash
+  gh issue view N --json body -q .body > corpo.md   # troque os marcadores em corpo.md
+  gh issue edit N --body-file corpo.md
+  ```
+
+- Cite no relatório final quais itens foram marcados.
+
 ## Convenções já em uso
 
 - Commits: `tipo(escopo): descrição [REQ-NN]`, um por etapa do Spec Kit e um por fase da
