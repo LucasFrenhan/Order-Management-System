@@ -72,6 +72,8 @@ todos, inclusive o dono do repositório (REQ-20):
   entram em sequência na `main`);
 - verificações exigidas, com a branch atualizada: **Build e testes**, **Demonstração** e
   **SonarCloud Code Analysis** (o Quality Gate, aceito só quando vem do app do SonarQube Cloud);
+- resultado do **CodeQL** (REQ-26): alerta novo de segurança alta ou crítica, ou de severidade
+  erro, bloqueia o merge ([Segurança da cadeia de build](seguranca-cadeia-build.md#codeql));
 - push direto, force push e exclusão da `main` recusados.
 
 Para conferir ou reaplicar a regra a partir do arquivo versionado:
@@ -83,5 +85,5 @@ gh api -X PUT repos/LucasFrenhan/Order-Management-System/rulesets/26400051 --inp
 
 Uma verificação exigida só pode ser cadastrada depois de rodar uma vez, e uma que não roda
 num PR o bloqueia: por isso a **Compatibilidade do contrato**, que só roda quando o contrato
-muda, não é exigida. Numa indisponibilidade do SonarQube Cloud, o merge espera; se for
+muda, não é exigida. Numa indisponibilidade do SonarQube Cloud ou do CodeQL, o merge espera; se for
 preciso, a regra é desligada temporariamente em Settings → Rules, de forma registrada.
