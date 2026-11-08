@@ -5,5 +5,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- NuGet Audit (REQ-26, specs/026-dependabot-codeql/research.md R-01): o restore continua
+         avisando as vulnerabilidades, mas sem falhar; quem reprova alta e crítica, com resumo e
+         exceções, é a verificação do CI (.github/scripts/verificar-vulnerabilidades.ps1).
+         O NU1900 (falha ao consultar a base de avisos) continua erro. -->
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
   </PropertyGroup>
 </Project>
