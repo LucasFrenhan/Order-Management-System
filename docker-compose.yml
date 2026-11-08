@@ -165,7 +165,7 @@ services:
   # 13.6.1 tinha menos de duas semanas; a 13.6.0 é de 2026-10-01.
   aspire-dashboard:
     profiles: [demo, observabilidade]
-    image: mcr.microsoft.com/dotnet/aspire-dashboard:13.6.0
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:13.6.4
     environment:
       # SOMENTE LOCAL: sem autenticação na interface nem no OTLP; os dados ficam em memória.
       ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: "true"
