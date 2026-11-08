@@ -75,7 +75,7 @@ Depois do merge do PR 1:
 
 ```bash
 dotnet test tests/PedidoFulfillment.Testes.Integracao --filter "FullyQualifiedName~ImagensDoAmbiente"   # sem Docker
-grep -rn "rabbitmq:\|mailpit:v" tests/   # nenhuma versão de imagem no código dos testes
+grep -rn "rabbitmq:\|mailpit:v" tests/ --include=*.cs | grep -v ImagensDoAmbienteTestes   # vazio: só o exemplo do teste tem versão
 ```
 
 E a suíte de integração completa continua verde (`dotnet test`).
