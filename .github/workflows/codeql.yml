@@ -1,0 +1,54 @@
+# Análise de segurança do CodeQL (REQ-26, specs/026-dependabot-codeql, research R-06 e R-07):
+# o código C# e os workflows do GitHub Actions, em todo PR para a main, em todo push na main e
+# uma vez por semana, para que regras novas do CodeQL apareçam mesmo sem push.
+#
+# Setup avançado, em vez do "default setup": a configuração fica versionada e revisada por PR,
+# a action fica fixada por SHA e o Dependabot a atualiza com a regra das duas semanas. O default
+# setup precisa continuar desligado (os dois não convivem).
+#
+# O C# é analisado sem compilar (build-mode: none): não repete o build do "Build e testes" nem
+# precisa de Docker. O ruleset "Proteção da main" exige o resultado: alerta novo de segurança
+# alta ou crítica, ou de severidade erro, bloqueia o merge (contracts/codeql.md).
+name: codeql
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 9 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [actions, csharp]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Iniciar o CodeQL
+        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+
+      - name: Analisar
+        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          category: /language:${{ matrix.language }}
