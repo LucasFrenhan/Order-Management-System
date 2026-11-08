@@ -17,8 +17,13 @@ O workflow [`build-testes`](../.github/workflows/build-testes.yml) roda em todo 
     (`ghcr.io/lucasfrenhan/oms-sqlserver-testes`, com tag pelo hash de `docker/sqlserver`) e
     só a monta e publica quando a pasta muda, o que levaria ~2 min em toda rodada (issue #70).
     Os testes recebem a imagem por `OMS_IMAGEM_SQLSERVER`; sem a variável, como na máquina
-    local, o Testcontainers monta a imagem uma vez e a reaproveita pelo cache do Docker. O
+    local, o Testcontainers monta a imagem uma vez, com a tag pelo mesmo tipo de hash da pasta,
+    e a reaproveita enquanto `docker/sqlserver` não mudar (REQ-26). O
     resumo da execução diz se a imagem foi baixada ou montada.
+  - **Vulnerabilidades** (REQ-26): logo depois do restore, o passo confere as dependências
+    NuGet, diretas e transitivas. Alta ou crítica reprova o job, salvo exceção registrada;
+    baixa e moderada aparecem como aviso no resumo (veja
+    [Segurança da cadeia de build](seguranca-cadeia-build.md)).
   - **Paralelismo**: os testes de integração rodam até 6 de cada vez
     ([`xunit.runner.json`](../tests/PedidoFulfillment.Testes.Integracao/xunit.runner.json)),
     em qualquer máquina. Os testes de banco compartilham um SQL Server (cada um com o próprio
@@ -33,8 +38,16 @@ O workflow [`build-testes`](../.github/workflows/build-testes.yml) roda em todo 
 No push da `main`, só o job de testes roda: a análise da `main` é a referência de comparação
 dos PRs e do estado mostrado na análise estática.
 
+O workflow [`codeql`](../.github/workflows/codeql.yml) roda à parte, em paralelo, nos PRs, na
+`main` e toda segunda: a análise de segurança do CodeQL para o C# e para os workflows, com os
+jobs `Analyze (actions)` e `Analyze (csharp)`. O Dependabot propõe as atualizações das
+dependências, das actions e das imagens toda segunda; os PRs dele passam pelas mesmas
+verificações ([Segurança da cadeia de build](seguranca-cadeia-build.md)).
+
 O check fica vermelho com:
 - erro ou aviso de compilação;
+- dependência NuGet com vulnerabilidade alta ou crítica sem exceção, ou a consulta de
+  vulnerabilidades sem resposta;
 - teste falhando ou **ignorado**;
 - falta de Docker;
 - demonstração que não fica pronta;
