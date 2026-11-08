@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using DotNet.Testcontainers.Builders;
 using Testcontainers.MsSql;
 
@@ -8,10 +10,15 @@ namespace PedidoFulfillment.Testes.Integracao.Infraestrutura;
 /// montada a partir de <c>docker/sqlserver/Dockerfile</c> uma vez por execução e compartilhada
 /// pelos fixtures. Sem Docker, a montagem lança <see cref="DockerUnavailableException"/>, que os
 /// fixtures já tratam como antes (REQ-07).
+/// A tag é o hash do conteúdo de <c>docker/sqlserver</c> (REQ-26, research R-08): quando o
+/// Dependabot troca a base do <c>Dockerfile</c>, o nome muda e a imagem é montada de novo, em vez
+/// de reaproveitar uma imagem antiga com o mesmo nome.
 /// </summary>
 internal static class ImagemSqlServerTeste
 {
-    public const string Nome = "oms-sqlserver-testes:2022-CU26-fts";
+    private static readonly Lazy<string> NomeCalculado = new(() => $"oms-sqlserver-testes:{HashDaPasta(DiretorioDockerfile())}");
+
+    public static string Nome => NomeCalculado.Value;
 
     /// <summary>
     /// Imagem já montada (por exemplo, publicada no GHCR pelo CI): usada como está, sem montar
@@ -43,6 +50,27 @@ internal static class ImagemSqlServerTeste
             .WithDeleteIfExists(false)
             .Build();
         await imagem.CreateAsync();
+    }
+
+    /// <summary>
+    /// 16 primeiros caracteres hexadecimais do SHA-256 dos arquivos da pasta, em ordem de caminho
+    /// relativo (caminho e conteúdo de cada um).
+    /// </summary>
+    internal static string HashDaPasta(string pasta)
+    {
+        using var sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var arquivos = Directory.GetFiles(pasta, "*", SearchOption.AllDirectories)
+            .Select(arquivo => (Relativo: Path.GetRelativePath(pasta, arquivo).Replace('\\', '/'), Arquivo: arquivo))
+            .OrderBy(item => item.Relativo, StringComparer.Ordinal);
+        foreach (var (relativo, arquivo) in arquivos)
+        {
+            sha.AppendData(Encoding.UTF8.GetBytes(relativo + "\n"));
+            // Fim de linha normalizado: o mesmo hash no Windows (CRLF no checkout) e no Linux.
+            var conteudo = File.ReadAllText(arquivo).Replace("\r\n", "\n", StringComparison.Ordinal);
+            sha.AppendData(Encoding.UTF8.GetBytes(conteudo));
+        }
+
+        return Convert.ToHexStringLower(sha.GetHashAndReset())[..16];
     }
 
     /// <summary>Sobe a partir da saída dos testes até achar <c>docker/sqlserver/Dockerfile</c>.</summary>

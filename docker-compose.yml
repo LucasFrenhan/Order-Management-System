@@ -2,7 +2,8 @@
 # O perfil "demo" (REQ-07) sobe também a API e o Worker (REQ-06) em contêiner, sem o SDK.
 # Credenciais SOMENTE DE DESENVOLVIMENTO, válidas só para estes contêineres locais.
 # Portas e credenciais podem ser trocadas por variáveis OMS_* (veja .env.example).
-# Versões das imagens fixas, sem "latest"; atualizar de forma manual e deliberada.
+# Versões das imagens fixas, sem "latest". O Dependabot propõe as atualizações (REQ-26), e os
+# testes de integração leem daqui as imagens do RabbitMQ e do Mailpit: um PR atualiza os dois.
 #
 #   docker compose up -d --wait --build               sobe e espera banco, broker, a API de pagamento simulada e o Mailpit
 #   docker compose --profile demo up -d --wait --build  sobe banco, broker, pagamentos, Mailpit, API, Worker e o painel de telemetria
@@ -17,7 +18,7 @@ services:
     # Imagem própria: a oficial + Full-Text Search, para a busca do catálogo (REQ-22).
     build:
       context: docker/sqlserver
-    image: oms-sqlserver:2022-CU26-fts
+    image: oms-sqlserver:fts
     environment:
       ACCEPT_EULA: "Y"
       MSSQL_PID: Developer

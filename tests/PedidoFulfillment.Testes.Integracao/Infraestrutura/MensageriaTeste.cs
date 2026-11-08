@@ -364,7 +364,7 @@ public sealed class MensageriaTeste : IAsyncLifetime
         for (var tentativa = 1; ; tentativa++)
         {
             portaAmqp = PortaLivre();
-            rabbitMQ = new RabbitMqBuilder("rabbitmq:4.3.6-management")
+            rabbitMQ = new RabbitMqBuilder(ImagensDoAmbiente.RabbitMq)
                 .WithUsername(UsuarioRabbitMQ)
                 .WithPassword(SenhaRabbitMQ)
                 .WithPortBinding(portaAmqp, 5672)

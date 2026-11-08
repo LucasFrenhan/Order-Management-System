@@ -38,7 +38,7 @@ public sealed class ConteineresDependencias : IAsyncLifetime
         try
         {
             sqlServer = (await ImagemSqlServerTeste.ConstrutorAsync()).Build();
-            rabbitMQ = new RabbitMqBuilder("rabbitmq:4.3.6-management")
+            rabbitMQ = new RabbitMqBuilder(ImagensDoAmbiente.RabbitMq)
                 .WithUsername(UsuarioRabbitMQ)
                 .WithPassword(SenhaRabbitMQ)
                 .Build();
