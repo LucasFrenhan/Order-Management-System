@@ -135,10 +135,10 @@ a fase 8 acontece depois do merge e forma o **PR 2** (`Closes #59`).
 - [X] T027 Rodar `dotnet build PedidoFulfillment.sln`, `dotnet test PedidoFulfillment.sln` (comparar o total com a T001) e `dotnet format PedidoFulfillment.sln --verify-no-changes`
 - [X] T028 Conferir o Docker contra o retrato da T001: nada criado pelos testes fica na máquina (imagens `oms-sqlserver-testes:*` novas incluídas, exceto a da tag atual se o retrato já tinha a anterior)
 - [X] T029 Marcar as tarefas feitas neste arquivo, fazer `git push` e abrir o PR 1 em português (Resumo, Pontos de atenção, Validação) com `Refs #59`, citando os documentos atualizados e que `docs/fluxos/` não muda
-- [ ] T030 Acompanhar o CI do PR 1: `Build e testes` (com o passo "Vulnerabilidades" e a mensagem de nenhuma vulnerabilidade), `Demonstração`, Quality Gate e `Analyze (actions)`/`Analyze (csharp)`; medir o SC-006 comparando a duração do passo "Vulnerabilidades" e a do job com o último run do `build-testes` na `main` (`gh run view <id> --json jobs`) e anotar no PR; se o C# falhar na extração, aplicar o plano B de [contracts/codeql.md](./contracts/codeql.md) e registrar no research
-- [ ] T031 [US2] Registrar no PR 1 os alertas que o CodeQL anotar e corrigir os que forem do código do PR; os demais vão para a triagem (T037)
-- [ ] T032 [US1] Prova do SC-001 (quickstart §3): branch descartável a partir da do PR 1 com `System.Data.SqlClient` 4.8.5 (High) no `Directory.Packages.props` e no projeto de testes unitários (quickstart §3), PR em rascunho, conferir a reprovação e o resumo, anotar o link do run no PR 1, fechar sem merge e apagar a branch
-- [ ] T033 Ligar o auto-merge do PR 1 (`gh pr merge <n> --rebase --auto`), sem apagar a branch
+- [X] T030 Acompanhar o CI do PR 1: `Build e testes` (com o passo "Vulnerabilidades" e a mensagem de nenhuma vulnerabilidade), `Demonstração`, Quality Gate e `Analyze (actions)`/`Analyze (csharp)`; medir o SC-006 comparando a duração do passo "Vulnerabilidades" e a do job com o último run do `build-testes` na `main` (`gh run view <id> --json jobs`) e anotar no PR; se o C# falhar na extração, aplicar o plano B de [contracts/codeql.md](./contracts/codeql.md) e registrar no research
+- [X] T031 [US2] Registrar no PR 1 os alertas que o CodeQL anotar e corrigir os que forem do código do PR; os demais vão para a triagem (T037)
+- [X] T032 [US1] Prova do SC-001 (quickstart §3): branch descartável a partir da do PR 1 com `System.Data.SqlClient` 4.8.5 (High) no `Directory.Packages.props` e no projeto de testes unitários (quickstart §3), PR em rascunho, conferir a reprovação e o resumo, anotar o link do run no PR 1, fechar sem merge e apagar a branch
+- [X] T033 Ligar o auto-merge do PR 1 (`gh pr merge <n> --rebase --auto`), sem apagar a branch
 
 **Checkpoint**: PR 1 mergeado; o Dependabot e o CodeQL passam a valer na `main`.
 
