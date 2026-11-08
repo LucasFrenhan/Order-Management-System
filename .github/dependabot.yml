@@ -1,0 +1,130 @@
+# Atualizações automáticas de dependências (REQ-26, specs/026-dependabot-codeql, research R-04;
+# procedimento em docs/seguranca-cadeia-build.md).
+#
+# - Semanal, na segunda de manhã, com no máximo 5 PRs abertos por ecossistema.
+# - Regra das duas semanas: o cooldown só propõe versões publicadas há 14 dias ou mais. As
+#   atualizações de segurança não esperam (o cooldown não vale para elas).
+# - Minor e patch em grupos por família; major em PR próprio, para ser avaliado à parte.
+# - Commits "build(deps): ..." e "ci(deps): ..." sem ID de requisito (constituição 1.1.1).
+# - Os PRs passam pelas mesmas verificações exigidas de qualquer PR e só entram por rebase,
+#   depois que o dono revisa e liga o auto-merge.
+version: 2
+
+updates:
+  - package-ecosystem: nuget
+    # Lê o Directory.Packages.props e as ferramentas locais de .config/dotnet-tools.json.
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    cooldown:
+      default-days: 14
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: build
+      include: scope
+    # Cada dependência vai para o primeiro grupo que casar; "demais" fica por último.
+    groups:
+      dotnet:
+        patterns:
+          - "Microsoft.AspNetCore.*"
+          - "Microsoft.EntityFrameworkCore*"
+          - "Microsoft.Extensions.Logging.*"
+          - "Microsoft.Data.SqlClient"
+          - "System.*"
+          - "dotnet-ef"
+        update-types: [minor, patch]
+      opentelemetry:
+        patterns:
+          - "OpenTelemetry*"
+        update-types: [minor, patch]
+      testes:
+        patterns:
+          - "xunit*"
+          - "Microsoft.NET.Test.Sdk"
+          - "FluentAssertions"
+          - "Testcontainers*"
+          - "JsonSchema.Net"
+          - "Microsoft.OpenApi.YamlReader"
+        update-types: [minor, patch]
+      ferramentas:
+        patterns:
+          - "dotnet-sonarscanner"
+          - "dotnet-reportgenerator-globaltool"
+        update-types: [minor, patch]
+      demais:
+        patterns:
+          - "*"
+        update-types: [minor, patch]
+    ignore:
+      # A partir da 8 a licença é comercial; o projeto fixa a série 7.x (Directory.Packages.props).
+      - dependency-name: "FluentAssertions"
+        versions: [">=8.0.0"]
+
+  - package-ecosystem: github-actions
+    # Troca o SHA fixado e o comentário "# vX.Y.Z" juntos.
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    cooldown:
+      default-days: 14
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: ci
+      include: scope
+    groups:
+      actions:
+        patterns:
+          - "*"
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directories:
+      - /docker/sqlserver
+      - /src/PedidoFulfillment.API
+      - /src/PedidoFulfillment.Worker
+      - /src/PedidoFulfillment.PagamentosSimulados
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    cooldown:
+      default-days: 14
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      imagens:
+        patterns:
+          - "*"
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker-compose
+    # Os testes de integração leem as imagens daqui (FR-019): um PR atualiza os dois.
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    cooldown:
+      default-days: 14
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      compose:
+        patterns:
+          - "*"
+        update-types: [minor, patch]
+    ignore:
+      # Imagem montada pelo projeto a partir de docker/sqlserver; não existe em registro.
+      - dependency-name: "oms-sqlserver"
