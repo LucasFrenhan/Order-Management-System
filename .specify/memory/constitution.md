@@ -1,5 +1,13 @@
 <!--
-Sync Impact Report
+Sync Impact Report (1.1.1, 2026-11-08)
+- Version change: 1.1.0 -> 1.1.1 (PATCH: esclarecimento)
+- Modified sections: Convenções de Desenvolvimento — os commits das atualizações automáticas
+  de dependências (Dependabot) usam `build(deps)`/`ci(deps)` sem ID de requisito.
+- Motivação: REQ-26 (specs/026-dependabot-codeql); achado C1 do /speckit-analyze de
+  2026-11-08. O Dependabot não permite acrescentar sufixo à mensagem do commit.
+- Templates: nenhum template exige atualização.
+
+Sync Impact Report (1.1.0)
 - Version change: 1.0.0 -> 1.1.0
 - Modified principles: III. Segurança por Padrão — passa a permitir documentação do
   contrato (OpenAPI e UI) pública somente em ambientes não produtivos.
@@ -85,7 +93,10 @@ não presumida pela revisão manual.
   devem usar o passado, como `pedido.criado`.
 - Commits devem seguir o formato
   `tipo(escopo): descrição [ID-Requisito]`, por exemplo:
-  `feat(pedidos): implementa criacao de pedido [REQ-01]`.
+  `feat(pedidos): implementa criacao de pedido [REQ-01]`. A exceção são os commits das
+  atualizações automáticas de dependências (Dependabot, REQ-26), que usam
+  `build(deps): ...` ou `ci(deps): ...` sem ID de requisito; eles não acrescentam
+  funcionalidade e seguem as regras de `docs/seguranca-cadeia-build.md`.
 
 ## Governance
 
@@ -107,4 +118,4 @@ aprovada e, quando necessário, um plano de migração. A constituição deve se
 quando a arquitetura, os contratos, os requisitos de segurança ou a plataforma mudarem
 materialmente.
 
-**Version**: 1.1.0 | **Ratified**: TODO(RATIFICATION_DATE): informar a data original de adoção | **Last Amended**: 2026-10-21
+**Version**: 1.1.1 | **Ratified**: TODO(RATIFICATION_DATE): informar a data original de adoção | **Last Amended**: 2026-11-08
