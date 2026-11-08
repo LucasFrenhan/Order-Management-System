@@ -42,9 +42,11 @@ dotnet restore PedidoFulfillment.sln; pwsh .github/scripts/verificar-vulnerabili
 
 ## 3. Uma vulnerabilidade alta reprova o CI (SC-001)
 
-Num PR descartável (rascunho), acrescentar ao `Directory.Packages.props` um pino transitivo
-vulnerável, por exemplo `<PackageVersion Include="System.Text.Json" Version="8.0.0" />` (High,
-GHSA-hh2w-p6rv-4g7w e GHSA-8g4q-xg66-9fp4). Esperado: o passo "Vulnerabilidades" reprova em
+Num PR descartável (rascunho), acrescentar `<PackageVersion Include="System.Data.SqlClient"
+Version="4.8.5" />` ao `Directory.Packages.props` e a `PackageReference` no projeto de testes
+unitários (High, GHSA-98g6-xh36-x2p7). O pacote precisa estar fora do grafo de dependências:
+`System.Text.Json` é do framework (o restore falha com NU1510), e `Newtonsoft.Json` e
+`SharpZipLib` já chegam transitivos em versão maior (NU1109, downgrade). Feito no PR #82. Esperado: o passo "Vulnerabilidades" reprova em
 cerca de 1 min, e o resumo do job mostra o pacote, a versão, a severidade e os avisos. Fechar o PR
 sem merge e apagar a branch.
 
