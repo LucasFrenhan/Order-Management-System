@@ -37,3 +37,5 @@ foreach ($caso in $casos) {
 
 if ($falhas -gt 0) { exit 1 }
 Write-Host "$($casos.Count) casos conferidos."
+# Sem isso, o código do último caso (que sai com 2) vazaria para quem chamou.
+exit 0
