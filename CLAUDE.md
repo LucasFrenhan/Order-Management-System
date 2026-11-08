@@ -28,12 +28,12 @@ Antes de iniciar um novo REQ (o primeiro passo é o `/speckit-specify`), é obri
 Se qualquer item falhar, pare e informe o que impede o início, em vez de contornar (por
 exemplo, empilhar a branch sobre outra ainda não mergeada).
 
-## Regra: issue iniciada passa de "Todo" para "In progress"
+## Regra: issue iniciada passa de "Todo" para "In progress", com o dono como responsável
 
 Toda vez que começar o trabalho de uma task ou issue registrada no GitHub (um REQ no
 `/speckit-specify`, um estudo, uma investigação ou uma correção), mude o campo "Status" do
-item dela no GitHub Project de **Todo** para **In progress**, junto com o sync acima e antes
-de qualquer outro passo.
+item dela no GitHub Project de **Todo** para **In progress** e atribua a issue ao dono do
+repositório (`LucasFrenhan`), junto com o sync acima e antes de qualquer outro passo.
 
 - O quadro é o projeto **OMS** (número 4, do usuário `LucasFrenhan`). O campo "Status" tem as
   opções `Todo`, `In progress` e `Done`. Ids (conferidos em 2026-10-27; se o comando falhar,
@@ -52,14 +52,18 @@ de qualquer outro passo.
     -q '.items[] | select(.content.number == N) | .id')
   gh project item-edit --id "$item" --project-id PVT_kwHOBbApDs4BoGZe \
     --field-id PVTSSF_lAHOBbApDs4BoGZezhmoA40 --single-select-option-id 47fc9ee4
+  gh issue edit N --add-assignee LucasFrenhan
   ```
 
-  Para conferir antes e depois: `gh issue view N --json projectItems -q '.projectItems'`.
+  Para conferir antes e depois:
+  `gh issue view N --json projectItems,assignees -q '{status: .projectItems, responsaveis: [.assignees[].login]}'`.
+- Se a issue já tiver outro responsável, mantenha-o e acrescente o dono (`--add-assignee` não
+  remove ninguém).
 - O token precisa do escopo `project`. Sem ele, peça ao usuário para rodar
   `! gh auth refresh -h github.com -s project`.
 - Se a issue não estiver em nenhum projeto, ou o status não for "Todo", avise e pergunte antes
   de mudar.
-- Confirme a mudança no relatório do sync (issue, projeto e status novo).
+- Confirme a mudança no relatório do sync (issue, projeto, status novo e responsável).
 
 ## Convenções já em uso
 
