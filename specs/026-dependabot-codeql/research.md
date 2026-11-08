@@ -38,7 +38,7 @@ parte do FR-014.
 ## R-02 — Verificação de vulnerabilidades no job `Build e testes`
 
 **Decisão**: passo "Vulnerabilidades" logo depois de "Restaurar", rodando
-`.github/scripts/verificar-vulnerabilidades.sh`, que:
+`.github/scripts/verificar-vulnerabilidades.ps1`, que:
 
 1. roda `dotnet list PedidoFulfillment.sln package --vulnerable --include-transitive --format json`
    (saída JSON estável, versão 1; projetos → frameworks → `topLevelPackages` e
@@ -49,9 +49,15 @@ parte do FR-014.
    transitiva e situação (reprova, aviso ou exceção) (FR-012);
 5. sai com código 1 se sobrar alguma `High` ou `Critical` sem exceção válida.
 
-O roteiro aceita `--entrada <arquivo.json>` para ler uma saída gravada em vez de chamar o
+O roteiro aceita `-Entrada <arquivo.json>` para ler uma saída gravada em vez de chamar o
 `dotnet`, o que permite testá-lo com exemplos fixos (quickstart §2) sem depender da base de
-avisos. Bash + `jq`, como os outros roteiros de `.github/scripts/` (`jq` vem no runner).
+avisos; `exemplos-vulnerabilidades/conferir.ps1` roda esses casos no próprio passo do CI, antes
+da verificação real.
+
+**PowerShell 7, não Bash + `jq`** (revisto na implementação, 2026-11-08): o `jq` não existe na
+máquina de desenvolvimento (Windows com Git Bash), e o roteiro precisa rodar nos dois lugares. O
+`pwsh` vem no runner `ubuntu-latest` e no ambiente local e lê JSON sem ferramenta extra
+(`ConvertFrom-Json`).
 
 Falha logo depois do restore: o PR fica vermelho em ~1 min, sem gastar os testes. Custo medido:
 ~17 s com o restore feito (SC-006: até 1 min).

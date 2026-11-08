@@ -1,0 +1,11 @@
+{
+  "excecoes": [
+    {
+      "pacote": "Exemplo.Alto",
+      "aviso": "https://github.com/advisories/GHSA-aaaa-aaaa-aaaa",
+      "motivo": "Exemplo: exceção cujo prazo de revisão passou.",
+      "registradaEm": "2026-10-01",
+      "revisarAte": "2026-11-01"
+    }
+  ]
+}

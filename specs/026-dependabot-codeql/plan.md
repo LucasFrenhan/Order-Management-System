@@ -31,13 +31,13 @@
 
 ## Technical Context
 
-**Language/Version**: YAML do GitHub Actions e do Dependabot; Bash + `jq` (roteiro do CI); C# 14 /
+**Language/Version**: YAML do GitHub Actions e do Dependabot; PowerShell 7 (roteiro do CI, R-02); C# 14 /
 .NET 10 (SDK do `global.json`) nos testes; JSON (exceções e ruleset)
 
 **Primary Dependencies**:
 - novas: nenhuma dependência NuGet. Nova action `github/codeql-action` v4.39.1 (fixada por SHA,
   R-06), do próprio GitHub;
-- já existentes: `dotnet list package` do SDK, `actions/checkout`, `gh` e `jq` no runner,
+- já existentes: `dotnet list package` do SDK, `actions/checkout`, `gh` e `pwsh` no runner,
   Testcontainers nos testes.
 
 **Storage**: N/A (arquivos versionados e estado no GitHub; [data-model](./data-model.md))
@@ -110,8 +110,8 @@ specs/026-dependabot-codeql/
 ├── vulnerabilidades-aceitas.json          # novo, vazio (R-03)
 ├── rulesets/protecao-main.json            # + regra code_scanning (PR 2, R-07)
 ├── scripts/
-│   ├── verificar-vulnerabilidades.sh      # novo (R-02)
-│   └── exemplos-vulnerabilidades/*.json   # novos (quickstart §2)
+│   ├── verificar-vulnerabilidades.ps1     # novo (R-02)
+│   └── exemplos-vulnerabilidades/         # saídas gravadas + conferir.ps1 (quickstart §2)
 └── workflows/
     ├── build-testes.yml                   # + passo "Vulnerabilidades"
     └── codeql.yml                         # novo (R-06)

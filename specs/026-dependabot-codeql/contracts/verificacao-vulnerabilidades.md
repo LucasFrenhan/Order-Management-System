@@ -9,15 +9,16 @@ depois de "Restaurar" e antes de "Compilar", em todo PR para a `main` e no push 
 
 ## Roteiro
 
-`.github/scripts/verificar-vulnerabilidades.sh [--entrada <saida.json>] [--excecoes <arquivo>] [--hoje AAAA-MM-DD]`
+`.github/scripts/verificar-vulnerabilidades.ps1 [-Entrada <saida.json>] [-Excecoes <arquivo>] [-Hoje AAAA-MM-DD] [-Solucao <sln>]` (PowerShell 7)
 
 | Opção | Padrão | Uso |
 |---|---|---|
-| `--entrada` | roda `dotnet list PedidoFulfillment.sln package --vulnerable --include-transitive --format json` | ler uma saída gravada (exemplos de teste) |
-| `--excecoes` | `.github/vulnerabilidades-aceitas.json` | outro arquivo de exceções |
-| `--hoje` | data UTC atual | fixar a data nos exemplos |
+| `-Entrada` | roda `dotnet list PedidoFulfillment.sln package --vulnerable --include-transitive --format json` | ler uma saída gravada (exemplos de teste) |
+| `-Excecoes` | `.github/vulnerabilidades-aceitas.json` | outro arquivo de exceções |
+| `-Hoje` | data UTC atual | fixar a data nos exemplos |
 
-Escreve o resumo em `$GITHUB_STEP_SUMMARY` quando a variável existe; senão, na saída padrão.
+O passo roda antes `exemplos-vulnerabilidades/conferir.ps1`, que confere o roteiro com as saídas
+gravadas. Escreve o resumo em `$GITHUB_STEP_SUMMARY` quando a variável existe; senão, na saída padrão.
 
 ## Códigos de saída
 

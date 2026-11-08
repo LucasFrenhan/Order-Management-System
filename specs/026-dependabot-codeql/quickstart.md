@@ -3,7 +3,7 @@
 **Spec**: [spec.md](./spec.md) | **Contratos**: [contracts/](./contracts/)
 
 Pré-requisitos: `gh` autenticado com acesso de administração ao repositório, .NET SDK do
-`global.json`, Git Bash com `jq` (para o §2 local; no CI o `jq` já vem no runner).
+`global.json` e PowerShell 7 (`pwsh`).
 
 ## 1. Configuração do repositório (antes do merge do PR 1)
 
@@ -26,16 +26,18 @@ Os exemplos ficam em `.github/scripts/exemplos-vulnerabilidades/`:
 | `alta-transitiva.json` | saída 1, linha ❌ reprova, tipo transitiva |
 | `alta-transitiva.json` com `excecoes-vigente.json` | saída 0, linha ✅ exceção |
 | `alta-transitiva.json` com `excecoes-vencida.json` | saída 1 |
+| `alta-transitiva.json` com `excecoes-invalida.json` | saída 2 (motivo vazio, prazo acima de 90 dias) |
 | `com-problema.json` | saída 2 |
 
-```bash
-bash .github/scripts/verificar-vulnerabilidades.sh --entrada .github/scripts/exemplos-vulnerabilidades/alta-transitiva.json --hoje 2026-11-08; echo "saída $?"
+```powershell
+pwsh .github/scripts/exemplos-vulnerabilidades/conferir.ps1     # os sete casos
+pwsh .github/scripts/verificar-vulnerabilidades.ps1 -Entrada .github/scripts/exemplos-vulnerabilidades/alta-transitiva.json -Hoje 2026-11-08; "saída $LASTEXITCODE"
 ```
 
 Contra a solução real (deve dar 0 e a mensagem de nenhuma vulnerabilidade):
 
-```bash
-dotnet restore PedidoFulfillment.sln && bash .github/scripts/verificar-vulnerabilidades.sh
+```powershell
+dotnet restore PedidoFulfillment.sln; pwsh .github/scripts/verificar-vulnerabilidades.ps1
 ```
 
 ## 3. Uma vulnerabilidade alta reprova o CI (SC-001)

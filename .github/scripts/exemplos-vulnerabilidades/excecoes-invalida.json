@@ -1,0 +1,11 @@
+{
+  "excecoes": [
+    {
+      "pacote": "Exemplo.Alto",
+      "aviso": "https://github.com/advisories/GHSA-aaaa-aaaa-aaaa",
+      "motivo": "",
+      "registradaEm": "2026-11-01",
+      "revisarAte": "2027-06-01"
+    }
+  ]
+}
