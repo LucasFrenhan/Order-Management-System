@@ -214,7 +214,7 @@ alerta existente tem uma decisão registrada.
 - **FR-002**: As atualizações de versão menores e de correção (minor/patch) MUST ser agrupadas:
   no NuGet, um PR por família de pacotes que evoluem juntos (por exemplo, EF Core e SqlClient com
   a ferramenta `dotnet-ef`, OpenTelemetry, bibliotecas de teste) e um PR para os demais pacotes;
-  em GitHub Actions e em Docker, um PR por ecossistema. As atualizações maiores (major) MUST vir
+  em GitHub Actions, nos `Dockerfile`s e no Compose, um PR por ecossistema. As atualizações maiores (major) MUST vir
   em PRs separados.
 - **FR-003**: A frequência MUST ser semanal, com limite de PRs abertos por ecossistema para não
   inundar a fila.
@@ -223,7 +223,8 @@ alerta existente tem uma decisão registrada.
   vulnerabilidade conhecida) MUST chegar assim que a correção é publicada, sem esperar as duas
   semanas.
 - **FR-005**: Os commits dos PRs do Dependabot MUST seguir a convenção do projeto
-  (`tipo(escopo): descrição`), com tipo `build` para dependências e `ci` para actions.
+  (`tipo(escopo): descrição`), com tipo `build` para dependências e `ci` para actions, sem ID de
+  requisito (constituição 1.1.1).
 - **FR-006**: Os PRs do Dependabot MUST receber todas as verificações exigidas pelo ruleset,
   incluindo a análise do Sonar; o token de análise MUST estar disponível também para o
   Dependabot, sem ampliar o acesso de PRs de forks.
@@ -263,7 +264,7 @@ alerta existente tem uma decisão registrada.
   severidade, link do aviso), separando as que reprovam das que são só aviso; sem nenhuma, MUST
   dizer isso.
 - **FR-013**: Uma exceção a FR-011 MUST ser explícita: por pacote e aviso, com motivo e data de
-  revisão, versionada no repositório e citada no resumo do job. Sem exceção registrada, nenhuma
+  revisão de no máximo 90 dias, versionada no repositório e citada no resumo do job. Sem exceção registrada, nenhuma
   vulnerabilidade alta ou crítica passa.
 - **FR-014**: Se a conferência não conseguir consultar a base de vulnerabilidades, a verificação
   MUST reprovar com mensagem clara, nunca passar sem ter conferido.
