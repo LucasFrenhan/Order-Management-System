@@ -79,9 +79,15 @@ PR:
 - **Ignorados**: FluentAssertions 8 ou maior (licença comercial; o projeto fica na 7.x) e a
   imagem `oms-sqlserver` do Compose, que o projeto monta.
 - **Commits**: `build(deps): ...` (NuGet, Docker e Compose) e `ci(deps): ...` (Actions), sem ID
-  de requisito, pela exceção da constituição 1.1.1.
-- **Fica manual**: o SDK do `global.json` (o `rollForward: latestFeature` tolera a imagem `sdk`
-  dos `Dockerfile`s andar à frente).
+  de requisito, pela exceção da constituição 1.1.1. No NuGet o escopo vai fixo no prefixo: com
+  `include: scope`, os grupos que misturam pacotes de produção e de teste saíam `build: ...`.
+- **Fica manual**:
+  - o SDK do `global.json` (o `rollForward: latestFeature` tolera a imagem `sdk` dos
+    `Dockerfile`s andar à frente);
+  - a CU da base do SQL Server em `docker/sqlserver/Dockerfile`: o Dependabot não entende tags
+    como `2022-CU26-ubuntu-22.04` e não propõe nada (conferido na primeira execução, quando a
+    `2022-CU27-ubuntu-22.04` já existia havia mais de dois meses). Confira as tags em
+    <https://mcr.microsoft.com/v2/mssql/server/tags/list> e troque a CU num PR próprio.
 - **Imagens dos testes**: os testes de integração leem as versões do RabbitMQ e do Mailpit do
   `docker-compose.yml`, então um PR do Dependabot atualiza o ambiente local e os testes juntos.
   A imagem de testes do SQL Server tem a tag pelo hash da pasta `docker/sqlserver`: uma base nova
@@ -140,3 +146,5 @@ Alertas existentes quando as defesas foram ligadas, cada um com uma decisão.
 | Origem | Alerta | Regra / aviso | Severidade | Decisão | Data |
 |---|---|---|---|---|---|
 | Dependabot | nenhum alerta na ativação | — | — | nada a decidir (`dotnet list package --vulnerable` também sem nenhuma) | 2026-11-08 |
+| CodeQL | [#1](https://github.com/LucasFrenhan/Order-Management-System/security/code-scanning/1) e [#2](https://github.com/LucasFrenhan/Order-Management-System/security/code-scanning/2) (o mesmo ponto) | `cs/log-forging` | média (segurança), erro | corrigido: `ManipuladorExcecoes` logava o método e o caminho da requisição com quebras de linha possíveis (o `PathString` decodifica `%0A`); agora passam por `TextoDeLog.SemQuebrasDeLinha` | 2026-11-08 |
+| CodeQL | workflows (`actions`) | — | — | nenhum alerta, nem para o `pull_request_target` de `prs-de-fork.yml` | 2026-11-08 |
