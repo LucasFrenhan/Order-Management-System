@@ -27,7 +27,8 @@ public sealed partial class ManipuladorExcecoes(IProblemDetailsService problemDe
         else
         {
             logger.LogError(exception, "Erro não tratado ao processar {Metodo} {Caminho}.",
-                httpContext.Request.Method, httpContext.Request.Path);
+                TextoDeLog.SemQuebrasDeLinha(httpContext.Request.Method),
+                TextoDeLog.SemQuebrasDeLinha(httpContext.Request.Path.Value));
             problema = new ProblemDetails { Status = StatusCodes.Status500InternalServerError, Title = "Erro interno." };
         }
 
