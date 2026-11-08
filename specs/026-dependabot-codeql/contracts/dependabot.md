@@ -9,7 +9,7 @@ Arquivo `.github/dependabot.yml`, versão 2. Comum a todos os blocos:
 | `schedule` | `interval: weekly`, `day: monday`, `time: "06:00"`, `timezone: America/Sao_Paulo` |
 | `cooldown` | `default-days: 14` (só atualizações de versão; as de segurança chegam na hora) |
 | `open-pull-requests-limit` | `5` |
-| `commit-message` | `prefix: build` (`ci` no bloco de Actions), `include: scope` |
+| `commit-message` | `prefix: build(deps)` no NuGet; `prefix: build` (`ci` em Actions) com `include: scope` nos demais (revisto no PR 2: os grupos do NuGet saíam sem o escopo) |
 | `groups.*.update-types` | `[minor, patch]` (major em PR próprio) |
 
 ## Blocos
