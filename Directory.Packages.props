@@ -35,6 +35,8 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.SqlClient" Version="1.19.0" />
   </ItemGroup>
   <ItemGroup Label="Testes">
+    <!-- PR DESCARTÁVEL (REQ-26, SC-001): versão com vulnerabilidade alta, para provar que o CI reprova. -->
+    <PackageVersion Include="System.Data.SqlClient" Version="4.8.5" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
