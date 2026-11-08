@@ -9,30 +9,30 @@
     <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
   </ItemGroup>
   <ItemGroup Label="API">
-    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
-    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />
-    <PackageVersion Include="Scalar.AspNetCore" Version="2.18.2" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.14" />
+    <PackageVersion Include="Scalar.AspNetCore" Version="2.18.3" />
     <!-- Só para a ferramenta de migrations (PrivateAssets=all). -->
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14" />
   </ItemGroup>
   <ItemGroup Label="Application">
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.14" />
   </ItemGroup>
   <ItemGroup Label="Infrastructure">
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.1.1" />
     <PackageVersion Include="RabbitMQ.Client" Version="7.2.2" />
-    <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.13" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.14" />
     <!-- REQ-19 (specs/019-gateway-pagamento-http/research.md, R-06): novas tentativas, circuito e tempos
          limite do cliente HTTP do gateway de pagamento; a 10.11.0 tem mais de duas semanas. -->
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.11.0" />
   </ItemGroup>
   <ItemGroup Label="Observabilidade">
     <!-- REQ-16 (specs/016-observabilidade-opentelemetry/plan.md): série 1.19, estável; a 1.20.x tinha menos de duas semanas. -->
-    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.19.1" />
-    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.19.1" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.19.0" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.SqlClient" Version="1.19.0" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.20.1" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.20.1" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.20.1" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.SqlClient" Version="1.20.1" />
   </ItemGroup>
   <ItemGroup Label="Testes">
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
@@ -44,10 +44,10 @@
     <!-- Mesma versão maior do Microsoft.OpenApi usado por Microsoft.AspNetCore.OpenApi (2.x). -->
     <PackageVersion Include="Microsoft.OpenApi.YamlReader" Version="2.13.0" />
     <!-- 4.15.0, não 4.16.0: a 4.16.0 saiu há menos de duas semanas (specs/002-setup-infraestrutura/plan.md). -->
-    <PackageVersion Include="Testcontainers.MsSql" Version="4.15.0" />
-    <PackageVersion Include="Testcontainers.RabbitMq" Version="4.15.0" />
+    <PackageVersion Include="Testcontainers.MsSql" Version="4.16.0" />
+    <PackageVersion Include="Testcontainers.RabbitMq" Version="4.16.0" />
     <!-- Conformidade de schema dos eventos (specs/006-mensageria, R-12); a 9.4.1 tinha menos de duas semanas. -->
-    <PackageVersion Include="JsonSchema.Net" Version="9.4.0" />
+    <PackageVersion Include="JsonSchema.Net" Version="9.5.0" />
     <!-- Cliente SMTP do envio de e-mail (specs/024-ciclo-autenticacao, R-04): o .NET não tem um recomendado. -->
     <PackageVersion Include="MailKit" Version="4.18.2" />
   </ItemGroup>
