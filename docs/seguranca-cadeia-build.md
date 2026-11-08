@@ -76,6 +76,9 @@ PR:
   dias ou mais (`cooldown`). As **atualizações de segurança** não esperam: chegam assim que a
   correção sai, num PR próprio.
 - **Major** vem sempre em PR separado, para ser avaliado à parte.
+- **Grupos**: um pacote que casa com mais de um grupo entra em todos, então o `demais` exclui os
+  padrões dos outros grupos. Ao criar um grupo novo no NuGet, repita os padrões dele no
+  `exclude-patterns` do `demais`.
 - **Ignorados**: FluentAssertions 8 ou maior (licença comercial; o projeto fica na 7.x) e a
   imagem `oms-sqlserver` do Compose, que o projeto monta.
 - **Commits**: `build(deps): ...` (NuGet, Docker e Compose) e `ci(deps): ...` (Actions), sem ID

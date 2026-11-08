@@ -16,7 +16,7 @@ Arquivo `.github/dependabot.yml`, versão 2. Comum a todos os blocos:
 
 | `package-ecosystem` | `directory`/`directories` | Grupos, na ordem | `ignore` |
 |---|---|---|---|
-| `nuget` | `/` | `dotnet`: `Microsoft.AspNetCore.*`, `Microsoft.EntityFrameworkCore*`, `Microsoft.Extensions.Logging.*`, `Microsoft.Data.SqlClient`, `System.*`, `dotnet-ef` · `opentelemetry`: `OpenTelemetry*` · `testes`: `xunit*`, `Microsoft.NET.Test.Sdk`, `FluentAssertions`, `Testcontainers*`, `JsonSchema.Net`, `Microsoft.OpenApi.YamlReader` · `ferramentas`: `dotnet-sonarscanner`, `dotnet-reportgenerator-globaltool` · `demais`: `*` | `FluentAssertions` `>= 8.0.0` |
+| `nuget` | `/` | `dotnet`: `Microsoft.AspNetCore.*`, `Microsoft.EntityFrameworkCore*`, `Microsoft.Extensions.Logging.*`, `Microsoft.Data.SqlClient`, `System.*`, `dotnet-ef` · `opentelemetry`: `OpenTelemetry*` · `testes`: `xunit*`, `Microsoft.NET.Test.Sdk`, `FluentAssertions`, `Testcontainers*`, `JsonSchema.Net`, `Microsoft.OpenApi.YamlReader` · `ferramentas`: `dotnet-sonarscanner`, `dotnet-reportgenerator-globaltool` · `demais`: `*`, com `exclude-patterns` iguais aos padrões dos outros grupos (sem isso ele os absorve; revisto no PR 2) | `FluentAssertions` `>= 8.0.0` |
 | `github-actions` | `/` | `actions`: `*` | — |
 | `docker` | `/docker/sqlserver`, `/src/PedidoFulfillment.API`, `/src/PedidoFulfillment.Worker`, `/src/PedidoFulfillment.PagamentosSimulados` | `imagens`: `*` | — |
 | `docker-compose` | `/` | `compose`: `*` | `oms-sqlserver` |

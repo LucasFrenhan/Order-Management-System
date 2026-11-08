@@ -27,7 +27,8 @@ updates:
     # dois-pontos depois do parêntese.
     commit-message:
       prefix: build(deps)
-    # Cada dependência vai para o primeiro grupo que casar; "demais" fica por último.
+    # Uma dependência que casa com mais de um grupo entra em todos: o "demais" exclui os padrões
+    # dos outros grupos (sem isso, o PR dele substituía os outros, como o #91 fez com #87–#89).
     groups:
       dotnet:
         patterns:
@@ -59,6 +60,22 @@ updates:
       demais:
         patterns:
           - "*"
+        exclude-patterns:
+          - "Microsoft.AspNetCore.*"
+          - "Microsoft.EntityFrameworkCore*"
+          - "Microsoft.Extensions.Logging.*"
+          - "Microsoft.Data.SqlClient"
+          - "System.*"
+          - "dotnet-ef"
+          - "OpenTelemetry*"
+          - "xunit*"
+          - "Microsoft.NET.Test.Sdk"
+          - "FluentAssertions"
+          - "Testcontainers*"
+          - "JsonSchema.Net"
+          - "Microsoft.OpenApi.YamlReader"
+          - "dotnet-sonarscanner"
+          - "dotnet-reportgenerator-globaltool"
         update-types: [minor, patch]
     ignore:
       # A partir da 8 a licença é comercial; o projeto fixa a série 7.x (Directory.Packages.props).

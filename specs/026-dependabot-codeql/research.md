@@ -99,8 +99,10 @@ mistura política de segurança com propriedades de build. Descartado pela simpl
 | `docker` | `/docker/sqlserver`, `/src/PedidoFulfillment.API`, `/src/PedidoFulfillment.Worker`, `/src/PedidoFulfillment.PagamentosSimulados` | `imagens` (`*`) |
 | `docker-compose` | `/` | `compose` (`*`) |
 
-- **Ordem dos grupos**: o Dependabot põe cada dependência no primeiro grupo que casar; o `demais`
-  fica por último. Os grupos usam `update-types: [minor, patch]`, então os major saem em PRs
+- **Ordem dos grupos** (revisto no PR 2): a suposição de que o Dependabot põe cada dependência só
+  no primeiro grupo que casar estava errada. Na primeira execução, o `demais` (`*`) levou também
+  os pacotes dos outros grupos, e o PR dele (#91) substituiu os do `dotnet`, `opentelemetry` e
+  `testes` (#87–#89). O `demais` ganhou `exclude-patterns` com os padrões dos outros grupos. Os grupos usam `update-types: [minor, patch]`, então os major saem em PRs
   separados (FR-002).
 - **Duas semanas**: o `cooldown` só se aplica às atualizações de versão; as de segurança não o
   respeitam, que é exatamente o FR-004 decidido no specify.
