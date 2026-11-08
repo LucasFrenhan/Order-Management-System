@@ -22,9 +22,11 @@ updates:
     cooldown:
       default-days: 14
     open-pull-requests-limit: 5
+    # Escopo fixo no prefixo: com "include: scope", os grupos que misturam pacotes de produção e
+    # de desenvolvimento saíam "build: ..." sem o "(deps)" (PRs #87 e #88). O Dependabot põe os
+    # dois-pontos depois do parêntese.
     commit-message:
-      prefix: build
-      include: scope
+      prefix: build(deps)
     # Cada dependência vai para o primeiro grupo que casar; "demais" fica por último.
     groups:
       dotnet:
