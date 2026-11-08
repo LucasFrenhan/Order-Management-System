@@ -56,7 +56,8 @@ public sealed class MensageriaTeste : IAsyncLifetime
     public bool DockerDisponivel { get; private set; }
 
     public string NovoBanco() =>
-        new SqlConnectionStringBuilder(sqlServer!.GetConnectionString()) { InitialCatalog = $"oms_{Guid.NewGuid():N}" }.ConnectionString;
+        LiberarPoolsDoTesteAttribute.Registrar(
+            new SqlConnectionStringBuilder(sqlServer!.GetConnectionString()) { InitialCatalog = $"oms_{Guid.NewGuid():N}" }.ConnectionString);
 
     public async Task<string> NovoBancoMigradoAsync()
     {
