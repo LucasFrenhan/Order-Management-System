@@ -9,8 +9,10 @@ percorre `/speckit-specify` → `/speckit-clarify` → `/speckit-plan` → `/spe
 
 Antes de iniciar um novo REQ (o primeiro passo é o `/speckit-specify`), é obrigatório:
 
-1. **Nenhum PR aberto.** `gh pr list --state open` precisa vir vazio. Se houver PR aberto,
-   não comece a spec: avise quais PRs faltam e espere o merge.
+1. **Nenhum PR aberto.** `gh pr list --state open --search "-author:app/dependabot"` precisa
+   vir vazio. Se houver PR aberto, não comece a spec: avise quais PRs faltam e espere o merge.
+   Os PRs do Dependabot (REQ-26) não contam, mas liste-os (`gh pr list --author app/dependabot`)
+   e avise o dono se algum for uma atualização de segurança (o corpo do PR cita o aviso GHSA).
 2. **Sincronizar o git.**
    - `git fetch origin --prune`
    - `git switch main` e `git pull --ff-only`; a `main` local precisa ficar igual à
