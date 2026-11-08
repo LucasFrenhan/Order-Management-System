@@ -228,6 +228,30 @@ dividindo 31 GB, ficou sem memória); uma rodada completa depois, sem a coleta, 
 em 312 s. A confirmação é no runner: pelo menos 3 runs do PR. Se houver instabilidade, o
 próximo passo é 4.
 
+### Achado: conexões presas nos pools do SqlClient (#77, corrigido)
+
+Localmente, no Docker Desktop, as portas publicadas em `127.0.0.1` passam pelo `wslrelay`, que
+aceita no máximo **1.988 conexões simultâneas**: a conexão seguinte é recusada (erros 10054 e
+10053). Pelo IP da rede local, que passa pelo backend do Docker, 2.100 conexões abriram sem erro.
+Os dados estão na [#77](https://github.com/LucasFrenhan/Order-Management-System/issues/77).
+
+A suíte chegava ao teto porque cada teste cria o próprio banco (`oms_{guid}`), e o SqlClient
+abre um pool para cada string de conexão. As conexões ociosas só fecham depois de 4 a 8 minutos,
+e as do mínimo do pool (`MinPoolSize = 2` do armazenamento de limites) nunca fecham. Na suíte de
+~7 min, elas se acumulavam a ~8 por segundo, e 1.983 das 1.986 conexões do pico eram do SQL
+Server.
+
+A correção é o `LiberarPoolsDoTesteAttribute`, aplicado ao assembly de integração: no fim de cada
+teste, ele fecha os pools dos bancos que o teste criou. A string do teste leva um
+`Application Name` fixo, porque sem ele o EF Core 10 acrescenta o próprio nome e o pool dele fica
+com uma chave que o `ClearPool` não alcança.
+
+| 6 threads, 3 rodadas alternadas | Antes | Depois |
+|---|---|---|
+| Rodadas com falha | 3 de 3 (30, 9 e 3 falhas) | 0 de 3 |
+| Pico de conexões no `wslrelay` | 1.810 a 1.986 | 38 a 44 |
+| Tempo médio do `dotnet test` | 454 s | 402 s (−11%) |
+
 ## Resultado no CI (PR #71, run 41808773891, 2026-11-04)
 
 Três execuções do mesmo commit, com 6 threads:
