@@ -210,13 +210,15 @@ telemetria fica desligada e nada muda.
 ## Integração contínua e qualidade
 
 Todo PR para a `main` passa pelo build, pelos testes unitários e de integração, pela
-demonstração e pelo Quality Gate do SonarQube Cloud, e só entra por rebase. Os detalhes estão
-em dois documentos:
+demonstração, pela verificação de vulnerabilidades das dependências, pelo CodeQL e pelo
+Quality Gate do SonarQube Cloud, e só entra por rebase. Os detalhes estão em três documentos:
 
 - [Integração contínua](docs/integracao-continua.md): os jobs, o que deixa o check vermelho,
   como reproduzir localmente e a proteção da `main`.
 - [Análise estática](docs/analise-estatica.md): o painel, o Quality Gate e o que fazer quando
   ele reprova.
+- [Segurança da cadeia de build](docs/seguranca-cadeia-build.md): vulnerabilidades, Dependabot
+  e CodeQL, e como tratar cada alerta.
 
 ## Estrutura
 
@@ -224,9 +226,9 @@ em dois documentos:
 docker-compose.yml                   ambiente local: SQL Server + RabbitMQ + API de pagamento simulada; perfil demo com a API
 .env.example                         variáveis OMS_* para trocar portas e credenciais locais
 .config/dotnet-tools.json            ferramenta local dotnet-ef (migrations)
-.github/workflows/                   build-testes (CI e análise do SonarQube Cloud), compatibilidade do contrato e prs-de-fork
-.github/rulesets/protecao-main.json  ruleset da main (PR por rebase, verificações exigidas)
-.github/scripts/resumo-testes.sh     resumo de testes e cobertura do CI
+.github/workflows/                   build-testes (CI e SonarQube Cloud), codeql, compatibilidade do contrato e prs-de-fork
+.github/rulesets/protecao-main.json  ruleset da main (PR por rebase, verificações exigidas); dependabot.yml ao lado
+.github/scripts/                    resumo de testes e cobertura, e verificação de vulnerabilidades do CI
 coverage.runsettings                 o que entra na cobertura
 .dockerignore                        contexto da imagem da API
 src/
