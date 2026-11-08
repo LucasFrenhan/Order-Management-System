@@ -33,7 +33,8 @@ public sealed class BancoDadosTeste : IAsyncLifetime
 
     /// <summary>String de conexão para um banco ainda inexistente, de nome único.</summary>
     public string NovoBanco() =>
-        new SqlConnectionStringBuilder(sqlServer!.GetConnectionString()) { InitialCatalog = $"oms_{Guid.NewGuid():N}" }.ConnectionString;
+        LiberarPoolsDoTesteAttribute.Registrar(
+            new SqlConnectionStringBuilder(sqlServer!.GetConnectionString()) { InitialCatalog = $"oms_{Guid.NewGuid():N}" }.ConnectionString);
 
     /// <summary>Banco novo, já com todas as migrations.</summary>
     public async Task<string> NovoBancoMigradoAsync()

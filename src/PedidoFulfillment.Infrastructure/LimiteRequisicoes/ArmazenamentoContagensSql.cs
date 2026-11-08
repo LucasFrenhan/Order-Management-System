@@ -146,7 +146,8 @@ internal sealed class ArmazenamentoContagensSql(IOptions<OpcoesSqlServer> sqlSer
         await contexto.Database.SqlQueryRaw<int>("SELECT 1 AS Value").ToListAsync(cancellationToken);
     }
 
-    private static string StringConexao(string origem) => new SqlConnectionStringBuilder(origem)
+    /// <summary>A string do pool próprio do armazenamento; os testes a usam para fechar o pool (#77).</summary>
+    internal static string StringConexao(string origem) => new SqlConnectionStringBuilder(origem)
     {
         ApplicationName = NomeAplicacao,
         MaxPoolSize = MaximoConexoes,
