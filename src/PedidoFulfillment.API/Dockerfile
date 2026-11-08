@@ -2,7 +2,7 @@
 # repositório: docker build -f src/PedidoFulfillment.API/Dockerfile .
 # Versões fixas, sem "latest": o SDK acompanha o global.json e o runtime, os pacotes 10.0.13.
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0.402-noble AS compilacao
+FROM mcr.microsoft.com/dotnet/sdk:10.0.403-noble AS compilacao
 WORKDIR /fonte
 
 # Restauração numa camada própria, reaproveitada enquanto os projetos não mudam.
@@ -18,7 +18,7 @@ COPY src/ src/
 COPY specs/001-contratos-api/contracts/openapi-v1.yaml specs/001-contratos-api/contracts/
 RUN dotnet publish src/PedidoFulfillment.API/PedidoFulfillment.API.csproj -c Release --no-restore -o /app
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.13-noble AS execucao
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.14-noble AS execucao
 WORKDIR /app
 COPY --from=compilacao /app .
 ENV ASPNETCORE_HTTP_PORTS=8080
