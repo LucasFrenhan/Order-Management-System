@@ -11,7 +11,8 @@ namespace PedidoFulfillment.Testes.Integracao.Infraestrutura;
 /// </summary>
 public sealed class MailpitTeste : IAsyncLifetime
 {
-    private const string Imagem = "axllent/mailpit:v1.33.0";
+    // Versão lida do docker-compose.yml, que o Dependabot atualiza (REQ-26, FR-019).
+    private static string Imagem => ImagensDoAmbiente.Mailpit;
     private const int PortaSmtp = 1025;
     private const int PortaTela = 8025;
 
