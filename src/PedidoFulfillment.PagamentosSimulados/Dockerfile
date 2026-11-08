@@ -2,7 +2,7 @@
 # repositório: docker build -f src/PedidoFulfillment.PagamentosSimulados/Dockerfile .
 # Versões fixas, sem "latest", iguais às das imagens da API e do Worker (REQ-07).
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0.402-noble AS compilacao
+FROM mcr.microsoft.com/dotnet/sdk:10.0.403-noble AS compilacao
 WORKDIR /fonte
 
 # Restauração numa camada própria, reaproveitada enquanto o projeto não muda.
@@ -13,7 +13,7 @@ RUN dotnet restore src/PedidoFulfillment.PagamentosSimulados/PedidoFulfillment.P
 COPY src/PedidoFulfillment.PagamentosSimulados/ src/PedidoFulfillment.PagamentosSimulados/
 RUN dotnet publish src/PedidoFulfillment.PagamentosSimulados/PedidoFulfillment.PagamentosSimulados.csproj -c Release --no-restore -o /app
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.13-noble AS execucao
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.14-noble AS execucao
 WORKDIR /app
 COPY --from=compilacao /app .
 ENV ASPNETCORE_HTTP_PORTS=8080

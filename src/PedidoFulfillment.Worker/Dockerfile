@@ -2,7 +2,7 @@
 # repositório: docker build -f src/PedidoFulfillment.Worker/Dockerfile .
 # Versões fixas, sem "latest", iguais às da imagem da API (REQ-07).
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0.402-noble AS compilacao
+FROM mcr.microsoft.com/dotnet/sdk:10.0.403-noble AS compilacao
 WORKDIR /fonte
 
 # Restauração numa camada própria, reaproveitada enquanto os projetos não mudam.
@@ -16,7 +16,7 @@ RUN dotnet restore src/PedidoFulfillment.Worker/PedidoFulfillment.Worker.csproj
 COPY src/ src/
 RUN dotnet publish src/PedidoFulfillment.Worker/PedidoFulfillment.Worker.csproj -c Release --no-restore -o /app
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.13-noble AS execucao
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.14-noble AS execucao
 WORKDIR /app
 COPY --from=compilacao /app .
 ENV ASPNETCORE_HTTP_PORTS=8080
