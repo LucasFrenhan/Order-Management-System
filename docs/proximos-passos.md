@@ -34,7 +34,7 @@ uma sugestão; o número do REQ é dado quando o trabalho começa.
 | 2 | a numerar | [#60](https://github.com/LucasFrenhan/Order-Management-System/issues/60) — Rotação da chave JWT | Várias chaves com `kid` e rotação sem derrubar sessões |
 | 3 | a numerar | [#57](https://github.com/LucasFrenhan/Order-Management-System/issues/57) — Estornos pela operação | Forçar tentativa, dar baixa manual e evento de estorno travado |
 | 4 | a numerar | [#56](https://github.com/LucasFrenhan/Order-Management-System/issues/56) — Evolução do pagamento | Estudo: nova cobrança após recusa, estorno parcial, devolução, pagamento em análise e gateway real |
-| 5 | a numerar | [#77](https://github.com/LucasFrenhan/Order-Management-System/issues/77) — Falhas intermitentes dos testes | Investigar: conexões que caem no Docker Desktop e busca full-text fora do prazo no CI |
+| 5 | a numerar | [#77](https://github.com/LucasFrenhan/Order-Management-System/issues/77) — Falhas intermitentes dos testes | Investigar a busca full-text fora do prazo no CI e as travadas de 30 s no `wslrelay`. As conexões que caíam no Docker Desktop vinham dos pools presos dos testes, corrigidos em [otimizacao-ci.md](otimizacao-ci.md#achado-conexões-presas-nos-pools-do-sqlclient-77-corrigido) |
 | contínua | sem REQ | [#61](https://github.com/LucasFrenhan/Order-Management-System/issues/61) — Dívida técnica de code smells | Sem prazo: todo PR que corrigir code smells referencia a #61 (`Refs #61`) e atualiza a tabela dela |
 
 ### Para análise futura (sem issue)
