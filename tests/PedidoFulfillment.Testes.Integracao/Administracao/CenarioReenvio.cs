@@ -151,6 +151,13 @@ internal static class CenarioReenvio
     public static Task<bool> EsperarSituacaoAsync(string stringConexao, Guid id, SituacaoReenvioDlq situacao) =>
         MensageriaTeste.EsperarAteAsync(async () => (await LerAsync(stringConexao, id)).Situacao == situacao, Prazo);
 
+    /// <summary>
+    /// O executor grava a situação e só depois escreve o log: quem confere o log espera por ele,
+    /// antes de descartar o Worker (#77).
+    /// </summary>
+    public static Task<bool> EsperarLogAsync(CapturaLogs logs, int eventId) =>
+        MensageriaTeste.EsperarAteAsync(() => Task.FromResult(logs.Registros.Any(r => r.Evento.Id == eventId)), Prazo);
+
     public static void DeveTerSido(this PedidoReenvioDlq pedido, int reenviadas, int bloqueadas, int foraDoFiltro) =>
         (pedido.Reenviadas, pedido.BloqueadasPeloLimite, pedido.ForaDoFiltro).Should().Be((reenviadas, bloqueadas, foraDoFiltro));
 }

@@ -68,6 +68,7 @@ public sealed class ExecucaoReenvioDlqTestes(MensageriaTeste mensageria)
         {
             worker.CreateClient().Dispose();
             (await EsperarSituacaoAsync(stringConexao, pedido.Id, SituacaoReenvioDlq.Concluido)).Should().BeTrue();
+            (await EsperarLogAsync(logs, 5009)).Should().BeTrue("a conclusão é registrada depois de gravada");
         }
 
         (await LerAsync(stringConexao, pedido.Id)).DeveTerSido(reenviadas: 1, bloqueadas: 1, foraDoFiltro: 2);
@@ -177,6 +178,7 @@ public sealed class ExecucaoReenvioDlqTestes(MensageriaTeste mensageria)
         (await EsperarSituacaoAsync(stringConexao, pedido.Id, SituacaoReenvioDlq.Concluido)).Should().BeTrue();
         (await LerAsync(stringConexao, pedido.Id)).DeveTerSido(reenviadas: 5, bloqueadas: 0, foraDoFiltro: 0);
         (await ContarAsync(mensageria, Principal)).Should().Be(5, "cada mensagem foi reenviada uma vez");
+        (await EsperarLogAsync(logs, 5009)).Should().BeTrue("a conclusão é registrada depois de gravada");
         logs.Registros.Count(r => r.Evento.Id == 5009).Should().Be(1);
     }
 
@@ -229,12 +231,13 @@ public sealed class ExecucaoReenvioDlqTestes(MensageriaTeste mensageria)
             await ApagarPrincipalAsync();
             pedido = await PedidoAsync(stringConexao);
             (await EsperarSituacaoAsync(stringConexao, pedido.Id, SituacaoReenvioDlq.Falhou)).Should().BeTrue();
+
+            (await EsperarLogAsync(logs, 5010)).Should().BeTrue("a falha é registrada depois de gravada");
         }
 
         var falhou = await LerAsync(stringConexao, pedido.Id);
         falhou.Reenviadas.Should().Be(0);
         falhou.MotivoFalha.Should().NotBeNullOrEmpty();
-        logs.Registros.Should().Contain(r => r.Evento.Id == 5010);
         (await MensageriaTeste.EsperarAteAsync(async () => await ContarAsync(mensageria, Dlq) == 3, Prazo)).Should().BeTrue("as sem ack voltam à DLQ");
         await PrepararFilasAsync(mensageria);
     }
