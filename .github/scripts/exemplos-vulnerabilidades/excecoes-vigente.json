@@ -1,0 +1,18 @@
+{
+  "excecoes": [
+    {
+      "pacote": "exemplo.alto",
+      "aviso": "https://github.com/advisories/GHSA-aaaa-aaaa-aaaa",
+      "motivo": "Exemplo: sem versão corrigida; o código vulnerável não é usado.",
+      "registradaEm": "2026-11-01",
+      "revisarAte": "2026-12-01"
+    },
+    {
+      "pacote": "Exemplo.SemUso",
+      "aviso": "https://github.com/advisories/GHSA-cccc-cccc-cccc",
+      "motivo": "Exemplo: exceção que já não casa com nada.",
+      "registradaEm": "2026-11-01",
+      "revisarAte": "2026-12-01"
+    }
+  ]
+}

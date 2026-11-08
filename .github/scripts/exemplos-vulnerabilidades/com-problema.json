@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "problems": [
+    { "text": "Falha ao obter os dados de vulnerabilidade da fonte https://api.nuget.org/v3/index.json.", "level": "error" }
+  ]
+}

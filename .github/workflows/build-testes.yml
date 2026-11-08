@@ -6,6 +6,8 @@
 # roda de novo.
 # Tempo (issue #70, docs/otimizacao-ci.md): a imagem do SQL Server com Full-Text Search vem
 # pronta do GHCR, e os testes de integração rodam em paralelo (xunit.runner.json).
+# Vulnerabilidades das dependências (REQ-26, specs/026-dependabot-codeql): depois do restore,
+# alta e crítica reprovam o job, com o resumo por pacote; o CodeQL roda em codeql.yml.
 name: build-testes
 
 on:
@@ -118,6 +120,17 @@ jobs:
 
       - name: Restaurar
         run: dotnet restore PedidoFulfillment.sln
+
+      # REQ-26 (FR-011 a FR-014, specs/026-dependabot-codeql): alta e crítica reprovam, salvo
+      # exceção vigente em .github/vulnerabilidades-aceitas.json; baixa e moderada vão ao resumo
+      # como aviso. O roteiro é conferido antes com as saídas gravadas da pasta de exemplos.
+      - name: Vulnerabilidades
+        shell: pwsh
+        run: |
+          ./.github/scripts/exemplos-vulnerabilidades/conferir.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./.github/scripts/verificar-vulnerabilidades.ps1
+          exit $LASTEXITCODE
 
       - name: Compilar
         run: dotnet build PedidoFulfillment.sln -c Release --no-restore

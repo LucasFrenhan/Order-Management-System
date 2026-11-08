@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "parameters": "--vulnerable --include-transitive",
+  "sources": ["https://api.nuget.org/v3/index.json"],
+  "projects": [
+    { "path": "/repo/src/PedidoFulfillment.API/PedidoFulfillment.API.csproj", "frameworks": [] },
+    { "path": "/repo/src/PedidoFulfillment.Worker/PedidoFulfillment.Worker.csproj" }
+  ]
+}

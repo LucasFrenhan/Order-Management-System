@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "parameters": "--vulnerable --include-transitive",
+  "projects": [
+    {
+      "path": "/repo/src/PedidoFulfillment.API/PedidoFulfillment.API.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "transitivePackages": [
+            {
+              "id": "Exemplo.Alto",
+              "resolvedVersion": "1.2.3",
+              "vulnerabilities": [
+                { "severity": "High", "advisoryurl": "https://github.com/advisories/GHSA-aaaa-aaaa-aaaa" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "/repo/src/PedidoFulfillment.Worker/PedidoFulfillment.Worker.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Exemplo.Baixo",
+              "requestedVersion": "3.0.0",
+              "resolvedVersion": "3.0.0",
+              "vulnerabilities": [
+                { "severity": "Low", "advisoryurl": "https://github.com/advisories/GHSA-bbbb-bbbb-bbbb" }
+              ]
+            }
+          ],
+          "transitivePackages": [
+            {
+              "id": "Exemplo.Alto",
+              "resolvedVersion": "1.2.3",
+              "vulnerabilities": [
+                { "severity": "High", "advisoryurl": "https://github.com/advisories/GHSA-aaaa-aaaa-aaaa" }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
