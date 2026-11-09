@@ -63,9 +63,9 @@ builder.Services.AddScoped<IServicoSessoes, ServicoSessoes>();
 builder.Services.AddScoped<IServicoSenhas, ServicoSenhas>();
 builder.Services.AddScoped<IServicoConfirmacaoEmail, ServicoConfirmacaoEmail>();
 builder.Services.AddScoped<IServicoPedidos, ServicoPedidos>();
-// Chave do cursor da listagem (REQ-21, research R-04): hoje derivada da chave do JWT. Para usar
-// uma chave própria do cursor, troque só esta linha por outra IChaveCursor.
-builder.Services.AddSingleton<IChaveCursor, ChaveCursorDerivadaDoJwt>();
+// Chave dos cursores das listagens (REQ-21 R-04; REQ-27 R-06): Listagens:ChaveCursor, ou derivada da chave
+// ativa do JWT quando ela não está configurada.
+builder.Services.AdicionarChaveCursor();
 builder.Services.AddSingleton<CodificadorCursorPedidos>();
 builder.Services.AddScoped<IServicoListagemPedidos, ServicoListagemPedidos>();
 builder.Services.AddSingleton<CodificadorCursorProdutos>();
