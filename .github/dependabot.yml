@@ -83,6 +83,10 @@ updates:
       # A partir da 8 a licença é comercial; o projeto fixa a série 7.x (Directory.Packages.props).
       - dependency-name: "FluentAssertions"
         versions: [">=8.0.0"]
+      # A 3 exige o Microsoft.OpenApi 3, e o Microsoft.AspNetCore.OpenApi 10.0.x só aceita abaixo
+      # de 3.0 (NU1608 no restore, PR #93). Tirar quando o ASP.NET Core migrar para o OpenApi 3.
+      - dependency-name: "Microsoft.OpenApi.YamlReader"
+        versions: [">=3.0.0"]
 
   - package-ecosystem: github-actions
     # Troca o SHA fixado e o comentário "# vX.Y.Z" juntos.
