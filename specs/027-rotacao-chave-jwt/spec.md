@@ -20,7 +20,7 @@ Duas coisas do sistema atual limitam o impacto e entram no desenho:
 
 - A renovação da sessão (REQ-24) usa um token de renovação opaco, guardado no banco, que não depende
   da chave do JWT. Um cliente cujo token de acesso foi recusado consegue renová-lo sem digitar a senha.
-- A chave que assina o cursor da listagem de pedidos (REQ-21) é derivada hoje da `Jwt:ChaveAssinatura`.
+- A chave que assina os cursores das listagens de pedidos (REQ-21), produtos (REQ-22) e usuários (REQ-25) é derivada hoje da `Jwt:ChaveAssinatura`.
   A [documentação do fluxo 3](../../docs/fluxos/03-consulta-e-mudanca-de-status.md#limitações) já
   registra que a rotação da #60 invalidaria os cursores em uso.
 
@@ -184,7 +184,7 @@ User Story 1.
   B como aceita) chegue a todas as instâncias antes da etapa 2.
 - **Retirada antes do prazo**: os tokens da chave retirada passam a receber 401, e os clientes renovam a
   sessão. É o comportamento da retirada de emergência.
-- **Cursor da listagem de pedidos com chave própria**: a rotação do JWT não muda a chave do cursor, e os
+- **Cursores das listagens com chave própria**: a rotação do JWT não muda a chave do cursor, e os
   cursores em uso continuam válidos.
 - **Cursor sem chave própria**: a chave do cursor é derivada da chave ativa do JWT. Na troca da chave ativa
   os cursores em uso recebem 400 e o cliente recomeça da primeira página, como hoje. Migrar o mesmo valor
@@ -218,9 +218,9 @@ User Story 1.
 - **FR-007**: A configuração antiga, `Jwt:ChaveAssinatura`, MUST fazer a partida falhar, com uma mensagem
   que indique o formato novo. A configuração de desenvolvimento, a dos testes e a documentação MUST migrar
   para o formato novo no mesmo PR.
-- **FR-008**: O cursor da listagem de pedidos MUST poder ter uma chave própria, configurada separadamente
+- **FR-008**: Os cursores das listagens (pedidos, produtos e usuários) MUST poder ter uma chave própria, configurada separadamente
   do JWT, com no mínimo 32 bytes, validada na partida sem mostrar o valor. Sem ela, a chave do cursor MUST
-  ser derivada da chave ativa do JWT. O comportamento MUST ficar registrado no documento do fluxo 3.
+  ser derivada da chave ativa do JWT. O comportamento MUST ficar registrado nos documentos dos fluxos 3 (pedidos), 15 (produtos) e 1 (usuários).
 - **FR-009**: A renovação de sessão (REQ-24) MUST continuar funcionando durante e depois de qualquer
   etapa da rotação, inclusive na retirada de emergência, e o token novo MUST sair com a chave ativa.
 - **FR-010**: O procedimento de rotação MUST estar documentado em `docs/`, com as três etapas (acrescentar,
@@ -234,7 +234,7 @@ User Story 1.
 - **FR-013**: Os testes automatizados MUST cobrir: token da chave antiga aceito no período de transição;
   token de chave retirada recusado com 401; token sem identificador ou com identificador desconhecido
   recusado; emissão com a chave ativa e o identificador dela; cada falha de validação da partida;
-  mensagens de falha sem o valor da chave; os logs do FR-015 e do FR-016; e o cursor da listagem válido depois da troca da chave ativa
+  mensagens de falha sem o valor da chave; os logs do FR-015 e do FR-016; e o cursor das listagens válido depois da troca da chave ativa
   quando há chave própria do cursor.
 - **FR-014**: Um token sem identificador de chave no cabeçalho MUST ser recusado com 401, sem período de
   transição.
@@ -252,7 +252,7 @@ User Story 1.
   e se é a ativa. Uma chave fora da configuração é uma chave retirada.
 - **Conjunto de chaves**: as chaves configuradas em uma instância, de 1 a 3. Exatamente uma é a ativa; as
   demais só validam.
-- **Chave do cursor**: segredo próprio que assina o cursor da listagem de pedidos; opcional, com no mínimo
+- **Chave do cursor**: segredo próprio que assina os cursores das listagens de pedidos, produtos e usuários; opcional, com no mínimo
   32 bytes. Na falta dele, a chave do cursor é derivada da chave ativa do JWT.
 
 ## Success Criteria *(mandatory)*
