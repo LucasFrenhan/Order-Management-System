@@ -71,7 +71,7 @@ PR:
 | Compose | as imagens de `docker-compose.yml`, que os testes de integração também usam | `compose` |
 
 - **Quando**: toda segunda, 06:00 (horário de Brasília), no máximo 5 PRs abertos por
-  ecossistema.
+  ecossistema; no NuGet, 10, para os majors em avaliação não tomarem as vagas dos grupos.
 - **Regra das duas semanas**: as atualizações de versão só propõem versões publicadas há 14
   dias ou mais (`cooldown`). As **atualizações de segurança** não esperam: chegam assim que a
   correção sai, num PR próprio.
