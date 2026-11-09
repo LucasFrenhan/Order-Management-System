@@ -12,7 +12,10 @@ REQ-23 ([spec](../../specs/023-rate-limiting/spec.md),
 REQ-24 ([spec](../../specs/024-ciclo-autenticacao/spec.md),
 [contrato](../../specs/024-ciclo-autenticacao/contracts/autenticacao.md)) e
 REQ-25 ([spec](../../specs/025-gestao-usuarios/spec.md),
-[contrato](../../specs/025-gestao-usuarios/contracts/gestao-usuarios.md)). O envio dos e-mails está no
+[contrato](../../specs/025-gestao-usuarios/contracts/gestao-usuarios.md)) e
+REQ-27 ([spec](../../specs/027-rotacao-chave-jwt/spec.md),
+[configuração](../../specs/027-rotacao-chave-jwt/contracts/configuracao.md),
+[token](../../specs/027-rotacao-chave-jwt/contracts/token-acesso.md)). O envio dos e-mails está no
 [fluxo 16](16-envio-de-email.md).
 
 ## Perfis
@@ -71,9 +74,27 @@ HTTP/1.1 200 OK
 
 - O token de acesso é um JWT `HS256` com `sub` (o id do usuário), um `role` por perfil, emissor,
   audiência e validade de 15 minutos por padrão (`Jwt:DuracaoTokenMinutos`). Leia o `expiraEm`.
+- O cabeçalho do token traz o `kid`, o identificador da chave que o assinou (REQ-27).
 - O token não leva nome, e-mail nem outro dado pessoal.
 - As rotas protegidas recebem o token no cabeçalho `Authorization: Bearer <token>`.
 - O login não exige o e-mail confirmado (REQ-24, FR-020).
+
+### Chaves de assinatura
+
+A API aceita de 1 a 3 chaves (`Jwt:Chaves`), cada uma com um identificador, e emite com a chave ativa
+(`Jwt:ChaveAtiva`). Um token é aceito quando o `kid` dele é de uma chave configurada, ativa ou não, e a assinatura
+confere. Assim a chave troca sem derrubar ninguém: acrescentar a nova, ativá-la e retirar a antiga depois da validade
+máxima do token ([procedimento](../rotacao-chave-jwt.md)).
+
+- O token sem `kid`, com `kid` de uma chave retirada ou com `kid` desconhecido recebe o mesmo 401 de um token inválido,
+  com o log 3027. A comparação do `kid` diferencia maiúsculas de minúsculas.
+- A renovação da sessão não depende da chave do JWT: depois de uma retirada de emergência, o cliente recebe o 401, renova
+  e passa a usar um token da chave ativa, sem digitar a senha.
+- Configuração inválida impede a API de subir, com mensagens que citam só o identificador ou a posição na lista
+  ([mensagens](../../specs/027-rotacao-chave-jwt/contracts/configuracao.md#mensagens-de-falha-na-partida)). A antiga
+  `Jwt:ChaveAssinatura` não é mais aceita.
+- Os cursores das listagens (inclusive a de usuários, abaixo) são assinados com `Listagens:ChaveCursor`, quando
+  configurada; sem ela, com uma chave derivada da chave ativa do JWT, e a troca da ativa invalida os cursores em uso.
 
 ### Renovação
 
@@ -254,6 +275,7 @@ Seção `LimiteRequisicoes`, validada na partida; os limites e as faixas estão 
 
 | Situação | Resposta | Exemplo | Por quê |
 |----------|----------|---------|---------|
+| Token sem `kid`, de chave retirada ou com `kid` desconhecido | 401 "Não autenticado." / "Informe um token de acesso válido.", com `WWW-Authenticate: Bearer`; log 3027 | Token emitido antes do REQ-27, ou da chave antiga depois da etapa 3 | O mesmo 401 de qualquer token inválido; o cliente renova a sessão (REQ-27, FR-004, FR-014) |
 | Limite de requisições excedido | 429 `LIMITE_REQUISICOES_EXCEDIDO`: "Muitas requisições." / "Aguarde o tempo indicado no cabeçalho Retry-After e tente de novo.", com `Retry-After` em segundos inteiros | 11ª tentativa em 1 minuto com o mesmo e-mail | Igual para conta existente, inexistente ou bloqueada, e sem os valores dos limites (REQ-23, FR-013) |
 | Nome com menos de 2 ou mais de 100 caracteres, sem contar os espaços das pontas | 400, `erros.nome`: "O nome deve ter entre 2 e 100 caracteres, sem contar espaços nas pontas." | `"nome": " A "` | Regra do contrato v1 |
 | E-mail ausente, mal formado ou com mais de 256 caracteres | 400, `erros.email` | `"email": "maria"` | Regra do contrato v1 |
@@ -301,6 +323,7 @@ Seção `LimiteRequisicoes`, validada na partida; os limites e as faixas estão 
 | Deadlock na contagem do limite | Uma nova tentativa, sem abrir a pausa. Se persistir, a requisição segue sem o limite, com log 3008 e métrica, e a instância continua consultando o armazenamento | É uma disputa momentânea, e não um armazenamento fora do ar. Contagens de chaves diferentes não disputam entre si (REQ-23, R-03; issue #75) |
 | Configuração do limite inválida | A API não sobe; a mensagem cita a chave (por exemplo `LimiteRequisicoes:Registro:Limite`), sem mostrar o valor | Falha cedo, sem vazar segredos (REQ-23, FR-018) |
 | Configuração das sessões inválida | A API não sobe; a mensagem cita a chave (por exemplo `Sessoes:DuracaoMaximaDias`), sem mostrar o valor | REQ-24 |
+| Configuração das chaves do JWT inválida (sem chave, mais de 3, identificador fora do formato ou repetido, valor com menos de 32 bytes, ativa fora da lista, `Jwt:ChaveAssinatura` antiga, `Listagens:ChaveCursor` curta) | A API não sobe; todas as falhas saem juntas, citando o identificador ou a posição, sem mostrar valores | Erro de configuração aparece na partida, e não como 401 para todos (REQ-27, FR-005 a FR-008) |
 | Serviço de e-mail fora do ar | As rotas respondem como de costume, e o envio é tentado de novo ([fluxo 16](16-envio-de-email.md)) | O envio nunca acontece durante a requisição (FR-013, FR-021) |
 | Falha no meio da troca ou da redefinição | 500 "Erro interno." e nada muda: o token não é gasto, e a senha e as sessões continuam como estavam | Tudo em uma transação (R-09) |
 
@@ -343,6 +366,16 @@ O limite de requisições (REQ-23) acrescenta:
 As contagens guardam só um HMAC da política, da origem e do e-mail, e a limpeza a cada 60 s no Worker remove as
 vencidas ([fluxo 11](11-limpeza-e-reenvio-da-dlq.md#limpeza)).
 
+A rotação da chave do JWT (REQ-27) acrescenta:
+
+- **Log 3026** (`ChavesJwtCarregadas`, Information), na partida: "Chaves do JWT: ativa {ChaveAtiva}; aceitas
+  {ChavesAceitas}.", com `-` quando não há aceitas. Mostra se cada instância já recebeu a configuração da etapa.
+- **Log 3027** (`TokenChaveDesconhecida`, Warning), a cada token recusado por `kid` ausente, retirado ou desconhecido:
+  "Token recusado: chave {IdentificadorChave} fora da configuração.". O `kid` só entra se tiver o formato de um
+  identificador; senão, `(inválido)`, e sem `kid`, `(ausente)`. Assinatura errada com `kid` configurado não gera o 3027.
+
+Nenhum dos dois traz o valor de uma chave, o token, o usuário ou o endereço de origem.
+
 ## Limitações
 
 - **Token de acesso depois do logout, da troca de senha, da desativação ou da retirada de perfil**: continua valendo até
@@ -364,6 +397,12 @@ vencidas ([fluxo 11](11-limpeza-e-reenvio-da-dlq.md#limpeza)).
   pessoa por 15 minutos. Vem do REQ-03, e o limite não resolve quando as origens são muitas.
 - **Inundação de muitas origens**: pode esgotar as 20 conexões reservadas ao limite e deixar uma instância sem ele
   enquanto durar, pela regra de seguir sem o limite. O bloqueio de conta continua protegendo as senhas (REQ-23).
+- **Um 401 por cliente na implantação do REQ-27**: os tokens emitidos antes não têm `kid` e são recusados uma vez; o
+  cliente renova a sessão sem digitar a senha. Decisão do usuário, sem período de transição (REQ-27, FR-014).
+- **Volume do log 3027**: cada token forjado com `kid` desconhecido gera um aviso, e as rotas protegidas não têm limite
+  de requisições. O nível de log e a coleta absorvem o volume (REQ-27, R-05).
+- **Rotação sem recarga**: as chaves são lidas na partida; cada etapa da rotação exige reiniciar as instâncias. Trocar
+  a própria `Listagens:ChaveCursor` invalida os cursores em uso (400), sem rotação com várias chaves para ela (REQ-27).
 
 A falta de rotas de gestão de usuários e de perfis foi resolvida pela issue
 [#54](https://github.com/LucasFrenhan/Order-Management-System/issues/54) (REQ-25).

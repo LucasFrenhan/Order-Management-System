@@ -37,7 +37,9 @@ HTTP/1.1 200 OK
 - **Paginação por cursor**, como a listagem de pedidos ([fluxo 3](03-consulta-e-mudanca-de-status.md#listagem)):
   `tamanho` de 1 a 100 (padrão 20), `proximo` e `anterior`, sem total. O cursor é assinado, vale
   só para o mesmo usuário, a mesma busca e a mesma situação, e nunca vale na listagem de pedidos
-  (nem o contrário).
+  (nem o contrário). A chave da assinatura é a mesma dos pedidos: `Listagens:ChaveCursor`, ou,
+  sem ela, derivada da chave ativa do JWT, cuja troca invalida os cursores em uso (400; REQ-27,
+  [rotação da chave](../rotacao-chave-jwt.md)).
 - **Situação** (`Ativos`, `Inativos` ou `Todos`, padrão `Todos`): só a operação usa.
 - **Busca** (`busca`, de 2 a 100 caracteres e até 10 palavras), pelo Full-Text Search do SQL
   Server em português do Brasil, sobre o nome, o SKU e a descrição:

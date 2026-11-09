@@ -39,8 +39,10 @@ Todas as falhas são reunidas numa só `OptionsValidationException`. Nenhuma tra
 | Identificador vazio ou fora do formato | `Jwt:Chaves:{N}:Identificador deve ter de 1 a 64 caracteres entre letras sem acento, dígitos, '-', '_' e '.'.` |
 | Identificador repetido | `Jwt:Chaves: o identificador '{id}' está repetido.` |
 | Valor curto | `Jwt:Chaves: a chave '{id}' deve ter ao menos 32 bytes.` |
+| Valor curto de uma chave com identificador fora do formato | `Jwt:Chaves:{N}:Valor deve ter ao menos 32 bytes.` |
 | Chave ativa vazia | `Jwt:ChaveAtiva é obrigatória.` |
 | Chave ativa fora da lista | `Jwt:ChaveAtiva '{id}' não está entre as chaves de Jwt:Chaves.` |
+| Chave ativa fora da lista e fora do formato | `Jwt:ChaveAtiva deve ser o identificador de uma das chaves de Jwt:Chaves.` (sem citar o valor) |
 | Emissor ou audiência vazios | `Jwt:Emissor e Jwt:Audiencia são obrigatórios.` (como hoje) |
 | `Listagens:ChaveCursor` curta | `Listagens:ChaveCursor deve ter ao menos 32 bytes.` |
 

@@ -211,8 +211,11 @@ entrega cancelada). A listagem registra o 4006 (`PedidosListados`, nível Debug)
 - A listagem não tem total nem salto para uma página qualquer: a navegação é só pela próxima e
   pela anterior (decisão da clarify do REQ-21). Também não tem `ETag`, busca textual nem
   exportação.
-- A chave que assina o cursor da listagem é derivada hoje da chave de assinatura do JWT
-  (`Jwt:ChaveAssinatura`, por HKDF). Trocar essa chave, por exemplo na rotação da #60, invalida
-  os cursores em uso: a resposta é 400 e o cliente recomeça da primeira página. A chave pode
-  passar no futuro a uma chave própria do cursor, mudando só o registro de
-  `IChaveCursor` na API ([research R-04](../../specs/021-listagem-pedidos/research.md#r-04--chave-do-hmac-do-cursor)).
+- A chave que assina o cursor da listagem vem de `Listagens:ChaveCursor`, quando configurada, e a
+  rotação da chave do JWT não a afeta. Sem ela, é derivada por HKDF da chave ativa do JWT, e a
+  troca da ativa invalida os cursores em uso: a resposta é 400 e o cliente recomeça da primeira
+  página. Trocar a própria `Listagens:ChaveCursor` também invalida os cursores em uso. A
+  pendência da chave própria foi resolvida pela issue
+  [#60](https://github.com/LucasFrenhan/Order-Management-System/issues/60) (REQ-27,
+  [research R-06](../../specs/027-rotacao-chave-jwt/research.md#r-06--chave-própria-do-cursor);
+  [rotação da chave](../rotacao-chave-jwt.md)).

@@ -22,20 +22,22 @@ renovação com rotação, logout, troca e recuperação de senha e confirmaçã
 de e-mail no Worker (issue #55). O REQ-25 trouxe a gestão de usuários e perfis pelo Admin, com
 convite por e-mail, desativação e a garantia de nunca ficar sem Admin (issue #54). O REQ-26
 protegeu a cadeia de build: dependência com vulnerabilidade alta ou crítica reprova o CI, o
-Dependabot propõe as atualizações e o CodeQL é exigido para o merge (issue #59).
+Dependabot propõe as atualizações e o CodeQL é exigido para o merge (issue #59). O REQ-27
+permitiu rotacionar a chave de assinatura do JWT sem derrubar as sessões, com até 3 chaves
+identificadas no `kid` e uma ativa, e deu aos cursores das listagens uma chave própria
+([rotação da chave](rotacao-chave-jwt.md); issue #60).
 Cada trabalho novo segue o fluxo SDD (`/speckit-specify` → `/speckit-clarify` →
 `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`), em uma
-branch `feature/req-XX-...`, com a numeração a partir do REQ-27.
+branch `feature/req-XX-...`, com a numeração a partir do REQ-28.
 
 A fila abaixo saiu do levantamento das pendências de todas as specs (2026-11-02). A ordem é
 uma sugestão; o número do REQ é dado quando o trabalho começa.
 
 | Ordem | Requisito | Origem | Escopo |
 |-------|-----------|--------|--------|
-| 1 | a numerar | [#60](https://github.com/LucasFrenhan/Order-Management-System/issues/60) — Rotação da chave JWT | Várias chaves com `kid` e rotação sem derrubar sessões |
-| 2 | a numerar | [#57](https://github.com/LucasFrenhan/Order-Management-System/issues/57) — Estornos pela operação | Forçar tentativa, dar baixa manual e evento de estorno travado |
-| 3 | a numerar | [#56](https://github.com/LucasFrenhan/Order-Management-System/issues/56) — Evolução do pagamento | Estudo: nova cobrança após recusa, estorno parcial, devolução, pagamento em análise e gateway real |
-| 4 | a numerar | [#77](https://github.com/LucasFrenhan/Order-Management-System/issues/77) — Falhas intermitentes dos testes | Investigar a busca full-text fora do prazo no CI e as travadas de 30 s no `wslrelay`. As conexões que caíam no Docker Desktop vinham dos pools presos dos testes, corrigidos em [otimizacao-ci.md](otimizacao-ci.md#achado-conexões-presas-nos-pools-do-sqlclient-77-corrigido) |
+| 1 | a numerar | [#57](https://github.com/LucasFrenhan/Order-Management-System/issues/57) — Estornos pela operação | Forçar tentativa, dar baixa manual e evento de estorno travado |
+| 2 | a numerar | [#56](https://github.com/LucasFrenhan/Order-Management-System/issues/56) — Evolução do pagamento | Estudo: nova cobrança após recusa, estorno parcial, devolução, pagamento em análise e gateway real |
+| 3 | a numerar | [#77](https://github.com/LucasFrenhan/Order-Management-System/issues/77) — Falhas intermitentes dos testes | Investigar a busca full-text fora do prazo no CI e as travadas de 30 s no `wslrelay`. As conexões que caíam no Docker Desktop vinham dos pools presos dos testes, corrigidos em [otimizacao-ci.md](otimizacao-ci.md#achado-conexões-presas-nos-pools-do-sqlclient-77-corrigido) |
 | contínua | sem REQ | [#61](https://github.com/LucasFrenhan/Order-Management-System/issues/61) — Dívida técnica de code smells | Sem prazo: todo PR que corrigir code smells referencia a #61 (`Refs #61`) e atualiza a tabela dela |
 
 ### Para análise futura (sem issue)
@@ -59,10 +61,9 @@ Itens do mesmo levantamento que ficaram anotados, sem issue, para decidir depois
     banco dos pedidos em uma inundação. A troca é só outra implementação de `IArmazenamentoContagens` (REQ-23,
     [research R-01](../specs/023-rate-limiting/research.md#r-01-armazenamento-compartilhado-sql-server-ou-redis)).
   - A demonstração roda em HTTP, sem certificado (REQ-07; só local).
-  - A chave que assina os cursores das listagens de pedidos e de produtos é derivada da chave de assinatura do JWT;
-    pode passar a uma chave própria do cursor, trocando só o registro de `IChaveCursor`
-    na API. Vale decidir junto com a rotação da chave do JWT (#60), que hoje invalidaria os
-    cursores em uso (REQ-21, [research R-04](../specs/021-listagem-pedidos/research.md#r-04--chave-do-hmac-do-cursor)).
+  - Chaves do JWT: assinatura ES256 com a chave pública publicada (JWKS) quando outro serviço precisar validar tokens;
+    chaves vindas de um cofre de segredos ou de arquivos montados, com dependência nova; recarga das chaves sem
+    reiniciar a instância (REQ-27, [estudo](rotacao-chave-jwt.md#estudo-assinatura-assimétrica-e-origem-das-chaves)).
 - **Operação e infraestrutura**
   - Provedor real de e-mail em produção: o envio é SMTP puro, e a escolha é uma decisão de implantação; os e-mails são
     só texto, sem HTML nem modelos configuráveis (REQ-24, [fluxo 16](fluxos/16-envio-de-email.md)).
