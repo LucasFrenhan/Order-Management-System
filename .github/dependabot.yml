@@ -1,7 +1,7 @@
 # Atualizações automáticas de dependências (REQ-26, specs/026-dependabot-codeql, research R-04;
 # procedimento em docs/seguranca-cadeia-build.md).
 #
-# - Semanal, na segunda de manhã, com no máximo 5 PRs abertos por ecossistema.
+# - Semanal, na segunda de manhã, com no máximo 5 PRs abertos por ecossistema (10 no NuGet).
 # - Regra das duas semanas: o cooldown só propõe versões publicadas há 14 dias ou mais. As
 #   atualizações de segurança não esperam (o cooldown não vale para elas).
 # - Minor e patch em grupos por família; major em PR próprio, para ser avaliado à parte.
@@ -21,7 +21,9 @@ updates:
       timezone: America/Sao_Paulo
     cooldown:
       default-days: 14
-    open-pull-requests-limit: 5
+    # 10, não 5: os majors ficam abertos enquanto são avaliados à parte e, com 5, ocupavam as
+    # vagas dos grupos (em 2026-11-08, 4 majors e o grupo dotnet travaram os outros três).
+    open-pull-requests-limit: 10
     # Escopo fixo no prefixo: com "include: scope", os grupos que misturam pacotes de produção e
     # de desenvolvimento saíam "build: ..." sem o "(deps)" (PRs #87 e #88). O Dependabot põe os
     # dois-pontos depois do parêntese.
