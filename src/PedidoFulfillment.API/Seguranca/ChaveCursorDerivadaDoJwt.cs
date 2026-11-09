@@ -1,22 +1,17 @@
 using System.Security.Cryptography;
-using System.Text;
-using Microsoft.Extensions.Options;
 using PedidoFulfillment.Application.Comum;
 
 namespace PedidoFulfillment.API.Seguranca;
 
 /// <summary>
-/// Chave do cursor da listagem derivada por HKDF-SHA256 da <c>Jwt:ChaveAssinatura</c> (REQ-21,
-/// research R-04): a mesma em todas as instâncias, sem configuração nova e sem usar a chave do
-/// JWT diretamente. Trocar a chave do JWT (#60) invalida os cursores em uso (400). Pode passar a
-/// uma chave própria do cursor: basta registrar outra <see cref="IChaveCursor"/>.
+/// Chave do cursor da listagem derivada por HKDF-SHA256 da chave ativa do JWT (REQ-21, research R-04; REQ-27).
+/// Provisória: o REQ-27 a substitui por uma chave própria opcional (specs/027-rotacao-chave-jwt, R-06).
 /// </summary>
-public sealed class ChaveCursorDerivadaDoJwt(IOptions<OpcoesJwt> jwt) : IChaveCursor
+public sealed class ChaveCursorDerivadaDoJwt(ConjuntoChavesJwt chaves) : IChaveCursor
 {
     private static readonly byte[] Contexto = "oms/listagem-pedidos/cursor/v1"u8.ToArray();
 
-    private readonly Lazy<byte[]> chave = new(() =>
-        HKDF.DeriveKey(HashAlgorithmName.SHA256, Encoding.UTF8.GetBytes(jwt.Value.ChaveAssinatura), 32, info: Contexto));
+    private readonly Lazy<byte[]> chave = new(() => HKDF.DeriveKey(HashAlgorithmName.SHA256, chaves.ValorAtiva, 32, info: Contexto));
 
     public byte[] Chave => chave.Value;
 }

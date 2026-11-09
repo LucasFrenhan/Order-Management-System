@@ -27,6 +27,7 @@ public sealed class EmissorTokenTestes(FabricaApi fabrica) : IClassFixture<Fabri
 
         var token = new JsonWebTokenHandler().ReadJsonWebToken(login.TokenAcesso);
         token.Alg.Should().Be("HS256");
+        token.Kid.Should().Be(FabricaApi.IdentificadorChaveTeste, "o token sai com o identificador da chave ativa (REQ-27, FR-002)");
         token.Subject.Should().Be(usuarioId.ToString());
         token.Id.Should().NotBeNullOrEmpty();
         token.Issuer.Should().Be(FabricaApi.EmissorTeste);
