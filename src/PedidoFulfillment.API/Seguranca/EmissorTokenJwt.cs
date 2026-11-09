@@ -1,4 +1,3 @@
-using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
@@ -9,10 +8,11 @@ using PedidoFulfillment.Domain.Usuarios;
 namespace PedidoFulfillment.API.Seguranca;
 
 /// <summary>
-/// Emite o JWT do login com as mesmas opções e claims que <see cref="ConfiguracaoJwt"/> valida
-/// (research R-06, contracts/token-acesso.md). Não leva nome, e-mail nem outro dado pessoal.
+/// Emite o JWT do login com as mesmas opções e claims que <see cref="ConfiguracaoJwt"/> valida (research R-06,
+/// contracts/token-acesso.md), assinado com a chave ativa e com o identificador dela no <c>kid</c> (REQ-27, R-03).
+/// Não leva nome, e-mail nem outro dado pessoal.
 /// </summary>
-public sealed class EmissorTokenJwt(IOptions<OpcoesJwt> opcoes, TimeProvider relogio) : IEmissorToken
+public sealed class EmissorTokenJwt(IOptions<OpcoesJwt> opcoes, ConjuntoChavesJwt chaves, TimeProvider relogio) : IEmissorToken
 {
     private readonly JsonWebTokenHandler manipulador = new();
 
@@ -40,8 +40,7 @@ public sealed class EmissorTokenJwt(IOptions<OpcoesJwt> opcoes, TimeProvider rel
             IssuedAt = emissao.UtcDateTime,
             NotBefore = emissao.UtcDateTime,
             Expires = expiracao.UtcDateTime,
-            SigningCredentials = new SigningCredentials(
-                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.ChaveAssinatura)), SecurityAlgorithms.HmacSha256)
+            SigningCredentials = new SigningCredentials(chaves.Ativa, SecurityAlgorithms.HmacSha256)
         });
 
         return new LoginResponseDTO { TokenAcesso = token, ExpiraEm = expiracao, Perfis = perfis };

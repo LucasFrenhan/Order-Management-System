@@ -24,6 +24,9 @@ public class FabricaApi : WebApplicationFactory<Program>
 {
     public const string ChaveTeste = "chave-de-teste-somente-para-testes-automatizados";
 
+    /// <summary>Identificador (<c>kid</c>) da chave de teste, a única e ativa (REQ-27).</summary>
+    public const string IdentificadorChaveTeste = "teste-a";
+
     /// <summary>Chave AES-GCM dos segredos dos webhooks nos testes (REQ-18), igual na API e no Worker.</summary>
     public const string ChaveCifraTeste = "Y2hhdmUtZGUtdGVzdGUtYXV0b21hdGl6YWRvLTMyYnk=";
     /// <summary>Chave das contagens do limite de requisições nos testes (REQ-23), igual em todas as instâncias.</summary>
@@ -112,7 +115,9 @@ public class FabricaApi : WebApplicationFactory<Program>
 
         builder.UseSetting("LimiteRequisicoes:TempoMaximoEsperaMs", "5000");
         builder.UseSetting("LimiteRequisicoes:PausaAposFalhaSegundos", "0");
-        builder.UseSetting("Jwt:ChaveAssinatura", ChaveTeste);
+        builder.UseSetting("Jwt:Chaves:0:Identificador", IdentificadorChaveTeste);
+        builder.UseSetting("Jwt:Chaves:0:Valor", ChaveTeste);
+        builder.UseSetting("Jwt:ChaveAtiva", IdentificadorChaveTeste);
         builder.UseSetting("Jwt:Emissor", EmissorTeste);
         builder.UseSetting("Jwt:Audiencia", AudienciaTeste);
         builder.UseSetting("Banco:PrepararNaInicializacao", PrepararBanco ? "true" : "false");
