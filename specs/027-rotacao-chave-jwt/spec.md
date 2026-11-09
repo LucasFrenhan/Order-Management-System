@@ -46,6 +46,18 @@ Respostas dadas pelo usuário durante o specify:
 - Q: O procedimento de rotação entra no README, como pede a issue? → A: Não. Vai para `docs/`, e o README
   só ganha o link na linha `docs/` da seção Estrutura.
 
+Respostas dadas pelo usuário no clarify:
+
+- Q: O sistema registra no log, com o identificador da chave, a partida e os tokens recusados por chave
+  retirada ou desconhecida? → A: Sim. Um log na partida com o identificador da chave ativa e os das
+  aceitas, e um log de aviso a cada token recusado por chave retirada, desconhecida ou ausente, com o
+  identificador apresentado. Os dois com ID de evento próprio; sem métrica nova.
+- Q: O sistema limita quantas chaves ficam configuradas ao mesmo tempo? → A: Sim, até 3 (a ativa e duas
+  aceitas), o que cobre a rotação planejada e uma emergência sobreposta. Acima disso, a partida falha.
+- Q: Qual formato o identificador da chave aceita? → A: De 1 a 64 caracteres, só letras sem acento,
+  dígitos, `-`, `_` e `.` (por exemplo, `2026-11-jwt-a`). A comparação diferencia maiúsculas de
+  minúsculas.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Rotacionar a chave sem derrubar as sessões (Priority: P1)
@@ -133,6 +145,8 @@ sobe e que a mensagem não contém o valor da chave.
    partida falha com uma mensagem que indica o formato novo.
 7. **Given** uma chave própria do cursor com menos de 32 bytes, **When** a aplicação sobe, **Then** a
    partida falha, sem mostrar o valor.
+8. **Given** quatro chaves configuradas, **When** a aplicação sobe, **Then** a partida falha com a
+   mensagem do limite de 3 chaves.
 
 ---
 
@@ -162,6 +176,8 @@ User Story 1.
 ### Edge Cases
 
 - **Uma só chave configurada**: é a situação normal fora da rotação; ela é a ativa.
+- **Emergência no meio de uma rotação planejada**: com A e B já configuradas, a chave C da emergência é a
+  terceira e última permitida; a chave vazada sai na mesma etapa.
 - **Chave aceita que nunca foi ativa**: tokens assinados com ela são aceitos (é a etapa 1 do procedimento).
 - **Instâncias com configurações diferentes durante a troca**: se uma instância já emite com B e outra
   ainda não conhece B, os tokens de B são recusados nesta. O procedimento exige que a etapa 1 (acrescentar
@@ -195,8 +211,8 @@ User Story 1.
   assinado com uma chave que não está na configuração, com identificador desconhecido ou com assinatura
   que não confere com a chave do identificador.
 - **FR-005**: O sistema MUST validar a configuração das chaves na partida e falhar a partida quando:
-  não houver chave; alguma chave tiver menos de 32 bytes; um identificador estiver vazio, fora do formato
-  permitido ou repetido; a chave ativa não estiver indicada ou não existir entre as chaves.
+  não houver chave; houver mais de 3 chaves; alguma chave tiver menos de 32 bytes; um identificador estiver vazio, fora do formato
+  permitido (de 1 a 64 caracteres, só letras sem acento, dígitos, `-`, `_` e `.`) ou repetido; a chave ativa não estiver indicada ou não existir entre as chaves.
 - **FR-006**: As mensagens de falha da partida e os logs MUST citar no máximo o identificador da chave,
   nunca o valor dela.
 - **FR-007**: A configuração antiga, `Jwt:ChaveAssinatura`, MUST fazer a partida falhar, com uma mensagem
@@ -218,18 +234,24 @@ User Story 1.
 - **FR-013**: Os testes automatizados MUST cobrir: token da chave antiga aceito no período de transição;
   token de chave retirada recusado com 401; token sem identificador ou com identificador desconhecido
   recusado; emissão com a chave ativa e o identificador dela; cada falha de validação da partida;
-  mensagens de falha sem o valor da chave; e o cursor da listagem válido depois da troca da chave ativa
+  mensagens de falha sem o valor da chave; os logs do FR-015 e do FR-016; e o cursor da listagem válido depois da troca da chave ativa
   quando há chave própria do cursor.
 - **FR-014**: Um token sem identificador de chave no cabeçalho MUST ser recusado com 401, sem período de
   transição.
+- **FR-015**: Na partida, o sistema MUST registrar um log informativo, com ID de evento próprio, com o
+  identificador da chave ativa e os das chaves aceitas, sem os valores.
+- **FR-016**: A cada token recusado por chave retirada, desconhecida ou ausente, o sistema MUST registrar
+  um log de aviso, com ID de evento próprio, com o identificador apresentado (ou a indicação de que não
+  havia), sem o token nem dados do usuário. A resposta ao cliente continua a do FR-004.
 
 ### Key Entities
 
 - **Chave de assinatura**: um segredo usado para assinar e validar tokens de acesso. Atributos:
-  identificador (público, vai no cabeçalho do token), material secreto (no mínimo 32 bytes, nunca exibido)
+  identificador (público, vai no cabeçalho do token; de 1 a 64 caracteres entre letras sem acento,
+  dígitos, `-`, `_` e `.`), material secreto (no mínimo 32 bytes, nunca exibido)
   e se é a ativa. Uma chave fora da configuração é uma chave retirada.
-- **Conjunto de chaves**: as chaves configuradas em uma instância. Exatamente uma é a ativa; as demais só
-  validam.
+- **Conjunto de chaves**: as chaves configuradas em uma instância, de 1 a 3. Exatamente uma é a ativa; as
+  demais só validam.
 - **Chave do cursor**: segredo próprio que assina o cursor da listagem de pedidos; opcional, com no mínimo
   32 bytes. Na falta dele, a chave do cursor é derivada da chave ativa do JWT.
 
