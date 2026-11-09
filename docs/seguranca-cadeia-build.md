@@ -79,8 +79,13 @@ PR:
 - **Grupos**: um pacote que casa com mais de um grupo entra em todos, então o `demais` exclui os
   padrões dos outros grupos. Ao criar um grupo novo no NuGet, repita os padrões dele no
   `exclude-patterns` do `demais`.
-- **Ignorados**: FluentAssertions 8 ou maior (licença comercial; o projeto fica na 7.x) e a
-  imagem `oms-sqlserver` do Compose, que o projeto monta.
+- **Ignorados**:
+  - FluentAssertions 8 ou maior (licença comercial; o projeto fica na 7.x);
+  - Microsoft.OpenApi.YamlReader 3 ou maior, até o ASP.NET Core aceitar o Microsoft.OpenApi 3
+    (o 10.0.x só aceita abaixo de 3.0);
+  - xunit.v3 4 ou maior, ignorado pelo comando `@dependabot ignore` até a migração para o novo
+    `dotnet test` ([#101](https://github.com/LucasFrenhan/Order-Management-System/issues/101));
+  - a imagem `oms-sqlserver` do Compose, que o projeto monta.
 - **Commits**: `build(deps): ...` (NuGet, Docker e Compose) e `ci(deps): ...` (Actions), sem ID
   de requisito, pela exceção da constituição 1.1.1. No NuGet o escopo vai fixo no prefixo: com
   `include: scope`, os grupos que misturam pacotes de produção e de teste saíam `build: ...`.
