@@ -42,7 +42,7 @@
     <PackageVersion Include="FluentAssertions" Version="[7.2.2,8.0.0)" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.13" />
     <!-- Mesma versão maior do Microsoft.OpenApi usado por Microsoft.AspNetCore.OpenApi (2.x). -->
-    <PackageVersion Include="Microsoft.OpenApi.YamlReader" Version="2.13.0" />
+    <PackageVersion Include="Microsoft.OpenApi.YamlReader" Version="3.11.0" />
     <!-- 4.15.0, não 4.16.0: a 4.16.0 saiu há menos de duas semanas (specs/002-setup-infraestrutura/plan.md). -->
     <PackageVersion Include="Testcontainers.MsSql" Version="4.15.0" />
     <PackageVersion Include="Testcontainers.RabbitMq" Version="4.15.0" />
