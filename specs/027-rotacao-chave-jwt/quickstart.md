@@ -11,7 +11,7 @@
 
 ```bash
 dotnet build
-dotnet test --filter "FullyQualifiedName~ChavesJwt|FullyQualifiedName~RotacaoChave|FullyQualifiedName~EmissorToken|FullyQualifiedName~ChaveCursor"
+dotnet test --filter "FullyQualifiedName~ChavesJwt|FullyQualifiedName~RotacaoChave|FullyQualifiedName~EmissorToken|FullyQualifiedName~ChaveCursor|FullyQualifiedName~ValidadorOpcoesJwt"
 dotnet test
 dotnet format --verify-no-changes
 ```
@@ -80,7 +80,7 @@ Reinicie. **Esperado**:
 
 - T2 com 200.
 - T1, se ainda não expirou, com 401 "Não autenticado." e o log 3027
-  `Token recusado: a chave desenvolvimento-local não está configurada.`
+  `Token recusado: chave desenvolvimento-local fora da configuração.`
 - `POST /api/v1/auth/renovacao` com o `tokenRenovacao` da 3.1: 200, com um token de `kid` `local-b`
   (retirada de emergência, SC-003).
 

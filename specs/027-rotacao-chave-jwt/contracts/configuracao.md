@@ -52,7 +52,7 @@ formato é citado só pela posição, porque pode ser um valor colado no campo e
 | ID | Nome | Nível | Quando | Texto |
 |----|------|-------|--------|-------|
 | 3026 | `ChavesJwtCarregadas` | Information | Na partida | `Chaves do JWT: ativa {ChaveAtiva}; aceitas {ChavesAceitas}.` |
-| 3027 | `TokenChaveDesconhecida` | Warning | Token recusado por `kid` ausente, retirado ou desconhecido | `Token recusado: a chave {IdentificadorChave} não está configurada.` |
+| 3027 | `TokenChaveDesconhecida` | Warning | Token recusado por `kid` ausente, retirado ou desconhecido | `Token recusado: chave {IdentificadorChave} fora da configuração.` |
 
 No 3027, `{IdentificadorChave}` é o `kid` recebido quando ele tem o formato de um identificador,
 `(ausente)` quando o token não tem `kid` e `(inválido)` nos demais casos. Nenhum dos dois registra o
