@@ -37,5 +37,7 @@
 - As três decisões em aberto (evento da baixa, aviso ao Cliente e perfil da baixa) foram respondidas
   pelo usuário no specify e registradas em Clarifications.
 - Fica para o plano: a forma do identificador do estorno (FR-001, podendo reaproveitar o do pagamento
-  enquanto houver um estorno por pagamento) e como a baixa detecta uma tentativa em andamento
-  (FR-009).
+  enquanto houver um estorno por pagamento) e o mecanismo da espera da baixa pela rodada (FR-009; o
+  comportamento, até 5 s e depois 409, foi decidido no clarify).
+- O clarify de 2026-11-10 respondeu 4 perguntas (espera da baixa, referência externa, medidor e Admin
+  ativo); todos os itens continuam passando.
