@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/LucasFrenhan/Order-Management-System/specs/028-acoes-estornos-pendentes/contracts/eventos/pagamento.estorno-baixado.v1.schema.json",
+  "title": "pagamento.estorno-baixado v1",
+  "description": "Publicado pela API quando um Admin dá baixa num estorno pendente, resolvido fora do sistema (REQ-28), na mesma gravação da baixa. O gateway não foi chamado, e o estorno não será mais tentado. Não traz o motivo da baixa.",
+  "type": "object",
+  "required": ["idEvento", "tipo", "versao", "ocorridoEm", "idCorrelacao", "dados"],
+  "properties": {
+    "idEvento": { "type": "string", "format": "uuid" },
+    "tipo": { "const": "pagamento.estorno-baixado" },
+    "versao": { "const": 1 },
+    "ocorridoEm": { "type": "string", "format": "date-time" },
+    "idCorrelacao": { "type": "string", "format": "uuid" },
+    "dados": {
+      "type": "object",
+      "required": ["estornoId", "pedidoId", "numero", "valor", "autorId", "baixadoEm", "referenciaExterna"],
+      "properties": {
+        "estornoId": { "type": "string", "format": "uuid" },
+        "pedidoId": { "type": "string", "format": "uuid" },
+        "numero": { "type": "string", "pattern": "^PED-\\d{8}-\\d{6}$" },
+        "valor": { "type": "number", "exclusiveMinimum": 0, "multipleOf": 0.01 },
+        "autorId": { "type": "string", "format": "uuid" },
+        "baixadoEm": { "type": "string", "format": "date-time" },
+        "referenciaExterna": { "type": ["string", "null"], "minLength": 1, "maxLength": 100 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

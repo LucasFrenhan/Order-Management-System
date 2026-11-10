@@ -82,7 +82,8 @@ limite) e conferir que a lista traz todos, com os dados certos, e nenhum estorno
 **Acceptance Scenarios**:
 
 1. **Given** três estornos pendentes e um já confirmado, **When** a operação lista os pendentes,
-   **Then** a resposta traz os três, sem o confirmado, na mesma ordem em que a rodada os trata.
+   **Then** a resposta traz os três, sem o confirmado, do pedido de estorno mais antigo para o mais
+   novo.
 2. **Given** um estorno com duas falhas, a última com a recusa "Cobrança desconhecida.", **When** a
    operação o consulta, **Then** a resposta mostra 2 tentativas, o instante da última e o erro
    "Cobrança desconhecida.", sem o identificador da transação nem dado pessoal.
@@ -232,9 +233,9 @@ fila quando há muitos pendentes. Por isso fica depois da visibilidade, da baixa
   pedido (id e número), o valor, o instante em que o estorno foi pedido, as tentativas com falha, o
   instante da última falha, o último erro, se está além do limite de alerta e se há tentativa forçada
   pendente.
-- **FR-003**: A listagem MUST seguir a ordem da fila da rodada (primeiro os que nunca falharam, do mais
-  antigo; depois os que falharam, o tentado há mais tempo primeiro) e ser paginada por cursor, como as
-  outras listagens do sistema.
+- **FR-003**: A listagem MUST ir do estorno pedido há mais tempo para o mais novo e ser paginada por
+  cursor, como as outras listagens do sistema. (Ajuste do plan, research R-08: a ordem da fila da
+  rodada muda a cada falha, e um cursor sobre ela pularia ou repetiria estornos entre as páginas.)
 - **FR-004**: A operação MUST poder consultar um estorno pelo identificador, em qualquer situação
   (pendente, confirmado pelo gateway ou baixado manualmente), vendo também, quando houver, o instante
   da confirmação ou os dados da baixa (autor, instante, motivo e referência externa).
