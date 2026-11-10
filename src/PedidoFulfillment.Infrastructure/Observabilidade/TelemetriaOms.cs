@@ -112,6 +112,22 @@ internal static class TelemetriaOms
     public static readonly Counter<long> Emails = Medidor.CreateCounter<long>(
         "oms.emails", "{email}", "Solicitações de e-mail tratadas, por tipo e resultado.");
 
+    /// <summary>
+    /// Métrica 21 (REQ-28, FR-022a), do <see cref="EstadoMetricas"/>: estornos pendentes, separados pelo
+    /// alerta (<c>oms.alerta</c> <c>true</c> além do limite, <c>false</c> os demais). Atualizada no começo de
+    /// cada rodada de estornos que pega o lock.
+    /// </summary>
+    public static readonly ObservableGauge<long> EstornosPendentes = Medidor.CreateObservableGauge(
+        "oms.estornos.pendentes",
+        () => EstadoMetricas.Estornos is { } leitura
+            ?
+            [
+                new Measurement<long>(leitura.AlemDoLimite, new KeyValuePair<string, object?>(Atributos.Alerta, "true")),
+                new Measurement<long>(leitura.Pendentes - leitura.AlemDoLimite, new KeyValuePair<string, object?>(Atributos.Alerta, "false"))
+            ]
+            : Array.Empty<Measurement<long>>(),
+        "{estorno}", "Estornos pendentes, separados pelo limite de alerta.");
+
     /// <summary>Atributos dos spans e das métricas (prefixo <c>oms.</c> para os de domínio).</summary>
     public static class Atributos
     {
@@ -135,6 +151,7 @@ internal static class TelemetriaOms
         public const string PagamentoTipoFalha = "oms.pagamento.tipo_falha";
         public const string LimitePolitica = "oms.limite.politica";
         public const string EmailTipo = "oms.email.tipo";
+        public const string Alerta = "oms.alerta";
         public const string UsuarioId = "user.id";
         public const string MensagemId = "messaging.message.id";
         public const string TipoErro = "error.type";

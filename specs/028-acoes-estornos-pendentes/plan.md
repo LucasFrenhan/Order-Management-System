@@ -123,7 +123,7 @@ src/PedidoFulfillment.API/
 specs/001-contratos-api/contracts/openapi-v1.yaml   # rotas e schemas novos
 
 tests/PedidoFulfillment.Testes.Unitarios/
-├── Dominio/PagamentoEstornoTestes.cs         # transições, idempotência da marca, atraso uma vez
+├── Dominio/PagamentoAcoesEstornoTestes.cs    # transições, idempotência da marca, atraso uma vez
 └── Pagamentos/ServicoEstornosTestes.cs       # categorias do erro, evento de atraso, marca limpa
 
 tests/PedidoFulfillment.Testes.Integracao/

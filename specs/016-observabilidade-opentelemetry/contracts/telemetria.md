@@ -66,6 +66,7 @@ Rodadas que não pegam o lock e ciclos do despachante sem eventos não geram spa
 | `oms.rotina` | `reconciliacao`, `estornos`, `reenvio_dlq`, `limpeza`; `notificacoes` (REQ-18); `emails` (REQ-24) |
 | `oms.etapa` | `Estoque`, `Pagamento`, `Entrega` |
 | `oms.limpeza.alvo` | `enviados`, `processados`, `chaves`, `pedidos_reenvio`; `entregas_notificacao`, `avisos_pedido` (REQ-18); `contagens_limite` (REQ-23, sem span próprio); `sessoes_autenticacao`, `tokens_uso_unico` (REQ-24) |
+| `oms.alerta` (REQ-28) | `true`, `false` |
 | `oms.limite.politica` (REQ-23) | `login_origem_email`, `login_origem`, `registro`; `recuperacao_origem_email`, `recuperacao_origem`, `reenvio_origem_email`, `reenvio_origem`, `redefinicao`, `confirmacao`, `renovacao`, `logout` (REQ-24) |
 
 ## Métricas próprias (meter `PedidoFulfillment`)
@@ -104,6 +105,13 @@ O REQ-24 acrescentou, com o span `processar_emails`, raiz, com `oms.rotina = ema
 |---|------|-------------|---------|-----------|-------------|
 | 19 | `oms.autenticacao.renovacoes` | Counter (long) | `{renovacao}` | `oms.resultado` | API (por instância) |
 | 20 | `oms.emails` | Counter (long) | `{email}` | `oms.email.tipo`, `oms.resultado` | Worker |
+
+O REQ-28 acrescentou, lida no começo de cada rodada de estornos que pega o lock
+([research R-11](../../028-acoes-estornos-pendentes/research.md#r-11-métrica-fr-022a)):
+
+| # | Nome | Instrumento | Unidade | Atributos | Emitida por |
+|---|------|-------------|---------|-----------|-------------|
+| 21 | `oms.estornos.pendentes` | ObservableGauge (long) | `{estorno}` | `oms.alerta` (`true` além do limite de alerta, `false` os demais) | Worker |
 
 - **Várias instâncias**: os gauges 1 a 3 saem iguais de cada instância; agregue com `max`.
   Os contadores 4 a 6 se somam.

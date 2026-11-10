@@ -12,7 +12,10 @@ a cada consumidor.
 [contrato](../../specs/017-recuperacao-consumidores/contracts/recuperacao-consumo.md), recuperação
 dos consumidores depois de o broker reiniciar) e REQ-19
 ([contrato do cliente](../../specs/019-gateway-pagamento-http/contracts/cliente-gateway-pagamento.md#pausa-do-consumo-com-o-circuito-aberto-fr-016a),
-pausa do consumo com uma dependência fora do ar).
+pausa do consumo com uma dependência fora do ar) e REQ-28
+([contrato](../../specs/028-acoes-estornos-pendentes/contracts/estornos.md#eventos-novos),
+[schemas](../../specs/028-acoes-estornos-pendentes/contracts/eventos/) de `pagamento.estorno-atrasado`
+e `pagamento.estorno-baixado`).
 
 ## Eventos
 
@@ -26,6 +29,8 @@ pausa do consumo com uma dependência fora do ar).
 | `entrega.criada` | `entrega` | nenhum |
 | `pedido.cancelado` | todo cancelamento: API, `estoque`, reconciliação (REQ-15) | nenhum |
 | `pagamento.estornado` | confirmação do estorno no Worker (REQ-15) | nenhum |
+| `pagamento.estorno-atrasado` | falha do estorno que passa do limite de alerta, no Worker, uma vez por estorno (REQ-28) | nenhum |
+| `pagamento.estorno-baixado` | baixa manual do estorno pelo Admin (API, REQ-28) | nenhum |
 
 Todos usam o mesmo envelope:
 
@@ -39,19 +44,26 @@ Os contratos são versionados (Princípio II): na mesma versão, só entram camp
 ### Sistemas de fora: cancelamentos e estornos (REQ-15)
 
 Um sistema de fora (financeiro, atendimento, logística) recebe os cancelamentos e os estornos
-ligando a própria fila à troca `oms.eventos` (`topic`) com as chaves `pedido.cancelado` e
-`pagamento.estornado`. Nenhum consumidor interno os recebe.
+ligando a própria fila à troca `oms.eventos` (`topic`) com as chaves `pedido.cancelado`,
+`pagamento.estornado`, `pagamento.estorno-atrasado` e `pagamento.estorno-baixado` (REQ-28). Nenhum
+consumidor interno os recebe.
 
 - `pedido.cancelado` sai em **toda** chegada de um pedido a `Cancelado`: pela API (`Cliente` ou
   `Operacao`), pela falta de estoque (`EstoqueInsuficiente`, junto com o `estoque.insuficiente`)
   e pela reconciliação (`ReconciliacaoEsgotada`, com a etapa). Não sai para `PagamentoRejeitado`,
   que continua avisado só pelo `pagamento.recusado`.
 - `pagamento.estornado` sai uma vez por pedido, quando o Worker confirma o estorno (fluxo 10).
+- `pagamento.estorno-atrasado` (REQ-28) sai uma vez por estorno, quando ele passa do limite de
+  alerta: o estorno continua pendente e sendo tentado. `pagamento.estorno-baixado` (REQ-28) sai
+  quando o Admin dá baixa num estorno resolvido fora do sistema, com a referência externa e sem o
+  motivo; o `pagamento.estornado` não sai nesse caso. Para conciliar dinheiro, as fontes são o
+  `pagamento.estornado` e o `pagamento.estorno-baixado`. As chaves são as mesmas dos tipos.
 - Sem dados pessoais, sem o identificador do Cliente e sem o motivo digitado na API. O
   `pagamento.estornado` traz os identificadores do gateway, como o `pagamento.aprovado`.
 - **Nenhum caminho esquece o evento**: a gravação do pedido recusa, com erro, um pedido que vai
-  a `Cancelado` sem `pedido.cancelado`, ou um pagamento que vai a `Estornado` sem
-  `pagamento.estornado`, na mesma gravação (REQ-15, R-03). Nada é gravado, e o erro segue o
+  a `Cancelado` sem `pedido.cancelado`, um pagamento que vai a `Estornado` sem
+  `pagamento.estornado`, a `EstornoBaixado` sem `pagamento.estorno-baixado`, ou que passa do limite
+  de alerta sem `pagamento.estorno-atrasado`, na mesma gravação (REQ-15, R-03; REQ-28). Nada é gravado, e o erro segue o
   caminho de quem chamou: na API, 500; no Worker, novas tentativas e DLQ.
 - Não há ordem garantida entre tipos diferentes, nem entre o `estoque.insuficiente` e o
   `pedido.cancelado` da mesma gravação. Deduplicar por `idEvento`.

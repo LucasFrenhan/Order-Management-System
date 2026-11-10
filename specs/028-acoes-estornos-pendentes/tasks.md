@@ -51,7 +51,7 @@ US4 tentativa forçada. **O MVP são a fundação e as duas histórias P1 (US1 e
 
 **Purpose**: tudo o que as quatro histórias usam. A suíte atual volta a ficar verde no T016.
 
-- [X] T002 [P] Testes unitários em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PagamentoEstornoTestes.cs` para os
+- [X] T002 [P] Testes unitários em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PagamentoAcoesEstornoTestes.cs` para os
   métodos novos do `Pagamento` ([data-model](./data-model.md#métodos-do-domínio)): `PedirTentativaEstorno` grava a marca
   só se nula e devolve se mudou; `RegistrarFalhaEstorno(instante, erro)` soma a tentativa, grava `UltimoErroEstorno` e
   limpa a marca; `MarcarEstornoAtrasado` grava só uma vez e devolve se mudou; `ConfirmarEstorno` limpa a marca;
@@ -301,34 +301,37 @@ geram outro.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T041 Medidor `oms.estornos.pendentes` ([R-11](./research.md#r-11-métrica-fr-022a)): em
+- [X] T041 Medidor `oms.estornos.pendentes` ([R-11](./research.md#r-11-métrica-fr-022a)): em
   `src/PedidoFulfillment.Infrastructure/Observabilidade/TelemetriaOms.cs`, um `ObservableGauge<long>` com o atributo
   `oms.alerta` (`true`/`false`), no molde do `EventosPendentes`; em `ProcessadorEstornos.cs`, contar no começo da rodada
   que pega o lock os pendentes e os além do limite (`RegrasAlertaEstorno`, numa consulta só, em
   `IConsultaEstornosPendentes`) e guardar os dois números; testar com `MeterListener` em
   `tests/PedidoFulfillment.Testes.Integracao/Estornos/ProcessamentoEstornosTestes.cs` (SC-009).
-- [ ] T042 [P] Em `docs/fluxos/10-estorno.md`: origem com o REQ-28 e a issue #57; situação `EstornoBaixado` no
+- [X] T042 [P] Em `docs/fluxos/10-estorno.md`: origem com o REQ-28 e a issue #57; situação `EstornoBaixado` no
   diagrama; as quatro rotas, com perfis, exemplos e erros (tabela de resultados); a baixa esperando a rodada (lock, 5 s,
   409) na seção de concorrência; a fila com os forçados primeiro; o último erro por categoria; o
   `pagamento.estorno-atrasado` e o `pagamento.estorno-baixado` com exemplos; logs 7021 a 7024; o medidor; a configuração
   de alerta igual na API e no Worker; nas Limitações, trocar as duas lacunas resolvidas pela #57 (REQ-28) e acrescentar
   a devolução dupla se o gateway confirmou e a gravação se perdeu antes da baixa (orientar consultar o gateway).
-- [ ] T043 [P] Em `docs/fluxos/08-publicacao-e-consumo-de-eventos.md`, acrescentar os dois eventos à tabela (origem e
+- [X] T043 [P] Em `docs/fluxos/08-publicacao-e-consumo-de-eventos.md`, acrescentar os dois eventos à tabela (origem e
   consumidores: nenhum interno) e à seção de sistemas de fora.
-- [ ] T044 [P] Em `docs/fluxos/12-rastreabilidade-e-metricas.md`, acrescentar o medidor `oms.estornos.pendentes` e o
+- [X] T044 [P] Em `docs/fluxos/12-rastreabilidade-e-metricas.md`, acrescentar o medidor `oms.estornos.pendentes` e o
   atributo `oms.alerta`.
-- [ ] T045 [P] Em `docs/fluxos/13-notificacao-de-status.md`, registrar que o aviso `pedido.estorno-confirmado` também sai
+- [X] T045 [P] Em `docs/fluxos/13-notificacao-de-status.md`, registrar que o aviso `pedido.estorno-confirmado` também sai
   na baixa manual, com o id do `pagamento.estorno-baixado`.
-- [ ] T046 [P] Em `docs/fluxos/README.md`, acrescentar o REQ-28 à linha do fluxo 10 (e às dos fluxos 8, 12 e 13) na
+- [X] T046 [P] Em `docs/fluxos/README.md`, acrescentar o REQ-28 à linha do fluxo 10 (e às dos fluxos 8, 12 e 13) na
   coluna de REQs.
-- [ ] T047 [P] Em `docs/proximos-passos.md`, tirar a #57 da fila (linha 38) e registrar o REQ-28 no resumo do que já foi
+- [X] T047 [P] Em `docs/proximos-passos.md`, tirar a #57 da fila (linha 38) e registrar o REQ-28 no resumo do que já foi
   entregue, como o REQ-27.
-- [ ] T048 Conferir nos documentos alterados (T042 a T047) as rotas, os códigos, as mensagens, os IDs de log, o nome do
+- [X] T048 Conferir nos documentos alterados (T042 a T047) as rotas, os códigos, as mensagens, os IDs de log, o nome do
   medidor e os limites contra o código, e que os links relativos não estão quebrados; registrar no fluxo 10 que as
   rotas novas ficam fora do limite de requisições, que vale só para o login e o registro (FR-023). O README não muda (se algo
   precisar entrar nele, perguntar antes).
 - [ ] T049 Atualizar o [quickstart](./quickstart.md) com o que mudou na implementação e seguir as seções 3.1 a 3.4.
-- [ ] T050 Rodar `dotnet build`, `dotnet test` e `dotnet format --verify-no-changes`; conferir que os contêineres,
+  **Ajuste na implementação**: o quickstart foi atualizado (categorias do último erro, circuito aberto no
+  roteiro 3.1), mas o roteiro manual 3.1 a 3.4 não foi executado; os mesmos cenários estão cobertos pelos
+  testes de integração das fases 3 a 7.
+- [X] T050 Rodar `dotnet build`, `dotnet test` e `dotnet format --verify-no-changes`; conferir que os contêineres,
   volumes e redes criados pelos testes não ficaram na máquina (comparar com o retrato do T001).
 
 ---

@@ -5,7 +5,8 @@
 **Origem**: REQ-18 ([spec](../../specs/018-notificacao-status/spec.md),
 [research](../../specs/018-notificacao-status/research.md),
 [contrato da API](../../specs/018-notificacao-status/contracts/api-notificacoes.md),
-[contrato do webhook](../../specs/018-notificacao-status/contracts/webhooks.md)), issue #43.
+[contrato do webhook](../../specs/018-notificacao-status/contracts/webhooks.md)), issue #43, e REQ-28
+([spec](../../specs/028-acoes-estornos-pendentes/spec.md), aviso também na baixa manual do estorno), issue #57.
 
 ## Para que serve
 
@@ -49,7 +50,8 @@ sequenceDiagram
 
 1. **O aviso nasce na gravação.** O `ArmazenamentoPedidos.SalvarAsync` transforma cada entrada
    nova do histórico (exceto a criação) em um `pedido.status-alterado` no outbox e em uma linha
-   em `AvisosPedido`, com o corpo da notificação pronto. A confirmação do estorno gera o aviso
+   em `AvisosPedido`, com o corpo da notificação pronto. A confirmação do estorno e a baixa manual
+   pelo Admin (REQ-28) geram o aviso
    `pedido.estorno-confirmado`. Tudo na mesma transação da mudança: se ela não grava, nada sai.
 2. **Leitura sem lacunas.** API e Worker leem `AvisosPedido` por `Posicao` (`rowversion`),
    só abaixo de `MIN_ACTIVE_ROWVERSION()`: um aviso de transação ainda aberta segura os
@@ -93,7 +95,9 @@ do motivo (FR-002). `pedido.estorno-confirmado` traz só `pedidoId`, `numero` e 
 | Cancelamento pelo Cliente | `Cliente` | `pedido.status-alterado` |
 | Despacho com rastreio | `Operacao` | `pedido.status-alterado` |
 | Cancelamento pela falta de estoque ou pela reconciliação | `Worker` | `pedido.status-alterado` |
-| Estorno confirmado | — | `pedido.estorno-confirmado` |
+| Estorno confirmado pelo gateway | — | `pedido.estorno-confirmado`, com o id do `pagamento.estornado` |
+| Baixa manual do estorno pelo Admin (REQ-28) | — | `pedido.estorno-confirmado`, igual, com o id do `pagamento.estorno-baixado`; não revela que a devolução foi manual |
+| Estorno além do limite de alerta (REQ-28) | — | nenhum (o `pagamento.estorno-atrasado` é só para sistemas de fora) |
 | Criação do pedido | — | nenhum (o Cliente já recebeu o 201) |
 | Correção do rastreio | — | nenhum |
 
