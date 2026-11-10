@@ -203,8 +203,9 @@ internal sealed class ArmazenamentoPedidos(ContextoBancoDados contexto) : IArmaz
     /// <summary>
     /// Guarda do REQ-15 (R-03): um pedido que passa a Cancelado precisa de um <c>pedido.cancelado</c>
     /// do mesmo pedido na mesma gravação, e um pagamento que passa a Estornado, de um
-    /// <c>pagamento.estornado</c>, e um que passa a EstornoBaixado, de um <c>pagamento.estorno-baixado</c>
-    /// (REQ-28). Faltando, é erro de programação: nada é gravado, e a exceção segue
+    /// <c>pagamento.estornado</c>; um que passa a EstornoBaixado, de um <c>pagamento.estorno-baixado</c>; e
+    /// um estorno que passa do limite de alerta, de um <c>pagamento.estorno-atrasado</c> (REQ-28). Faltando,
+    /// é erro de programação: nada é gravado, e a exceção segue
     /// o caminho de erro de quem chamou (no Worker, novas tentativas e DLQ; na API, 500). Fica aqui, e
     /// não no <see cref="ContextoBancoDados"/>, porque é regra do fluxo da aplicação: os testes
     /// semeiam pedidos cancelados direto pelo contexto, e entidades novas não são conferidas.
@@ -232,6 +233,13 @@ internal sealed class ArmazenamentoPedidos(ContextoBancoDados contexto) : IArmaz
         Exigir(cancelados.ToList(), TiposEvento.PedidoCancelado);
         Exigir(estornados.ToList(), TiposEvento.PagamentoEstornado);
         Exigir(baixados.ToList(), TiposEvento.PagamentoEstornoBaixado);
+        // O estorno que passa do limite de alerta exige o pagamento.estorno-atrasado (REQ-28, R-06).
+        var atrasados = contexto.ChangeTracker.Entries<Pagamento>()
+            .Where(e => e.State == EntityState.Modified
+                && e.Property(p => p.EstornoAtrasadoEm).OriginalValue == null
+                && e.Property(p => p.EstornoAtrasadoEm).CurrentValue != null)
+            .Select(e => (Id: e.Entity.PedidoId, Descricao: $"pagamento do pedido {e.Entity.PedidoId}"));
+        Exigir(atrasados.ToList(), TiposEvento.PagamentoEstornoAtrasado);
     }
 
     private void Exigir(IReadOnlyList<(Guid PedidoId, string Descricao)> alterados, string tipo)

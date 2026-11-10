@@ -120,7 +120,9 @@ public sealed class ServicoEstornos(
 
     /// <summary>
     /// Conta a tentativa sobre o pedido relido. Se a gravação der conflito, a tentativa não é
-    /// contada; a próxima rodada trata o pedido de novo (R-04, passo 4).
+    /// contada; a próxima rodada trata o pedido de novo (R-04, passo 4). A falha que leva o estorno
+    /// além do limite grava, na mesma gravação e uma única vez, o <c>pagamento.estorno-atrasado</c>
+    /// (REQ-28, R-06); num conflito ele vai embora com o resto, e a próxima falha tenta de novo.
     /// </summary>
     private async Task<ResultadoRodadaEstorno> RegistrarFalhaAsync(
         Guid pedidoId, Falha falha, ParametrosAlertaEstorno parametros, CancellationToken cancellationToken)
@@ -134,8 +136,15 @@ public sealed class ServicoEstornos(
 
         var agora = relogio.GetUtcNow();
         var pagamento = pedido.Pagamento!;
+        var solicitadoEm = pagamento.EstornoSolicitadoEm!.Value;
         var tentativas = pagamento.TentativasEstorno + 1;
         pedido.RegistrarFalhaEstorno(agora, DescricaoFalhaEstorno.Limitar(falha.TextoGravado));
+        var atrasou = RegrasAlertaEstorno.AlemDoLimite(solicitadoEm, tentativas, agora, parametros) && pedido.MarcarEstornoAtrasado(agora);
+        if (atrasou)
+        {
+            armazenamento.Adicionar(EventoAtrasado(pedido, tentativas, agora));
+        }
+
         try
         {
             await armazenamento.SalvarAsync(cancellationToken);
@@ -144,10 +153,11 @@ public sealed class ServicoEstornos(
         {
             armazenamento.DescartarAlteracoes();
             tentativas--;
+            atrasou = false;
         }
 
-        var pendente = agora - pagamento.EstornoSolicitadoEm!.Value;
-        if (RegrasAlertaEstorno.AlemDoLimite(pagamento.EstornoSolicitadoEm!.Value, tentativas, agora, parametros))
+        var pendente = agora - solicitadoEm;
+        if (RegrasAlertaEstorno.AlemDoLimite(solicitadoEm, tentativas, agora, parametros))
         {
             EventosPagamento.EstornoPendenteAlemDoLimite(logger, pedidoId, tentativas, (int)pendente.TotalHours, erro);
         }
@@ -156,7 +166,28 @@ public sealed class ServicoEstornos(
             EventosPagamento.FalhaEstorno(logger, pedidoId, tentativas, erro);
         }
 
+        if (atrasou)
+        {
+            EventosPagamento.EstornoAtrasadoPublicado(logger, pagamento.Id, pedidoId, tentativas, (int)pendente.TotalHours);
+        }
+
         return ResultadoRodadaEstorno.Falhou;
+    }
+
+    /// <summary><c>pagamento.estorno-atrasado</c> da falha que passou do limite (REQ-28, FR-017), sem dados do gateway.</summary>
+    private static EventoSaida EventoAtrasado(Pedido pedido, int tentativas, DateTimeOffset agora)
+    {
+        var pagamento = pedido.Pagamento!;
+        return EventoSaida.De(EnvelopeEvento.Criar(pedido.Id, new PagamentoEstornoAtrasado
+        {
+            EstornoId = pagamento.Id,
+            PedidoId = pedido.Id,
+            Numero = pedido.Numero,
+            Valor = pagamento.Valor,
+            SolicitadoEm = pagamento.EstornoSolicitadoEm!.Value,
+            Tentativas = tentativas,
+            AtrasadoEm = agora
+        }, agora), agora);
     }
 
     private async Task<Pedido?> LerPendenteAsync(Guid pedidoId, CancellationToken cancellationToken)

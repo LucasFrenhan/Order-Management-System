@@ -317,4 +317,82 @@ public sealed class ServicoEstornosTestes
         Gravado().Pagamento!.UltimoErroEstorno.Should().Be(esperado);
         logger.Eventos.Should().ContainSingle(e => e.Id.Id == 7007);
     }
+    /// <summary>REQ-28, US3 cenário 1: a falha que passa do limite grava o evento de atraso, uma vez.</summary>
+    [Fact]
+    public async Task A_falha_que_passa_do_limite_grava_o_estorno_atrasado_uma_vez()
+    {
+        armazenamento.GuardarPedido(PedidoId, () => MontarPendente(falhasAnteriores: 2));
+        Falhar("exceção");
+        var agora = Cancelamento.AddHours(25);
+
+        await Servico(agora).EstornarAsync(PedidoId, Alerta, Token);
+
+        var pagamento = Gravado().Pagamento!;
+        pagamento.EstornoAtrasadoEm.Should().Be(agora);
+        var evento = armazenamento.EventosGravados.Should().ContainSingle().Subject;
+        evento.Tipo.Should().Be(TiposEvento.PagamentoEstornoAtrasado);
+        var envelope = SerializacaoEventos.Desserializar<PagamentoEstornoAtrasado>(evento.Conteudo);
+        envelope.IdCorrelacao.Should().Be(PedidoId);
+        envelope.Dados.Should().BeEquivalentTo(new PagamentoEstornoAtrasado
+        {
+            EstornoId = pagamento.Id,
+            PedidoId = PedidoId,
+            Numero = "PED-20261024-000001",
+            Valor = 40m,
+            SolicitadoEm = Cancelamento,
+            Tentativas = 3,
+            AtrasadoEm = agora
+        });
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 7024).Which.Nivel.Should().Be(LogLevel.Warning);
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 7008, "o 7008 continua");
+    }
+
+    /// <summary>REQ-28, US3 cenário 2 e FR-016: um estorno já atrasado não gera outro evento.</summary>
+    [Fact]
+    public async Task Estorno_ja_atrasado_que_falha_de_novo_so_registra_o_7008()
+    {
+        armazenamento.GuardarPedido(PedidoId, () =>
+        {
+            var pedido = MontarPendente(falhasAnteriores: 3);
+            pedido.MarcarEstornoAtrasado(Cancelamento.AddHours(24).AddMinutes(1));
+            return pedido;
+        });
+        Falhar("recusa");
+
+        await Servico(Cancelamento.AddHours(30)).EstornarAsync(PedidoId, Alerta, Token);
+
+        armazenamento.EventosGravados.Should().BeEmpty();
+        logger.Eventos.Should().NotContain(e => e.Id.Id == 7024);
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 7008);
+        Gravado().Pagamento!.EstornoAtrasadoEm.Should().Be(Cancelamento.AddHours(24).AddMinutes(1));
+    }
+
+    [Fact]
+    public async Task Abaixo_do_limite_ou_com_o_circuito_aberto_nao_sai_evento_de_atraso()
+    {
+        armazenamento.GuardarPedido(PedidoId, () => MontarPendente(falhasAnteriores: 2));
+        gateway.FalhaEstorno = new GatewayPagamentoIndisponivelException(Cancelamento.AddHours(26));
+
+        var adiado = await Servico(Cancelamento.AddHours(25)).EstornarAsync(PedidoId, Alerta, Token);
+        gateway.FalhaEstorno = new TimeoutException("Gateway sem resposta.");
+        await Servico(Cancelamento.AddHours(23)).EstornarAsync(PedidoId, Alerta, Token);
+
+        adiado.Should().Be(ResultadoRodadaEstorno.Adiado);
+        armazenamento.EventosGravados.Should().BeEmpty("US3 cenário 4 e abaixo do limite");
+        Gravado().Pagamento!.EstornoAtrasadoEm.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Conflito_ao_gravar_a_falha_nao_publica_o_atraso()
+    {
+        armazenamento.GuardarPedido(PedidoId, () => MontarPendente(falhasAnteriores: 2));
+        Falhar("exceção");
+        armazenamento.ConflitosRestantes = 1;
+
+        await Servico(Cancelamento.AddHours(25)).EstornarAsync(PedidoId, Alerta, Token);
+
+        armazenamento.EventosGravados.Should().BeEmpty();
+        logger.Eventos.Should().NotContain(e => e.Id.Id == 7024);
+        Gravado().Pagamento!.EstornoAtrasadoEm.Should().BeNull("a próxima falha tenta de novo");
+    }
 }
