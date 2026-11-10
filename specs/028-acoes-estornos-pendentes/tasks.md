@@ -274,7 +274,7 @@ geram outro.
 
 **Independent Test**: com mais pendentes que o lote, forçar o último da fila; ele é tentado na rodada seguinte.
 
-- [ ] T036 [P] [US4] Testes em `tests/PedidoFulfillment.Testes.Integracao/Estornos/TentativaForcadaTestes.cs`: `POST
+- [X] T036 [P] [US4] Testes em `tests/PedidoFulfillment.Testes.Integracao/Estornos/TentativaForcadaTestes.cs`: `POST
   /tentativas` de um pendente → 202, `Location: /api/v1/estornos/{id}` e `tentativaForcadaEm` preenchido (cenário 1);
   um segundo pedido → 202 com o mesmo instante (cenário 5); com `TamanhoLote` 2, 4 pendentes e o último da fila forçado →
   ele é tentado na primeira rodada (cenário 2, SC-005); a tentativa forçada que falha conta tentativa, grava o erro e
@@ -282,17 +282,17 @@ geram outro.
   contado, e o estorno é o primeiro quando o circuito fecha (cenário 4); confirmado ou baixado → 409
   `ESTORNO_NAO_PENDENTE` (cenário 6); id desconhecido → 404; sem token → 401, Cliente → 403, OperadorLogistica → 202
   (cenário 7); log 7021 com o autor.
-- [ ] T037 [US4] Em `src/PedidoFulfillment.Application/Pagamentos/ServicoAcoesEstornos.cs`, criar
+- [X] T037 [US4] Em `src/PedidoFulfillment.Application/Pagamentos/ServicoAcoesEstornos.cs`, criar
   `PedirTentativaAsync(autorId, estornoId)`: relê para alterar; 404 e 409 como na baixa; `PedirTentativaEstorno` e
   grava só se mudou; conflito de concorrência → relê e tenta de novo até 3 vezes (a rodada pode ter gravado uma falha);
   log 7021; devolve o `EstornoResponseDTO`.
-- [ ] T038 [US4] Em `src/PedidoFulfillment.API/Endpoints/EndpointsEstornos.cs`, acrescentar `POST /{id}/tentativas` com
+- [X] T038 [US4] Em `src/PedidoFulfillment.API/Endpoints/EndpointsEstornos.cs`, acrescentar `POST /{id}/tentativas` com
   `PoliticaEstornos`, sem corpo, `TypedResults.Accepted("/api/v1/estornos/{id}", ...)` e `.ComCabecalhoLocation()`.
-- [ ] T039 [US4] Em `src/PedidoFulfillment.Infrastructure/Pagamentos/ConsultaEstornosPendentes.cs`, ler a fila em duas
+- [X] T039 [US4] Em `src/PedidoFulfillment.Infrastructure/Pagamentos/ConsultaEstornosPendentes.cs`, ler a fila em duas
   etapas ([R-04](./research.md#r-04-tentativa-forçada-fr-011-a-fr-014)): primeiro os pendentes com
   `TentativaEstornoForcadaEm` não nulo, por `TentativaEstornoForcadaEm`, até o tamanho do lote; depois completar com a
   ordem de hoje, sem repetir; atualizar o comentário da classe.
-- [ ] T040 [US4] Em `specs/001-contratos-api/contracts/openapi-v1.yaml`, acrescentar a rota da tentativa forçada (202 com
+- [X] T040 [US4] Em `specs/001-contratos-api/contracts/openapi-v1.yaml`, acrescentar a rota da tentativa forçada (202 com
   `Location`). Até T036 passar.
 
 **Checkpoint**: as quatro histórias funcionam de forma independente.

@@ -17,10 +17,13 @@ public interface IServicoAcoesEstornos
     Task<Resultado<EstornoResponseDTO>> ObterAsync(Guid estornoId, CancellationToken cancellationToken);
 
     Task<Resultado<EstornoResponseDTO>> DarBaixaAsync(Guid autorId, Guid estornoId, BaixaEstornoRequestDTO baixa, CancellationToken cancellationToken);
+
+    Task<Resultado<EstornoResponseDTO>> PedirTentativaAsync(Guid autorId, Guid estornoId, CancellationToken cancellationToken);
 }
 
 /// <summary>
-/// Ações da operação sobre os estornos (REQ-28): visibilidade (US1) e baixa manual (US2). A autorização
+/// Ações da operação sobre os estornos (REQ-28): visibilidade (US1), baixa manual (US2) e tentativa
+/// forçada (US4). A autorização
 /// vem das políticas da API; a regra do alerta é a mesma do log 7008 (<see cref="RegrasAlertaEstorno"/>,
 /// R-09); a baixa só grava com o lock da rodada (R-03).
 /// </summary>
@@ -106,6 +109,46 @@ public sealed class ServicoAcoesEstornos(
         }
 
         EventosPagamento.EstornoBaixado(logger, estornoId, lido.PedidoId, lido.Valor, autorId);
+        return await ObterAsync(estornoId, cancellationToken);
+    }
+
+    /// <summary>
+    /// Tentativa forçada (REQ-28, FR-011 a FR-014): só marca o estorno; a rodada o trata primeiro, com o
+    /// lock e o circuito de sempre. Repetir o pedido não muda a marca. Um conflito com a rodada (que
+    /// gravou uma falha ao mesmo tempo) relê e tenta de novo.
+    /// </summary>
+    public async Task<Resultado<EstornoResponseDTO>> PedirTentativaAsync(Guid autorId, Guid estornoId, CancellationToken cancellationToken)
+    {
+        if (await consulta.ObterAsync(estornoId, cancellationToken) is not { } lido)
+        {
+            return NaoEncontrado;
+        }
+
+        for (var reavaliacao = 1; ; reavaliacao++)
+        {
+            var pedido = await armazenamento.ObterPedidoAsync(lido.PedidoId, paraAlterar: true, cancellationToken);
+            if (pedido?.Pagamento is not { Situacao: SituacaoPagamento.EstornoPendente })
+            {
+                return NaoPendente;
+            }
+
+            if (!pedido.PedirTentativaEstorno(relogio.GetUtcNow()))
+            {
+                break;
+            }
+
+            try
+            {
+                await armazenamento.SalvarAsync(cancellationToken);
+                break;
+            }
+            catch (ConflitoConcorrenciaException) when (reavaliacao < Reavaliacoes)
+            {
+                armazenamento.DescartarAlteracoes();
+            }
+        }
+
+        EventosPagamento.TentativaEstornoForcada(logger, estornoId, lido.PedidoId, autorId);
         return await ObterAsync(estornoId, cancellationToken);
     }
 
