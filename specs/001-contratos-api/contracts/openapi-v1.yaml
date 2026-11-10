@@ -1313,6 +1313,47 @@ paths:
         '500':
           $ref: '#/components/responses/ErroInterno'
 
+  /api/v1/estornos/{id}/baixa:
+    post:
+      tags: [Estornos]
+      operationId: DarBaixaEstorno
+      summary: Dá baixa num estorno pendente resolvido fora do sistema, com motivo; o gateway não é chamado.
+      description: |
+        Perfil autorizado: **Admin ativo**, conferido no banco a cada chamada; OperadorLogistica e
+        Cliente: 403 (REQ-28). O estorno passa a `Baixado` e nunca mais é tentado. Saem o evento
+        `pagamento.estorno-baixado` e o aviso `pedido.estorno-confirmado` ao Cliente. A baixa espera
+        até 5 s a rodada de estornos terminar; sem isso, 409 `ESTORNO_RODADA_EM_ANDAMENTO`. Estorno
+        confirmado ou já baixado: 409 `ESTORNO_NAO_PENDENTE`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdEstorno'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BaixaEstornoRequestDTO'
+      responses:
+        '200':
+          description: Estorno baixado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EstornoResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '404':
+          $ref: '#/components/responses/ErroNaoEncontrado'
+        '409':
+          $ref: '#/components/responses/ErroConflito'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
   /api/v1/notificacoes/destinos:
     post:
       tags: [Notificacoes]
@@ -1802,6 +1843,20 @@ components:
         convitePendente:
           type: boolean
           description: A conta ainda não definiu a senha.
+
+    BaixaEstornoRequestDTO:
+      type: object
+      required: [motivo]
+      description: Os espaços nas pontas não contam; a referência só com espaços vale como ausente (REQ-28).
+      properties:
+        motivo:
+          type: string
+          minLength: 10
+          maxLength: 500
+        referenciaExterna:
+          type: ['null', string]
+          maxLength: 100
+          description: Comprovante ou transferência da devolução; vai no pagamento.estorno-baixado.
 
     SituacaoEstorno:
       type: string
