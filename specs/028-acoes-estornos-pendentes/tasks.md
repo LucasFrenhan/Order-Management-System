@@ -42,7 +42,7 @@ US4 tentativa forçada. **O MVP são a fundação e as duas histórias P1 (US1 e
 
 ## Phase 1: Setup
 
-- [ ] T001 Tirar o retrato do Docker (`docker ps -a`, `docker volume ls`, `docker network ls`, `docker images`) e guardar
+- [X] T001 Tirar o retrato do Docker (`docker ps -a`, `docker volume ls`, `docker network ls`, `docker images`) e guardar
   a saída no scratchpad da sessão, para a conferência do T050.
 
 ---
@@ -51,7 +51,7 @@ US4 tentativa forçada. **O MVP são a fundação e as duas histórias P1 (US1 e
 
 **Purpose**: tudo o que as quatro histórias usam. A suíte atual volta a ficar verde no T016.
 
-- [ ] T002 [P] Testes unitários em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PagamentoEstornoTestes.cs` para os
+- [X] T002 [P] Testes unitários em `tests/PedidoFulfillment.Testes.Unitarios/Dominio/PagamentoEstornoTestes.cs` para os
   métodos novos do `Pagamento` ([data-model](./data-model.md#métodos-do-domínio)): `PedirTentativaEstorno` grava a marca
   só se nula e devolve se mudou; `RegistrarFalhaEstorno(instante, erro)` soma a tentativa, grava `UltimoErroEstorno` e
   limpa a marca; `MarcarEstornoAtrasado` grava só uma vez e devolve se mudou; `ConfirmarEstorno` limpa a marca;
@@ -59,54 +59,54 @@ US4 tentativa forçada. **O MVP são a fundação e as duas histórias P1 (US1 e
   (opcional) e limpa a marca; cada um lança `InvalidOperationException` fora de `EstornoPendente` (inclusive depois de
   baixado: nenhuma falha, confirmação ou marca nova, FR-008); erro acima de 200, motivo fora de 10 a 500 e referência
   acima de 100 caracteres lançam `ArgumentException`.
-- [ ] T003 Em `src/PedidoFulfillment.Domain/Pagamentos/SituacaoPagamento.cs`, acrescentar `EstornoBaixado` (final), com
+- [X] T003 Em `src/PedidoFulfillment.Domain/Pagamentos/SituacaoPagamento.cs`, acrescentar `EstornoBaixado` (final), com
   comentário citando o REQ-28 e a diferença para `Estornado` (devolução por fora, sem gateway).
-- [ ] T004 Em `src/PedidoFulfillment.Domain/Pagamentos/Pagamento.cs`, acrescentar as constantes
+- [X] T004 Em `src/PedidoFulfillment.Domain/Pagamentos/Pagamento.cs`, acrescentar as constantes
   `TamanhoMaximoUltimoErroEstorno = 200`, `TamanhoMinimoMotivoBaixa = 10`, `TamanhoMaximoMotivoBaixa = 500`,
   `TamanhoMaximoReferenciaExternaBaixa = 100`, as propriedades `UltimoErroEstorno`, `TentativaEstornoForcadaEm`,
   `EstornoAtrasadoEm`, `EstornoBaixadoEm`, `EstornoBaixadoPorId`, `MotivoBaixaEstorno` e
   `ReferenciaExternaBaixaEstorno` (todas anuláveis, `private set`) e os métodos do data-model, usando `Guardas` e
   `ExigirSituacao(EstornoPendente, ...)`. `RegistrarFalhaEstorno` passa a receber `string erro`. Até T002 passar.
-- [ ] T005 Em `src/PedidoFulfillment.Domain/Pedidos/Pedido.cs`, acrescentar os repasses `PedirTentativaEstorno`,
+- [X] T005 Em `src/PedidoFulfillment.Domain/Pedidos/Pedido.cs`, acrescentar os repasses `PedirTentativaEstorno`,
   `MarcarEstornoAtrasado` e `DarBaixaEstorno` pelo `PagamentoComEstornoPendente()`, e ajustar `RegistrarFalhaEstorno`
   para repassar o erro; nos chamadores, passar provisoriamente o mesmo texto que vai hoje para o log
   (`"{tipo}: {mensagem}"` ou `"Recusado: {motivo}"`, cortado em 200 caracteres), substituído pela
   `DescricaoFalhaEstorno` no T019 (nenhum teste lê a coluna antes do T017).
-- [ ] T006 Em `src/PedidoFulfillment.Infrastructure/Persistencia/Configuracoes/ConfiguracaoPagamento.cs`: `HasMaxLength`
+- [X] T006 Em `src/PedidoFulfillment.Infrastructure/Persistencia/Configuracoes/ConfiguracaoPagamento.cs`: `HasMaxLength`
   de 200 (`UltimoErroEstorno`), 500 (`MotivoBaixaEstorno`) e 100 (`ReferenciaExternaBaixaEstorno`);
   `CK_Pagamentos_BaixaCompleta` ("`Situacao = 'EstornoBaixado'` se e só se `EstornoBaixadoEm`, `EstornoBaixadoPorId` e
   `MotivoBaixaEstorno` estão preenchidos"); os índices filtrados `IX_Pagamentos_EstornoForcado`
   (`TentativaEstornoForcadaEm`, filtro `[Situacao] = N'EstornoPendente' AND [TentativaEstornoForcadaEm] IS NOT NULL`) e
   `IX_Pagamentos_EstornoPendenteListagem` (`EstornoSolicitadoEm`, `Id`, filtro `[Situacao] = N'EstornoPendente'`). A
   `CK_Pagamentos_SituacaoValida` já sai do enum (`RestricoesEnum`).
-- [ ] T007 Gerar a migração com `dotnet ef migrations add AcoesEstornos --project src/PedidoFulfillment.Infrastructure
+- [X] T007 Gerar a migração com `dotnet ef migrations add AcoesEstornos --project src/PedidoFulfillment.Infrastructure
   --startup-project src/PedidoFulfillment.API --output-dir Persistencia/Migracoes` e conferir no arquivo gerado em
   `src/PedidoFulfillment.Infrastructure/Persistencia/Migracoes/` que só há colunas anuláveis novas, a
   `CK_Pagamentos_SituacaoValida` recriada com `EstornoBaixado`, a `CK_Pagamentos_BaixaCompleta` e os dois índices, sem
   nenhuma alteração de dados.
-- [ ] T008 [P] Criar `src/PedidoFulfillment.Application/Pagamentos/RegrasAlertaEstorno.cs` com
+- [X] T008 [P] Criar `src/PedidoFulfillment.Application/Pagamentos/RegrasAlertaEstorno.cs` com
   `AlemDoLimite(DateTimeOffset solicitadoEm, int tentativas, DateTimeOffset agora, ParametrosAlertaEstorno parametros)`
   ("`agora − EstornoSolicitadoEm > LimiteAlerta` e `TentativasEstorno ≥ TentativasAlerta`", R-09), mover para lá o
   `ParametrosAlertaEstorno` e trocar a condição em linha do `ServicoEstornos.RegistrarFalhaAsync` por ela, sem mudar o
   comportamento do 7007/7008; testes em `tests/PedidoFulfillment.Testes.Unitarios/Pagamentos/RegrasAlertaEstornoTestes.cs`
   (limite exato não conta; tentativas iguais contam).
-- [ ] T009 [P] Criar `src/PedidoFulfillment.Application/Pagamentos/DescricaoFalhaEstorno.cs` com as categorias do
+- [X] T009 [P] Criar `src/PedidoFulfillment.Application/Pagamentos/DescricaoFalhaEstorno.cs` com as categorias do
   [R-05](./research.md#r-05-último-erro-sem-dado-sensível-fr-005): `Recusado(motivo)` → `Recusado: <motivo>` com o
-  motivo cortado em 180 caracteres; `Falha(FalhaGatewayPagamentoException)` → `Falha do gateway: <TipoFalhaGateway>.`;
-  `ConflitoConfirmacao` → `Conflito ao gravar a confirmação.`; `Inesperada(Exception)` → `Erro inesperado: <nome do
+  motivo cortado em 180 caracteres; `Falha(FalhaGatewayPagamentoException)` → `Falha passageira do gateway.` ou `Falha permanente do gateway.` (pelo `TipoFalhaGateway`);
+  `Inesperada(Exception)` → `Erro inesperado: <nome do
   tipo>.`; nunca a mensagem da exceção. Testes em
   `tests/PedidoFulfillment.Testes.Unitarios/Pagamentos/DescricaoFalhaEstornoTestes.cs`, inclusive uma exceção cuja
   mensagem tem URL e identificador que não podem aparecer no texto.
-- [ ] T010 [P] Em `src/PedidoFulfillment.Application/Contratos/Eventos/Eventos.cs` e `TiposEvento.cs`, criar
+- [X] T010 [P] Em `src/PedidoFulfillment.Application/Contratos/Eventos/Eventos.cs` e `TiposEvento.cs`, criar
   `PagamentoEstornoAtrasado` (`EstornoId`, `PedidoId`, `Numero`, `Valor`, `SolicitadoEm`, `Tentativas`, `AtrasadoEm`) e
   `PagamentoEstornoBaixado` (`EstornoId`, `PedidoId`, `Numero`, `Valor`, `AutorId`, `BaixadoEm`, `ReferenciaExterna`
   anulável e sempre serializado), os tipos `pagamento.estorno-atrasado` e `pagamento.estorno-baixado` e o registro no
   dicionário de tipos, conforme os [schemas](./contracts/eventos/).
-- [ ] T011 [P] Em `tests/PedidoFulfillment.Testes.Integracao/PedidoFulfillment.Testes.Integracao.csproj`, copiar
+- [X] T011 [P] Em `tests/PedidoFulfillment.Testes.Integracao/PedidoFulfillment.Testes.Integracao.csproj`, copiar
   `specs\028-acoes-estornos-pendentes\contracts\eventos\*.schema.json` para `Eventos` (como as linhas 41–45); em
   `tests/PedidoFulfillment.Testes.Integracao/Mensageria/SchemaEventosTestes.cs`, acrescentar os dois tipos à lista e ao
   comentário da classe, validando um exemplo serializado de cada (com `referenciaExterna` nula e preenchida).
-- [ ] T012 [P] Criar os DTOs em `src/PedidoFulfillment.Application/Contratos/Estornos/`: `SituacaoEstorno` (`Pendente`,
+- [X] T012 [P] Criar os DTOs em `src/PedidoFulfillment.Application/Contratos/Estornos/`: `SituacaoEstorno` (`Pendente`,
   `Confirmado`, `Baixado`), `EstornoResponseDTO`, `BaixaEstornoResponseDTO`, `PaginaEstornosResponseDTO`,
   `ListarEstornosRequestDTO` (`Tamanho`, `Cursor`) e `BaixaEstornoRequestDTO` (`Motivo` obrigatório, "10 a 500
   caracteres sem os espaços das pontas"; `ReferenciaExterna` opcional, "1 a 100 caracteres sem os espaços das pontas"),
@@ -114,18 +114,18 @@ US4 tentativa forçada. **O MVP são a fundação e as duas histórias P1 (US1 e
   `Contratos/Usuarios/`. Testes da validação do request em
   `tests/PedidoFulfillment.Testes.Unitarios/Contratos/BaixaEstornoRequestDTOTestes.cs` (molde de
   `RegistrarRastreioRequestDTOTestes.cs`).
-- [ ] T013 [P] Em `src/PedidoFulfillment.Application/Contratos/Erros/CodigosErro.cs`, acrescentar
-  `ESTORNO_NAO_ENCONTRADO` (404), `ESTORNO_NAO_PENDENTE` (409) e `ESTORNO_RODADA_EM_ANDAMENTO` (409) com os `title` e
+- [X] T013 [P] Em `src/PedidoFulfillment.Application/Contratos/Erros/CodigosErro.cs`, acrescentar
+  `ESTORNO_NAO_PENDENTE` (409) e `ESTORNO_RODADA_EM_ANDAMENTO` (409) com os `title` e
   `detail` exatos do [contrato](./contracts/estornos.md#códigos-de-erro-novos), e as mesmas linhas no catálogo de
   `specs/001-contratos-api/data-model.md` (seção "Catálogo de códigos de erro").
-- [ ] T014 [P] Em `src/PedidoFulfillment.API/Seguranca/PoliticasAutorizacao.cs`, acrescentar `PoliticaEstornos` (Admin
+- [X] T014 [P] Em `src/PedidoFulfillment.API/Seguranca/PoliticasAutorizacao.cs`, acrescentar `PoliticaEstornos` (Admin
   ou OperadorLogistica) e `PoliticaBaixaEstorno` (Admin com `RequisitoAdminAtivo`), com os comentários citando o REQ-28
   ([R-10](./research.md#r-10-autorização-fr-019-fr-020)).
-- [ ] T015 [P] Em `src/PedidoFulfillment.Application/Pagamentos/EventosPagamento.cs`, acrescentar os logs 7021
+- [X] T015 [P] Em `src/PedidoFulfillment.Application/Pagamentos/EventosPagamento.cs`, acrescentar os logs 7021
   `TentativaEstornoForcada` (Information: estorno, pedido, autor), 7022 `EstornoBaixado` (Warning: estorno, pedido,
   valor, autor), 7023 `BaixaEstornoRecusadaRodadaEmAndamento` (Warning: estorno, autor) e 7024
   `EstornoAtrasadoPublicado` (Warning: estorno, pedido, tentativas, horas pendente). Nenhum com motivo ou referência.
-- [ ] T016 Na API, registrar as opções de alerta: criar em
+- [X] T016 Na API, registrar as opções de alerta: criar em
   `src/PedidoFulfillment.Infrastructure/Pagamentos/ExtensoesPagamento.cs` a extensão `AdicionarAcoesEstornos` (chamada
   só pela API em `src/PedidoFulfillment.API/Program.cs`) e um método privado comum `AdicionarOpcoesEstornos` usado por
   ela e pelo `AdicionarProcessamentoEstornos`: `OpcoesEstornos` com `ValidateOnStart`, o validador registrado com
@@ -146,7 +146,7 @@ US4 tentativa forçada. **O MVP são a fundação e as duas histórias P1 (US1 e
 **Independent Test**: estornos pendentes em situações diferentes (novo, com falhas, além do limite) e um confirmado;
 a listagem traz só os pendentes, do mais antigo para o mais novo, com os dados certos.
 
-- [ ] T017 [P] [US1] Testes em `tests/PedidoFulfillment.Testes.Integracao/Estornos/ListagemEstornosTestes.cs`
+- [X] T017 [P] [US1] Testes em `tests/PedidoFulfillment.Testes.Integracao/Estornos/ListagemEstornosTestes.cs`
   (Testcontainers, semeando pedidos pagos e cancelados pelo `CenarioEstorno` e ajustando campos do `Pagamento` direto
   pelo contexto): três pendentes e um confirmado → só os três, do `EstornoSolicitadoEm` mais antigo para o mais novo
   (US1 cenário 1); estorno com duas falhas e a recusa "Cobrança desconhecida." → `tentativas` 2, `ultimaFalhaEm` e
@@ -155,33 +155,33 @@ a listagem traz só os pendentes, do mais antigo para o mais novo, com os dados 
   `tamanho=2` com 3 pendentes → `proximo` preenchido, a segunda página traz o terceiro e `anterior` volta à primeira
   (cenário 4); consulta por id de um pendente, de um `Estornado` (`situacao: Confirmado`, `confirmadoEm`) e de um
   `EstornoBaixado` semeado (`situacao: Baixado`, `baixa` preenchida) (cenário 5); lista vazia → 200 com `itens` vazio;
-  id desconhecido → 404 `ESTORNO_NAO_ENCONTRADO`; id inválido → 400 `erros.id`; `tamanho=0` e `cursor` adulterado → 400;
+  id desconhecido → 404 "Estorno não encontrado." (sem `codigo`, como os demais 404); id inválido → 400 `erros.id`; `tamanho=0` e `cursor` adulterado → 400;
   sem token → 401 e Cliente → 403 nas duas rotas; OperadorLogistica → 200 (cenário 6, FR-019).
-- [ ] T018 [P] [US1] Testes em `tests/PedidoFulfillment.Testes.Unitarios/Pagamentos/ServicoEstornosTestes.cs`: a falha
+- [X] T018 [P] [US1] Testes em `tests/PedidoFulfillment.Testes.Unitarios/Pagamentos/ServicoEstornosTestes.cs`: a falha
   grava o texto da `DescricaoFalhaEstorno` para recusa, `FalhaGatewayPagamentoException`, exceção inesperada e conflito
   na confirmação; o log 7007/7008 continua como hoje.
-- [ ] T019 [US1] Em `src/PedidoFulfillment.Application/Pagamentos/ServicoEstornos.cs`, montar o erro com a
+- [X] T019 [US1] Em `src/PedidoFulfillment.Application/Pagamentos/ServicoEstornos.cs`, montar o erro com a
   `DescricaoFalhaEstorno` e passá-lo a `pedido.RegistrarFalhaEstorno(agora, erro)`, mantendo o texto atual no log (o log
   já não leva identificadores; só o texto gravado muda). Até T018 passar.
-- [ ] T020 [P] [US1] Criar `src/PedidoFulfillment.Application/Pagamentos/PosicaoCursorEstornos.cs` e
+- [X] T020 [P] [US1] Criar `src/PedidoFulfillment.Application/Pagamentos/PosicaoCursorEstornos.cs` e
   `CodificadorCursorEstornos.cs`, no molde do `CodificadorCursorUsuarios`, com o rótulo `estornos`, a posição
   (`EstornoSolicitadoEm`, `Id`, sentido, inclusiva) e ligado a quem chama.
-- [ ] T021 [US1] Criar `src/PedidoFulfillment.Application/Pagamentos/IConsultaEstornos.cs` (listar página de pendentes
+- [X] T021 [US1] Criar `src/PedidoFulfillment.Application/Pagamentos/IConsultaEstornos.cs` (listar página de pendentes
   por posição e tamanho; obter por id) e `src/PedidoFulfillment.Infrastructure/Pagamentos/ConsultaEstornos.cs`
   (`AsNoTracking`, junção com o pedido para o `Numero`, ordem `EstornoSolicitadoEm, Id` pelo índice
   `IX_Pagamentos_EstornoPendenteListagem`), com o mapeamento `Pendente`/`Confirmado`/`Baixado` (outras situações do
   pagamento → não encontrado) e `alemDoLimiteAlerta` pela `RegrasAlertaEstorno` (sempre `false` fora de `Pendente`);
   registrar no `AdicionarAcoesEstornos` (T016), que só a API chama.
-- [ ] T022 [US1] Criar `src/PedidoFulfillment.Application/Pagamentos/ServicoAcoesEstornos.cs` com `ListarAsync` e
-  `ObterAsync`, devolvendo `Resultado<...>` com `ESTORNO_NAO_ENCONTRADO` e o cursor inválido como erro de validação
+- [X] T022 [US1] Criar `src/PedidoFulfillment.Application/Pagamentos/ServicoAcoesEstornos.cs` com `ListarAsync` e
+  `ObterAsync`, devolvendo `Resultado<...>` com o 404 "Estorno não encontrado." e o cursor inválido como erro de validação
   `erros.cursor`, no molde do `ServicoGestaoUsuarios`.
-- [ ] T023 [US1] Criar `src/PedidoFulfillment.API/Endpoints/ParametrosListarEstornos.cs` (`tamanho` 1 a 100, padrão 20;
+- [X] T023 [US1] Criar `src/PedidoFulfillment.API/Endpoints/ParametrosListarEstornos.cs` (`tamanho` 1 a 100, padrão 20;
   `cursor`) e `src/PedidoFulfillment.API/Endpoints/EndpointsEstornos.cs` com o grupo `/api/v1/estornos`
   (`WithTags("Estornos")`) e as rotas `GET /pendentes` e `GET /{id}` (sem `{id:guid}`, 400 para id inválido) com
   `PoliticaEstornos`; registrar `ServicoAcoesEstornos`, o codificador e `MapearEndpointsEstornos` em
   `src/PedidoFulfillment.API/Program.cs`. Se o OpenAPI precisar dos parâmetros, criar
   `src/PedidoFulfillment.API/OpenApi/ParametrosListagemEstornosOpenApi.cs` no molde do de usuários.
-- [ ] T024 [US1] Em `specs/001-contratos-api/contracts/openapi-v1.yaml`, acrescentar as duas rotas e os schemas
+- [X] T024 [US1] Em `specs/001-contratos-api/contracts/openapi-v1.yaml`, acrescentar as duas rotas e os schemas
   `EstornoResponseDTO`, `BaixaEstornoResponseDTO`, `PaginaEstornosResponseDTO` e `SituacaoEstorno`, com os erros de cada
   rota ([contrato](./contracts/estornos.md#rotas)); só acréscimos. Rodar os testes de `Contrato`. Até T017 passar.
 
@@ -325,7 +325,7 @@ geram outro.
   entregue, como o REQ-27.
 - [ ] T048 Conferir nos documentos alterados (T042 a T047) as rotas, os códigos, as mensagens, os IDs de log, o nome do
   medidor e os limites contra o código, e que os links relativos não estão quebrados; registrar no fluxo 10 que as
-  rotas novas seguem o limite de requisições global (FR-023). O README não muda (se algo
+  rotas novas ficam fora do limite de requisições, que vale só para o login e o registro (FR-023). O README não muda (se algo
   precisar entrar nele, perguntar antes).
 - [ ] T049 Atualizar o [quickstart](./quickstart.md) com o que mudou na implementação e seguir as seções 3.1 a 3.4.
 - [ ] T050 Rodar `dotnet build`, `dotnet test` e `dotnet format --verify-no-changes`; conferir que os contêineres,

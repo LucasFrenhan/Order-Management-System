@@ -162,6 +162,8 @@ ProblemDetails + `codigo` (string estável).
 | `PEDIDO_TRANSICAO_INVALIDA` | 409 | atualizar status | transição fora da tabela |
 | `PEDIDO_TRANSICAO_INVALIDA` | 409 | registrar rastreio (REQ-11) | pedido fora de `ProntoParaEnvio` e `Despachado` |
 | `PEDIDO_RASTREIO_DUPLICADO` | 409 | registrar rastreio (REQ-11) | mesmo código na mesma transportadora em outro pedido, sem diferenciar maiúsculas |
+| `ESTORNO_NAO_PENDENTE` | 409 | baixa e tentativa forçada do estorno (REQ-28) | estorno já confirmado pelo gateway ou baixado |
+| `ESTORNO_RODADA_EM_ANDAMENTO` | 409 | baixa do estorno (REQ-28) | a rodada de estornos não terminou em 5 s |
 
 Novos códigos podem ser adicionados (mudança compatível). Códigos existentes não podem
 ser renomeados nem reaproveitados (Princípio II).

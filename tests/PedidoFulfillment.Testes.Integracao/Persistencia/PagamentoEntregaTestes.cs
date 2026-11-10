@@ -44,7 +44,7 @@ public sealed class PagamentoEntregaTestes(BancoDadosTeste banco)
         var pagamento = new Pagamento(pedidoId, 99.90m, DadosPersistencia.Instante);
         pagamento.RegistrarResultado(SituacaoPagamento.Aprovado, "TX-1", Depois);
         pagamento.SolicitarEstorno(Depois.AddMinutes(1));
-        pagamento.RegistrarFalhaEstorno(Depois.AddMinutes(2));
+        pagamento.RegistrarFalhaEstorno(Depois.AddMinutes(2), "Falha passageira do gateway.");
         await GravarAsync(stringConexao, pagamento);
 
         await using (var contexto = BancoDadosTeste.NovoContexto(stringConexao))

@@ -59,6 +59,24 @@ public static partial class EventosPagamento
         Message = "Rodada de estornos: {Confirmados} confirmado(s) e {Falhas} falha(s).")]
     public static partial void ResumoEstornos(ILogger logger, LogLevel level, int confirmados, int falhas);
 
+    // Ações da operação (REQ-28, R-12): sem o motivo da baixa nem a referência externa.
+
+    [LoggerMessage(EventId = 7021, EventName = "TentativaEstornoForcada", Level = LogLevel.Information,
+        Message = "Tentativa forçada do estorno {EstornoId} (pedido {PedidoId}) pedida por {AutorId}.")]
+    public static partial void TentativaEstornoForcada(ILogger logger, Guid estornoId, Guid pedidoId, Guid autorId);
+
+    [LoggerMessage(EventId = 7022, EventName = "EstornoBaixado", Level = LogLevel.Warning,
+        Message = "Baixa manual do estorno {EstornoId} (pedido {PedidoId}, valor {Valor}) por {AutorId}; o gateway não foi chamado e o estorno não será mais tentado.")]
+    public static partial void EstornoBaixado(ILogger logger, Guid estornoId, Guid pedidoId, decimal valor, Guid autorId);
+
+    [LoggerMessage(EventId = 7023, EventName = "BaixaEstornoRecusadaRodadaEmAndamento", Level = LogLevel.Warning,
+        Message = "Baixa do estorno {EstornoId} pedida por {AutorId} recusada: a rodada de estornos não terminou em {EsperaSegundos} s.")]
+    public static partial void BaixaEstornoRecusadaRodadaEmAndamento(ILogger logger, Guid estornoId, Guid autorId, int esperaSegundos);
+
+    [LoggerMessage(EventId = 7024, EventName = "EstornoAtrasadoPublicado", Level = LogLevel.Warning,
+        Message = "Estorno {EstornoId} do pedido {PedidoId} além do limite de alerta ({Tentativas} tentativa(s), pendente há {HorasPendente} h): pagamento.estorno-atrasado publicado.")]
+    public static partial void EstornoAtrasadoPublicado(ILogger logger, Guid estornoId, Guid pedidoId, int tentativas, int horasPendente);
+
     // Gateway por HTTP (REQ-19, R-12): os demais (7013 a 7018 e 7020) ficam no Infrastructure.
 
     [LoggerMessage(EventId = 7019, EventName = "ConsultaCobranca", Level = LogLevel.Information,

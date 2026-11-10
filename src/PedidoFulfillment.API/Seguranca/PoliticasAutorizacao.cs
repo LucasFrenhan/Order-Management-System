@@ -31,6 +31,12 @@ public static class PoliticasAutorizacao
     /// <summary>Gestão de usuários e perfis: Admin no token e ainda Admin ativo no banco (REQ-25, R-02).</summary>
     public const string PoliticaGestaoUsuarios = nameof(PoliticaGestaoUsuarios);
 
+    /// <summary>Listagem, consulta e tentativa forçada dos estornos: a operação (REQ-28, FR-019).</summary>
+    public const string PoliticaEstornos = nameof(PoliticaEstornos);
+
+    /// <summary>Baixa manual do estorno: Admin no token e ainda Admin ativo no banco (REQ-28, FR-020).</summary>
+    public const string PoliticaBaixaEstorno = nameof(PoliticaBaixaEstorno);
+
     private static readonly string[] TodosOsPerfis = Enum.GetNames<PerfilUsuario>();
 
     public static IServiceCollection AdicionarPoliticasAutorizacao(this IServiceCollection services)
@@ -41,6 +47,11 @@ public static class PoliticasAutorizacao
             .AddPolicy(PoliticaGestaoUsuarios, p => p.RequireAuthenticatedUser()
                 .RequireRole(nameof(PerfilUsuario.Admin))
                 .AddRequirements(new RequisitoAdminAtivo()))
+            .AddPolicy(PoliticaBaixaEstorno, p => p.RequireAuthenticatedUser()
+                .RequireRole(nameof(PerfilUsuario.Admin))
+                .AddRequirements(new RequisitoAdminAtivo()))
+            .AddPolicy(PoliticaEstornos, p => p.RequireAuthenticatedUser()
+                .RequireRole(nameof(PerfilUsuario.Admin), nameof(PerfilUsuario.OperadorLogistica)))
             .AddPolicy(PoliticaCliente, p => p.RequireAuthenticatedUser().RequireRole(nameof(PerfilUsuario.Cliente)))
             .AddPolicy(PoliticaContaAutenticada, p => p.RequireAuthenticatedUser().RequireRole(TodosOsPerfis))
             .AddPolicy(PoliticaConsultaPedido, p => p.RequireAuthenticatedUser().RequireRole(TodosOsPerfis))

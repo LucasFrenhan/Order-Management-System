@@ -39,7 +39,7 @@ public sealed class ServicoEstornosTestes
         pedido.Cancelar(Guid.CreateVersion7(), "Cliente desistiu", produtos, Cancelamento);
         for (var i = 1; i <= falhasAnteriores; i++)
         {
-            pedido.RegistrarFalhaEstorno(Cancelamento.AddMinutes(i));
+            pedido.RegistrarFalhaEstorno(Cancelamento.AddMinutes(i), "Falha passageira do gateway.");
         }
 
         return pedido;
@@ -279,5 +279,42 @@ public sealed class ServicoEstornosTestes
 
         resultado.Should().Be(ResultadoRodadaEstorno.Falhou);
         Gravado().Pagamento!.TentativasEstorno.Should().Be(1);
+    }
+
+    public static TheoryData<string, string> ErrosGravados => new()
+    {
+        { "recusa", "Recusado: Estorno recusado pelo emissor." },
+        { "passageira", "Falha passageira do gateway." },
+        { "permanente", "Falha permanente do gateway." },
+        { "inesperada", "Erro inesperado: TimeoutException." }
+    };
+
+    /// <summary>REQ-28, R-05: a operação vê só a categoria; o log continua com o detalhe de hoje.</summary>
+    [Theory]
+    [MemberData(nameof(ErrosGravados))]
+    public async Task A_falha_grava_so_a_categoria_do_erro(string falha, string esperado)
+    {
+        armazenamento.GuardarPedido(PedidoId, () => MontarPendente());
+        switch (falha)
+        {
+            case "recusa":
+                gateway.ProximoEstorno = ResultadoEstorno.Recusar("Estorno recusado pelo emissor.");
+                break;
+            case "passageira":
+                gateway.FalhaEstorno = new FalhaGatewayPagamentoException(
+                    TipoFalhaGateway.Passageira, OperacaoGateway.Estorno, "https://pagamentos.interno/v1/estornos respondeu 503");
+                break;
+            case "permanente":
+                gateway.FalhaEstorno = new FalhaGatewayPagamentoException(TipoFalhaGateway.Permanente, OperacaoGateway.Estorno, "chave recusada");
+                break;
+            default:
+                gateway.FalhaEstorno = new TimeoutException("Gateway sem resposta em https://pagamentos.interno.");
+                break;
+        }
+
+        await Servico(Cancelamento.AddMinutes(1)).EstornarAsync(PedidoId, Alerta, Token);
+
+        Gravado().Pagamento!.UltimoErroEstorno.Should().Be(esperado);
+        logger.Eventos.Should().ContainSingle(e => e.Id.Id == 7007);
     }
 }

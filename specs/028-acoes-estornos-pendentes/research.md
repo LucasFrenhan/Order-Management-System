@@ -75,8 +75,7 @@ Decisões técnicas do plano. Cada uma cita os requisitos da [spec](./spec.md) q
   | Origem | Texto gravado |
   |--------|---------------|
   | Recusa do gateway | `Recusado: <motivo>`, com o motivo do gateway cortado em 180 caracteres |
-  | `FalhaGatewayPagamentoException` | `Falha do gateway: <TipoFalhaGateway>.` (por exemplo, `Falha do gateway: TempoEsgotado.`) |
-  | Conflito ao gravar a confirmação | `Conflito ao gravar a confirmação.` |
+  | `FalhaGatewayPagamentoException` | `Falha passageira do gateway.` ou `Falha permanente do gateway.`, pelo `TipoFalhaGateway` |
   | Outra exceção | `Erro inesperado: <nome do tipo da exceção>.` |
 
 - **Por quê**: a mensagem da exceção pode trazer URL, corpo de resposta ou identificadores; o tipo e
@@ -159,7 +158,7 @@ auditoria dos logs.
 
 | Código | Status | `title` / `detail` |
 |--------|--------|--------------------|
-| `ESTORNO_NAO_ENCONTRADO` | 404 | "Estorno não encontrado." / "Nenhum estorno com o identificador informado." |
+| (sem `codigo`, como os demais 404) | 404 | "Estorno não encontrado." / "Nenhum estorno com o identificador informado." |
 | `ESTORNO_NAO_PENDENTE` | 409 | "Estorno não está pendente." / "O estorno já foi confirmado pelo gateway ou baixado." |
 | `ESTORNO_RODADA_EM_ANDAMENTO` | 409 | "Rodada de estornos em andamento." / "Rodada de estornos em andamento; tente de novo em instantes." |
 

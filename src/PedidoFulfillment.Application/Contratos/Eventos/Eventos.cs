@@ -188,6 +188,50 @@ public sealed record PagamentoEstornado
 }
 
 /// <summary>
+/// <c>pagamento.estorno-atrasado</c>: publicado pelo processo de workers, uma única vez por estorno, na
+/// gravação da falha que o leva além do limite de alerta (REQ-28, FR-015 a FR-017). O estorno continua
+/// pendente. Sem identificadores do gateway nem o último erro; não gera aviso ao Cliente.
+/// </summary>
+public sealed record PagamentoEstornoAtrasado
+{
+    public required Guid EstornoId { get; init; }
+
+    public required Guid PedidoId { get; init; }
+
+    public required string Numero { get; init; }
+
+    public required decimal Valor { get; init; }
+
+    public required DateTimeOffset SolicitadoEm { get; init; }
+
+    public required int Tentativas { get; init; }
+
+    public required DateTimeOffset AtrasadoEm { get; init; }
+}
+
+/// <summary>
+/// <c>pagamento.estorno-baixado</c>: publicado pela API quando um Admin dá baixa num estorno resolvido
+/// fora do sistema (REQ-28, FR-010), na mesma gravação. Sem o motivo; a referência externa vai para a
+/// conciliação, e sai como <see langword="null"/> quando não foi informada.
+/// </summary>
+public sealed record PagamentoEstornoBaixado
+{
+    public required Guid EstornoId { get; init; }
+
+    public required Guid PedidoId { get; init; }
+
+    public required string Numero { get; init; }
+
+    public required decimal Valor { get; init; }
+
+    public required Guid AutorId { get; init; }
+
+    public required DateTimeOffset BaixadoEm { get; init; }
+
+    public required string? ReferenciaExterna { get; init; }
+}
+
+/// <summary>
 /// Quem fez a mudança de status no <c>pedido.status-alterado</c> (REQ-18, R-14). Faz parte do
 /// contrato: acrescentar um valor muda o contrato e exige decisão (Princípio II).
 /// </summary>

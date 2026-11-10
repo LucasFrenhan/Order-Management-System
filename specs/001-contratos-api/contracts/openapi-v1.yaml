@@ -28,6 +28,8 @@ tags:
     description: Destinos de webhook e eventos em tempo real das mudanças de status (REQ-18).
   - name: Usuarios
     description: Gestão de usuários e perfis, só para o Admin ativo (REQ-25).
+  - name: Estornos
+    description: Estornos pendentes, tentativa forçada e baixa manual, para a operação (REQ-28).
 
 paths:
   /api/v1/auth/register:
@@ -1240,6 +1242,77 @@ paths:
         '500':
           $ref: '#/components/responses/ErroInterno'
 
+  /api/v1/estornos/pendentes:
+    get:
+      tags: [Estornos]
+      operationId: ListarEstornosPendentes
+      summary: Lista os estornos pendentes, do pedido de estorno mais antigo para o mais novo, com tentativas, último erro e alerta.
+      description: |
+        Perfis autorizados: **Admin** e **OperadorLogistica**. Cliente: 403 (REQ-28). A ordem é pelo
+        instante do pedido de estorno e, no empate, pelo `estornoId`. Paginação por cursor, como em
+        `GET /api/v1/pedidos`. `alemDoLimiteAlerta` segue a regra do log 7008 (pendente há mais de
+        `Estornos:LimiteAlertaSegundos` e com pelo menos `Estornos:TentativasAlerta` falhas).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tamanho
+          in: query
+          description: Estornos por página, de 1 a 100.
+          schema:
+            type: integer
+            format: int32
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: cursor
+          in: query
+          description: O `proximo` ou o `anterior` de uma resposta anterior.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Página de estornos pendentes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginaEstornosResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /api/v1/estornos/{id}:
+    get:
+      tags: [Estornos]
+      operationId: ObterEstorno
+      summary: Consulta um estorno pendente, confirmado pelo gateway ou baixado manualmente.
+      description: Perfis autorizados - **Admin** e **OperadorLogistica** (REQ-28).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdEstorno'
+      responses:
+        '200':
+          description: Estorno encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EstornoResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '404':
+          $ref: '#/components/responses/ErroNaoEncontrado'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
   /api/v1/notificacoes/destinos:
     post:
       tags: [Notificacoes]
@@ -1511,6 +1584,15 @@ components:
         type: string
         format: uuid
 
+    IdEstorno:
+      name: id
+      in: path
+      required: true
+      description: Identificador do estorno (REQ-28).
+      schema:
+        type: string
+        format: uuid
+
     PerfilDoUsuario:
       name: perfil
       in: path
@@ -1720,6 +1802,101 @@ components:
         convitePendente:
           type: boolean
           description: A conta ainda não definiu a senha.
+
+    SituacaoEstorno:
+      type: string
+      description: Pendente (a rodada tenta de novo), Confirmado (pelo gateway) ou Baixado (resolvido fora do sistema) (REQ-28).
+      enum: [Pendente, Confirmado, Baixado]
+
+    BaixaEstornoResponseDTO:
+      type: object
+      description: Dados da baixa manual (REQ-28).
+      required: [autorId, baixadoEm, motivo, referenciaExterna]
+      properties:
+        autorId:
+          type: string
+          format: uuid
+        baixadoEm:
+          type: string
+          format: date-time
+        motivo:
+          type: string
+        referenciaExterna:
+          type: ['null', string]
+
+    EstornoResponseDTO:
+      type: object
+      description: |
+        Um estorno para a operação (REQ-28). Nunca traz os identificadores da transação ou do estorno
+        no gateway; `ultimoErro` é só a categoria da última falha.
+      required: [estornoId, pedidoId, numero, valor, situacao, solicitadoEm, tentativas, ultimaFalhaEm, ultimoErro,
+        alemDoLimiteAlerta, atrasadoEm, tentativaForcadaEm, confirmadoEm, baixa]
+      properties:
+        estornoId:
+          type: string
+          format: uuid
+        pedidoId:
+          type: string
+          format: uuid
+        numero:
+          type: string
+          pattern: '^PED-\d{8}-\d{6}$'
+        valor:
+          type: number
+          format: decimal
+          description: Duas casas decimais.
+        situacao:
+          $ref: '#/components/schemas/SituacaoEstorno'
+        solicitadoEm:
+          type: string
+          format: date-time
+          description: Quando o cancelamento pediu o estorno.
+        tentativas:
+          type: integer
+          format: int32
+          description: Tentativas com falha.
+        ultimaFalhaEm:
+          type: ['null', string]
+          format: date-time
+        ultimoErro:
+          type: ['null', string]
+        alemDoLimiteAlerta:
+          type: boolean
+          description: A regra do log 7008; sempre false fora de Pendente.
+        atrasadoEm:
+          type: ['null', string]
+          format: date-time
+          description: Quando saiu o pagamento.estorno-atrasado; null se não saiu.
+        tentativaForcadaEm:
+          type: ['null', string]
+          format: date-time
+          description: Tentativa forçada ainda não feita.
+        confirmadoEm:
+          type: ['null', string]
+          format: date-time
+        baixa:
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/BaixaEstornoResponseDTO'
+
+    PaginaEstornosResponseDTO:
+      type: object
+      description: Uma página dos estornos pendentes (REQ-28), como as de usuários e produtos.
+      required: [itens, tamanho, proximo, anterior]
+      properties:
+        itens:
+          type: array
+          items:
+            $ref: '#/components/schemas/EstornoResponseDTO'
+        tamanho:
+          type: integer
+          format: int32
+        proximo:
+          type: ['null', string]
+          description: Cursor da próxima página; null na última.
+        anterior:
+          type: ['null', string]
+          description: Cursor da página anterior; null na primeira.
 
     PaginaUsuariosResponseDTO:
       type: object

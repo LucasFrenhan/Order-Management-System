@@ -70,8 +70,8 @@ public sealed class PagamentoEstornoTestes
     {
         var pagamento = EstornoPendente();
 
-        pagamento.RegistrarFalhaEstorno(T2);
-        pagamento.RegistrarFalhaEstorno(T3);
+        pagamento.RegistrarFalhaEstorno(T2, "Falha passageira do gateway.");
+        pagamento.RegistrarFalhaEstorno(T3, "Falha passageira do gateway.");
 
         pagamento.TentativasEstorno.Should().Be(2);
         pagamento.UltimaFalhaEstornoEm.Should().Be(T3);
@@ -84,7 +84,7 @@ public sealed class PagamentoEstornoTestes
     {
         var pagamento = Aprovado();
 
-        var registrar = () => pagamento.RegistrarFalhaEstorno(T2);
+        var registrar = () => pagamento.RegistrarFalhaEstorno(T2, "Falha passageira do gateway.");
 
         registrar.Should().Throw<InvalidOperationException>();
         pagamento.TentativasEstorno.Should().Be(0);
@@ -94,7 +94,7 @@ public sealed class PagamentoEstornoTestes
     public void ConfirmarEstorno_leva_a_estornado_com_identificador_aparado()
     {
         var pagamento = EstornoPendente();
-        pagamento.RegistrarFalhaEstorno(T2);
+        pagamento.RegistrarFalhaEstorno(T2, "Falha passageira do gateway.");
 
         pagamento.ConfirmarEstorno("  SIM-EST-1  ", T3);
 
@@ -160,7 +160,7 @@ public sealed class PagamentoEstornoTestes
         var foraDeUtc = new DateTimeOffset(2026, 10, 24, 9, 0, 0, TimeSpan.FromHours(-3));
 
         var solicitar = () => Aprovado().SolicitarEstorno(foraDeUtc);
-        var falhar = () => EstornoPendente().RegistrarFalhaEstorno(foraDeUtc);
+        var falhar = () => EstornoPendente().RegistrarFalhaEstorno(foraDeUtc, "Falha passageira do gateway.");
         var confirmar = () => EstornoPendente().ConfirmarEstorno("SIM-EST-1", foraDeUtc);
 
         solicitar.Should().Throw<ArgumentException>();

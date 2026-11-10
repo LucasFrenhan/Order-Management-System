@@ -2,7 +2,7 @@ namespace PedidoFulfillment.Application.Contratos.Eventos;
 
 /// <summary>
 /// Catálogo dos eventos: nome no passado (chave de roteamento), versão e tipo do conteúdo
-/// (REQ-06, FR-001; REQ-08, FR-012; REQ-10, FR-008; REQ-15, FR-008; REQ-18, FR-006; constituição: eventos no passado).
+/// (REQ-06, FR-001; REQ-08, FR-012; REQ-10, FR-008; REQ-15, FR-008; REQ-18, FR-006; REQ-28, FR-010 e FR-015; constituição: eventos no passado).
 /// </summary>
 public static class TiposEvento
 {
@@ -15,6 +15,8 @@ public static class TiposEvento
     public const string PedidoCancelado = "pedido.cancelado";
     public const string PagamentoEstornado = "pagamento.estornado";
     public const string PedidoStatusAlterado = "pedido.status-alterado";
+    public const string PagamentoEstornoAtrasado = "pagamento.estorno-atrasado";
+    public const string PagamentoEstornoBaixado = "pagamento.estorno-baixado";
 
     public const int VersaoAtual = 1;
 
@@ -28,7 +30,9 @@ public static class TiposEvento
         [EntregaCriada] = typeof(Eventos.EntregaCriada),
         [PedidoCancelado] = typeof(Eventos.PedidoCancelado),
         [PagamentoEstornado] = typeof(Eventos.PagamentoEstornado),
-        [PedidoStatusAlterado] = typeof(Eventos.PedidoStatusAlterado)
+        [PedidoStatusAlterado] = typeof(Eventos.PedidoStatusAlterado),
+        [PagamentoEstornoAtrasado] = typeof(Eventos.PagamentoEstornoAtrasado),
+        [PagamentoEstornoBaixado] = typeof(Eventos.PagamentoEstornoBaixado)
     };
 
     public static string TipoDe<T>() =>

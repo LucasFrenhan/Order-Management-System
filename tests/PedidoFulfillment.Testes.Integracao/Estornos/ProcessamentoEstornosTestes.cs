@@ -38,6 +38,35 @@ public sealed class ProcessamentoEstornosTestes(MensageriaTeste mensageria)
         return (stringConexao, pedidoId);
     }
 
+    /// <summary>
+    /// Conferência do REQ-28 (research): a marca da tentativa forçada, gravada pela API, e a falha
+    /// gravada pela rodada disputam o mesmo pedido; a segunda gravação dá conflito, e nada se perde.
+    /// </summary>
+    [Fact]
+    public async Task Mudanca_no_estorno_por_dois_caminhos_ao_mesmo_tempo_da_conflito_de_concorrencia()
+    {
+        Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
+        var (stringConexao, pedidoId) = await CanceladoPagoAsync();
+        await using var api = Api(stringConexao);
+        using var escopoApi = api.Services.CreateScope();
+        using var escopoRodada = api.Services.CreateScope();
+        var armazenamentoApi = escopoApi.ServiceProvider.GetRequiredService<PedidoFulfillment.Application.Pedidos.IArmazenamentoPedidos>();
+        var armazenamentoRodada = escopoRodada.ServiceProvider.GetRequiredService<PedidoFulfillment.Application.Pedidos.IArmazenamentoPedidos>();
+        var pelaApi = (await armazenamentoApi.ObterPedidoAsync(pedidoId, paraAlterar: true, Cancelamento))!;
+        var pelaRodada = (await armazenamentoRodada.ObterPedidoAsync(pedidoId, paraAlterar: true, Cancelamento))!;
+        var agora = DateTimeOffset.UtcNow;
+
+        pelaApi.PedirTentativaEstorno(agora).Should().BeTrue();
+        await armazenamentoApi.SalvarAsync(Cancelamento);
+        pelaRodada.RegistrarFalhaEstorno(agora, "Falha passageira do gateway.");
+        var gravar = () => armazenamentoRodada.SalvarAsync(Cancelamento);
+
+        await gravar.Should().ThrowAsync<PedidoFulfillment.Application.Comum.ConflitoConcorrenciaException>();
+        (await TentativasAsync(stringConexao, pedidoId)).Should().Be(0, "a falha em conflito não é contada");
+        (await BancoDadosTeste.ConsultarAsync<int>(stringConexao,
+            $"SELECT COUNT(*) FROM Pagamentos WHERE PedidoId = '{pedidoId}' AND TentativaEstornoForcadaEm IS NOT NULL")).Should().Be(1);
+    }
+
     [Fact]
     public async Task Estorno_pendente_e_confirmado_na_primeira_rodada_depois_que_o_Worker_sobe()
     {

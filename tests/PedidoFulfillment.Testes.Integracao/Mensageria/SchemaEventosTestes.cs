@@ -10,8 +10,9 @@ namespace PedidoFulfillment.Testes.Integracao.Mensageria;
 /// Conformidade dos eventos v1 com os schemas publicados em
 /// <c>specs/006-mensageria/contracts/eventos/</c> (REQ-06, FR-003, FR-004; constituição V),
 /// <c>specs/008-estoque/contracts/eventos/</c> (REQ-08), <c>specs/010-fulfillment/contracts/eventos/</c>
-/// (REQ-10, FR-009), <c>specs/015-visibilidade-cancelamentos/contracts/eventos/</c> (REQ-15, FR-008) e
-/// <c>specs/018-notificacao-status/contracts/eventos/</c> (REQ-18, FR-006).
+/// (REQ-10, FR-009), <c>specs/015-visibilidade-cancelamentos/contracts/eventos/</c> (REQ-15, FR-008),
+/// <c>specs/018-notificacao-status/contracts/eventos/</c> (REQ-18, FR-006) e
+/// <c>specs/028-acoes-estornos-pendentes/contracts/eventos/</c> (REQ-28, FR-010 e FR-017).
 /// </summary>
 public sealed class SchemaEventosTestes
 {
@@ -66,8 +67,47 @@ public sealed class SchemaEventosTestes
         { TiposEvento.PedidoCancelado, JsonPedidoCancelado(MotivoCancelamento.Operacao, null) },
         { TiposEvento.PedidoCancelado, JsonPedidoCancelado(MotivoCancelamento.ReconciliacaoEsgotada, EtapaEsgotada.Entrega) },
         { TiposEvento.PagamentoEstornado, JsonPagamentoEstornado() },
-        { TiposEvento.PedidoStatusAlterado, JsonPedidoStatusAlterado() }
+        { TiposEvento.PedidoStatusAlterado, JsonPedidoStatusAlterado() },
+        { TiposEvento.PagamentoEstornoAtrasado, JsonPagamentoEstornoAtrasado() },
+        { TiposEvento.PagamentoEstornoBaixado, JsonPagamentoEstornoBaixado("TED-778812") },
+        { TiposEvento.PagamentoEstornoBaixado, JsonPagamentoEstornoBaixado(null) }
     };
+
+    // REQ-28: estorno de 829,70 pendente há 25 h, com 3 falhas.
+    private static string JsonPagamentoEstornoAtrasado() => SerializacaoEventos.Serializar(EnvelopeEvento.Criar(PedidoId, new PagamentoEstornoAtrasado
+    {
+        EstornoId = Guid.CreateVersion7(),
+        PedidoId = PedidoId,
+        Numero = "PED-20261026-000042",
+        Valor = 829.70m,
+        SolicitadoEm = Instante.AddHours(-25),
+        Tentativas = 3,
+        AtrasadoEm = Instante
+    }, Instante));
+
+    // REQ-28: baixa manual, com e sem a referência externa (que sai como null).
+    private static string JsonPagamentoEstornoBaixado(string? referencia) => SerializacaoEventos.Serializar(EnvelopeEvento.Criar(PedidoId, new PagamentoEstornoBaixado
+    {
+        EstornoId = Guid.CreateVersion7(),
+        PedidoId = PedidoId,
+        Numero = "PED-20261026-000042",
+        Valor = 829.70m,
+        AutorId = Guid.CreateVersion7(),
+        BaixadoEm = Instante,
+        ReferenciaExterna = referencia
+    }, Instante));
+
+    [Fact]
+    public void Estorno_baixado_com_o_motivo_ou_sem_a_referencia_e_recusado()
+    {
+        var comMotivo = JsonNode.Parse(JsonPagamentoEstornoBaixado(null))!.AsObject();
+        comMotivo["dados"]!["motivo"] = "Devolvido por transferência.";
+        var semReferencia = JsonNode.Parse(JsonPagamentoEstornoBaixado(null))!.AsObject();
+        semReferencia["dados"]!.AsObject().Remove("referenciaExterna");
+
+        DeveSerValido(TiposEvento.PagamentoEstornoBaixado, comMotivo.ToJsonString()).Should().BeFalse("o motivo não vai no evento");
+        DeveSerValido(TiposEvento.PagamentoEstornoBaixado, semReferencia.ToJsonString()).Should().BeFalse("a referência sai sempre, mesmo nula");
+    }
 
     // REQ-18: despacho pela operação, quarta entrada do histórico.
     private static string JsonPedidoStatusAlterado() => SerializacaoEventos.Serializar(EnvelopeEvento.Criar(PedidoId, new PedidoStatusAlterado

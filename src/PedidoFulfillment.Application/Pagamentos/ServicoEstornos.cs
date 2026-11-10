@@ -26,9 +26,6 @@ public enum ResultadoRodadaEstorno
     Adiado
 }
 
-/// <summary>Quando a falha de um estorno vira erro para a operação (REQ-13, FR-003).</summary>
-public sealed record ParametrosAlertaEstorno(TimeSpan LimiteAlerta, int TentativasAlerta);
-
 /// <summary>
 /// Decide um estorno pendente (REQ-13, R-04): pede o estorno ao gateway e grava a confirmação ou
 /// a falha. O estorno nunca desiste; depois do limite de alerta, cada falha é um erro no log.
@@ -66,12 +63,14 @@ public sealed class ServicoEstornos(
         }
         catch (Exception excecao) when (excecao is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            return await RegistrarFalhaAsync(pedidoId, $"{excecao.GetType().Name}: {excecao.Message}", parametros, cancellationToken);
+            return await RegistrarFalhaAsync(
+                pedidoId, new Falha($"{excecao.GetType().Name}: {excecao.Message}", DescricaoFalhaEstorno.Falha(excecao)), parametros, cancellationToken);
         }
 
         return resultado.Confirmado
             ? await ConfirmarAsync(pedido, resultado.IdentificadorEstorno!, cancellationToken)
-            : await RegistrarFalhaAsync(pedidoId, $"Recusado: {resultado.Motivo}", parametros, cancellationToken);
+            : await RegistrarFalhaAsync(
+                pedidoId, new Falha($"Recusado: {resultado.Motivo}", DescricaoFalhaEstorno.Recusado(resultado.Motivo)), parametros, cancellationToken);
     }
 
     /// <summary>
@@ -114,12 +113,19 @@ public sealed class ServicoEstornos(
     }
 
     /// <summary>
+    /// A falha de uma tentativa: o texto do log (como no REQ-13, sem identificadores do gateway) e o
+    /// texto gravado para a operação, só a categoria (REQ-28, R-05).
+    /// </summary>
+    private sealed record Falha(string TextoLog, string TextoGravado);
+
+    /// <summary>
     /// Conta a tentativa sobre o pedido relido. Se a gravação der conflito, a tentativa não é
     /// contada; a próxima rodada trata o pedido de novo (R-04, passo 4).
     /// </summary>
     private async Task<ResultadoRodadaEstorno> RegistrarFalhaAsync(
-        Guid pedidoId, string erro, ParametrosAlertaEstorno parametros, CancellationToken cancellationToken)
+        Guid pedidoId, Falha falha, ParametrosAlertaEstorno parametros, CancellationToken cancellationToken)
     {
+        var erro = falha.TextoLog;
         armazenamento.DescartarAlteracoes();
         if (await LerPendenteAsync(pedidoId, cancellationToken) is not { } pedido)
         {
@@ -129,7 +135,7 @@ public sealed class ServicoEstornos(
         var agora = relogio.GetUtcNow();
         var pagamento = pedido.Pagamento!;
         var tentativas = pagamento.TentativasEstorno + 1;
-        pedido.RegistrarFalhaEstorno(agora);
+        pedido.RegistrarFalhaEstorno(agora, DescricaoFalhaEstorno.Limitar(falha.TextoGravado));
         try
         {
             await armazenamento.SalvarAsync(cancellationToken);
@@ -141,7 +147,7 @@ public sealed class ServicoEstornos(
         }
 
         var pendente = agora - pagamento.EstornoSolicitadoEm!.Value;
-        if (pendente > parametros.LimiteAlerta && tentativas >= parametros.TentativasAlerta)
+        if (RegrasAlertaEstorno.AlemDoLimite(pagamento.EstornoSolicitadoEm!.Value, tentativas, agora, parametros))
         {
             EventosPagamento.EstornoPendenteAlemDoLimite(logger, pedidoId, tentativas, (int)pendente.TotalHours, erro);
         }
