@@ -37,6 +37,26 @@ internal sealed class ConsultaEstornosPendentes(ContextoBancoDados contexto) : I
         return [.. forcados, .. demais];
     }
 
+    /// <summary>
+    /// Uma consulta só, sobre o índice filtrado: <c>agora − EstornoSolicitadoEm &gt; limite</c> vira
+    /// <c>EstornoSolicitadoEm &lt; agora − limite</c>, a mesma regra do <see cref="RegrasAlertaEstorno"/>.
+    /// </summary>
+    public async Task<(int Pendentes, int AlemDoLimite)> ContarAsync(
+        ParametrosAlertaEstorno parametros, DateTimeOffset agora, CancellationToken cancellationToken)
+    {
+        var corte = agora - parametros.LimiteAlerta;
+        var contagem = await contexto.Set<Pagamento>().AsNoTracking()
+            .Where(p => p.Situacao == SituacaoPagamento.EstornoPendente)
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Pendentes = g.Count(),
+                AlemDoLimite = g.Count(p => p.EstornoSolicitadoEm < corte && p.TentativasEstorno >= parametros.TentativasAlerta)
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+        return contagem is null ? (0, 0) : (contagem.Pendentes, contagem.AlemDoLimite);
+    }
+
     /// <summary>O contexto da criação do pedido, para o passo da rodada se ligar a ele (REQ-16, R-05).</summary>
     private IQueryable<EstornoPendente> Projetar(IQueryable<Pagamento> pagamentos) =>
         pagamentos.Select(p => new EstornoPendente(

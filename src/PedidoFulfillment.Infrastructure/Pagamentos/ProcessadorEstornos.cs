@@ -84,14 +84,17 @@ internal sealed class ProcessadorEstornos(
 
     private async Task EstornarLoteAsync(OpcoesEstornos configuracao, CancellationToken cancellationToken)
     {
+        var parametros = new ParametrosAlertaEstorno(configuracao.LimiteAlerta, configuracao.TentativasAlerta);
         IReadOnlyList<EstornoPendente> lote;
         await using (var escopo = escopos.CreateAsyncScope())
         {
-            lote = await escopo.ServiceProvider.GetRequiredService<IConsultaEstornosPendentes>()
-                .ListarAsync(configuracao.TamanhoLote, cancellationToken);
+            var consulta = escopo.ServiceProvider.GetRequiredService<IConsultaEstornosPendentes>();
+            // O medidor oms.estornos.pendentes vê a fila no começo da rodada (REQ-28, FR-022a).
+            var (pendentes, alemDoLimite) = await consulta.ContarAsync(parametros, relogio.GetUtcNow(), cancellationToken);
+            EstadoMetricas.RegistrarEstornos(pendentes, alemDoLimite);
+            lote = await consulta.ListarAsync(configuracao.TamanhoLote, cancellationToken);
         }
 
-        var parametros = new ParametrosAlertaEstorno(configuracao.LimiteAlerta, configuracao.TentativasAlerta);
         int confirmados = 0, falhas = 0;
         for (var i = 0; i < lote.Count; i++)
         {

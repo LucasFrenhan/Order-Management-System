@@ -54,8 +54,9 @@ Usuários: `admin@oms.local` / `AdminDev2026` e `operador@oms.local` / `Operador
 1. Pare a API de pagamento simulada: `docker compose stop pagamentos`.
 2. Cancele como operador um pedido já pago (como no
    [quickstart do REQ-13](../013-cancelamento-com-estorno/quickstart.md#2-local-cancelar-um-pedido-pago-us1-e-us2)).
-3. Espere duas rodadas. No log do Worker: 7007, depois 7008 e **um** 7024; nas rodadas seguintes,
-   só 7008.
+3. Espere as falhas se acumularem: com a API de pagamento parada, o circuito do gateway abre, e as
+   rodadas com ele aberto adiam sem contar tentativa (7020, [fluxo 14](../../docs/fluxos/14-gateway-de-pagamento.md)).
+   No log do Worker: 7007, depois 7008 e **um** 7024; nas falhas seguintes, só 7008.
 4. Liste como operador:
 
    ```http

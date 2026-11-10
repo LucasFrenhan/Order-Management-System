@@ -159,6 +159,29 @@ public sealed class ProcessamentoEstornosTestes(MensageriaTeste mensageria)
         (await EventosOutbox.ListarAsync<PagamentoEstornado>(stringConexao, pedidoId)).Should().ContainSingle("REQ-15, SC-002");
     }
 
+    /// <summary>REQ-28, FR-022a e SC-009: o medidor mostra os pendentes separados pelo alerta, a cada rodada.</summary>
+    [Fact]
+    public async Task Medidor_de_estornos_pendentes_separa_os_alem_do_limite()
+    {
+        Assert.SkipUnless(mensageria.DockerDisponivel, "Docker indisponível");
+        var (stringConexao, pedidoId) = await CanceladoPagoAsync();
+        var gateway = new GatewayEstornoControlado { Modo = GatewayEstornoControlado.ModoEstorno.Falhar };
+        var logs = new CapturaLogs();
+        using var coletor = new ColetorTelemetria();
+        var configuracoes = new Dictionary<string, string?> { ["Estornos:LimiteAlertaSegundos"] = "1", ["Estornos:TentativasAlerta"] = "2" };
+
+        await using (var worker = WorkerEstornando(mensageria, stringConexao, logs, configuracoes, Com(gateway)))
+        {
+            worker.CreateClient().Dispose();
+            (await MensageriaTeste.EsperarAteAsync(async () => await TentativasAsync(stringConexao, pedidoId) >= 3, Prazo)).Should().BeTrue();
+            (await EsperarLogsAsync(logs, 7012, quantidade: 4)).Should().BeTrue("uma rodada depois da terceira falha");
+        }
+
+        coletor.LerGauges();
+        coletor.Ultimo("oms.estornos.pendentes", ("oms.alerta", "true")).Should().Be(1);
+        coletor.Ultimo("oms.estornos.pendentes", ("oms.alerta", "false")).Should().Be(0);
+    }
+
     [Fact]
     public async Task Com_o_lock_ocupado_o_Worker_pula_a_rodada()
     {
@@ -308,6 +331,9 @@ public sealed class ProcessamentoEstornosTestes(MensageriaTeste mensageria)
     private sealed class ConsultaQueFalha : IConsultaEstornosPendentes
     {
         public Task<IReadOnlyList<EstornoPendente>> ListarAsync(int quantidade, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Banco indisponível na consulta.");
+
+        public Task<(int Pendentes, int AlemDoLimite)> ContarAsync(ParametrosAlertaEstorno parametros, DateTimeOffset agora, CancellationToken cancellationToken) =>
             throw new InvalidOperationException("Banco indisponível na consulta.");
     }
 }

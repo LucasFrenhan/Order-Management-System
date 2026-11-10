@@ -8,4 +8,10 @@ namespace PedidoFulfillment.Application.Pagamentos;
 public interface IConsultaEstornosPendentes
 {
     Task<IReadOnlyList<EstornoPendente>> ListarAsync(int quantidade, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Quantos estão pendentes e quantos passaram do limite de alerta, pela regra do
+    /// <see cref="RegrasAlertaEstorno"/>, para o medidor (REQ-28, FR-022a).
+    /// </summary>
+    Task<(int Pendentes, int AlemDoLimite)> ContarAsync(ParametrosAlertaEstorno parametros, DateTimeOffset agora, CancellationToken cancellationToken);
 }

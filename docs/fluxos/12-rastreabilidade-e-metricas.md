@@ -3,7 +3,8 @@
 Transversal: roda na API e no Worker. Spec: [REQ-16](../../specs/016-observabilidade-opentelemetry/spec.md);
 as métricas de inscrição dos consumidores são do [REQ-17](../../specs/017-recuperacao-consumidores/contracts/recuperacao-consumo.md),
 as das notificações, do [REQ-18](../../specs/018-notificacao-status/research.md#r-19-observabilidade-complementa-r-12) ([fluxo 13](13-notificacao-de-status.md)),
-e as do gateway de pagamento e o HTTP de saída, do [REQ-19](../../specs/019-gateway-pagamento-http/research.md) ([fluxo 14](14-gateway-de-pagamento.md)).
+as do gateway de pagamento e o HTTP de saída, do [REQ-19](../../specs/019-gateway-pagamento-http/research.md) ([fluxo 14](14-gateway-de-pagamento.md)),
+e a dos estornos pendentes, do [REQ-28](../../specs/028-acoes-estornos-pendentes/research.md#r-11-métrica-fr-022a) ([fluxo 10](10-estorno.md)).
 Nomes estáveis (spans, atributos, métricas): [contrato de telemetria](../../specs/016-observabilidade-opentelemetry/contracts/telemetria.md).
 Decisões: [research](../../specs/016-observabilidade-opentelemetry/research.md).
 
@@ -137,6 +138,7 @@ Meter `PedidoFulfillment`, emitidas pelo Worker:
 | `oms.pagamentos.duracao` | histograma | `s` | `oms.pagamento.operacao`, `oms.resultado` | Duração da chamada, com as tentativas e esperas (REQ-19) |
 | `oms.pagamentos.circuito` | gauge | `{estado}` | — | Estado em memória do circuito: 0 fechado, 1 aberto, 2 meio-aberto (REQ-19) |
 | `oms.emails` | contador | `{email}` | `oms.email.tipo`, `oms.resultado` (`enviado`, `falha`, `descartado`, `sem_conta`) | A cada solicitação tratada ([fluxo 16](16-envio-de-email.md), REQ-24) |
+| `oms.estornos.pendentes` | gauge | `{estorno}` | `oms.alerta` (`true` além do limite de alerta, `false` os demais) | No começo de cada rodada de estornos que pega o lock; a rodada pulada não atualiza ([fluxo 10](10-estorno.md), REQ-28) |
 
 Emitidas pela API, por instância (REQ-23, [fluxo 1](01-autenticacao.md#limite-de-requisições)):
 

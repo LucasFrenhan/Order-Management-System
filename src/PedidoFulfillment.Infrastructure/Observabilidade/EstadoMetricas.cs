@@ -49,7 +49,17 @@ internal static class EstadoMetricas
     public static long CircuitoGateway => Interlocked.Read(ref circuitoGateway);
 
     public static void RegistrarCircuitoGateway(long estado) => Interlocked.Exchange(ref circuitoGateway, estado);
+
+    private static LeituraEstornos? estornos;
+
+    /// <summary>Estornos pendentes e os além do limite de alerta (REQ-28, FR-022a); sem rodada ainda, nulo.</summary>
+    public static LeituraEstornos? Estornos => Volatile.Read(ref estornos);
+
+    public static void RegistrarEstornos(long pendentes, long alemDoLimite) =>
+        Volatile.Write(ref estornos, new LeituraEstornos(pendentes, alemDoLimite));
 }
+
+internal sealed record LeituraEstornos(long Pendentes, long AlemDoLimite);
 
 internal sealed record LeituraOutbox(long Pendentes, double IdadeSegundos);
 

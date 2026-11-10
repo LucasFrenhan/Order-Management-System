@@ -25,19 +25,20 @@ protegeu a cadeia de build: dependência com vulnerabilidade alta ou crítica re
 Dependabot propõe as atualizações e o CodeQL é exigido para o merge (issue #59). O REQ-27
 permitiu rotacionar a chave de assinatura do JWT sem derrubar as sessões, com até 3 chaves
 identificadas no `kid` e uma ativa, e deu aos cursores das listagens uma chave própria
-([rotação da chave](rotacao-chave-jwt.md); issue #60).
+([rotação da chave](rotacao-chave-jwt.md); issue #60). O REQ-28 deu à operação a
+listagem dos estornos pendentes, a tentativa forçada e a baixa manual pelo Admin, e o evento
+`pagamento.estorno-atrasado` para o estorno travado ([fluxo 10](fluxos/10-estorno.md); issue #57).
 Cada trabalho novo segue o fluxo SDD (`/speckit-specify` → `/speckit-clarify` →
 `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`), em uma
-branch `feature/req-XX-...`, com a numeração a partir do REQ-28.
+branch `feature/req-XX-...`, com a numeração a partir do REQ-29.
 
 A fila abaixo saiu do levantamento das pendências de todas as specs (2026-11-02). A ordem é
 uma sugestão; o número do REQ é dado quando o trabalho começa.
 
 | Ordem | Requisito | Origem | Escopo |
 |-------|-----------|--------|--------|
-| 1 | a numerar | [#57](https://github.com/LucasFrenhan/Order-Management-System/issues/57) — Estornos pela operação | Forçar tentativa, dar baixa manual e evento de estorno travado |
-| 2 | a numerar | [#56](https://github.com/LucasFrenhan/Order-Management-System/issues/56) — Evolução do pagamento | Estudo: nova cobrança após recusa, estorno parcial, devolução, pagamento em análise e gateway real |
-| 3 | a numerar | [#77](https://github.com/LucasFrenhan/Order-Management-System/issues/77) — Falhas intermitentes dos testes | Investigar a busca full-text fora do prazo no CI e as travadas de 30 s no `wslrelay`. As conexões que caíam no Docker Desktop vinham dos pools presos dos testes, corrigidos em [otimizacao-ci.md](otimizacao-ci.md#achado-conexões-presas-nos-pools-do-sqlclient-77-corrigido) |
+| 1 | a numerar | [#56](https://github.com/LucasFrenhan/Order-Management-System/issues/56) — Evolução do pagamento | Estudo: nova cobrança após recusa, estorno parcial, devolução, pagamento em análise e gateway real |
+| 2 | a numerar | [#77](https://github.com/LucasFrenhan/Order-Management-System/issues/77) — Falhas intermitentes dos testes | Investigar a busca full-text fora do prazo no CI e as travadas de 30 s no `wslrelay`. As conexões que caíam no Docker Desktop vinham dos pools presos dos testes, corrigidos em [otimizacao-ci.md](otimizacao-ci.md#achado-conexões-presas-nos-pools-do-sqlclient-77-corrigido) |
 | contínua | sem REQ | [#61](https://github.com/LucasFrenhan/Order-Management-System/issues/61) — Dívida técnica de code smells | Sem prazo: todo PR que corrigir code smells referencia a #61 (`Refs #61`) e atualiza a tabela dela |
 
 ### Para análise futura (sem issue)
@@ -161,7 +162,9 @@ Itens do mesmo levantamento que ficaram anotados, sem issue, para decidir depois
 - **Estorno assíncrono** (REQ-13). Cancelar um pedido pago não chama o gateway: o pagamento
   passa a `EstornoPendente` na mesma gravação, e o `ProcessadorEstornos` do Worker estorna a
   cada 1 min (uma instância por rodada, pelo lock de aplicação), tentando de novo sem
-  desistir; depois de 24 h e 3 tentativas, cada falha vira um erro no log (7008). As
+  desistir; depois de 24 h e 3 tentativas, cada falha vira um erro no log (7008), e a primeira
+  delas grava o `pagamento.estorno-atrasado` (REQ-28). A operação lista os pendentes, força uma
+  tentativa e, só o Admin, dá baixa num estorno resolvido fora do sistema (REQ-28). As
   situações de estorno são internas. Pedidos cancelados com pagamento aprovado antes do
   REQ-13 não são estornados sozinhos ([quickstart](../specs/013-cancelamento-com-estorno/quickstart.md#5-pedidos-pagos-e-cancelados-antes-do-req-13)).
 - **Idempotência no gateway** (REQ-13). O pedido é a chave da cobrança e do estorno: a mesma
