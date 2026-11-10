@@ -5,7 +5,7 @@ using PedidoFulfillment.Domain.Pedidos;
 
 namespace PedidoFulfillment.Testes.Unitarios.Mensageria;
 
-/// <summary>Serialização dos contratos de evento v1 (REQ-06, FR-001 a FR-004; REQ-08, FR-012 e FR-013; REQ-10, FR-008 e FR-009; REQ-15, R-04; REQ-18, R-02).</summary>
+/// <summary>Serialização dos contratos de evento v1 (REQ-06, FR-001 a FR-004; REQ-08, FR-012 e FR-013; REQ-10, FR-008 e FR-009; REQ-15, R-04; REQ-18, R-02; REQ-28, FR-010 e FR-017).</summary>
 public sealed class SerializacaoEventosTestes
 {
     [Fact]
@@ -101,6 +101,28 @@ public sealed class SerializacaoEventosTestes
         EstornadoEm = Instante
     }, Instante);
 
+    internal static EnvelopeEvento<PagamentoEstornoAtrasado> PagamentoEstornoAtrasado() => EnvelopeEvento.Criar(PedidoId, new PagamentoEstornoAtrasado
+    {
+        EstornoId = Guid.Parse("0192b6a0-3333-7000-8000-000000000001"),
+        PedidoId = PedidoId,
+        Numero = "PED-20261022-000001",
+        Valor = 829.70m,
+        SolicitadoEm = Instante.AddHours(-25),
+        Tentativas = 3,
+        AtrasadoEm = Instante
+    }, Instante);
+
+    internal static EnvelopeEvento<PagamentoEstornoBaixado> PagamentoEstornoBaixado(string? referencia) => EnvelopeEvento.Criar(PedidoId, new PagamentoEstornoBaixado
+    {
+        EstornoId = Guid.Parse("0192b6a0-3333-7000-8000-000000000001"),
+        PedidoId = PedidoId,
+        Numero = "PED-20261022-000001",
+        Valor = 829.70m,
+        AutorId = Guid.Parse("0192b6a0-4444-7000-8000-000000000001"),
+        BaixadoEm = Instante,
+        ReferenciaExterna = referencia
+    }, Instante);
+
     [Fact]
     public void Envelope_traz_tipo_versao_correlacao_e_campos_em_camelCase()
     {
@@ -134,11 +156,15 @@ public sealed class SerializacaoEventosTestes
         TiposEvento.PagamentoEstornado.Should().Be("pagamento.estornado");
         PedidoStatusAlterado().Tipo.Should().Be(TiposEvento.PedidoStatusAlterado);
         TiposEvento.PedidoStatusAlterado.Should().Be("pedido.status-alterado");
-        TiposEvento.TipoDados.Should().HaveCount(9);
+        PagamentoEstornoAtrasado().Tipo.Should().Be(TiposEvento.PagamentoEstornoAtrasado);
+        TiposEvento.PagamentoEstornoAtrasado.Should().Be("pagamento.estorno-atrasado");
+        PagamentoEstornoBaixado("TED-1").Tipo.Should().Be(TiposEvento.PagamentoEstornoBaixado);
+        TiposEvento.PagamentoEstornoBaixado.Should().Be("pagamento.estorno-baixado");
+        TiposEvento.TipoDados.Should().HaveCount(11);
     }
 
     [Fact]
-    public void Ida_e_volta_preserva_os_valores_dos_nove_eventos()
+    public void Ida_e_volta_preserva_os_valores_dos_onze_eventos()
     {
         DeveVoltarIgual(PedidoCriado());
         DeveVoltarIgual(EstoqueReservado());
@@ -150,6 +176,20 @@ public sealed class SerializacaoEventosTestes
         DeveVoltarIgual(PedidoCancelado(MotivoCancelamento.ReconciliacaoEsgotada, EtapaEsgotada.Entrega));
         DeveVoltarIgual(PagamentoEstornado());
         DeveVoltarIgual(PedidoStatusAlterado());
+        DeveVoltarIgual(PagamentoEstornoAtrasado());
+        DeveVoltarIgual(PagamentoEstornoBaixado("TED-1"));
+        DeveVoltarIgual(PagamentoEstornoBaixado(null));
+    }
+
+    [Fact]
+    public void Estorno_baixado_traz_a_referencia_nula_explicita_e_nao_traz_o_motivo()
+    {
+        using var json = JsonDocument.Parse(SerializacaoEventos.Serializar(PagamentoEstornoBaixado(null)));
+        var dados = json.RootElement.GetProperty("dados");
+
+        dados.EnumerateObject().Select(p => p.Name).Should().Equal(
+            "estornoId", "pedidoId", "numero", "valor", "autorId", "baixadoEm", "referenciaExterna");
+        dados.GetProperty("referenciaExterna").ValueKind.Should().Be(JsonValueKind.Null);
     }
 
     [Fact]

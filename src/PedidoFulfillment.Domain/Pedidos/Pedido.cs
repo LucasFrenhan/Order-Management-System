@@ -306,9 +306,43 @@ public sealed class Pedido
 
     /// <summary>Mais uma tentativa de estorno falhou (REQ-13, FR-003); a versão do pedido muda (R-02).</summary>
     /// <exception cref="InvalidOperationException">Sem estorno pendente.</exception>
-    public void RegistrarFalhaEstorno(DateTimeOffset instante)
+    public void RegistrarFalhaEstorno(DateTimeOffset instante, string erro)
     {
-        PagamentoComEstornoPendente().RegistrarFalhaEstorno(instante);
+        PagamentoComEstornoPendente().RegistrarFalhaEstorno(instante, erro);
+        AtualizadoEm = instante;
+    }
+
+    /// <summary>Tentativa forçada pela operação (REQ-28, FR-011); a versão do pedido muda só se a marca foi gravada.</summary>
+    /// <exception cref="InvalidOperationException">Sem estorno pendente.</exception>
+    public bool PedirTentativaEstorno(DateTimeOffset instante)
+    {
+        var gravou = PagamentoComEstornoPendente().PedirTentativaEstorno(instante);
+        if (gravou)
+        {
+            AtualizadoEm = instante;
+        }
+
+        return gravou;
+    }
+
+    /// <summary>O estorno passou do limite de alerta (REQ-28, FR-016); uma única vez.</summary>
+    /// <exception cref="InvalidOperationException">Sem estorno pendente.</exception>
+    public bool MarcarEstornoAtrasado(DateTimeOffset instante)
+    {
+        var gravou = PagamentoComEstornoPendente().MarcarEstornoAtrasado(instante);
+        if (gravou)
+        {
+            AtualizadoEm = instante;
+        }
+
+        return gravou;
+    }
+
+    /// <summary>Baixa manual do estorno pelo Admin (REQ-28, FR-006); a versão do pedido muda.</summary>
+    /// <exception cref="InvalidOperationException">Sem estorno pendente.</exception>
+    public void DarBaixaEstorno(Guid autorId, string motivo, string? referenciaExterna, DateTimeOffset instante)
+    {
+        PagamentoComEstornoPendente().DarBaixaEstorno(autorId, motivo, referenciaExterna, instante);
         AtualizadoEm = instante;
     }
 

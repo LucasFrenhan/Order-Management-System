@@ -9,7 +9,10 @@ using Polly;
 
 namespace PedidoFulfillment.Infrastructure.Pagamentos;
 
-/// <summary>Registro do gateway de pagamento, usado só pelo Worker (REQ-09, R-02; REQ-19).</summary>
+/// <summary>
+/// Registro do gateway de pagamento e da rodada de estornos, usados só pelo Worker (REQ-09, R-02;
+/// REQ-19), e das ações da operação sobre os estornos, só na API (REQ-28).
+/// </summary>
 public static class ExtensoesPagamento
 {
     /// <summary>Nome do pipeline de resiliência do cliente do gateway.</summary>
@@ -126,12 +129,39 @@ public static class ExtensoesPagamento
     /// </summary>
     public static IServiceCollection AdicionarProcessamentoEstornos(this IServiceCollection services)
     {
-        services.AddSingleton<IValidateOptions<OpcoesEstornos>, ValidadorOpcoesEstornos>();
-        services.AddOptions<OpcoesEstornos>().BindConfiguration(OpcoesEstornos.Secao).ValidateOnStart();
+        AdicionarOpcoesEstornos(services);
         services.AddScoped<IConsultaEstornosPendentes, ConsultaEstornosPendentes>();
         services.AddScoped<ServicoEstornos>();
         services.TryAddSingleton(TimeProvider.System);
         services.AddHostedService<ProcessadorEstornos>();
         return services;
+    }
+
+    /// <summary>
+    /// Ações da operação sobre os estornos, só na API (REQ-28): consulta, lock da baixa e os
+    /// parâmetros de alerta da seção <c>Estornos</c>, os mesmos do Worker (R-09). A API não fala com
+    /// o gateway.
+    /// </summary>
+    public static IServiceCollection AdicionarAcoesEstornos(this IServiceCollection services)
+    {
+        AdicionarOpcoesEstornos(services);
+        services.AddScoped<IConsultaEstornos, ConsultaEstornos>();
+        services.TryAddSingleton(TimeProvider.System);
+        return services;
+    }
+
+    /// <summary>
+    /// A seção <c>Estornos</c> validada na partida e os parâmetros de alerta, uma vez só mesmo que as
+    /// duas extensões sejam chamadas no mesmo processo.
+    /// </summary>
+    private static void AdicionarOpcoesEstornos(IServiceCollection services)
+    {
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<OpcoesEstornos>, ValidadorOpcoesEstornos>());
+        services.AddOptions<OpcoesEstornos>().BindConfiguration(OpcoesEstornos.Secao).ValidateOnStart();
+        services.TryAddSingleton(provedor =>
+        {
+            var opcoes = provedor.GetRequiredService<IOptions<OpcoesEstornos>>().Value;
+            return new ParametrosAlertaEstorno(opcoes.LimiteAlerta, opcoes.TentativasAlerta);
+        });
     }
 }

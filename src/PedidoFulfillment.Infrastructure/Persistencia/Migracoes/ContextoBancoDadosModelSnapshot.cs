@@ -17,7 +17,7 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.13")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -535,6 +535,15 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                     b.Property<DateTimeOffset?>("EstornadoEm")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<DateTimeOffset?>("EstornoAtrasadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("EstornoBaixadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("EstornoBaixadoPorId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTimeOffset?>("EstornoSolicitadoEm")
                         .HasColumnType("datetimeoffset");
 
@@ -546,22 +555,37 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("MotivoBaixaEstorno")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<Guid>("PedidoId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTimeOffset?>("ProcessadoEm")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<string>("ReferenciaExternaBaixaEstorno")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<string>("Situacao")
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTimeOffset?>("TentativaEstornoForcadaEm")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<int>("TentativasEstorno")
                         .HasColumnType("int");
 
                     b.Property<DateTimeOffset?>("UltimaFalhaEstornoEm")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UltimoErroEstorno")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<decimal>("Valor")
                         .HasPrecision(18, 2)
@@ -572,13 +596,23 @@ namespace PedidoFulfillment.Infrastructure.Persistencia.Migracoes
                     b.HasIndex("PedidoId")
                         .IsUnique();
 
+                    b.HasIndex("TentativaEstornoForcadaEm")
+                        .HasDatabaseName("IX_Pagamentos_EstornoForcado")
+                        .HasFilter("[Situacao] = N'EstornoPendente' AND [TentativaEstornoForcadaEm] IS NOT NULL");
+
+                    b.HasIndex("EstornoSolicitadoEm", "Id")
+                        .HasDatabaseName("IX_Pagamentos_EstornoPendenteListagem")
+                        .HasFilter("[Situacao] = N'EstornoPendente'");
+
                     b.HasIndex("UltimaFalhaEstornoEm", "EstornoSolicitadoEm")
                         .HasDatabaseName("IX_Pagamentos_EstornoPendente")
                         .HasFilter("[Situacao] = N'EstornoPendente'");
 
                     b.ToTable("Pagamentos", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Pagamentos_SituacaoValida", "[Situacao] IN (N'Pendente', N'Aprovado', N'Recusado', N'NaoProcessado', N'EstornoPendente', N'Estornado')");
+                            t.HasCheckConstraint("CK_Pagamentos_BaixaCompleta", "([Situacao] = N'EstornoBaixado' AND [EstornoBaixadoEm] IS NOT NULL AND [EstornoBaixadoPorId] IS NOT NULL AND [MotivoBaixaEstorno] IS NOT NULL) OR ([Situacao] <> N'EstornoBaixado' AND [EstornoBaixadoEm] IS NULL AND [EstornoBaixadoPorId] IS NULL AND [MotivoBaixaEstorno] IS NULL)");
+
+                            t.HasCheckConstraint("CK_Pagamentos_SituacaoValida", "[Situacao] IN (N'Pendente', N'Aprovado', N'Recusado', N'NaoProcessado', N'EstornoPendente', N'Estornado', N'EstornoBaixado')");
 
                             t.HasCheckConstraint("CK_Pagamentos_TentativasEstornoNaoNegativas", "[TentativasEstorno] >= 0");
 

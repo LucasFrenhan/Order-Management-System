@@ -219,7 +219,7 @@ fila quando há muitos pendentes. Por isso fica depois da visibilidade, da baixa
 - **Configuração do limite de alerta mudada** depois que um estorno gerou o evento de atraso: o evento
   não sai de novo para ele.
 - **Último erro**: guarda só o texto da recusa do gateway ou uma descrição genérica da falha (por
-  exemplo, "Falha do gateway: TempoEsgotado."), nunca o identificador da transação, do estorno ou dado pessoal.
+  exemplo, "Falha passageira do gateway."), nunca o identificador da transação, do estorno ou dado pessoal.
 
 ## Requirements *(mandatory)*
 
@@ -305,8 +305,9 @@ fila quando há muitos pendentes. Por isso fica depois da visibilidade, da baixa
 - **FR-022a**: Com a telemetria ligada (REQ-16), o sistema MUST expor o medidor
   `oms.estornos.pendentes`, com o atributo `oms.alerta` (além do limite de alerta ou não), atualizado
   a cada rodada de estornos.
-- **FR-023**: As rotas novas MUST seguir o limite de requisições, o formato de erro (ProblemDetails) e
-  a documentação OpenAPI já em uso.
+- **FR-023**: As rotas novas MUST seguir o formato de erro (ProblemDetails) e a documentação OpenAPI já
+  em uso. Como as rotas de gestão de usuários, ficam fora do limite de requisições, que vale só para o
+  login e o registro (REQ-23). (Ajuste do implement: a spec supunha um limite global.)
 
 **Documentação**
 

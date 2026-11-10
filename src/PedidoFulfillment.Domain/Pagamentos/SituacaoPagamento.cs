@@ -26,5 +26,11 @@ public enum SituacaoPagamento
     EstornoPendente,
 
     /// <summary>O gateway confirmou o estorno (REQ-13, R-02). Situação interna.</summary>
-    Estornado
+    Estornado,
+
+    /// <summary>
+    /// Um Admin deu baixa no estorno, resolvido fora do sistema (REQ-28, R-02): final como
+    /// <see cref="Estornado"/>, mas sem o gateway; o estorno nunca mais é tentado. Situação interna.
+    /// </summary>
+    EstornoBaixado
 }

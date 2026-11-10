@@ -26,4 +26,6 @@ public static class CodigosErro
     public const string NotificacaoDestinoEnderecoProibido = "NOTIFICACAO_DESTINO_ENDERECO_PROIBIDO";
     public const string NotificacaoDestinoLimite = "NOTIFICACAO_DESTINO_LIMITE";
     public const string NotificacaoSseLimiteConexoes = "NOTIFICACAO_SSE_LIMITE_CONEXOES";
+    public const string EstornoNaoPendente = "ESTORNO_NAO_PENDENTE";
+    public const string EstornoRodadaEmAndamento = "ESTORNO_RODADA_EM_ANDAMENTO";
 }

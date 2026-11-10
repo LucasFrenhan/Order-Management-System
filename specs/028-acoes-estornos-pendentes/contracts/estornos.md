@@ -14,7 +14,8 @@ muda. Decisões no [research](../research.md).
 | `POST /api/v1/estornos/{id}/tentativas` | Admin, OperadorLogistica | 202 `EstornoResponseDTO` + `Location: /api/v1/estornos/{id}` | 400, 401, 403, 404, 409 `ESTORNO_NAO_PENDENTE` |
 | `POST /api/v1/estornos/{id}/baixa` | Admin ativo no banco | 200 `EstornoResponseDTO` | 400, 401, 403, 404, 409 `ESTORNO_NAO_PENDENTE` ou `ESTORNO_RODADA_EM_ANDAMENTO` |
 
-Todas passam pelo limite de requisições e respondem erros em `ProblemDetails`, como as demais.
+Todas respondem erros em `ProblemDetails`, como as demais, e ficam fora do limite de requisições (que vale
+só para o login e o registro, REQ-23), como as rotas de gestão de usuários.
 
 ## Exemplos
 
@@ -117,7 +118,7 @@ empate, pelo `estornoId`.
 
 | Código | Status | `title` / `detail` | Quando |
 |--------|--------|--------------------|--------|
-| `ESTORNO_NAO_ENCONTRADO` | 404 | "Estorno não encontrado." / "Nenhum estorno com o identificador informado." | Id desconhecido |
+| (sem `codigo`, como os demais 404) | 404 | "Estorno não encontrado." / "Nenhum estorno com o identificador informado." | Id desconhecido |
 | `ESTORNO_NAO_PENDENTE` | 409 | "Estorno não está pendente." / "O estorno já foi confirmado pelo gateway ou baixado." | Baixa ou tentativa forçada de estorno confirmado ou baixado |
 | `ESTORNO_RODADA_EM_ANDAMENTO` | 409 | "Rodada de estornos em andamento." / "Rodada de estornos em andamento; tente de novo em instantes." | A baixa esperou 5 s e a rodada não terminou |
 

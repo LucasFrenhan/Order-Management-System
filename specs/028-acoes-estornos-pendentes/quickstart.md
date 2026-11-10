@@ -63,7 +63,7 @@ Usuários: `admin@oms.local` / `AdminDev2026` e `operador@oms.local` / `Operador
    Authorization: Bearer <token do operador>
    ```
 
-   **Esperado**: o estorno com `tentativas` ≥ 2, `ultimoErro` "Falha do gateway: …", sem
+   **Esperado**: o estorno com `tentativas` ≥ 2, `ultimoErro` "Falha passageira do gateway.", sem
    identificadores do gateway, `alemDoLimiteAlerta: true` e `atrasadoEm` preenchido.
 5. No painel do RabbitMQ, uma única mensagem `pagamento.estorno-atrasado` para esse estorno.
 

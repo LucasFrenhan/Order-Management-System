@@ -245,7 +245,7 @@ public sealed class PedidoCancelamentoTestes
         pedido.Cancelar(Operador, Motivo, Produtos, Cancelamento);
         var falha = Cancelamento.AddMinutes(1);
 
-        pedido.RegistrarFalhaEstorno(falha);
+        pedido.RegistrarFalhaEstorno(falha, "Falha passageira do gateway.");
 
         pedido.Pagamento!.TentativasEstorno.Should().Be(1);
         pedido.Pagamento.UltimaFalhaEstornoEm.Should().Be(falha);
@@ -259,9 +259,9 @@ public sealed class PedidoCancelamentoTestes
         var pago = PedidoPago();
 
         ((Action)(() => semPagamento.ConfirmarEstorno("SIM-EST-1", Cancelamento))).Should().Throw<InvalidOperationException>();
-        ((Action)(() => semPagamento.RegistrarFalhaEstorno(Cancelamento))).Should().Throw<InvalidOperationException>();
+        ((Action)(() => semPagamento.RegistrarFalhaEstorno(Cancelamento, "Falha passageira do gateway."))).Should().Throw<InvalidOperationException>();
         ((Action)(() => pago.ConfirmarEstorno("SIM-EST-1", Cancelamento))).Should().Throw<InvalidOperationException>();
-        ((Action)(() => pago.RegistrarFalhaEstorno(Cancelamento))).Should().Throw<InvalidOperationException>();
+        ((Action)(() => pago.RegistrarFalhaEstorno(Cancelamento, "Falha passageira do gateway."))).Should().Throw<InvalidOperationException>();
         pago.AtualizadoEm.Should().Be(Cobranca);
     }
 

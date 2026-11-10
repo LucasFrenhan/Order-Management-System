@@ -11,6 +11,7 @@ using PedidoFulfillment.Application.Autenticacao;
 using PedidoFulfillment.Application.Comum;
 using PedidoFulfillment.Application.Mensageria;
 using PedidoFulfillment.Application.Notificacoes;
+using PedidoFulfillment.Application.Pagamentos;
 using PedidoFulfillment.Application.Pedidos;
 using PedidoFulfillment.Application.Produtos;
 using PedidoFulfillment.Application.Usuarios;
@@ -19,6 +20,7 @@ using PedidoFulfillment.Infrastructure.Autenticacao;
 using PedidoFulfillment.Infrastructure.LimiteRequisicoes;
 using PedidoFulfillment.Infrastructure.Notificacoes;
 using PedidoFulfillment.Infrastructure.Observabilidade;
+using PedidoFulfillment.Infrastructure.Pagamentos;
 using PedidoFulfillment.Infrastructure.Saude;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -44,6 +46,8 @@ builder.Services.AdicionarEventosTempoReal();
 builder.Services.AdicionarLimiteRequisicoes();
 // Sessões renováveis (REQ-24).
 builder.Services.AdicionarSessoes();
+// Estornos pela operação (REQ-28): consulta, baixa e parâmetros de alerta da seção Estornos.
+builder.Services.AdicionarAcoesEstornos();
 // Traces, métricas e logs por OTLP, só com destino configurado (REQ-16).
 builder.AdicionarObservabilidade("oms-api");
 builder.Services.AddOpenApi("v1", opcoes =>
@@ -72,6 +76,8 @@ builder.Services.AddSingleton<CodificadorCursorProdutos>();
 builder.Services.AddScoped<IServicoCatalogo, ServicoCatalogo>();
 builder.Services.AddSingleton<CodificadorCursorUsuarios>();
 builder.Services.AddScoped<IServicoGestaoUsuarios, ServicoGestaoUsuarios>();
+builder.Services.AddSingleton<CodificadorCursorEstornos>();
+builder.Services.AddScoped<IServicoAcoesEstornos, ServicoAcoesEstornos>();
 builder.Services.AddScoped<IServicoReenvioDlq, ServicoReenvioDlq>();
 builder.Services.AddScoped<IServicoDestinosNotificacao, ServicoDestinosNotificacao>();
 
@@ -97,6 +103,7 @@ app.MapearEndpointsPedidos();
 app.MapearEndpointsProdutos();
 app.MapearEndpointsAdministracao();
 app.MapearEndpointsUsuarios();
+app.MapearEndpointsEstornos();
 app.MapearEndpointsNotificacoes();
 // Saúde existe em todos os ambientes (REQ-02); pública e fora do OpenAPI.
 app.MapearEndpointsSaude();
