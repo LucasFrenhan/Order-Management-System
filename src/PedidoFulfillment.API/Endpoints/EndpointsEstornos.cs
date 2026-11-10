@@ -43,6 +43,17 @@ public static class EndpointsEstornos
             .Produces<EstornoResponseDTO>()
             .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status404NotFound);
 
+        // Só registra: a rodada do Worker faz a tentativa, primeiro da fila (FR-011, R-04).
+        grupo.MapPost("/{id}/tentativas", async (Guid id, ClaimsPrincipal usuario, IServicoAcoesEstornos servico, CancellationToken cancellationToken) =>
+                (await servico.PedirTentativaAsync(usuario.ObterUsuarioId(), id, cancellationToken))
+                    .ParaResposta(estorno => TypedResults.Accepted($"/api/v1/estornos/{estorno.EstornoId}", estorno)))
+            .WithName("PedirTentativaEstorno")
+            .WithSummary("Pede uma nova tentativa do estorno pendente; a rodada de estornos a faz antes dos demais.")
+            .RequireAuthorization(PoliticasAutorizacao.PoliticaEstornos)
+            .Produces<EstornoResponseDTO>(StatusCodes.Status202Accepted)
+            .ComCabecalhoLocation()
+            .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status404NotFound, StatusCodes.Status409Conflict);
+
         // Só o Admin ainda ativo no banco (FR-020); espera a rodada até 5 s (FR-009).
         grupo.MapPost("/{id}/baixa", async (
                 Guid id,

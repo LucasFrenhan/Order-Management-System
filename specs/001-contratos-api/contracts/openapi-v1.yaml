@@ -1313,6 +1313,46 @@ paths:
         '500':
           $ref: '#/components/responses/ErroInterno'
 
+  /api/v1/estornos/{id}/tentativas:
+    post:
+      tags: [Estornos]
+      operationId: PedirTentativaEstorno
+      summary: Pede uma nova tentativa do estorno pendente; a rodada de estornos a faz antes dos demais.
+      description: |
+        Perfis autorizados: **Admin** e **OperadorLogistica**. Cliente: 403 (REQ-28). Sem corpo. A API
+        só registra o pedido (`tentativaForcadaEm`); a rodada seguinte do processo de workers tenta o
+        estorno antes dos demais, com o mesmo lock e o mesmo tratamento do circuito do gateway. Repetir
+        o pedido devolve 202 com o mesmo `tentativaForcadaEm`. Estorno confirmado ou baixado: 409
+        `ESTORNO_NAO_PENDENTE`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdEstorno'
+      responses:
+        '202':
+          description: Tentativa registrada.
+          headers:
+            Location:
+              description: URI do estorno, para acompanhar o resultado.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EstornoResponseDTO'
+        '400':
+          $ref: '#/components/responses/ErroValidacao'
+        '401':
+          $ref: '#/components/responses/ErroNaoAutenticado'
+        '403':
+          $ref: '#/components/responses/ErroSemPermissao'
+        '404':
+          $ref: '#/components/responses/ErroNaoEncontrado'
+        '409':
+          $ref: '#/components/responses/ErroConflito'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
   /api/v1/estornos/{id}/baixa:
     post:
       tags: [Estornos]
