@@ -51,6 +51,20 @@ Respostas dadas pelo usuário durante o specify:
 - Q: Quem pode dar baixa manual? → A: Só o Admin. O OperadorLogistica lista, consulta e força
   tentativas, mas recebe 403 na baixa.
 
+Respostas dadas pelo usuário no clarify:
+
+- Q: Se a baixa chega com a rodada de estornos em andamento, o que a API faz? → A: Espera até 5 s a
+  rodada terminar. Se ela termina, a baixa segue (relendo o estorno); se não, 409 com "Rodada de
+  estornos em andamento; tente de novo em instantes.", sem gravar nada.
+- Q: A baixa tem um campo para a referência externa da devolução (comprovante, transferência)? → A:
+  Sim, opcional, de até 100 caracteres, guardado, exibido na consulta e enviado no
+  `pagamento.estorno-baixado`.
+- Q: O sistema expõe uma métrica dos estornos pendentes? → A: Sim, um medidor
+  `oms.estornos.pendentes`, com o atributo `oms.alerta` (além do limite ou não), atualizado a cada
+  rodada.
+- Q: Na baixa, o sistema confere no banco que o Admin ainda está ativo e ainda é Admin? → A: Sim, como
+  na gestão de usuários (REQ-25); um Admin desativado ou rebaixado recebe 403 mesmo com o token válido.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Ver os estornos pendentes (Priority: P1)
@@ -98,13 +112,14 @@ que o gateway não foi chamado e que o estorno aparece como baixado, com autor, 
 
 **Acceptance Scenarios**:
 
-1. **Given** um estorno pendente, **When** a operação autorizada dá baixa com um motivo válido,
-   **Then** o estorno passa a baixado manualmente, com o autor, o instante e o motivo registrados, e sai
-   da lista de pendentes.
+1. **Given** um estorno pendente, **When** a operação autorizada dá baixa com um motivo válido e,
+   opcionalmente, a referência externa da devolução, **Then** o estorno passa a baixado manualmente,
+   com o autor, o instante, o motivo e a referência registrados, e sai da lista de pendentes.
 2. **Given** um estorno baixado, **When** a rotina de estornos roda, **Then** o gateway não é chamado
    para ele, e nenhum estorno é pedido de novo.
-3. **Given** um pedido de baixa sem motivo, ou com motivo vazio ou acima do limite, **When** ele é
-   enviado, **Then** a resposta é 400 com o campo inválido, e o estorno continua pendente.
+3. **Given** um pedido de baixa sem motivo, com motivo fora de 10 a 500 caracteres, ou com referência
+   externa acima de 100 caracteres, **When** ele é enviado, **Then** a resposta é 400 com o campo
+   inválido, e o estorno continua pendente.
 4. **Given** um estorno já confirmado pelo gateway ou já baixado, **When** a operação tenta dar baixa,
    **Then** a resposta é 409, e nada muda.
 5. **Given** a baixa feita, **When** ela é gravada, **Then** saem, na mesma gravação, o evento
@@ -112,6 +127,12 @@ que o gateway não foi chamado e que o estorno aparece como baixado, com autor, 
    webhooks e o SSE do Cliente; o `pagamento.estornado` não sai.
 6. **Given** um OperadorLogistica ou um Cliente, **When** ele tenta dar baixa, **Then** a resposta é
    403; **Given** um usuário sem token, **Then** 401.
+7. **Given** um Admin desativado ou rebaixado depois de receber o token, **When** ele tenta dar baixa
+   com o token ainda válido, **Then** a resposta é 403.
+8. **Given** a rodada de estornos em andamento, **When** o Admin dá baixa e a rodada termina em até
+   5 s, **Then** a baixa é gravada sobre o estado relido; **When** a rodada não termina em 5 s,
+   **Then** a resposta é 409 com "Rodada de estornos em andamento; tente de novo em instantes.", e
+   nada é gravado.
 
 ---
 
@@ -175,10 +196,13 @@ fila quando há muitos pendentes. Por isso fica depois da visibilidade, da baixa
 
 ### Edge Cases
 
-- **Baixa durante uma tentativa em andamento**: a rodada já pediu o estorno ao gateway e ainda não
-  gravou o resultado quando chega a baixa. A baixa não pode ser gravada nesse intervalo, senão o
-  dinheiro volta duas vezes (pelo gateway e por fora): ela é recusada com 409 e uma mensagem dizendo
-  que uma tentativa está em andamento e que vale consultar o estorno e tentar de novo.
+- **Baixa durante a rodada**: a rodada pode já ter pedido o estorno ao gateway sem ter gravado o
+  resultado. A baixa não pode ser gravada nesse intervalo, senão o dinheiro volta duas vezes (pelo
+  gateway e por fora): ela espera até 5 s a rodada terminar e relê o estorno (que pode ter sido
+  confirmado nesse meio-tempo, e aí a resposta é 409); se a rodada não termina, 409 com "Rodada de
+  estornos em andamento; tente de novo em instantes.".
+- **Rodada que começa durante a baixa**: espera a baixa terminar ou pula a rodada (como já faz com
+  outra instância), e relê o estorno antes de chamar o gateway.
 - **Rodada depois da baixa**: a rodada relê o estorno antes de chamar o gateway (como já faz) e não o
   tenta se ele foi baixado.
 - **Duas baixas ao mesmo tempo**: uma é gravada; a outra recebe 409.
@@ -213,7 +237,7 @@ fila quando há muitos pendentes. Por isso fica depois da visibilidade, da baixa
   outras listagens do sistema.
 - **FR-004**: A operação MUST poder consultar um estorno pelo identificador, em qualquer situação
   (pendente, confirmado pelo gateway ou baixado manualmente), vendo também, quando houver, o instante
-  da confirmação ou os dados da baixa (autor, instante e motivo).
+  da confirmação ou os dados da baixa (autor, instante, motivo e referência externa).
 - **FR-005**: O sistema MUST guardar o último erro de cada tentativa com falha, limitado ao texto da
   recusa do gateway ou a uma descrição genérica da falha, sem identificadores do gateway nem dados
   pessoais.
@@ -221,16 +245,21 @@ fila quando há muitos pendentes. Por isso fica depois da visibilidade, da baixa
 **Baixa manual**
 
 - **FR-006**: A operação autorizada MUST poder dar baixa num estorno pendente, informando um motivo
-  obrigatório de 10 a 500 caracteres, sem que o gateway seja chamado.
-- **FR-007**: A baixa MUST registrar o autor (o usuário autenticado), o instante e o motivo, e levar o
-  estorno a uma situação final própria, distinta da confirmação pelo gateway.
+  obrigatório de 10 a 500 caracteres e, opcionalmente, a referência externa da devolução (até 100
+  caracteres), sem que o gateway seja chamado.
+- **FR-007**: A baixa MUST registrar o autor (o usuário autenticado), o instante, o motivo e a
+  referência externa, e levar o estorno a uma situação final própria, distinta da confirmação pelo
+  gateway.
 - **FR-008**: Um estorno baixado MUST NOT ser tentado de novo pela rotina nem por uma tentativa forçada,
   e MUST NOT gerar um novo pedido de estorno ao gateway.
-- **FR-009**: A baixa MUST ser recusada com 409 quando o estorno não está pendente ou quando uma
-  tentativa dele está em andamento na rodada, sem alterar nada.
+- **FR-009**: A baixa MUST NOT ser gravada enquanto a rodada de estornos está em andamento: ela espera
+  até 5 s a rodada terminar e relê o estorno; se a rodada não termina, responde 409 com "Rodada de
+  estornos em andamento; tente de novo em instantes.". A baixa de um estorno que não está pendente
+  (inclusive confirmado durante a espera) MUST responder 409. Em nenhum desses casos algo é gravado.
 - **FR-010**: A baixa MUST publicar, na mesma gravação e pelo outbox, o evento
   `pagamento.estorno-baixado`, versão 1, com o identificador do estorno, o pedido (id e número), o
-  valor, o autor e o instante da baixa, sem o motivo, identificadores do gateway ou dados pessoais. O
+  valor, o autor, o instante da baixa e a referência externa (quando informada), sem o motivo,
+  identificadores do gateway ou dados pessoais. O
   `pagamento.estornado` MUST NOT sair na baixa.
 - **FR-010a**: A baixa MUST gerar, na mesma gravação, o aviso `pedido.estorno-confirmado` para os
   webhooks e o SSE do Cliente, igual ao da confirmação pelo gateway.
@@ -269,16 +298,19 @@ fila quando há muitos pendentes. Por isso fica depois da visibilidade, da baixa
   novos, sem alterar nem remover o que existe. O `pagamento.estornado` de uma confirmação pelo gateway
   continua igual.
 - **FR-022**: A baixa e o pedido de tentativa forçada MUST gerar log com ID de evento próprio, com o
-  estorno, o pedido e o autor, sem o texto do motivo. A publicação do evento de atraso MUST gerar log
-  próprio.
+  estorno, o pedido e o autor, sem o texto do motivo nem a referência externa. A publicação do evento
+  de atraso MUST gerar log próprio. A baixa recusada por rodada em andamento MUST gerar log de aviso.
+- **FR-022a**: Com a telemetria ligada (REQ-16), o sistema MUST expor o medidor
+  `oms.estornos.pendentes`, com o atributo `oms.alerta` (além do limite de alerta ou não), atualizado
+  a cada rodada de estornos.
 - **FR-023**: As rotas novas MUST seguir o limite de requisições, o formato de erro (ProblemDetails) e
   a documentação OpenAPI já em uso.
 
 **Documentação**
 
 - **FR-024**: Os documentos de fluxo 10 (estorno) e 8 (eventos) MUST ser atualizados, retirando das
-  limitações do fluxo 10 as duas lacunas resolvidas, e o fluxo 13 (notificação), com o aviso da
-  baixa.
+  limitações do fluxo 10 as duas lacunas resolvidas, o fluxo 13 (notificação), com o aviso da
+  baixa, e o fluxo 12 (rastreabilidade e métricas), com o medidor novo.
 
 ### Key Entities
 
@@ -286,7 +318,8 @@ fila quando há muitos pendentes. Por isso fica depois da visibilidade, da baixa
   em que foi pedido, situação (pendente, confirmado pelo gateway, baixado manualmente), tentativas com
   falha, instante e texto do último erro, instante em que passou do limite de alerta (quando passou),
   marca de tentativa forçada pendente e, conforme a situação, a confirmação do gateway (identificador e
-  instante) ou a baixa (autor, instante e motivo). Hoje, no máximo um por pagamento.
+  instante) ou a baixa (autor, instante, motivo e referência externa opcional). Hoje, no máximo um por
+  pagamento.
 - **Evento de estorno travado** (`pagamento.estorno-atrasado`, v1): aviso, para sistemas de fora, de que
   um estorno passou do limite de alerta.
 - **Evento da baixa manual** (`pagamento.estorno-baixado`, v1): aviso, para sistemas de fora, de que
@@ -309,6 +342,10 @@ fila quando há muitos pendentes. Por isso fica depois da visibilidade, da baixa
 - **SC-006**: Todas as rotas novas recusam 100% das requisições sem token (401) e de perfis sem
   permissão (403).
 - **SC-007**: A verificação de compatibilidade dos contratos v1 não acusa nenhuma mudança incompatível.
+- **SC-008**: Uma baixa pedida durante uma rodada comum (que termina em menos de 5 s) é gravada sem
+  que o Admin precise repetir o pedido.
+- **SC-009**: O painel de telemetria mostra quantos estornos estão pendentes e quantos estão além do
+  limite, com no máximo uma rodada de atraso.
 
 ## Assumptions
 
@@ -323,6 +360,7 @@ fila quando há muitos pendentes. Por isso fica depois da visibilidade, da baixa
 - O último erro passa a ser guardado a partir da implantação; estornos que falharam antes mostram o
   último erro vazio até a próxima falha.
 - O motivo da baixa é texto livre da operação, guardado no banco e exibido na consulta; não vai para os
-  logs nem para os eventos.
+  logs nem para os eventos. A referência externa vai para o evento da baixa, para a conciliação, mas
+  não para os logs.
 - Fora do escopo: estorno parcial e devolução de pedido despachado (#56), reverter uma baixa, e
   qualquer ação do Cliente sobre o estorno.
