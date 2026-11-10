@@ -246,21 +246,21 @@ autor, instante, motivo e referência; saem o `pagamento.estorno-baixado` e o av
 **Independent Test**: um estorno falha até passar do limite; sai um evento; falhas seguintes, confirmação ou baixa não
 geram outro.
 
-- [ ] T032 [P] [US3] Testes em `tests/PedidoFulfillment.Testes.Unitarios/Pagamentos/ServicoEstornosTestes.cs`: a falha
+- [X] T032 [P] [US3] Testes em `tests/PedidoFulfillment.Testes.Unitarios/Pagamentos/ServicoEstornosTestes.cs`: a falha
   que passa do limite grava `EstornoAtrasadoEm` e acrescenta um `pagamento.estorno-atrasado` com os campos do schema, e
   emite o 7024; a falha seguinte só emite o 7008; a falha abaixo do limite não gera evento; o adiamento pelo circuito
   não grava nada nem gera evento (cenário 4); conflito na gravação → nada publicado.
-- [ ] T033 [P] [US3] Testes em `tests/PedidoFulfillment.Testes.Integracao/Estornos/EstornoAtrasadoTestes.cs` (com
+- [X] T033 [P] [US3] Testes em `tests/PedidoFulfillment.Testes.Integracao/Estornos/EstornoAtrasadoTestes.cs` (com
   `WorkerEstornando`, `LimiteAlertaSegundos` baixo e `GatewayEstornoControlado.FalharSemprePara`): 10 falhas seguidas
   com dois Workers → exatamente um `pagamento.estorno-atrasado` no outbox, válido contra o schema (SC-004); estorno
   semeado já além do limite com `EstornoAtrasadoEm` nulo → um evento na próxima falha (cenário 5); depois do evento, a
   confirmação gera só o `pagamento.estornado` e a baixa só o `pagamento.estorno-baixado` (cenário 3); nenhum aviso ao
   Cliente pelo evento de atraso (FR-018); mudar o limite depois do evento não gera outro.
-- [ ] T034 [US3] Em `src/PedidoFulfillment.Application/Pagamentos/ServicoEstornos.cs`, no `RegistrarFalhaAsync`: depois
+- [X] T034 [US3] Em `src/PedidoFulfillment.Application/Pagamentos/ServicoEstornos.cs`, no `RegistrarFalhaAsync`: depois
   de `RegistrarFalhaEstorno`, se `RegrasAlertaEstorno.AlemDoLimite` e `pedido.MarcarEstornoAtrasado(agora)` devolver
   `true`, acrescentar o `pagamento.estorno-atrasado` antes do `SalvarAsync`; depois de gravar, emitir o 7024 (e o 7008,
   como hoje); num conflito, não emitir o 7024 ([R-06](./research.md#r-06-evento-de-estorno-travado-uma-única-vez-fr-015-a-fr-018)).
-- [ ] T035 [US3] Em `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoPedidos.cs`, exigir na guarda o
+- [X] T035 [US3] Em `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoPedidos.cs`, exigir na guarda o
   `pagamento.estorno-atrasado` quando `EstornoAtrasadoEm` passa de nulo a preenchido; sem aviso ao Cliente. Até T032 e
   T033 passarem.
 
