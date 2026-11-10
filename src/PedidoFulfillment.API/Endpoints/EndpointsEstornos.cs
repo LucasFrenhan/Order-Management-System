@@ -8,8 +8,9 @@ using PedidoFulfillment.Application.Pagamentos;
 namespace PedidoFulfillment.API.Endpoints;
 
 /// <summary>
-/// Estornos pela operação (REQ-28): listagem e consulta para o Admin e o OperadorLogistica
-/// (<c>PoliticaEstornos</c>). Fora de <c>/admin</c>, que é só do Admin (R-10). Só roteiam: validam,
+/// Estornos pela operação (REQ-28): listagem, consulta e tentativa forçada para o Admin e o OperadorLogistica
+/// (<c>PoliticaEstornos</c>), e baixa só para o Admin ativo (<c>PoliticaBaixaEstorno</c>). Fora de
+/// <c>/admin</c>, que é só do Admin (R-10). Só roteiam: validam,
 /// delegam ao serviço e traduzem o resultado.
 /// </summary>
 public static class EndpointsEstornos
@@ -41,6 +42,22 @@ public static class EndpointsEstornos
             .RequireAuthorization(PoliticasAutorizacao.PoliticaEstornos)
             .Produces<EstornoResponseDTO>()
             .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status404NotFound);
+
+        // Só o Admin ainda ativo no banco (FR-020); espera a rodada até 5 s (FR-009).
+        grupo.MapPost("/{id}/baixa", async (
+                Guid id,
+                BaixaEstornoRequestDTO baixa,
+                ClaimsPrincipal usuario,
+                IServicoAcoesEstornos servico,
+                CancellationToken cancellationToken) =>
+                (await servico.DarBaixaAsync(usuario.ObterUsuarioId(), id, baixa, cancellationToken))
+                    .ParaResposta(estorno => TypedResults.Ok(estorno)))
+            .WithName("DarBaixaEstorno")
+            .WithSummary("Dá baixa num estorno pendente resolvido fora do sistema, com motivo; o gateway não é chamado.")
+            .RequireAuthorization(PoliticasAutorizacao.PoliticaBaixaEstorno)
+            .AddEndpointFilter<FiltroValidacao<BaixaEstornoRequestDTO>>()
+            .Produces<EstornoResponseDTO>()
+            .ProduzErros(StatusCodes.Status400BadRequest, StatusCodes.Status404NotFound, StatusCodes.Status409Conflict);
 
         return app;
     }

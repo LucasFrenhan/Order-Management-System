@@ -203,7 +203,8 @@ internal sealed class ArmazenamentoPedidos(ContextoBancoDados contexto) : IArmaz
     /// <summary>
     /// Guarda do REQ-15 (R-03): um pedido que passa a Cancelado precisa de um <c>pedido.cancelado</c>
     /// do mesmo pedido na mesma gravação, e um pagamento que passa a Estornado, de um
-    /// <c>pagamento.estornado</c>. Faltando, é erro de programação: nada é gravado, e a exceção segue
+    /// <c>pagamento.estornado</c>, e um que passa a EstornoBaixado, de um <c>pagamento.estorno-baixado</c>
+    /// (REQ-28). Faltando, é erro de programação: nada é gravado, e a exceção segue
     /// o caminho de erro de quem chamou (no Worker, novas tentativas e DLQ; na API, 500). Fica aqui, e
     /// não no <see cref="ContextoBancoDados"/>, porque é regra do fluxo da aplicação: os testes
     /// semeiam pedidos cancelados direto pelo contexto, e entidades novas não são conferidas.
@@ -221,9 +222,16 @@ internal sealed class ArmazenamentoPedidos(ContextoBancoDados contexto) : IArmaz
                 && e.Property(p => p.Situacao).OriginalValue == SituacaoPagamento.EstornoPendente
                 && e.Property(p => p.Situacao).CurrentValue == SituacaoPagamento.Estornado)
             .Select(e => (Id: e.Entity.PedidoId, Descricao: $"pagamento do pedido {e.Entity.PedidoId}"));
+        // A baixa manual exige o pagamento.estorno-baixado (REQ-28, R-07).
+        var baixados = contexto.ChangeTracker.Entries<Pagamento>()
+            .Where(e => e.State == EntityState.Modified
+                && e.Property(p => p.Situacao).OriginalValue == SituacaoPagamento.EstornoPendente
+                && e.Property(p => p.Situacao).CurrentValue == SituacaoPagamento.EstornoBaixado)
+            .Select(e => (Id: e.Entity.PedidoId, Descricao: $"pagamento do pedido {e.Entity.PedidoId}"));
 
         Exigir(cancelados.ToList(), TiposEvento.PedidoCancelado);
         Exigir(estornados.ToList(), TiposEvento.PagamentoEstornado);
+        Exigir(baixados.ToList(), TiposEvento.PagamentoEstornoBaixado);
     }
 
     private void Exigir(IReadOnlyList<(Guid PedidoId, string Descricao)> alterados, string tipo)
@@ -245,8 +253,8 @@ internal sealed class ArmazenamentoPedidos(ContextoBancoDados contexto) : IArmaz
 
     /// <summary>
     /// Avisos do REQ-18 (R-14): cada entrada nova do histórico com status anterior vira um
-    /// <c>pedido.status-alterado</c> no outbox e um aviso; cada estorno confirmado vira um aviso com
-    /// o identificador do <c>pagamento.estornado</c> da mesma gravação (a guarda acima garante que ele
+    /// <c>pedido.status-alterado</c> no outbox e um aviso; cada estorno confirmado ou baixado (REQ-28) vira um aviso com
+    /// o identificador do <c>pagamento.estornado</c> ou do <c>pagamento.estorno-baixado</c> da mesma gravação (a guarda acima garante que ele
     /// existe). Num conflito, o <see cref="DescartarAlteracoes"/> leva tudo junto, e a nova tentativa
     /// gera de novo.
     /// </summary>
@@ -259,12 +267,16 @@ internal sealed class ArmazenamentoPedidos(ContextoBancoDados contexto) : IArmaz
             .Select(e => e.Entity)
             .Where(avisados.Add)
             .ToList();
+        // A confirmação pelo gateway e a baixa manual (REQ-28, FR-010a) avisam o Cliente do mesmo jeito,
+        // cada uma com o id do seu evento.
         var estornados = contexto.ChangeTracker.Entries<Pagamento>()
             .Where(e => e.State == EntityState.Modified
                 && e.Property(p => p.Situacao).OriginalValue == SituacaoPagamento.EstornoPendente
-                && e.Property(p => p.Situacao).CurrentValue == SituacaoPagamento.Estornado)
+                && e.Property(p => p.Situacao).CurrentValue is SituacaoPagamento.Estornado or SituacaoPagamento.EstornoBaixado)
             .Where(e => avisados.Add(e.Entity))
-            .Select(e => e.Entity.PedidoId)
+            .Select(e => (e.Entity.PedidoId, Tipo: e.Entity.Situacao == SituacaoPagamento.Estornado
+                ? TiposEvento.PagamentoEstornado
+                : TiposEvento.PagamentoEstornoBaixado))
             .ToList();
         if (mudancas.Count == 0 && estornados.Count == 0)
         {
@@ -292,10 +304,10 @@ internal sealed class ArmazenamentoPedidos(ContextoBancoDados contexto) : IArmaz
             contexto.AvisosPedido.Add(aviso);
         }
 
-        foreach (var pedidoId in estornados)
+        foreach (var (pedidoId, tipo) in estornados)
         {
             var estornado = contexto.ChangeTracker.Entries<EventoSaida>()
-                .Where(e => e.State == EntityState.Added && e.Entity.Tipo == TiposEvento.PagamentoEstornado)
+                .Where(e => e.State == EntityState.Added && e.Entity.Tipo == tipo)
                 .Select(e => e.Entity)
                 .First(e => IdCorrelacao(e.Conteudo) == pedidoId);
             contexto.AvisosPedido.Add(FabricaAvisos.EstornoConfirmado(PedidoRastreado(pedidoId), estornado.IdEvento, estornado.CriadoEm));

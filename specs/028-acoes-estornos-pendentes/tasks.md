@@ -196,7 +196,7 @@ a listagem traz só os pendentes, do mais antigo para o mais novo, com os dados 
 **Independent Test**: baixa de um pendente; a rodada seguinte não chama o gateway; o estorno aparece `Baixado`, com
 autor, instante, motivo e referência; saem o `pagamento.estorno-baixado` e o aviso, sem `pagamento.estornado`.
 
-- [ ] T025 [P] [US2] Testes em `tests/PedidoFulfillment.Testes.Integracao/Estornos/BaixaEstornoTestes.cs`: baixa com
+- [X] T025 [P] [US2] Testes em `tests/PedidoFulfillment.Testes.Integracao/Estornos/BaixaEstornoTestes.cs`: baixa com
   motivo e referência → 200 `situacao: Baixado` com os quatro campos, e o estorno some da listagem (cenário 1); na mesma
   gravação, um `pagamento.estorno-baixado` no outbox (validado contra o schema, com `referenciaExterna`), um aviso
   `pedido.estorno-confirmado` com o id desse evento, e nenhum `pagamento.estornado` (cenário 5, FR-010, FR-010a); baixa
@@ -205,7 +205,7 @@ autor, instante, motivo e referência; saem o `pagamento.estorno-baixado` e o av
   `Estornado` e de um já baixado → 409 `ESTORNO_NAO_PENDENTE` sem mudança (cenário 4); OperadorLogistica e Cliente → 403,
   sem token → 401 (cenário 6); Admin desativado depois de emitido o token → 403 (cenário 7); duas baixas em paralelo do
   mesmo estorno → uma 200 e uma 409; log 7022 sem o motivo nem a referência (`CapturaLogs`).
-- [ ] T026 [P] [US2] Testes em `tests/PedidoFulfillment.Testes.Integracao/Estornos/BaixaContraRodadaTestes.cs`, com
+- [X] T026 [P] [US2] Testes em `tests/PedidoFulfillment.Testes.Integracao/Estornos/BaixaContraRodadaTestes.cs`, com
   uma conexão de teste que segura `sp_getapplock 'oms-estornos'` (`LockOwner = 'Session'`) como a rodada: soltando o lock
   em 1 s, a baixa espera e responde 200 (cenário 8, SC-008); segurando por mais de 5 s, 409
   `ESTORNO_RODADA_EM_ANDAMENTO` com o `detail` exato, nada gravado e log 7023; com o `GatewayEstornoControlado` e o
@@ -213,26 +213,26 @@ autor, instante, motivo e referência; saem o `pagamento.estorno-baixado` e o av
   `ESTORNO_NAO_PENDENTE`; depois de uma baixa, três rodadas seguidas sem nenhuma chamada ao gateway para o pedido
   (`EstornosDo` = 0, SC-002, US2 cenário 2); e, com o `BloqueioRodadaEstornos` executando uma ação lenta (2 s), uma
   rodada chamada no meio pula (7011) sem chamar o gateway.
-- [ ] T027 [US2] Criar `src/PedidoFulfillment.Application/Pagamentos/IBloqueioRodadaEstornos.cs`
+- [X] T027 [US2] Criar `src/PedidoFulfillment.Application/Pagamentos/IBloqueioRodadaEstornos.cs`
   (`Task<bool> ExecutarAsync(TimeSpan espera, Func<CancellationToken, Task> acao, CancellationToken)`: `false` se não
   conseguiu o lock) e `src/PedidoFulfillment.Infrastructure/Pagamentos/BloqueioRodadaEstornos.cs`: transação do
   `ContextoBancoDados` (`BeginTransactionAsync`), `sp_getapplock` com `@Resource = ProcessadorEstornos.RecursoLock`,
   `@LockMode = 'Exclusive'`, `@LockOwner = 'Transaction'` e `@LockTimeout` em milissegundos; com o lock, executa a ação e
   confirma; sem ele, desfaz ([R-03](./research.md#r-03-a-baixa-espera-a-rodada-fr-009)). Registrar no
   `AdicionarAcoesEstornos` (T016).
-- [ ] T028 [US2] Em `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoPedidos.cs`: na guarda
+- [X] T028 [US2] Em `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoPedidos.cs`: na guarda
   `ExigirEventosDeCancelamentoEEstorno`, exigir o `pagamento.estorno-baixado` na transição
   `EstornoPendente → EstornoBaixado`; no `AdicionarAvisosAsync`, tratar essa transição como a da confirmação, criando o
   aviso com `FabricaAvisos.EstornoConfirmado` e o id do `pagamento.estorno-baixado` da mesma gravação; atualizar os
   comentários ([R-07](./research.md#r-07-evento-da-baixa-e-aviso-ao-cliente-fr-010-fr-010a)).
-- [ ] T029 [US2] Em `src/PedidoFulfillment.Application/Pagamentos/ServicoAcoesEstornos.cs`, criar `DarBaixaAsync(autorId,
+- [X] T029 [US2] Em `src/PedidoFulfillment.Application/Pagamentos/ServicoAcoesEstornos.cs`, criar `DarBaixaAsync(autorId,
   estornoId, BaixaEstornoRequestDTO)`: pelo `IBloqueioRodadaEstornos` com espera de 5 s, relê o pedido do pagamento para
   alterar; não encontrado → 404; não pendente → 409 `ESTORNO_NAO_PENDENTE`; senão `DarBaixaEstorno`, acrescenta o
   `pagamento.estorno-baixado` e grava; sem o lock → 7023 e 409 `ESTORNO_RODADA_EM_ANDAMENTO`; conflito de concorrência →
   409 `ESTORNO_NAO_PENDENTE` depois de reler; sucesso → 7022 e o `EstornoResponseDTO` relido.
-- [ ] T030 [US2] Em `src/PedidoFulfillment.API/Endpoints/EndpointsEstornos.cs`, acrescentar `POST /{id}/baixa` com
+- [X] T030 [US2] Em `src/PedidoFulfillment.API/Endpoints/EndpointsEstornos.cs`, acrescentar `POST /{id}/baixa` com
   `PoliticaBaixaEstorno`, `FiltroValidacao<BaixaEstornoRequestDTO>`, 200 e os erros 400, 404 e 409.
-- [ ] T031 [US2] Em `specs/001-contratos-api/contracts/openapi-v1.yaml`, acrescentar a rota da baixa e o
+- [X] T031 [US2] Em `specs/001-contratos-api/contracts/openapi-v1.yaml`, acrescentar a rota da baixa e o
   `BaixaEstornoRequestDTO`, com os dois 409. Até T025 e T026 passarem.
 
 **Checkpoint**: MVP completo: visibilidade e baixa, sem risco de devolução dupla pela rodada (SC-002, SC-003).

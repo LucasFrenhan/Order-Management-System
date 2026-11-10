@@ -146,6 +146,7 @@ public static class ExtensoesPagamento
     {
         AdicionarOpcoesEstornos(services);
         services.AddScoped<IConsultaEstornos, ConsultaEstornos>();
+        services.AddScoped<IBloqueioRodadaEstornos, BloqueioRodadaEstornos>();
         services.TryAddSingleton(TimeProvider.System);
         return services;
     }
