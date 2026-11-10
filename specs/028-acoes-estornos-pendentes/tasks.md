@@ -69,7 +69,9 @@ US4 tentativa forçada. **O MVP são a fundação e as duas histórias P1 (US1 e
   `ExigirSituacao(EstornoPendente, ...)`. `RegistrarFalhaEstorno` passa a receber `string erro`. Até T002 passar.
 - [ ] T005 Em `src/PedidoFulfillment.Domain/Pedidos/Pedido.cs`, acrescentar os repasses `PedirTentativaEstorno`,
   `MarcarEstornoAtrasado` e `DarBaixaEstorno` pelo `PagamentoComEstornoPendente()`, e ajustar `RegistrarFalhaEstorno`
-  para repassar o erro; atualizar os chamadores para compilar (o texto real do erro chega no T019).
+  para repassar o erro; nos chamadores, passar provisoriamente o mesmo texto que vai hoje para o log
+  (`"{tipo}: {mensagem}"` ou `"Recusado: {motivo}"`, cortado em 200 caracteres), substituído pela
+  `DescricaoFalhaEstorno` no T019 (nenhum teste lê a coluna antes do T017).
 - [ ] T006 Em `src/PedidoFulfillment.Infrastructure/Persistencia/Configuracoes/ConfiguracaoPagamento.cs`: `HasMaxLength`
   de 200 (`UltimoErroEstorno`), 500 (`MotivoBaixaEstorno`) e 100 (`ReferenciaExternaBaixaEstorno`);
   `CK_Pagamentos_BaixaCompleta` ("`Situacao = 'EstornoBaixado'` se e só se `EstornoBaixadoEm`, `EstornoBaixadoPorId` e
@@ -123,10 +125,12 @@ US4 tentativa forçada. **O MVP são a fundação e as duas histórias P1 (US1 e
   `TentativaEstornoForcada` (Information: estorno, pedido, autor), 7022 `EstornoBaixado` (Warning: estorno, pedido,
   valor, autor), 7023 `BaixaEstornoRecusadaRodadaEmAndamento` (Warning: estorno, autor) e 7024
   `EstornoAtrasadoPublicado` (Warning: estorno, pedido, tentativas, horas pendente). Nenhum com motivo ou referência.
-- [ ] T016 Na API, registrar as opções de alerta: tornar `OpcoesEstornos` e seu validador
-  (`src/PedidoFulfillment.Infrastructure/Configuracao/OpcoesEstornos.cs`) registráveis também pela API (extensão
-  `AdicionarParametrosAlertaEstornos` no Infrastructure, com `ValidateOnStart`), expondo `ParametrosAlertaEstorno` como
-  singleton, e chamá-la em `src/PedidoFulfillment.API/Program.cs` (R-09). Rodar `dotnet build` e `dotnet test`; acrescentar
+- [ ] T016 Na API, registrar as opções de alerta: criar em
+  `src/PedidoFulfillment.Infrastructure/Pagamentos/ExtensoesPagamento.cs` a extensão `AdicionarAcoesEstornos` (chamada
+  só pela API em `src/PedidoFulfillment.API/Program.cs`) e um método privado comum `AdicionarOpcoesEstornos` usado por
+  ela e pelo `AdicionarProcessamentoEstornos`: `OpcoesEstornos` com `ValidateOnStart`, o validador registrado com
+  `TryAddEnumerable` (nunca em dobro) e `ParametrosAlertaEstorno` como singleton (R-09). Os serviços da API das
+  histórias (`IConsultaEstornos`, `IBloqueioRodadaEstornos`) entram nessa mesma extensão. Rodar `dotnet build` e `dotnet test`; acrescentar
   em `tests/PedidoFulfillment.Testes.Integracao/Estornos/ProcessamentoEstornosTestes.cs` um teste que confirma que
   alterar só o `Pagamento` de um pedido lido para alterar gera `ConflitoConcorrenciaException` numa gravação concorrente
   (conferência do research).
@@ -167,7 +171,7 @@ a listagem traz só os pendentes, do mais antigo para o mais novo, com os dados 
   (`AsNoTracking`, junção com o pedido para o `Numero`, ordem `EstornoSolicitadoEm, Id` pelo índice
   `IX_Pagamentos_EstornoPendenteListagem`), com o mapeamento `Pendente`/`Confirmado`/`Baixado` (outras situações do
   pagamento → não encontrado) e `alemDoLimiteAlerta` pela `RegrasAlertaEstorno` (sempre `false` fora de `Pendente`);
-  registrar no Infrastructure.
+  registrar no `AdicionarAcoesEstornos` (T016), que só a API chama.
 - [ ] T022 [US1] Criar `src/PedidoFulfillment.Application/Pagamentos/ServicoAcoesEstornos.cs` com `ListarAsync` e
   `ObterAsync`, devolvendo `Resultado<...>` com `ESTORNO_NAO_ENCONTRADO` e o cursor inválido como erro de validação
   `erros.cursor`, no molde do `ServicoGestaoUsuarios`.
@@ -207,13 +211,15 @@ autor, instante, motivo e referência; saem o `pagamento.estorno-baixado` e o av
   `ESTORNO_RODADA_EM_ANDAMENTO` com o `detail` exato, nada gravado e log 7023; com o `GatewayEstornoControlado` e o
   `WorkerEstornando`, a rodada confirma o estorno enquanto a baixa espera → a baixa relê e responde 409
   `ESTORNO_NAO_PENDENTE`; depois de uma baixa, três rodadas seguidas sem nenhuma chamada ao gateway para o pedido
-  (`EstornosDo` = 0, SC-002, US2 cenário 2); e uma rodada que começa com a baixa segurando o lock pula (7011).
+  (`EstornosDo` = 0, SC-002, US2 cenário 2); e, com o `BloqueioRodadaEstornos` executando uma ação lenta (2 s), uma
+  rodada chamada no meio pula (7011) sem chamar o gateway.
 - [ ] T027 [US2] Criar `src/PedidoFulfillment.Application/Pagamentos/IBloqueioRodadaEstornos.cs`
   (`Task<bool> ExecutarAsync(TimeSpan espera, Func<CancellationToken, Task> acao, CancellationToken)`: `false` se não
   conseguiu o lock) e `src/PedidoFulfillment.Infrastructure/Pagamentos/BloqueioRodadaEstornos.cs`: transação do
   `ContextoBancoDados` (`BeginTransactionAsync`), `sp_getapplock` com `@Resource = ProcessadorEstornos.RecursoLock`,
   `@LockMode = 'Exclusive'`, `@LockOwner = 'Transaction'` e `@LockTimeout` em milissegundos; com o lock, executa a ação e
-  confirma; sem ele, desfaz ([R-03](./research.md#r-03-a-baixa-espera-a-rodada-fr-009)). Registrar no Infrastructure.
+  confirma; sem ele, desfaz ([R-03](./research.md#r-03-a-baixa-espera-a-rodada-fr-009)). Registrar no
+  `AdicionarAcoesEstornos` (T016).
 - [ ] T028 [US2] Em `src/PedidoFulfillment.Infrastructure/Persistencia/ArmazenamentoPedidos.cs`: na guarda
   `ExigirEventosDeCancelamentoEEstorno`, exigir o `pagamento.estorno-baixado` na transição
   `EstornoPendente → EstornoBaixado`; no `AdicionarAvisosAsync`, tratar essa transição como a da confirmação, criando o
@@ -318,7 +324,8 @@ geram outro.
 - [ ] T047 [P] Em `docs/proximos-passos.md`, tirar a #57 da fila (linha 38) e registrar o REQ-28 no resumo do que já foi
   entregue, como o REQ-27.
 - [ ] T048 Conferir nos documentos alterados (T042 a T047) as rotas, os códigos, as mensagens, os IDs de log, o nome do
-  medidor e os limites contra o código, e que os links relativos não estão quebrados. O README não muda (se algo
+  medidor e os limites contra o código, e que os links relativos não estão quebrados; registrar no fluxo 10 que as
+  rotas novas seguem o limite de requisições global (FR-023). O README não muda (se algo
   precisar entrar nele, perguntar antes).
 - [ ] T049 Atualizar o [quickstart](./quickstart.md) com o que mudou na implementação e seguir as seções 3.1 a 3.4.
 - [ ] T050 Rodar `dotnet build`, `dotnet test` e `dotnet format --verify-no-changes`; conferir que os contêineres,
