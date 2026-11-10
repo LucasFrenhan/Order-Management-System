@@ -86,7 +86,7 @@ limite) e conferir que a lista traz todos, com os dados certos, e nenhum estorno
    novo.
 2. **Given** um estorno com duas falhas, a última com a recusa "Cobrança desconhecida.", **When** a
    operação o consulta, **Then** a resposta mostra 2 tentativas, o instante da última e o erro
-   "Cobrança desconhecida.", sem o identificador da transação nem dado pessoal.
+   "Recusado: Cobrança desconhecida.", sem o identificador da transação nem dado pessoal.
 3. **Given** um estorno pendente há mais de 24 h e com 3 falhas, **When** a operação lista os
    pendentes, **Then** ele aparece marcado como além do limite de alerta.
 4. **Given** mais estornos pendentes do que cabem numa página, **When** a operação lista, **Then** a
@@ -219,7 +219,7 @@ fila quando há muitos pendentes. Por isso fica depois da visibilidade, da baixa
 - **Configuração do limite de alerta mudada** depois que um estorno gerou o evento de atraso: o evento
   não sai de novo para ele.
 - **Último erro**: guarda só o texto da recusa do gateway ou uma descrição genérica da falha (por
-  exemplo, "Gateway sem resposta."), nunca o identificador da transação, do estorno ou dado pessoal.
+  exemplo, "Falha do gateway: TempoEsgotado."), nunca o identificador da transação, do estorno ou dado pessoal.
 
 ## Requirements *(mandatory)*
 
@@ -270,7 +270,8 @@ fila quando há muitos pendentes. Por isso fica depois da visibilidade, da baixa
 - **FR-011**: A operação MUST poder pedir uma tentativa forçada de um estorno pendente; a API registra
   o pedido e responde 202, e a tentativa é feita pela rotina de estornos.
 - **FR-012**: Na rodada seguinte, os estornos com tentativa forçada MUST ser tentados antes dos demais,
-  dentro do mesmo lock e do mesmo tratamento do circuito do gateway.
+  até o tamanho do lote (o excedente vai para a rodada depois, também na frente), dentro do mesmo lock
+  e do mesmo tratamento do circuito do gateway.
 - **FR-013**: A tentativa forçada MUST contar como uma tentativa comum (falha, log 7007, alerta 7008 e
   evento de atraso), e a marca MUST ser retirada quando a tentativa é feita, com sucesso ou falha. Com
   o circuito aberto, a marca continua e nada é contado.
