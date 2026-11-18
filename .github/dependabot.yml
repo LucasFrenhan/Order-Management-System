@@ -23,7 +23,8 @@ updates:
       default-days: 14
     # 10, não 5: os majors ficam abertos enquanto são avaliados à parte e, com 5, ocupavam as
     # vagas dos grupos (em 2026-11-08, 4 majors e o grupo dotnet travaram os outros três).
-    open-pull-requests-limit: 10
+    # PAUSADO em 2026-11-18 com as Actions desligadas; ao religar, voltar para 10.
+    open-pull-requests-limit: 0
     # Escopo fixo no prefixo: com "include: scope", os grupos que misturam pacotes de produção e
     # de desenvolvimento saíam "build: ..." sem o "(deps)" (PRs #87 e #88). O Dependabot põe os
     # dois-pontos depois do parêntese.
@@ -98,7 +99,8 @@ updates:
       timezone: America/Sao_Paulo
     cooldown:
       default-days: 14
-    open-pull-requests-limit: 5
+    # PAUSADO em 2026-11-18 com as Actions desligadas; ao religar, voltar para 5.
+    open-pull-requests-limit: 0
     commit-message:
       prefix: ci
       include: scope
@@ -121,7 +123,8 @@ updates:
       timezone: America/Sao_Paulo
     cooldown:
       default-days: 14
-    open-pull-requests-limit: 5
+    # PAUSADO em 2026-11-18 com as Actions desligadas; ao religar, voltar para 5.
+    open-pull-requests-limit: 0
     commit-message:
       prefix: build
       include: scope
@@ -141,7 +144,8 @@ updates:
       timezone: America/Sao_Paulo
     cooldown:
       default-days: 14
-    open-pull-requests-limit: 5
+    # PAUSADO em 2026-11-18 com as Actions desligadas; ao religar, voltar para 5.
+    open-pull-requests-limit: 0
     commit-message:
       prefix: build
       include: scope
